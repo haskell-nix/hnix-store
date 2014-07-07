@@ -1,0 +1,23 @@
+name:                hnix-store
+version:             0.1.0.0
+synopsis:            Haskell implementation of the nix store API
+description:
+  Haskell implementation of the nix store API
+homepage:            https://github.com/shlevy/hnix-store
+license:             MIT
+license-file:        LICENSE
+author:              Shea Levy
+maintainer:          shea@shealevy.com
+copyright:           Copyright (c) 2014 Shea Levy
+category:            System, Nix
+build-type:          Simple
+cabal-version:       >=1.10
+
+library
+  exposed-modules:     Nix.Store
+  build-depends:       base >=4.6 && <4.7
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: git://github.com/shlevy/hnix-store.git
