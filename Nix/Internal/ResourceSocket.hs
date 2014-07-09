@@ -1,19 +1,36 @@
-module Nix.Internal.ResourceSocket (
-  ResourceSocket,
-  allocateResourceSocket,
-  connect
-) where
+module Nix.Internal.ResourceSocket
+    ( -- * The @ResourceSocket@ type
+      ResourceSocket
+    , allocateResourceSocket
 
-import System.Posix.IO (setFdOption, FdOption(CloseOnExec))
+      -- * Socket operations
+    , connect
+    ) where
+
+import System.Posix.IO
+    ( setFdOption
+    , FdOption
+        ( CloseOnExec
+        )
+    )
 import qualified Network.Socket as S
-import Control.Monad.Trans.Resource (MonadResource, ReleaseKey, allocate)
 
+import Control.Monad.Trans.Resource
+    ( MonadResource
+    , ReleaseKey
+    , allocate
+    )
+
+-- | A wrapper around "Network.Socket.Socket" that can only be constructed
+-- inside of a MonadResource with a registered cleanup action.
 newtype ResourceSocket = ResourceSocket S.Socket
 
+-- | Allocate a @Network.Socket.Socket@ into a @MonadResource@, registering a
+-- cleanup action which closes the socket.
 allocateResourceSocket :: MonadResource m
-                       => S.Family
-                       -> S.SocketType
-                       -> S.ProtocolNumber
+                       => S.Family          -- ^ The socket address family
+                       -> S.SocketType      -- ^ The socket type
+                       -> S.ProtocolNumber  -- ^ The protocol number
                        -> m (ReleaseKey, ResourceSocket)
 allocateResourceSocket f t p = allocate alloc dealloc
   where
@@ -24,8 +41,12 @@ allocateResourceSocket f t p = allocate alloc dealloc
         return $ ResourceSocket socket
     dealloc (ResourceSocket s) = S.close s
 
+-- | Internal function for cleaner wrapping of @Network.Socket@ functions
 unwrap :: ResourceSocket -> S.Socket
 unwrap (ResourceSocket s) = s
 
-connect :: ResourceSocket -> S.SockAddr -> IO ()
+-- | Connect to a remote socket address
+connect :: ResourceSocket  -- ^ The socket to connect
+        -> S.SockAddr      -- ^ The socket address
+        -> IO ()
 connect = S.connect . unwrap

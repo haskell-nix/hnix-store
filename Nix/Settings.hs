@@ -1,7 +1,9 @@
-module Nix.Settings (
-  Settings(..)
-) where
+module Nix.Settings
+    ( -- * The @Settings@ type
+      Settings(..)
+    ) where
 
-data Settings = Settings {
-  daemonSocketFile :: FilePath
-}
+-- | Settings to control various aspects of the behavior of nix.
+data Settings = Settings
+    { daemonSocketFile :: !FilePath  -- ^ The path to the nix daemon socket.
+    }
