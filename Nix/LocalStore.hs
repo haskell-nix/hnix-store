@@ -9,8 +9,8 @@ Maintainer  : shea@shealevy.com
 Stability   : Experimental
 Portability : Portable
 
-The @LocalStore@ module contains an implementation of the nix store API that
-interacts directly with the nix store and nix database.
+An implementation of the nix store API that interacts directly with the nix
+store and nix database.
 -}
 module Nix.LocalStore
     ( -- * The @LocalStore@ type
