@@ -44,6 +44,6 @@ allocateLocalStore path = allocate alloc dealloc
 
 instance Store LocalStore where
     isValidPath (LocalStore c) path = do
-        r <- DB.query c "IF EXISTS (SELECT 1 FROM validpaths WHERE path=(?)) SELECT 1 ELSE SELECT 0" (DB.Only path)
+        r <- DB.query c "SELECT EXISTS (SELECT 1 FROM validpaths WHERE path=(?) LIMIT 1)" (DB.Only path)
         case (head r) of
             (DB.Only i) -> return i
