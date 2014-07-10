@@ -21,6 +21,20 @@ library
   default-language:    Haskell2010
   ghc-options:         -Wall
 
+executable test
+  default-language: Haskell2010
+  main-is: Test.hs
+  build-depends:    base >=4.3 && <5,
+                    hnix-store,
+                    sqlite-simple,
+                    resourcet,
+                    setenv,
+                    temporary,
+                    process,
+                    filepath,
+                    transformers
+  ghc-options:      -Wall
+
 source-repository head
   type:     git
   location: git://github.com/shlevy/hnix-store.git
