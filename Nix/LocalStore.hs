@@ -56,12 +56,9 @@ instance S.Store LocalStore where
             r <- DB.query c (DB.Query qfinal) (HS.toList paths)
             return . HS.fromList $ concat r
       where
-        qbase = "SELECT path FROM validpaths WHERE path IN (?"
-        -- True is first element, False is otherwise
-        qop _ (True, acc) = (False, acc)
-        qop _ (False, acc) = (False, T.append acc ", ?")
-        qvariable = snd $ HS.foldr qop (True, qbase) paths
-        qfinal = T.snoc qvariable ')'
+        qbase = "SELECT path FROM validpaths WHERE path IN ("
+        qvariable = T.intersperse ',' . flip T.replicate "?" $ HS.size paths
+        qfinal = T.append qbase $ T.snoc qvariable ')'
 
     queryAllValidPaths (LocalStore c) =
         DB.query_ c "SELECT path FROM validpaths" >>= return . HS.fromList . concat
