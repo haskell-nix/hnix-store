@@ -9,7 +9,7 @@ import Control.Monad.IO.Class (liftIO)
 import qualified Data.HashSet as HS
 
 import Nix.LocalStore (allocateLocalStore)
-import Nix.Store (isValidPath, queryValidPaths)
+import Nix.Store
 
 main :: IO ()
 main = withSystemTempDirectory "nixtest-XXX" $ \dir -> do
@@ -27,6 +27,8 @@ main = withSystemTempDirectory "nixtest-XXX" $ \dir -> do
         (_, store) <- allocateLocalStore $ dir </> "var/nix/db/db.sqlite"
         liftIO $ isValidPath store path1 >>= putStrLn . show
         liftIO $ queryValidPaths store (HS.fromList [ path1, path2 ]) >>= putStrLn . show
+        liftIO $ queryAllValidPaths store >>= putStrLn . show
         _ <- liftIO . system $ "nix-store --delete " ++ path1
         liftIO $ isValidPath store path1 >>= putStrLn . show
         liftIO $ queryValidPaths store (HS.fromList [ path1, path2 ]) >>= putStrLn . show
+        liftIO $ queryAllValidPaths store >>= putStrLn . show

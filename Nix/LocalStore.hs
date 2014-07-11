@@ -62,3 +62,6 @@ instance S.Store LocalStore where
         qop _ (False, acc) = (False, T.append acc ", ?")
         qvariable = snd $ HS.foldr qop (True, qbase) paths
         qfinal = T.snoc qvariable ')'
+
+    queryAllValidPaths (LocalStore c) =
+        DB.query_ c "SELECT path FROM validpaths" >>= return . HS.fromList . concat

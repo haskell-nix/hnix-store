@@ -25,3 +25,6 @@ class Store a where
     queryValidPaths :: a           -- ^ The store
                     -> PathSet     -- ^ The paths to check
                     -> IO PathSet  -- ^ The paths that are valid
+    -- | Get a set of all valid paths
+    queryAllValidPaths :: a           -- ^ The store
+                       -> IO PathSet  -- ^ All valid paths
