@@ -27,6 +27,7 @@ import Control.Monad.Trans.Resource
     )
 import qualified Database.SQLite.Simple as DB
 
+import Nix.Types (PathSet)
 import qualified Nix.Store as S
 
 -- | Instance of the 'Store' class that directly runs builders and modifies
@@ -44,21 +45,23 @@ allocateLocalStore path = allocate alloc dealloc
     alloc = DB.open path >>= return . LocalStore
     dealloc (LocalStore c) = DB.close c
 
+-- | Helper for the common case of queries returning @PathSet@
+extractPathSet :: [[FilePath]] -> IO PathSet
+extractPathSet = return . HS.fromList . concat
+
 instance S.Store LocalStore where
     isValidPath (LocalStore c) path = do
-        r <- DB.query c "SELECT EXISTS (SELECT 1 FROM validpaths WHERE path=(?) LIMIT 1)" (DB.Only path)
-        case (head r) of
-            (DB.Only i) -> return i
+        DB.query c "SELECT EXISTS (SELECT 1 FROM validpaths WHERE path=(?) LIMIT 1)" (DB.Only path)
+            >>= return . DB.fromOnly . head
 
     queryValidPaths (LocalStore c) paths
         | HS.null paths = return paths
-        | otherwise     = do
-            r <- DB.query c (DB.Query qfinal) (HS.toList paths)
-            return . HS.fromList $ concat r
+        | otherwise     =
+            DB.query c (DB.Query qfinal) (HS.toList paths) >>= extractPathSet
       where
         qbase = "SELECT path FROM validpaths WHERE path IN ("
         qvariable = T.intersperse ',' . flip T.replicate "?" $ HS.size paths
         qfinal = T.append qbase $ T.snoc qvariable ')'
 
     queryAllValidPaths (LocalStore c) =
-        DB.query_ c "SELECT path FROM validpaths" >>= return . HS.fromList . concat
+        DB.query_ c "SELECT path FROM validpaths" >>= extractPathSet
