@@ -18,6 +18,8 @@ module Nix.LocalStore
     , allocateLocalStore
     ) where
 
+import qualified Data.Text as T
+import qualified Data.HashSet as HS
 import Control.Monad.Trans.Resource
     ( MonadResource
     , ReleaseKey
@@ -25,7 +27,7 @@ import Control.Monad.Trans.Resource
     )
 import qualified Database.SQLite.Simple as DB
 
-import Nix.Store (Store, isValidPath)
+import qualified Nix.Store as S
 
 -- | Instance of the 'Store' class that directly runs builders and modifies
 -- the database
@@ -42,8 +44,21 @@ allocateLocalStore path = allocate alloc dealloc
     alloc = DB.open path >>= return . LocalStore
     dealloc (LocalStore c) = DB.close c
 
-instance Store LocalStore where
+instance S.Store LocalStore where
     isValidPath (LocalStore c) path = do
         r <- DB.query c "SELECT EXISTS (SELECT 1 FROM validpaths WHERE path=(?) LIMIT 1)" (DB.Only path)
         case (head r) of
             (DB.Only i) -> return i
+
+    queryValidPaths (LocalStore c) paths
+        | HS.null paths = return paths
+        | otherwise     = do
+            r <- DB.query c (DB.Query qfinal) (HS.toList paths)
+            return . HS.fromList $ concat r
+      where
+        qbase = "SELECT path FROM validpaths WHERE path IN (?"
+        -- True is first element, False is otherwise
+        qop _ (True, acc) = (False, acc)
+        qop _ (False, acc) = (False, T.append acc ", ?")
+        qvariable = snd $ HS.foldr qop (True, qbase) paths
+        qfinal = T.snoc qvariable ')'

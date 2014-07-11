@@ -6,9 +6,10 @@ import System.IO.Temp (withSystemTempDirectory)
 import System.SetEnv (setEnv, unsetEnv)
 import Control.Monad.Trans.Resource (runResourceT)
 import Control.Monad.IO.Class (liftIO)
+import qualified Data.HashSet as HS
 
 import Nix.LocalStore (allocateLocalStore)
-import Nix.Store (isValidPath)
+import Nix.Store (isValidPath, queryValidPaths)
 
 main :: IO ()
 main = withSystemTempDirectory "nixtest-XXX" $ \dir -> do
@@ -20,9 +21,12 @@ main = withSystemTempDirectory "nixtest-XXX" $ \dir -> do
     unsetEnv "NIX_REMOTE"
     unsetEnv "NIX_BUILD_HOOK"
     _ <- system "nix-store --init"
-    path <- readProcess "nix-store" [ "--add", "./Test.hs" ] "" >>= return . init
+    path1 <- readProcess "nix-store" [ "--add", "./Test.hs" ] "" >>= return . init
+    path2 <- readProcess "nix-store" [ "--add", "./Setup.hs" ] "" >>= return . init
     runResourceT $ do
         (_, store) <- allocateLocalStore $ dir </> "var/nix/db/db.sqlite"
-        liftIO $ isValidPath store path >>= putStrLn . show
-        _ <- liftIO . system $ "nix-store --delete " ++ path
-        liftIO $ isValidPath store path >>= putStrLn . show
+        liftIO $ isValidPath store path1 >>= putStrLn . show
+        liftIO $ queryValidPaths store (HS.fromList [ path1, path2 ]) >>= putStrLn . show
+        _ <- liftIO . system $ "nix-store --delete " ++ path1
+        liftIO $ isValidPath store path1 >>= putStrLn . show
+        liftIO $ queryValidPaths store (HS.fromList [ path1, path2 ]) >>= putStrLn . show

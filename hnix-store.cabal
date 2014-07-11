@@ -14,10 +14,12 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Nix.Store, Nix.LocalStore
+  exposed-modules:     Nix.Store, Nix.LocalStore, Nix.Types
   build-depends:       base >=4.3 && <5,
                        resourcet,
-                       sqlite-simple
+                       sqlite-simple,
+                       unordered-containers,
+                       text
   default-language:    Haskell2010
   ghc-options:         -Wall
 
@@ -32,7 +34,9 @@ executable test
                     temporary,
                     process,
                     filepath,
-                    transformers
+                    transformers,
+                    unordered-containers,
+                    text
   ghc-options:      -Wall
 
 source-repository head
