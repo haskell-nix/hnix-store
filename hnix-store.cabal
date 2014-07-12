@@ -19,7 +19,10 @@ library
                        resourcet,
                        sqlite-simple,
                        unordered-containers,
-                       text
+                       text,
+                       bytestring,
+                       time,
+                       base16-bytestring
   default-language:    Haskell2010
   ghc-options:         -Wall
 
@@ -36,7 +39,10 @@ executable test
                     filepath,
                     transformers,
                     unordered-containers,
-                    text
+                    text,
+                    time,
+                    bytestring,
+                    base16-bytestring
   ghc-options:      -Wall
 
 source-repository head

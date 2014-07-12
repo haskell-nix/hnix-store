@@ -18,7 +18,9 @@ module Nix.LocalStore
     , allocateLocalStore
     ) where
 
+import qualified Data.ByteString as BS
 import qualified Data.Text as T
+import Data.Text.Encoding (encodeUtf8)
 import qualified Data.HashSet as HS
 import Control.Monad.Trans.Resource
     ( MonadResource
@@ -26,14 +28,15 @@ import Control.Monad.Trans.Resource
     , allocate
     )
 import qualified Database.SQLite.Simple as DB
+import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 
-import Nix.Types (PathSet)
+import Nix.Types (PathSet, parseHash, parseHashType)
 import qualified Nix.Store as S
 
 -- | Instance of the 'Store' class that directly runs builders and modifies
 -- the database
 data LocalStore = LocalStore
-    { connection :: DB.Connection  -- ^ The database connection
+    { connection :: !DB.Connection  -- ^ The database connection
     }
 
 -- | Allocate a @LocalStore@ within a @MonadResource@.
@@ -50,8 +53,8 @@ extractPathSet :: [[FilePath]] -> IO PathSet
 extractPathSet = return . HS.fromList . concat
 
 instance S.Store LocalStore where
-    isValidPath (LocalStore c) path = do
-        DB.query c "SELECT EXISTS (SELECT 1 FROM validpaths WHERE path=(?) LIMIT 1)" (DB.Only path)
+    isValidPath (LocalStore c) path =
+        DB.query c "SELECT EXISTS (SELECT 1 FROM validpaths WHERE path=? LIMIT 1)" (DB.Only path)
             >>= return . DB.fromOnly . head
 
     queryValidPaths (LocalStore c) paths
@@ -65,3 +68,30 @@ instance S.Store LocalStore where
 
     queryAllValidPaths (LocalStore c) =
         DB.query_ c "SELECT path FROM validpaths" >>= extractPathSet
+
+    queryPathInfo (LocalStore c) path = do
+        r <- DB.query c
+            "SELECT vp.hash, vp.registrationTime, vp.deriver, vp.narSize, ref.path \
+            \FROM validpaths vp \
+            \LEFT JOIN refs ON vp.id = refs.referrer \
+            \LEFT JOIN validpaths ref ON ref.id = refs.reference \
+            \WHERE vp.path=?" (DB.Only path)
+        case r of
+            (hashString, registrationTime, deriver, narSize, ref) : xs -> return $ S.ValidPathInfo
+                { S.path = path
+                , S.deriver = deriver
+                , S.hash = parseHashField $ encodeUtf8 hashString
+                , S.references = case ref of
+                      Nothing -> HS.empty
+                      Just x -> HS.insert x . HS.fromList $ map extractRef xs
+                , S.registrationTime = posixSecondsToUTCTime $ realToFrac (registrationTime :: Int)
+                , S.narSize = narSize
+                }
+            [] -> error "Invalid path passed to queryValidPathInfo."
+      where
+        extractRef (_, _, _, _, Just ref) = ref
+        extractRef _ = error "Impossible null returned from outer join"
+        colon = 0x3A  -- ':'
+        parseHashField s = case BS.elemIndex colon s of
+            Nothing -> error $ "Invalid hash field in database: " ++ (show s)
+            Just n -> parseHash (parseHashType $ BS.take n s) $ BS.drop (n + 1) s
