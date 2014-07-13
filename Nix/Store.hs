@@ -38,13 +38,16 @@ class Store a where
     isValidPath :: a         -- ^ The store
                 -> FilePath  -- ^ The path to check
                 -> IO Bool   -- ^ Whether the path is valid
+
     -- | Check which paths are valid.
     queryValidPaths :: a           -- ^ The store
                     -> PathSet     -- ^ The paths to check
                     -> IO PathSet  -- ^ The paths that are valid
+
     -- | Get a set of all valid paths.
     queryAllValidPaths :: a           -- ^ The store
                        -> IO PathSet  -- ^ All valid paths
+
     -- | Query information about a valid path.
     queryPathInfo :: a                 -- ^ The store
                   -> FilePath          -- ^ The path (must be valid)
