@@ -97,5 +97,10 @@ instance S.Store LocalStore where
             Just n -> parseHash (parseHashType $ BS.take n s) $ BS.drop (n + 1) s
 
     queryReferrers (LocalStore c) path =
-        DB.query c "SELECT referrer FROM refs WHERE reference = ?" (DB.Only path)
+        DB.query c
+            "SELECT ref.path \
+            \FROM validpaths vp \
+            \JOIN refs ON vp.id = refs.referrer \
+            \JOIN validpaths ref ON ref.id = refs.reference \
+            \WHERE vp.path=?" (DB.Only path)
             >>= extractPathSet
