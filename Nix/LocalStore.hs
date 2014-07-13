@@ -71,10 +71,11 @@ instance S.Store LocalStore where
 
     queryPathInfo (LocalStore c) path = do
         r <- DB.query c
-            "SELECT hash, registrationTime, deriver, narSize, reference \
-            \FROM validpaths \
-            \LEFT JOIN refs ON id = referrer \
-            \WHERE path=?" (DB.Only path)
+            "SELECT vp.hash, vp.registrationTime, vp.deriver, vp.narSize, ref.path \
+            \FROM validpaths vp \
+            \LEFT JOIN refs ON vp.id = refs.referrer \
+            \LEFT JOIN validpaths ref ON ref.id = refs.reference \
+            \WHERE vp.path=?" (DB.Only path)
         case r of
             (hashString, registrationTime, deriver, narSize, ref) : xs -> return $ S.ValidPathInfo
                 { S.path = path
