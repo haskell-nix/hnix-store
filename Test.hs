@@ -33,3 +33,4 @@ main = withSystemTempDirectory "nixtest-XXX" $ \dir -> do
         liftIO $ queryValidPaths store (HS.fromList [ path1, path2 ]) >>= putStrLn . show
         liftIO $ queryAllValidPaths store >>= putStrLn . show
         liftIO $ queryPathInfo store path2 >>= putStrLn . show
+        liftIO $ queryReferrers store path2 >>= putStrLn . show

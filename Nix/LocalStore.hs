@@ -49,8 +49,8 @@ allocateLocalStore path = allocate alloc dealloc
     dealloc (LocalStore c) = DB.close c
 
 -- | Helper for the common case of queries returning @PathSet@
-extractPathSet :: [[FilePath]] -> IO PathSet
-extractPathSet = return . HS.fromList . concat
+extractPathSet :: [DB.Only FilePath] -> IO PathSet
+extractPathSet = return . HS.fromList . map DB.fromOnly
 
 instance S.Store LocalStore where
     isValidPath (LocalStore c) path =
@@ -94,3 +94,7 @@ instance S.Store LocalStore where
         parseHashField s = case BS.elemIndex colon s of
             Nothing -> error $ "Invalid hash field in database: " ++ (show s)
             Just n -> parseHash (parseHashType $ BS.take n s) $ BS.drop (n + 1) s
+
+    queryReferrers (LocalStore c) path =
+        DB.query c "SELECT referrer FROM refs WHERE reference = ?" (DB.Only path)
+            >>= extractPathSet

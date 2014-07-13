@@ -52,3 +52,8 @@ class Store a where
     queryPathInfo :: a                 -- ^ The store
                   -> FilePath          -- ^ The path (must be valid)
                   -> IO ValidPathInfo  -- ^ The path properties
+
+    -- | Get a set of all paths which reference a given path
+    queryReferrers :: a           -- ^ The store
+                   -> FilePath    -- ^ The path
+                   -> IO PathSet  -- ^ The paths which reference the given path
