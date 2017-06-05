@@ -3,8 +3,11 @@
 
 {-# OPTIONS_GHC -fno-warn-unused-do-bind #-}
 
+-- | Parsing logic
+
 module Nix.Derivation.Parser
-    ( parseDerivation
+    ( -- * Parser
+      parseDerivation
     ) where
 
 import Data.Attoparsec.Text.Lazy (Parser)
@@ -31,6 +34,7 @@ listOf element = do
     "]"
     return es
 
+-- | Parse a derivation
 parseDerivation :: Parser Derivation
 parseDerivation = do
     "Derive("

@@ -1,7 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
-module Nix.Derivation.Builder where
+-- | Rendering logic
+
+module Nix.Derivation.Builder
+    ( -- * Builder
+      buildDerivation
+    ) where
 
 import Data.Foldable (foldMap)
 import Data.Map (Map)
@@ -21,6 +26,7 @@ import qualified Data.Text.Lazy.Builder
 import qualified Data.Vector
 import qualified Filesystem.Path.CurrentOS
 
+-- | Render a derivation as a `Builder`
 buildDerivation :: Derivation -> Builder
 buildDerivation (Derivation {..}) =
         "Derive("

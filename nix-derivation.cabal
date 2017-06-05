@@ -29,7 +29,8 @@ Library
         text            >= 0.8.0.0  && < 1.3 ,
         vector                         < 0.13
     Exposed-Modules:
-        Nix.Derivation,
+        Nix.Derivation
+    Other-Modules:
         Nix.Derivation.Builder,
         Nix.Derivation.Parser,
         Nix.Derivation.Types
