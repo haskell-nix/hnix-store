@@ -1,5 +1,5 @@
 -- | Use this package to parse and render Nix derivations such as those stored
--- in @/nix/store*.drv@ files.  For example, if you had the following derivation
+-- in @\/nix\/store\/*.drv@ files.  For example, if you had the following derivation
 -- saved at
 -- @\/nix\/store\/zzhs4fb83x5ygvjqn5rdpmpnishpdgy6-perl-MIME-Types-2.13.drv@:
 --
