@@ -38,7 +38,7 @@ buildDerivation (Derivation {..}) =
     <>  ","
     <>  string platform
     <>  ","
-    <>  filepath builder
+    <>  string builder
     <>  ","
     <>  vectorOf string args
     <>  ","

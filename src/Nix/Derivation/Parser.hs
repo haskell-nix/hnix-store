@@ -73,7 +73,7 @@ parseDerivation = do
 
     ","
 
-    builder <- filepath
+    builder <- string
 
     ","
 

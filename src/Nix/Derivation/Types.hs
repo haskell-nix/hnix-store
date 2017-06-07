@@ -24,8 +24,8 @@ data Derivation = Derivation
     -- ^ Inputs that are sources
     , platform  :: Text
     -- ^ Platform required for this derivation
-    , builder   :: FilePath
-    -- ^ Executable to build the derivation
+    , builder   :: Text
+    -- ^ Code to build the derivation, which can be a path or a builtin function
     , args      :: Vector Text
     -- ^ Arguments passed to the executable used to build to derivation
     , env       :: Map Text Text
