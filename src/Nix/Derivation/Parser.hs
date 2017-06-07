@@ -135,6 +135,6 @@ vectorOf element = do
     return (Data.Vector.fromList es)
 
 mapOf :: Ord k => Parser (k, v) -> Parser (Map k v)
-mapOf parseKeyValue = do
-    keyValues <- listOf parseKeyValue
+mapOf keyValue = do
+    keyValues <- listOf keyValue
     return (Data.Map.fromList keyValues)
