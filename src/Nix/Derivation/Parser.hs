@@ -24,6 +24,7 @@ import qualified Data.Attoparsec.Text.Lazy
 import qualified Data.Map
 import qualified Data.Set
 import qualified Data.Text
+import qualified Data.Text.Lazy
 import qualified Data.Vector
 import qualified Filesystem.Path.CurrentOS
 
@@ -111,9 +112,10 @@ string = do
                         't' -> return '\t'
                         _   -> return char1
                     text1 <- loop
-                    return (Data.Text.cons char2 text1)
-            return (text0 <> text2)
-    loop
+                    return (Data.Text.Lazy.cons char2 text1)
+            return (Data.Text.Lazy.fromStrict text0 <> text2)
+    text <- loop
+    return (Data.Text.Lazy.toStrict text)
 
 filepath :: Parser FilePath
 filepath = do

@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric  #-}
+
 -- | Shared types
 
 module Nix.Derivation.Types
@@ -6,11 +8,13 @@ module Nix.Derivation.Types
     , DerivationOutput(..)
     ) where
 
+import Control.DeepSeq (NFData)
 import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Vector (Vector)
 import Filesystem.Path.CurrentOS (FilePath)
+import GHC.Generics (Generic)
 import Prelude hiding (FilePath)
 
 -- | A Nix derivation
@@ -31,7 +35,9 @@ data Derivation = Derivation
     , env       :: Map Text Text
     -- ^ Environment variables provided to the executable used to build the
     -- derivation
-    } deriving (Eq, Ord, Show)
+    } deriving (Eq, Generic, Ord, Show)
+
+instance NFData Derivation
 
 -- | An output of a Nix derivation
 data DerivationOutput = DerivationOutput
@@ -41,4 +47,6 @@ data DerivationOutput = DerivationOutput
     -- ^ Hash used for expected hash computation
     , hash     :: Text
     -- ^ Expected hash
-    } deriving (Eq, Ord, Show)
+    } deriving (Eq, Generic, Ord, Show)
+
+instance NFData DerivationOutput

@@ -13,7 +13,13 @@ let
     packageOverrides = pkgs: {
       haskellPackages = pkgs.haskellPackages.override {
         overrides = haskellPackagesNew: haskellPackagesOld: {
-          nix-derivation = haskellPackagesNew.callPackage ./default.nix { };
+          nix-derivation =
+            pkgs.haskell.lib.overrideCabal
+              (haskellPackagesNew.callPackage ./default.nix { })
+              (_: {
+                  withBenchmarkDepends = true;
+                }
+              );
         };
       };
     };

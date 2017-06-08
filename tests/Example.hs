@@ -9,7 +9,7 @@ import Data.Attoparsec.Text.Lazy (Result(..))
 
 main :: IO ()
 main = do
-    text0 <- Data.Text.Lazy.IO.readFile "tests/example.drv"
+    text0 <- Data.Text.Lazy.IO.readFile "tests/example0.drv"
     derivation <- case Data.Attoparsec.Text.Lazy.parse Nix.Derivation.parseDerivation text0 of
         Fail _ _ string   -> fail string
         Done _ derivation -> return derivation
