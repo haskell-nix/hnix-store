@@ -1,1 +1,1 @@
-(import <nixpkgs> {}).haskellPackages.buildLocalCabal ./. "hnix-store"
+(import ./release.nix).hnix-store.env
