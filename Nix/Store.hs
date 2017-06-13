@@ -49,9 +49,9 @@ class Store a where
                        -> IO PathSet  -- ^ All valid paths
 
     -- | Query information about a valid path.
-    queryPathInfo :: a                 -- ^ The store
-                  -> FilePath          -- ^ The path (must be valid)
-                  -> IO ValidPathInfo  -- ^ The path properties
+    queryPathInfo :: a                         -- ^ The store
+                  -> FilePath                  -- ^ The path (must be valid)
+                  -> IO (Maybe ValidPathInfo)  -- ^ The path properties
 
     -- | Get a set of all paths which reference a given path
     queryReferrers :: a           -- ^ The store

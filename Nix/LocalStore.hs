@@ -77,7 +77,7 @@ instance S.Store LocalStore where
             \LEFT JOIN validpaths ref ON ref.id = refs.reference \
             \WHERE vp.path=?" (DB.Only path)
         case r of
-            (hashString, registrationTime, deriver, narSize, ref) : xs -> return $ S.ValidPathInfo
+            (hashString, registrationTime, deriver, narSize, ref) : xs -> return . Just $ S.ValidPathInfo
                 { S.path = path
                 , S.deriver = deriver
                 , S.hash = parseHashField $ encodeUtf8 hashString
@@ -87,7 +87,7 @@ instance S.Store LocalStore where
                 , S.registrationTime = posixSecondsToUTCTime $ realToFrac (registrationTime :: Int)
                 , S.narSize = narSize
                 }
-            [] -> error "Invalid path passed to queryValidPathInfo."
+            [] -> return Nothing
       where
         extractRef (_, _, _, _, Just ref) = ref
         extractRef _ = error "Impossible null returned from outer join"
