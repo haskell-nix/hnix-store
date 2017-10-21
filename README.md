@@ -84,6 +84,95 @@ E-Types-2.13.tar.gz\"),(\"stdenv\",\"/nix/store/s3rlr45jzlzx0d6k2azlpxa5zwzr7xyy
 -stdenv\"),(\"system\",\"x86_64-linux\")])"
 ```
 
+You can also use the `pretty-derivation` executable installed as part of this
+package to pretty-print the Haskell representation of a Nix derivations:
+
+```shell
+$ pretty-derivation < /nix/store/0008hdcdvkrr5mcqahy416hv6rmb5fwg-void-0.7.1.tar.gz.drv
+Derivation
+  { outputs =
+      fromList
+        [ ( "out"
+          , DerivationOutput
+              { path =
+                  FilePath
+                    "/nix/store/fbbqa4x05q9x0w6s1fqmx7k676d2zyz1-void-0.7.1.tar.gz"
+              , hashAlgo = "sha256"
+              , hash =
+                  "c9f0fd93680c029abb9654b5464be260652829961b18b7046f96a0df95e825f4"
+              }
+          )
+        ]
+  , inputDrvs =
+      fromList
+        [ ( FilePath
+              "/nix/store/cwnn2alfww3six2ywph5hnnlmxwhv9c7-curl-7.52.1.drv"
+          , fromList [ "dev" ]
+          )
+        , ( FilePath
+              "/nix/store/kzs0g1ch3a59ar14xnms1wj22p2bnr9l-stdenv.drv"
+          , fromList [ "out" ]
+          )
+        , ( FilePath
+              "/nix/store/qq7pqyfn98314fd30xspb1hi3rqda2lh-bash-4.3-p48.drv"
+          , fromList [ "out" ]
+          )
+        , ( FilePath
+              "/nix/store/r1b0rbna957biiy63m75yxsw3aphps9b-mirrors-list.drv"
+          , fromList [ "out" ]
+          )
+        ]
+  , inputSrcs =
+      fromList
+        [ FilePath "/nix/store/5pqfb6ik1cxqq1d0irlx3060jx1qjmsn-builder.sh"
+        ]
+  , platform = "x86_64-linux"
+  , builder =
+      "/nix/store/gabjbkwga2dhhp2wzyaxl83r8hjjfc37-bash-4.3-p48/bin/bash"
+  , args =
+      [ "-e" , "/nix/store/5pqfb6ik1cxqq1d0irlx3060jx1qjmsn-builder.sh" ]
+  , env =
+      fromList
+        [ ( "buildInputs" , "" )
+        , ( "builder"
+          , "/nix/store/gabjbkwga2dhhp2wzyaxl83r8hjjfc37-bash-4.3-p48/bin/bash"
+          )
+        , ( "curlOpts" , "" )
+        , ( "downloadToTemp" , "" )
+        , ( "executable" , "" )
+        , ( "impureEnvVars"
+          , "http_proxy https_proxy ftp_proxy all_proxy no_proxy NIX_CURL_FLAGS NIX_HASHED_MIRRORS NIX_CONNECT_TIMEOUT NIX_MIRRORS_apache NIX_MIRRORS_bioc NIX_MIRRORS_bitlbee NIX_MIRRORS_cpan NIX_MIRRORS_debian NIX_MIRRORS_fedora NIX_MIRRORS_gcc NIX_MIRRORS_gentoo NIX_MIRRORS_gnome NIX_MIRRORS_gnu NIX_MIRRORS_gnupg NIX_MIRRORS_hackage NIX_MIRRORS_hashedMirrors NIX_MIRRORS_imagemagick NIX_MIRRORS_kde NIX_MIRRORS_kernel NIX_MIRRORS_metalab NIX_MIRRORS_mozilla NIX_MIRRORS_mysql NIX_MIRRORS_oldsuse NIX_MIRRORS_openbsd NIX_MIRRORS_opensuse NIX_MIRRORS_postgresql NIX_MIRRORS_pypi NIX_MIRRORS_roy NIX_MIRRORS_sagemath NIX_MIRRORS_samba NIX_MIRRORS_savannah NIX_MIRRORS_sourceforge NIX_MIRRORS_sourceforgejp NIX_MIRRORS_steamrt NIX_MIRRORS_ubuntu NIX_MIRRORS_xfce NIX_MIRRORS_xorg"
+          )
+        , ( "mirrorsFile"
+          , "/nix/store/ab4zh0ga99y5xj441arp89zl8s4jfc7y-mirrors-list"
+          )
+        , ( "name" , "void-0.7.1.tar.gz" )
+        , ( "nativeBuildInputs"
+          , "/nix/store/3ngwsbzhibvc434nqwq6jph6w7c2was6-curl-7.52.1-dev"
+          )
+        , ( "out"
+          , "/nix/store/fbbqa4x05q9x0w6s1fqmx7k676d2zyz1-void-0.7.1.tar.gz"
+          )
+        , ( "outputHash"
+          , "c9f0fd93680c029abb9654b5464be260652829961b18b7046f96a0df95e825f4"
+          )
+        , ( "outputHashAlgo" , "sha256" )
+        , ( "outputHashMode" , "flat" )
+        , ( "postFetch" , "" )
+        , ( "preferHashedMirrors" , "1" )
+        , ( "preferLocalBuild" , "1" )
+        , ( "propagatedBuildInputs" , "" )
+        , ( "propagatedNativeBuildInputs" , "" )
+        , ( "showURLs" , "" )
+        , ( "stdenv"
+          , "/nix/store/985d95clq0216a6pcp3qzw4igp84ajvr-stdenv"
+          )
+        , ( "system" , "x86_64-linux" )
+        , ( "urls" , "mirror://hackage/void-0.7.1.tar.gz" )
+        ]
+  }
+```
+
 ## Development status
 
 [![Build Status](https://travis-ci.org/Gabriel439/Haskell-Nix-Derivation-Library.png)](https://travis-ci.org/Gabriel439/Haskell-Nix-Derivation-Library)
