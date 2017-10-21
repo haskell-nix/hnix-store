@@ -17,7 +17,7 @@ let
             pkgs.haskell.lib.overrideCabal
               (haskellPackagesNew.callPackage ./default.nix { })
               (_: {
-                  withBenchmarkDepends = true;
+#                 withBenchmarkDepends = true;
                 }
               );
         };
