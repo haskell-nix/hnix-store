@@ -41,7 +41,7 @@ type DigestUnwrapped = UArray Word8
 --
 -- The 'Coercible' constraint adds a little bit of type safety to the
 -- pointer munging that goes on under the hood.
-instance (HashAlgorithm algo, KnownNat (HashDigestSize algo)
+instance ( HashAlgorithm algo, KnownNat (HashDigestSize algo)
          , KnownNat size, size <= HashDigestSize algo
          , Coercible (Digest algo) DigestUnwrapped
          ) => HashAlgorithm (Truncated algo size) where
