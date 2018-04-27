@@ -81,4 +81,6 @@ data ReadonlyStoreEffects rootedPath validPath m =
       validPath :: !(rootedPath -> m (Maybe validPath))
     , -- | Get the paths that refer to a given path.
       referrers :: !(validPath -> m (HashSet Path))
+    , -- | Get a root to the 'Path'.
+      rootedPath :: !(Path -> m rootedPath)
     }
