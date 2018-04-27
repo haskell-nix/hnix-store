@@ -43,7 +43,23 @@ data Path = Path !(Digest PathHashAlgo) !PathName
 
 -- | Read-only interactions with a store.
 --
+-- 'rootedPath': A path plus a witness to the fact that the path is
+-- reachable from a root whose liftime is at least as long as the
+-- 'rootedPath' reference itself, when the implementation supports
+-- this.
+--
+-- 'validPath': A 'rootedPath' plus a witness to the fact that the
+-- path is valid. On implementations that support temporary roots,
+-- this implies that the path will remain valid so long as the
+-- reference is held.
+--
 -- 'm': The monad the effects operate in.
-data ReadonlyStoreEffects m = ReadonlyStoreEffects
-  { isValidPath :: !(Path -> m Bool) -- ^ Is the given path valid?
-  }
+data ReadonlyStoreEffects rootedPath validPath m =
+  ReadonlyStoreEffects
+    { -- | Project out the underlying 'Path' from a 'rootedPath'
+      fromRootedPath :: !(rootedPath -> Path)
+    , -- | Project out the underlying 'rootedPath' from a 'validPath'
+      fromValidPath :: !(validPath -> rootedPath)
+    , -- | Is the given path valid?
+      isValidPath :: !(rootedPath -> m (Maybe validPath))
+    }
