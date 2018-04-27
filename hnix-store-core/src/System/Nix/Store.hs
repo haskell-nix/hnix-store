@@ -6,6 +6,7 @@ Maintainer  : Shea Levy <shea@shealevy.com>
 module System.Nix.Store
   ( PathName, pathNameContents, pathName
   , PathHashAlgo, Path(..)
+  , ReadonlyStoreEffects(..)
   ) where
 
 import Crypto.Hash (Digest)
@@ -39,3 +40,10 @@ type PathHashAlgo = Truncated SHA256 20
 
 -- | A path in a store.
 data Path = Path !(Digest PathHashAlgo) !PathName
+
+-- | Read-only interactions with a store.
+--
+-- 'm': The monad the effects operate in.
+data ReadonlyStoreEffects m = ReadonlyStoreEffects
+  { isValidPath :: !(Path -> m Bool) -- ^ Is the given path valid?
+  }
