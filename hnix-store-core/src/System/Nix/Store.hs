@@ -61,5 +61,5 @@ data ReadonlyStoreEffects rootedPath validPath m =
     , -- | Project out the underlying 'rootedPath' from a 'validPath'
       fromValidPath :: !(validPath -> rootedPath)
     , -- | Is the given path valid?
-      isValidPath :: !(rootedPath -> m (Maybe validPath))
+      validPath :: !(rootedPath -> m (Maybe validPath))
     }
