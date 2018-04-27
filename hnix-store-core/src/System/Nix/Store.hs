@@ -8,6 +8,7 @@ module System.Nix.Store
   ( PathName, pathNameContents, pathName
   , PathHashAlgo, Path(..)
   , ReadonlyStoreEffects(..)
+  , SubstitutablePathInfo(..)
   ) where
 
 import Crypto.Hash (Digest)
@@ -19,6 +20,7 @@ import Text.Regex.Base.RegexLike (makeRegex, matchTest)
 import Text.Regex.TDFA.Text (Regex)
 import Data.Hashable (Hashable(..), hashPtrWithSalt)
 import Data.HashSet (HashSet)
+import Data.HashMap.Strict (HashMap)
 import System.IO.Unsafe (unsafeDupablePerformIO)
 
 -- | The name portion of a Nix path.
@@ -58,19 +60,32 @@ instance Hashable Path where
     s `hashWithSalt`
     (HashableDigest digest) `hashWithSalt` name
 
+-- | Information about substitutes for a 'Path'.
+data SubstitutablePathInfo = SubstitutablePathInfo
+  { -- | The .drv which led to this 'Path'.
+    deriver :: !(Maybe Path)
+  , -- | The references of the 'Path'
+    references :: !(HashSet Path)
+  , -- | The (likely compressed) size of the download of this 'Path'.
+    downloadSize :: !Integer
+  , -- | The size of the uncompressed NAR serialization of this
+    -- 'Path'.
+    narSize :: !Integer
+  }
+
 -- | Read-only interactions with a store.
 --
--- 'rootedPath': A path plus a witness to the fact that the path is
+-- @rootedPath@: A path plus a witness to the fact that the path is
 -- reachable from a root whose liftime is at least as long as the
--- 'rootedPath' reference itself, when the implementation supports
+-- @rootedPath@ reference itself, when the implementation supports
 -- this.
 --
--- 'validPath': A 'rootedPath' plus a witness to the fact that the
+-- @validPath@: A @rootedPath@ plus a witness to the fact that the
 -- path is valid. On implementations that support temporary roots,
 -- this implies that the path will remain valid so long as the
 -- reference is held.
 --
--- 'm': The monad the effects operate in.
+-- @m@: The monad the effects operate in.
 data ReadonlyStoreEffects rootedPath validPath m =
   ReadonlyStoreEffects
     { -- | Project out the underlying 'Path' from a 'rootedPath'
@@ -83,4 +98,7 @@ data ReadonlyStoreEffects rootedPath validPath m =
       referrers :: !(validPath -> m (HashSet Path))
     , -- | Get a root to the 'Path'.
       rootedPath :: !(Path -> m rootedPath)
+    , -- | Get information about substituters of a set of 'Path's
+      substitutablePathInfos ::
+        !(HashSet Path -> m (HashMap Path SubstitutablePathInfo))
     }
