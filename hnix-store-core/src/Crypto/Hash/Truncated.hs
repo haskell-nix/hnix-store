@@ -12,7 +12,7 @@ Maintainer  : Shea Levy <shea@shealevy.com>
 module Crypto.Hash.Truncated where
 
 import Control.Monad (void)
-import Data.Coerce (coerce, Coercible)
+import Data.Coerce (coerce)
 import Data.Proxy (Proxy(..))
 import Data.Word (Word8)
 import GHC.TypeLits (Nat, KnownNat, natVal, type (<=))
@@ -26,6 +26,7 @@ import Basement.Block.Mutable (Block)
 #else
 import Foundation.Array (UArray)
 #endif
+
 -- | Hash algorithm 'algo' truncated to 'size' bytes.
 newtype Truncated algo (size :: Nat) = Truncated algo
 
@@ -39,11 +40,13 @@ type DigestUnwrapped = UArray Word8
 -- | Use the 'HashAlgorithm' instance of 'algo' and truncate the final
 -- digest.
 --
--- The 'Coercible' constraint adds a little bit of type safety to the
--- pointer munging that goes on under the hood.
+-- The implementation of finalization does some pointer munging that
+-- relies on the representational equivalence of a 'Digest' and
+-- 'DigestUnwrapped', but there is no way for that to be enforced by
+-- the type system. Until/unless cryptonite exports this, we will have
+-- to be vigilant to changes in the type.
 instance ( HashAlgorithm algo, KnownNat (HashDigestSize algo)
          , KnownNat size, size <= HashDigestSize algo
-         , Coercible (Digest algo) DigestUnwrapped
          ) => HashAlgorithm (Truncated algo size) where
   type HashBlockSize (Truncated algo size) = HashBlockSize algo
   type HashDigestSize (Truncated algo size) = size
