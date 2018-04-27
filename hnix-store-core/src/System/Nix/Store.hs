@@ -3,6 +3,7 @@ Description : Types and effects for interacting with the Nix store.
 Maintainer  : Shea Levy <shea@shealevy.com>
 -}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module System.Nix.Store
   ( PathName, pathNameContents, pathName
   , PathHashAlgo, Path(..)
@@ -12,9 +13,13 @@ module System.Nix.Store
 import Crypto.Hash (Digest)
 import Crypto.Hash.Truncated (Truncated)
 import Crypto.Hash.Algorithms (SHA256)
+import qualified Data.ByteArray as B
 import Data.Text (Text)
 import Text.Regex.Base.RegexLike (makeRegex, matchTest)
 import Text.Regex.TDFA.Text (Regex)
+import Data.Hashable (Hashable(..), hashPtrWithSalt)
+import Data.HashSet (HashSet)
+import System.IO.Unsafe (unsafeDupablePerformIO)
 
 -- | The name portion of a Nix path.
 --
@@ -22,7 +27,7 @@ import Text.Regex.TDFA.Text (Regex)
 -- start with a ., and must have at least one character.
 newtype PathName = PathName
   { pathNameContents :: Text -- ^ The contents of the path name
-  }
+  } deriving (Hashable)
 
 -- | A regular expression for matching a valid 'PathName'
 nameRegex :: Regex
@@ -40,6 +45,18 @@ type PathHashAlgo = Truncated SHA256 20
 
 -- | A path in a store.
 data Path = Path !(Digest PathHashAlgo) !PathName
+
+-- | Wrapper to defined a 'Hashable' instance for 'Digest'.
+newtype HashableDigest a = HashableDigest (Digest a)
+
+instance Hashable (HashableDigest a) where
+  hashWithSalt s (HashableDigest d) = unsafeDupablePerformIO $
+    B.withByteArray d $ \ptr -> hashPtrWithSalt ptr (B.length d) s
+
+instance Hashable Path where
+  hashWithSalt s (Path digest name) =
+    s `hashWithSalt`
+    (HashableDigest digest) `hashWithSalt` name
 
 -- | Read-only interactions with a store.
 --
@@ -62,4 +79,6 @@ data ReadonlyStoreEffects rootedPath validPath m =
       fromValidPath :: !(validPath -> rootedPath)
     , -- | Is the given path valid?
       validPath :: !(rootedPath -> m (Maybe validPath))
+    , -- | Get the paths that refer to a given path.
+      referrers :: !(validPath -> m (HashSet Path))
     }
