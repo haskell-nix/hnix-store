@@ -101,4 +101,6 @@ data StoreEffects rootedPath validPath m =
     , -- | Get information about substituters of a set of 'Path's
       substitutablePathInfos ::
         !(HashSet Path -> m (HashMap Path SubstitutablePathInfo))
+    , -- | Get the currently valid derivers of a 'Path'.
+      validDerivers :: !(Path -> m (HashSet Path))
     }
