@@ -107,4 +107,6 @@ data StoreEffects rootedPath validPath m =
       derivationOutputs :: !(validPath -> m (HashSet Path))
     , -- | Get the output names of the derivation at a 'Path'.
       derivationOutputNames :: !(validPath -> m (HashSet Text))
+    , -- | Get a full 'Path' corresponding to a given 'Digest'.
+      pathFromHashPart :: !(Digest PathHashAlgo -> m Path)
     }
