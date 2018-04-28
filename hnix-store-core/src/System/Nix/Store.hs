@@ -7,7 +7,7 @@ Maintainer  : Shea Levy <shea@shealevy.com>
 module System.Nix.Store
   ( PathName, pathNameContents, pathName
   , PathHashAlgo, Path(..)
-  , ReadonlyStoreEffects(..)
+  , StoreEffects(..)
   , SubstitutablePathInfo(..)
   ) where
 
@@ -73,7 +73,7 @@ data SubstitutablePathInfo = SubstitutablePathInfo
     narSize :: !Integer
   }
 
--- | Read-only interactions with a store.
+-- | Interactions with the Nix store.
 --
 -- @rootedPath@: A path plus a witness to the fact that the path is
 -- reachable from a root whose liftime is at least as long as the
@@ -86,8 +86,8 @@ data SubstitutablePathInfo = SubstitutablePathInfo
 -- reference is held.
 --
 -- @m@: The monad the effects operate in.
-data ReadonlyStoreEffects rootedPath validPath m =
-  ReadonlyStoreEffects
+data StoreEffects rootedPath validPath m =
+  StoreEffects
     { -- | Project out the underlying 'Path' from a 'rootedPath'
       fromRootedPath :: !(rootedPath -> Path)
     , -- | Project out the underlying 'rootedPath' from a 'validPath'
