@@ -103,6 +103,8 @@ data StoreEffects rootedPath validPath m =
         !(HashSet Path -> m (HashMap Path SubstitutablePathInfo))
     , -- | Get the currently valid derivers of a 'Path'.
       validDerivers :: !(Path -> m (HashSet Path))
-    , -- | Get the outputs of the derivation at 'Path'.
+    , -- | Get the outputs of the derivation at a 'Path'.
       derivationOutputs :: !(validPath -> m (HashSet Path))
+    , -- | Get the output names of the derivation at a 'Path'.
+      derivationOutputNames :: !(validPath -> m (HashSet Text))
     }
