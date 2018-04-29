@@ -14,6 +14,7 @@ module System.Nix.Store
 import Crypto.Hash (Digest)
 import Crypto.Hash.Truncated (Truncated)
 import Crypto.Hash.Algorithms (SHA256)
+import qualified Data.ByteString.Lazy as BS
 import qualified Data.ByteArray as B
 import Data.Text (Text)
 import Text.Regex.Base.RegexLike (makeRegex, matchTest)
@@ -109,4 +110,6 @@ data StoreEffects rootedPath validPath m =
       derivationOutputNames :: !(validPath -> m (HashSet Text))
     , -- | Get a full 'Path' corresponding to a given 'Digest'.
       pathFromHashPart :: !(Digest PathHashAlgo -> m Path)
+    , -- | Add a non-nar file to the store
+      addFile :: !(BS.ByteString -> m validPath)
     }
