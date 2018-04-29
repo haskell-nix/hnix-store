@@ -14,7 +14,7 @@ module System.Nix.Store
 import Crypto.Hash (Digest)
 import Crypto.Hash.Truncated (Truncated)
 import Crypto.Hash.Algorithms (SHA256)
-import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BS
 import qualified Data.ByteArray as B
 import Data.Text (Text)
 import Text.Regex.Base.RegexLike (makeRegex, matchTest)
