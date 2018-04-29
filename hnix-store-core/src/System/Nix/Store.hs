@@ -93,7 +93,7 @@ data StoreEffects rootedPath validPath m =
     , -- | Project out the underlying 'rootedPath' from a 'validPath'
       fromValidPath :: !(validPath -> rootedPath)
     , -- | Which of the given paths are valid?
-      validPaths :: !(HashSet rootedPath -> HashSet validPath)
+      validPaths :: !(HashSet rootedPath -> m (HashSet validPath))
     , -- | Get the paths that refer to a given path.
       referrers :: !(validPath -> m (HashSet Path))
     , -- | Get a root to the 'Path'.
