@@ -16,6 +16,7 @@ module System.Nix.Store
 import Crypto.Hash (Digest)
 import Crypto.Hash.Truncated (Truncated)
 import Crypto.Hash.Algorithms (SHA256)
+import qualified Data.ByteString.Lazy as BS
 import qualified Data.ByteArray as B
 import Data.Text (Text)
 import Text.Regex.Base.RegexLike (makeRegex, matchTest)
@@ -49,7 +50,7 @@ data StoreEffects rootedPath validPath m =
     , -- | Project out the underlying 'rootedPath' from a 'validPath'
       fromValidPath :: !(validPath -> rootedPath)
     , -- | Which of the given paths are valid?
-      validPaths :: !(HashSet rootedPath -> HashSet validPath)
+      validPaths :: !(HashSet rootedPath -> m (HashSet validPath))
     , -- | Get the paths that refer to a given path.
       referrers :: !(validPath -> m (HashSet Path))
     , -- | Get a root to the 'Path'.
@@ -66,4 +67,6 @@ data StoreEffects rootedPath validPath m =
     , -- | Get a full 'Path' corresponding to a given 'Digest'.
       pathFromHashPart :: !(Digest PathHashAlgo -> m Path)
     , narEffects :: NarEffects m
+    , -- | Add a non-nar file to the store
+      addFile :: !(BS.ByteString -> m validPath)
     }
