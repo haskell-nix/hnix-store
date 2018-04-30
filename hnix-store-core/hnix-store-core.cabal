@@ -17,10 +17,13 @@ extra-source-files:  ChangeLog.md, README.md
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Crypto.Hash.Truncated, System.Nix.Store
+  exposed-modules:     Crypto.Hash.Truncated
+                     , System.Nix.Nar
+                     , System.Nix.Store
   build-depends:       base >=4.10 && <4.11,
                        -- Drop foundation when we can drop cryptonite <0.25
-                       cryptonite, memory, foundation, basement,
+                       binary,
+                       bytestring, containers, cryptonite, memory, foundation, basement,
                        text, regex-base, regex-tdfa-text,
                        hashable, unordered-containers
   hs-source-dirs:      src
