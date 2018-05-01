@@ -2,27 +2,32 @@
 Description : Types and effects for interacting with the Nix store.
 Maintainer  : Shea Levy <shea@shealevy.com>
 -}
-{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module System.Nix.Path
-  ( PathHashAlgo
+  ( FilePathPart(..)
+  , PathHashAlgo
   , Path(..)
   , SubstitutablePathInfo(..)
   , PathName(..)
+  , filePathPart
   , pathName
   ) where
 
-import Crypto.Hash               (Digest)
-import Crypto.Hash.Truncated     (Truncated)
-import Crypto.Hash.Algorithms    (SHA256)
-import qualified Data.ByteArray  as B
-import Data.Text                 (Text)
-import Text.Regex.Base.RegexLike (makeRegex, matchTest)
-import Text.Regex.TDFA.Text      (Regex)
-import Data.Hashable             (Hashable(..), hashPtrWithSalt)
-import Data.HashSet              (HashSet)
-import Data.HashMap.Strict       (HashMap)
-import System.IO.Unsafe          (unsafeDupablePerformIO)
+import           Crypto.Hash               (Digest)
+import           Crypto.Hash.Algorithms    (SHA256)
+import           Crypto.Hash.Truncated     (Truncated)
+import qualified Data.ByteArray            as B
+import qualified Data.ByteString           as BS
+import qualified Data.ByteString.Char8     as BSC
+import           Data.Hashable             (Hashable (..), hashPtrWithSalt)
+import           Data.HashMap.Strict       (HashMap)
+import           Data.HashSet              (HashSet)
+import           Data.Text                 (Text)
+import qualified Data.Text                 as T
+import           System.IO.Unsafe          (unsafeDupablePerformIO)
+import           Text.Regex.Base.RegexLike (makeRegex, matchTest)
+import           Text.Regex.TDFA.Text      (Regex)
 
 -- | The name portion of a Nix path.
 --
@@ -40,7 +45,7 @@ nameRegex =
 -- | Construct a 'PathName', assuming the provided contents are valid.
 pathName :: Text -> Maybe PathName
 pathName n = case matchTest nameRegex n of
-  True -> Just $ PathName n
+  True  -> Just $ PathName n
   False -> Nothing
 
 -- | The hash algorithm used for store path hashes.
@@ -65,12 +70,23 @@ instance Hashable Path where
 -- | Information about substitutes for a 'Path'.
 data SubstitutablePathInfo = SubstitutablePathInfo
   { -- | The .drv which led to this 'Path'.
-    deriver :: !(Maybe Path)
+    deriver      :: !(Maybe Path)
   , -- | The references of the 'Path'
-    references :: !(HashSet Path)
+    references   :: !(HashSet Path)
   , -- | The (likely compressed) size of the download of this 'Path'.
     downloadSize :: !Integer
   , -- | The size of the uncompressed NAR serialization of this
     -- 'Path'.
-    narSize :: !Integer
+    narSize      :: !Integer
   }
+
+-- | A valid filename or directory name
+newtype FilePathPart = FilePathPart { unFilePathPart :: BSC.ByteString }
+  deriving (Eq, Ord, Show)
+
+-- | Construct FilePathPart from Text by checking that there
+--   are no '/' or '\\NUL' characters
+filePathPart :: BSC.ByteString -> Maybe FilePathPart
+filePathPart p = case BSC.any (`elem` ['/', '\NUL']) p of
+  False -> Just $ FilePathPart p
+  True  -> Nothing

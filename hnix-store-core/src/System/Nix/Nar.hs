@@ -1,181 +1,267 @@
-{-# LANGUAGE KindSignatures    #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE TupleSections    #-}
-{-# LANGUAGE TypeApplications  #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE KindSignatures      #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections       #-}
+{-# LANGUAGE TypeApplications    #-}
 
 {-|
 Description : Allowed effects for interacting with Nar files.
 Maintainer  : Shea Levy <shea@shealevy.com>
 |-}
-module System.Nix.Nar where
+module System.Nix.Nar (
+    FileSystemObject(..)
+  , IsExecutable (..)
+  , Nar(..)
+  , getNar
+  , localPackNar
+  , localUnpackNar
+  , narEffectsIO
+  , putNar
+  ) where
 
-import           Control.Monad (replicateM, replicateM_)
-import           Data.Monoid ((<>))
 import           Control.Applicative
-import qualified Data.ByteString.Lazy.Char8 as BSL
-import qualified Data.Set as Set
-import qualified Data.Binary as B
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as E
-import qualified Data.Binary.Put as B
-import qualified Data.Binary.Get as B
-import           Debug.Trace
+import           Control.Monad              (replicateM, replicateM_, (<=<))
+import qualified Data.Binary                as B
+import qualified Data.Binary.Get            as B
+import qualified Data.Binary.Put            as B
+import           Data.Bool                  (bool)
+import qualified Data.ByteString            as BS
+import qualified Data.ByteString.Char8      as BSC
+import qualified Data.ByteString.Lazy       as BSL
+import           Data.Foldable              (forM_)
+import qualified Data.Map                   as Map
+import           Data.Maybe                 (fromMaybe)
+import           Data.Monoid                ((<>))
+import qualified Data.Text                  as T
+import qualified Data.Text.Encoding         as E
+import           Data.Traversable           (forM)
+import           GHC.Int                    (Int64)
+import           System.Directory
+import           System.FilePath
+import           System.Posix.Files         (createSymbolicLink, fileSize, getFileStatus,
+                                             isDirectory, readSymbolicLink)
 
-import System.Nix.Path
+import           System.Nix.Path
 
-
-data NarEffects (m :: * -> *) = NarEffets {
-    readFile         :: FilePath -> m BSL.ByteString
-  , listDir          :: FilePath -> m [FileSystemObject]
-  , narFromFileBytes :: BSL.ByteString -> m Nar
-  , narFromDirectory :: FilePath -> m Nar
+data NarEffects (m :: * -> *) = NarEffects {
+    narReadFile   :: FilePath -> m BSL.ByteString
+  , narWriteFile  :: FilePath -> BSL.ByteString -> m ()
+  , narListDir    :: FilePath -> m [FilePath]
+  , narCreateDir  :: FilePath -> m ()
+  , narCreateLink :: FilePath -> FilePath -> m ()
+  , narGetPerms   :: FilePath -> m Permissions
+  , narSetPerms   :: FilePath -> Permissions ->  m ()
+  , narIsDir      :: FilePath -> m Bool
+  , narIsSymLink  :: FilePath -> m Bool
+  , narFileSize   :: FilePath -> m Int64
+  , narReadLink   :: FilePath -> m FilePath
 }
 
 
 -- Directly taken from Eelco thesis
 -- https://nixos.org/%7Eeelco/pubs/phd-thesis.pdf
 
--- TODO: Should we use rootedPath, validPath rather than FilePath?
 data Nar = Nar { narFile :: FileSystemObject }
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Show)
 
+-- | A FileSystemObject (FSO) is an anonymous entity that can be NAR archived
 data FileSystemObject =
-    Regular IsExecutable BSL.ByteString
-  | Directory (Set.Set (PathName, FileSystemObject))
-  | SymLink BSL.ByteString
+    Regular IsExecutable Int64 BSL.ByteString
+    -- ^ Reguar file, with its executable state, size (bytes) and contents
+  | Directory (Map.Map FilePathPart FileSystemObject)
+    -- ^ Directory with mapping of filenames to sub-FSOs
+  | SymLink T.Text
+    -- ^ Symbolic link target
   deriving (Eq, Show)
 
--- TODO - is this right? How does thesis define ordering of FSOs?
-instance Ord FileSystemObject where
-    compare (Regular _ c1) (Regular _ c2) = compare c1 c2
-    compare (Regular _ _)  _              = GT
-    compare (Directory s1) (Directory s2) = compare s1 s2
-    compare (Directory _)  _              = GT
-    compare (SymLink l1) (SymLink l2)     = compare l1 l2
 
 data IsExecutable = NonExecutable | Executable
     deriving (Eq, Show)
 
--- data NarFile = NarFile
---     { narFileIsExecutable :: IsExecutable
---     , narFilePath         :: FilePath -- TODO: Correct type?
---     } deriving (Show)
 
-data DebugPut = PutAscii | PutBinary
+instance B.Binary Nar where
+  get = getNar
+  put = putNar
 
+------------------------------------------------------------------------------
+-- | Serialize Nar to lazy ByteString
 putNar :: Nar -> B.Put
-putNar = putNar' PutBinary
-
-putNar' :: DebugPut -> Nar -> B.Put
-putNar' dbg (Nar file) = header <>
-                         parens (putFile file)
+putNar (Nar file) = header <> parens (putFile file)
     where
 
-        str' = case dbg of
-            PutAscii -> strDebug
-            PutBinary -> str
+        header   = str "nix-archive-1"
 
-        header   = str' "nix-archive-1"
-        parens m = str' "(" <> m <> str ")"
-
-        putFile (Regular isExec contents) =
-               str' "type" <> str' "regular"
-            <> if isExec == Executable
-               then str' "executable" <> str' ""
-               else str' ""
-            <> str' "contents" <> str' contents
+        putFile (Regular isExec fSize contents) =
+               strs ["type", "regular"]
+            >> (if isExec == Executable
+               then strs ["executable", ""]
+               else return ())
+            >> putContents fSize contents
 
         putFile (SymLink target) =
-               str' "type" <> str' "symlink" <> str' "target" <> str' target
+               strs ["type", "symlink", "target", BSL.fromStrict $ E.encodeUtf8 target]
 
+        -- toList sorts the entries by FilePathPart before serializing
         putFile (Directory entries) =
-               str' "type" <> str' "directory"
-            <> foldMap putEntry entries
+               strs ["type", "directory"]
+            <> mapM_ putEntry (Map.toList entries)
 
-        putEntry (PathName name, fso) =
-            str' "entry" <>
-            parens (str' "name" <>
-                    str' (BSL.fromStrict $ E.encodeUtf8 name) <>
-                    str' "node" <>
-                    putFile fso)
+        putEntry (FilePathPart name, fso) = do
+            str "entry"
+            parens $ do
+              str "name"
+              str (BSL.fromStrict name)
+              str "node"
+              parens (putFile fso)
 
+        parens m = str "(" >> m >> str ")"
+
+        -- Do not use this for file contents
+        str :: BSL.ByteString -> B.Put
+        str t = let len = BSL.length t
+            in int len <> pad len t
+
+        putContents :: Int64 -> BSL.ByteString -> B.Put
+        putContents fSize bs = str "contents" <> int fSize <> (pad fSize bs)
+        -- putContents fSize bs = str "contents" <> int (BSL.length bs) <> (pad fSize bs)
+
+        int :: Integral a => a -> B.Put
+        int n = B.putInt64le $ fromIntegral n
+
+        pad :: Int64 -> BSL.ByteString -> B.Put
+        pad strSize bs = do
+          B.putLazyByteString bs
+          B.putLazyByteString (BSL.replicate (padLen strSize) 0)
+
+        strs :: [BSL.ByteString] -> B.Put
+        strs = mapM_ str
+
+
+------------------------------------------------------------------------------
+-- | Deserialize a Nar from lazy ByteString
 getNar :: B.Get Nar
 getNar = fmap Nar $ header >> parens getFile
-    where header   = trace "header " $ assertStr "nix-archive-1"
+    where
 
-          padLen n = let r = n `mod` 8
-                         p = (8 - n) `mod` 8
-                     in trace ("padLen: " ++ show p) p
+      header   = assertStr "nix-archive-1"
 
-          str = do
-              n <- fmap fromIntegral B.getInt64le
-              s <- B.getLazyByteString n
-              p <- B.getByteString (padLen $ fromIntegral n)
-              traceShow (n,s) $ return s
 
-          assertStr s = trace ("Assert " ++ show s) $ do
-              s' <- str
-              if s == s'
-                  then trace ("Assert " ++ show s ++ " passed") (return s)
-                  else trace ("Assert " ++ show s ++ " failed") (fail "No")
+      -- Fetch a FileSystemObject
+      getFile = getRegularFile <|> getDirectory <|> getSymLink
 
-          parens m = assertStr "(" *> m <* assertStr ")"
+      getRegularFile = do
+          assertStr "type"
+          assertStr "regular"
+          mExecutable <- optional $ Executable <$ (assertStr "executable"
+                                                   >> assertStr "")
+          assertStr "contents"
+          (fSize, contents) <- sizedStr
+          return $ Regular (fromMaybe NonExecutable mExecutable) fSize contents
 
-          getFile :: B.Get FileSystemObject
-          getFile = trace "getFile" (getRegularFile)
-                <|> trace "getDir" (getDirectory)
-                <|> trace "getLink" (getSymLink)
+      getDirectory = do
+          assertStr "type"
+          assertStr "directory"
+          fs <- many getEntry
+          return $ Directory (Map.fromList fs)
 
-          getRegularFile = trace "regular" $ do
-              trace "TESTING" (assertStr "type")
-              trace "HI" $ assertStr "regular"
-              trace "HI AGOIN" $ assertStr "contents"
-              contents <- str
-              return $ Regular (maybe NonExecutable
-                                   (const Executable) Nothing) contents
+      getSymLink = do
+          assertStr "type"
+          assertStr "symlink"
+          assertStr "target"
+          fmap (SymLink . E.decodeUtf8 . BSL.toStrict) str
 
-          getDirectory = do
-              assertStr "type"
-              assertStr "directory"
-              fs <- many getEntry
-              return $ Directory (Set.fromList fs)
+      getEntry = do
+          assertStr "entry"
+          parens $ do
+              assertStr "name"
+              name <- E.decodeUtf8 . BSL.toStrict <$> str
+              assertStr "node"
+              file <- parens getFile
+              maybe (fail $ "Bad FilePathPart: " ++ show name)
+                    (return . (,file))
+                    (filePathPart $ E.encodeUtf8 name)
 
-          getSymLink = do
-              assertStr "type"
-              assertStr "symlink"
-              assertStr "target"
-              fmap SymLink str
+      -- Fetch a length-prefixed, null-padded string
+      str = fmap snd sizedStr
 
-          getEntry = do
-              assertStr "entry"
-              parens $ do
-                  assertStr "name"
-                  mname <- pathName . E.decodeUtf8 . BSL.toStrict <$> str
-                  assertStr "node"
-                  file <- parens getFile
-                  maybe (fail "Bad PathName") (return . (,file)) mname
+      sizedStr = do
+          n <- B.getInt64le
+          s <- B.getLazyByteString n
+          p <- B.getByteString . fromIntegral $ padLen n
+          return (n,s)
 
-str :: BSL.ByteString -> B.Put
-str t = let len = BSL.length t
-    in int len <> pad t
+      parens m = assertStr "(" *> m <* assertStr ")"
 
-int :: Integral a => a -> B.Put
-int n = B.putInt64le $ fromIntegral n
+      assertStr s = do
+          s' <- str
+          if s == s'
+              then return s
+              else fail "No"
 
-pad :: BSL.ByteString -> B.Put
-pad bs =
-    let padLen = BSL.length bs `div` 8
-    in  B.put bs >> B.put (BSL.replicate padLen '\NUL')
 
-strDebug :: BSL.ByteString -> B.Put
-strDebug t = let len = BSL.length t
-    in intDebug len <> padDebug t
+-- | Distance to the next multiple of 8
+padLen :: Int64 -> Int64
+padLen n = (8 - n) `mod` 8
 
-intDebug :: Integral a => a -> B.Put
-intDebug a = B.put (show @Int (fromIntegral a))
 
-padDebug :: BSL.ByteString -> B.Put
-padDebug bs =
-    let padLen = BSL.length bs `div` 8
-    in  B.put bs >> B.put (BSL.replicate padLen '_')
+-- | Unpack a NAR into a non-nix-store directory (e.g. for testing)
+localUnpackNar :: Monad m => NarEffects m -> FilePath -> Nar -> m ()
+localUnpackNar effs basePath (Nar fso) = localUnpackFSO basePath fso
+
+  where
+
+    localUnpackFSO basePath fso = case fso of
+
+       Regular isExec _ bs -> do
+         (narWriteFile effs) basePath bs
+         p <- narGetPerms effs basePath
+         (narSetPerms effs) basePath (p {executable = isExec == Executable})
+
+       SymLink targ -> narCreateLink effs (T.unpack targ) basePath
+
+       Directory contents -> do
+         narCreateDir effs basePath
+         forM_ (Map.toList contents) $ \(FilePathPart path', fso) ->
+           localUnpackFSO (basePath </> BSC.unpack path') fso
+
+
+-- | Pack a NAR from a filepath
+localPackNar :: Monad m => NarEffects m -> FilePath -> m Nar
+localPackNar effs basePath = Nar <$> localPackFSO basePath
+
+  where
+
+    localPackFSO path' = do
+      fType <- (,) <$> narIsDir effs path' <*> narIsSymLink effs path'
+      case fType of
+        (_,  True) -> SymLink . T.pack <$> narReadLink effs path'
+        (False, _) -> Regular <$> isExecutable effs path'
+                              <*> narFileSize effs path'
+                              <*> narReadFile effs path'
+        (True , _) -> fmap (Directory . Map.fromList) $ do
+          fs <- narListDir effs path'
+          forM fs $ \fp ->
+            (FilePathPart (BSC.pack $  fp),) <$> localPackFSO (path' </> fp)
+
+
+
+narEffectsIO :: NarEffects IO
+narEffectsIO = NarEffects {
+    narReadFile   = BSL.readFile
+  , narWriteFile  = BSL.writeFile
+  , narListDir    = listDirectory
+  , narCreateDir  = createDirectory
+  , narCreateLink = createSymbolicLink
+  , narGetPerms   = getPermissions
+  , narSetPerms   = setPermissions
+  , narIsDir      = fmap isDirectory <$> getFileStatus
+  , narIsSymLink  = pathIsSymbolicLink
+  , narFileSize   = fmap (fromIntegral . fileSize) <$> getFileStatus
+  , narReadLink   = readSymbolicLink
+  }
+
+
+isExecutable :: Functor m => NarEffects m -> FilePath -> m IsExecutable
+isExecutable effs fp =
+  bool NonExecutable Executable . executable <$> narGetPerms effs fp

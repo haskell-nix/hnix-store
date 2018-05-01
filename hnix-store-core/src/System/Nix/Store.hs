@@ -1,5 +1,3 @@
-{-# LANGUAGE PackageImports #-}
-
 {-|
 Description : Types and effects for interacting with the Nix store.
 Maintainer  : Shea Levy <shea@shealevy.com>
@@ -66,7 +64,6 @@ data StoreEffects rootedPath validPath m =
       derivationOutputNames :: !(validPath -> m (HashSet Text))
     , -- | Get a full 'Path' corresponding to a given 'Digest'.
       pathFromHashPart :: !(Digest PathHashAlgo -> m Path)
-    , narEffects :: NarEffects m
     , -- | Add a non-nar file to the store
       addFile :: !(BS.ByteString -> m validPath)
     }

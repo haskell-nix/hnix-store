@@ -19,12 +19,51 @@ cabal-version:       >=1.10
 library
   exposed-modules:     Crypto.Hash.Truncated
                      , System.Nix.Nar
+                     , System.Nix.Path
                      , System.Nix.Store
-  build-depends:       base >=4.10 && <4.11,
-                       -- Drop foundation when we can drop cryptonite <0.25
-                       binary,
-                       bytestring, containers, cryptonite, memory, foundation, basement,
-                       text, regex-base, regex-tdfa-text,
-                       hashable, unordered-containers, bytestring
+  build-depends:       base >=4.10 && <4.11
+                     , basement
+                     , bytestring
+                     , binary
+                     , bytestring
+                     , containers
+                     , cryptonite
+                     , directory
+                     , filepath
+                      -- Drop foundation when we can drop cryptonite <0.25
+                     , foundation
+                     , hashable
+                     , memory
+                     , mtl
+                     , regex-base
+                     , regex-tdfa-text
+                     , text
+                     , unix
+                     , unordered-containers
   hs-source-dirs:      src
   default-language:    Haskell2010
+
+test-suite format-tests
+   ghc-options: -rtsopts -fprof-auto
+   type: exitcode-stdio-1.0
+   main-is: Driver.hs
+   other-modules:
+       NarFormat
+   hs-source-dirs:
+       tests 
+   build-depends:
+       hnix-store-core
+     , base
+     , base64-bytestring
+     , binary
+     , bytestring
+     , containers
+     , directory
+     , process
+     , tasty
+     , tasty-discover
+     , tasty-hspec
+     , tasty-hunit
+     , tasty-quickcheck
+     , text
+   default-language: Haskell2010
