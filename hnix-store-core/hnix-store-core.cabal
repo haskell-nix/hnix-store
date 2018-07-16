@@ -18,9 +18,13 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     Crypto.Hash.Truncated
+                     , System.Nix.Build
+                     , System.Nix.Derivation
+                     , System.Nix.GC
                      , System.Nix.Nar
                      , System.Nix.Path
                      , System.Nix.Store
+                     , System.Nix.Util
   build-depends:       base >=4.10 && <4.11
                      , basement
                      , bytestring

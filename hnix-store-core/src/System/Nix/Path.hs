@@ -8,10 +8,13 @@ module System.Nix.Path
   ( FilePathPart(..)
   , PathHashAlgo
   , Path(..)
+  , PathSet
   , SubstitutablePathInfo(..)
+  , ValidPathInfo(..)
   , PathName(..)
   , filePathPart
   , pathName
+  , Roots
   ) where
 
 import           Crypto.Hash               (Digest)
@@ -23,6 +26,7 @@ import qualified Data.ByteString.Char8     as BSC
 import           Data.Hashable             (Hashable (..), hashPtrWithSalt)
 import           Data.HashMap.Strict       (HashMap)
 import           Data.HashSet              (HashSet)
+import           Data.Map.Strict           (Map)
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import           System.IO.Unsafe          (unsafeDupablePerformIO)
@@ -53,6 +57,7 @@ type PathHashAlgo = Truncated SHA256 20
 
 -- | A path in a store.
 data Path = Path !(Digest PathHashAlgo) !PathName
+  deriving (Eq, Ord, Show)
 
 -- | Wrapper to defined a 'Hashable' instance for 'Digest'.
 newtype HashableDigest a = HashableDigest (Digest a)
@@ -67,18 +72,51 @@ instance Hashable Path where
     (HashableDigest digest) `hashWithSalt` name
 
 
+type PathSet = HashSet Path
+
 -- | Information about substitutes for a 'Path'.
 data SubstitutablePathInfo = SubstitutablePathInfo
   { -- | The .drv which led to this 'Path'.
     deriver      :: !(Maybe Path)
   , -- | The references of the 'Path'
-    references   :: !(HashSet Path)
+    references   :: !PathSet
   , -- | The (likely compressed) size of the download of this 'Path'.
     downloadSize :: !Integer
   , -- | The size of the uncompressed NAR serialization of this
     -- 'Path'.
     narSize      :: !Integer
-  }
+  } deriving (Eq, Ord, Show)
+
+ -- | Information about 'Path'.
+data ValidPathInfo = ValidPathInfo
+  { -- | Path itself
+    path             :: !Path
+  , -- | The .drv which led to this 'Path'.
+    deriverVP        :: !(Maybe Path)
+  , -- | NAR hash
+    narHash          :: !Text
+  , -- | The references of the 'Path'
+    referencesVP     :: !PathSet
+  , -- | Registration time should be time_t
+    registrationTime :: !Integer
+  , -- | The size of the uncompressed NAR serialization of this
+    -- 'Path'.
+    narSizeVP        :: !Integer
+  , -- | Whether the path is ultimately trusted, that is, it's a
+    -- derivation output that was built locally.
+    ultimate         :: !Bool
+  , -- | Signatures
+    sigs             :: ![Text]
+  , -- | Content-addressed
+    -- Store path is computed from a cryptographic hash
+    -- of the contents of the path, plus some other bits of data like
+    -- the "name" part of the path.
+    --
+    -- ‘ca’ has one of the following forms:
+    -- * ‘text:sha256:<sha256 hash of file contents>’ (paths by makeTextPath() / addTextToStore())
+    -- * ‘fixed:<r?>:<ht>:<h>’ (paths by makeFixedOutputPath() / addToStore())
+    ca               :: !Text
+  } deriving (Eq, Ord, Show)
 
 -- | A valid filename or directory name
 newtype FilePathPart = FilePathPart { unFilePathPart :: BSC.ByteString }
@@ -90,3 +128,5 @@ filePathPart :: BSC.ByteString -> Maybe FilePathPart
 filePathPart p = case BSC.any (`elem` ['/', '\NUL']) p of
   False -> Just $ FilePathPart p
   True  -> Nothing
+
+type Roots = Map Path Path
