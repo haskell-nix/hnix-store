@@ -7,11 +7,13 @@ module System.Nix.Store.Remote.Protocol (
   , runStore) where
 
 import           Control.Exception         (bracket)
+import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.State
 
 import           Data.Binary.Get
 import           Data.Binary.Put
+import qualified Data.ByteString.Char8     as BSC
 import qualified Data.ByteString.Lazy      as LBS
 
 import           Network.Socket            hiding (send, sendTo, recv, recvFrom)
@@ -114,7 +116,9 @@ simpleOpArgs op args = do
   runOpArgs op args
   err <- gotError
   case err of
-    True -> return False  -- XXX: ErrorT?
+    True -> do
+      Error _num msg <- head <$> getError
+      throwError $ BSC.unpack $ LBS.toStrict msg
     False -> do
       sockGetBool
 
@@ -128,9 +132,13 @@ runOpArgs op args = do
     args
 
   out <- processOutput
-  put out
+  modify (++out)
+  err <- gotError
+  when err $ do
+    Error _num msg <- head <$> getError
+    throwError $ BSC.unpack $ LBS.toStrict msg
 
-runStore :: MonadStore a -> IO (a, [Logger])
+runStore :: MonadStore a -> IO (Either String a, [Logger])
 runStore code = do
   bracket (open sockPath) close run
   where
@@ -152,4 +160,4 @@ runStore code = do
       processOutput
 
     run sock =
-      flip runReaderT sock $ flip runStateT [] (greet >> code)
+      flip runReaderT sock $ flip runStateT [] $ runExceptT (greet >> code)
