@@ -53,9 +53,6 @@ type CheckFlag = Bool
 type CheckSigsFlag = Bool
 type SubstituteFlag = Bool
 
--- TODO: error handling via ErrorT, some of these will just log Error,
--- which means we need to bail out and not wait for results
---
 --setOptions :: StoreSetting -> MonadStore ()
 
 isValidPathUncached :: Path -> MonadStore Bool
