@@ -18,6 +18,7 @@ library
                      , System.Nix.Store.Remote.Logger
                      , System.Nix.Store.Remote.Protocol
                      , System.Nix.Store.Remote.Types
+                     , System.Nix.Store.Remote.Util
 
   build-depends:       base >=4.10 && <4.11
                      , bytestring
