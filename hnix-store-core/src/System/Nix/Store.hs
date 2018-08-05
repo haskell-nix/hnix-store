@@ -21,6 +21,7 @@ import Data.HashSet (HashSet)
 import Data.HashMap.Strict (HashMap)
 import System.IO.Unsafe (unsafeDupablePerformIO)
 
+import System.Nix.Hash
 import System.Nix.Path
 import System.Nix.Nar
 

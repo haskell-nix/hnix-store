@@ -8,38 +8,25 @@ module System.Nix.Path
   ( FilePathPart(..)
   , Path(..)
   , PathSet
-  , StorePathHash(..)
   , SubstitutablePathInfo(..)
   , ValidPathInfo(..)
   , PathName(..)
   , Roots
   , filePathPart
   , pathName
-  , toNixBase32
   ) where
 
 
-import qualified Crypto.Hash.SHA256           as SHA
-import           Data.Bits
-import qualified Data.ByteArray            as B
-import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Char8     as BSC
-import qualified Data.ByteString.Lazy         as BSL
-import qualified Data.ByteString.Lazy.Builder as BSL
 import           Data.Hashable             (Hashable (..), hashPtrWithSalt)
-import           Data.HashMap.Strict       (HashMap)
 import           Data.HashSet              (HashSet)
-import           Data.Semigroup               ((<>))
 import           Data.Map.Strict           (Map)
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
-import           Data.Text.Encoding
-import           Data.Word
-import qualified Data.Vector.Unboxed          as UV
-import           System.FilePath
-import           System.IO.Unsafe          (unsafeDupablePerformIO)
 import           Text.Regex.Base.RegexLike (makeRegex, matchTest)
 import           Text.Regex.TDFA.Text      (Regex)
+
+import           System.Nix.Hash           (StorePathHash, toNixBase32)
 
 -- | The name portion of a Nix path.
 --
@@ -64,9 +51,6 @@ pathName n = case matchTest nameRegex n of
 -- | A path in a store.
 data Path = Path !StorePathHash !PathName
   deriving (Eq, Ord, Show)
-
-newtype StorePathHash = StorePathHash { getTruncatedHash :: BSL.ByteString }
-  deriving (Eq, Ord, Show, Hashable)
 
 instance Hashable Path where
   hashWithSalt s (Path digest name) =
@@ -131,20 +115,4 @@ filePathPart p = case BSC.any (`elem` ['/', '\NUL']) p of
   False -> Just $ FilePathPart p
   True  -> Nothing
 
--- | Convert a ByteString to base 32 in the way that Nix does
-toNixBase32 :: BSL.ByteString -> BSL.ByteString
-toNixBase32 x = BSL.toLazyByteString $ mconcat $ map (BSL.word8 . (symbols UV.!) . fromIntegral) vals
-  where vals = byteStringToQuintets x
-        symbols = UV.fromList $ map (fromIntegral . fromEnum) $ filter (`notElem` ("eotu" :: String)) $ ['0'..'9'] <> ['a'..'z']
-        -- See https://github.com/NixOS/nix/blob/6f1743b1a5116ca57a60b481ee4083c891b7a334/src/libutil/hash.cc#L109
-        byteStringToQuintets :: BSL.ByteString -> [Word8]
-        byteStringToQuintets hash = map f [len-1, len-2 .. 0]
-          where hashSize = fromIntegral $ BSL.length hash
-                len = (hashSize * 8 - 1) `div` 5 + 1
-                f n = let b = n * 5
-                          (i, j) = b `divMod` 8
-                          j' = fromIntegral j
-                          --TODO: This is probably pretty slow; replace with something that doesn't use BSL.index
-                          c = ((hash `BSL.index` i) `shift` (-j')) .|. (if i >= hashSize - 1 then 0 else (hash `BSL.index` (i + 1)) `shift` (8 - j'))
-                      in c .&. 0x1f
 type Roots = Map Path Path
