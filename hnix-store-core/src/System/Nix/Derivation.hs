@@ -14,7 +14,6 @@ import System.Nix.Path
 type OutputName = Text
 
 newtype DerivationInputs = DerivationInputs
-  -- TODO: Eventually Text should be Output, but we don't have it yet
   { _unDerivationInputs :: HashMap Path (HashSet OutputName)
   } deriving (Eq, Ord, Show)
 
