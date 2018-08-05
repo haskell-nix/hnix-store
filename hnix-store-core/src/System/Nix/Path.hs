@@ -6,25 +6,33 @@ Maintainer  : Shea Levy <shea@shealevy.com>
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module System.Nix.Path
   ( FilePathPart(..)
-  , PathHashAlgo
   , Path(..)
+  , StorePathHash(..)
   , SubstitutablePathInfo(..)
   , PathName(..)
   , filePathPart
   , pathName
+  , toNixBase32
   ) where
 
-import           Crypto.Hash               (Digest)
-import           Crypto.Hash.Algorithms    (SHA256)
-import           Crypto.Hash.Truncated     (Truncated)
+
+import qualified Crypto.Hash.SHA256           as SHA
+import           Data.Bits
 import qualified Data.ByteArray            as B
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Char8     as BSC
+import qualified Data.ByteString.Lazy         as BSL
+import qualified Data.ByteString.Lazy.Builder as BSL
 import           Data.Hashable             (Hashable (..), hashPtrWithSalt)
 import           Data.HashMap.Strict       (HashMap)
 import           Data.HashSet              (HashSet)
+import           Data.Semigroup               ((<>))
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
+import           Data.Text.Encoding
+import           Data.Word
+import qualified Data.Vector.Unboxed          as UV
+import           System.FilePath
 import           System.IO.Unsafe          (unsafeDupablePerformIO)
 import           Text.Regex.Base.RegexLike (makeRegex, matchTest)
 import           Text.Regex.TDFA.Text      (Regex)
@@ -48,23 +56,25 @@ pathName n = case matchTest nameRegex n of
   True  -> Just $ PathName n
   False -> Nothing
 
--- | The hash algorithm used for store path hashes.
-type PathHashAlgo = Truncated SHA256 20
 
 -- | A path in a store.
-data Path = Path !(Digest PathHashAlgo) !PathName
+data Path = Path !StorePathHash !PathName
 
--- | Wrapper to defined a 'Hashable' instance for 'Digest'.
-newtype HashableDigest a = HashableDigest (Digest a)
+newtype StorePathHash = StorePathHash { getTruncatedHash :: BSL.ByteString }
+  deriving (Eq, Ord, Show, Hashable)
 
-instance Hashable (HashableDigest a) where
-  hashWithSalt s (HashableDigest d) = unsafeDupablePerformIO $
-    B.withByteArray d $ \ptr -> hashPtrWithSalt ptr (B.length d) s
+-- -- Do we need the `hashable` instance?
+-- -- | Wrapper to defined a 'Hashable' instance for 'Digest'.
+-- newtype HashableDigest a = HashableDigest StorePathHash
+
+-- instance Hashable StorePathHash where
+--   hashWithSalt s (HashableDigest d) = unsafeDupablePerformIO $
+--     B.withByteArray d $ \ptr -> hashPtrWithSalt ptr (B.length d) s
 
 instance Hashable Path where
   hashWithSalt s (Path digest name) =
     s `hashWithSalt`
-    (HashableDigest digest) `hashWithSalt` name
+    digest `hashWithSalt` name
 
 
 -- | Information about substitutes for a 'Path'.
@@ -90,3 +100,21 @@ filePathPart :: BSC.ByteString -> Maybe FilePathPart
 filePathPart p = case BSC.any (`elem` ['/', '\NUL']) p of
   False -> Just $ FilePathPart p
   True  -> Nothing
+
+
+-- | Convert a ByteString to base 32 in the way that Nix does
+toNixBase32 :: BSL.ByteString -> BSL.ByteString
+toNixBase32 x = BSL.toLazyByteString $ mconcat $ map (BSL.word8 . (symbols UV.!) . fromIntegral) vals
+  where vals = byteStringToQuintets x
+        symbols = UV.fromList $ map (fromIntegral . fromEnum) $ filter (`notElem` ("eotu" :: String)) $ ['0'..'9'] <> ['a'..'z']
+        -- See https://github.com/NixOS/nix/blob/6f1743b1a5116ca57a60b481ee4083c891b7a334/src/libutil/hash.cc#L109
+        byteStringToQuintets :: BSL.ByteString -> [Word8]
+        byteStringToQuintets hash = map f [len-1, len-2 .. 0]
+          where hashSize = fromIntegral $ BSL.length hash
+                len = (hashSize * 8 - 1) `div` 5 + 1
+                f n = let b = n * 5
+                          (i, j) = b `divMod` 8
+                          j' = fromIntegral j
+                          --TODO: This is probably pretty slow; replace with something that doesn't use BSL.index
+                          c = ((hash `BSL.index` i) `shift` (-j')) .|. (if i >= hashSize - 1 then 0 else (hash `BSL.index` (i + 1)) `shift` (8 - j'))
+                      in c .&. 0x1f
