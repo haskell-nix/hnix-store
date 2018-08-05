@@ -17,8 +17,7 @@ extra-source-files:  ChangeLog.md, README.md
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Crypto.Hash.Truncated
-                     , System.Nix.Build
+  exposed-modules:     System.Nix.Build
                      , System.Nix.Derivation
                      , System.Nix.GC
                      , System.Nix.Nar
