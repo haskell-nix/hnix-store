@@ -6,10 +6,9 @@ Maintainer  : Shea Levy <shea@shealevy.com>
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module System.Nix.Hash (
-    StorePathHash (..)
 
   -- * Introduce hashes for the store
-  , hash
+    hash
   , hashlazy
   , fromBase64Digest
 
@@ -22,6 +21,7 @@ module System.Nix.Hash (
   , finalize
 
   -- * Internal
+  , StorePathHash (..)
   , truncate52
   , toNixBase32
 
