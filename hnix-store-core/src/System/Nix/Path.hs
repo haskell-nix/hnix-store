@@ -7,9 +7,12 @@ Maintainer  : Shea Levy <shea@shealevy.com>
 module System.Nix.Path
   ( FilePathPart(..)
   , Path(..)
+  , PathSet
   , StorePathHash(..)
   , SubstitutablePathInfo(..)
+  , ValidPathInfo(..)
   , PathName(..)
+  , Roots
   , filePathPart
   , pathName
   , toNixBase32
@@ -27,6 +30,7 @@ import           Data.Hashable             (Hashable (..), hashPtrWithSalt)
 import           Data.HashMap.Strict       (HashMap)
 import           Data.HashSet              (HashSet)
 import           Data.Semigroup               ((<>))
+import           Data.Map.Strict           (Map)
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import           Data.Text.Encoding
@@ -59,17 +63,10 @@ pathName n = case matchTest nameRegex n of
 
 -- | A path in a store.
 data Path = Path !StorePathHash !PathName
+  deriving (Eq, Ord, Show)
 
 newtype StorePathHash = StorePathHash { getTruncatedHash :: BSL.ByteString }
   deriving (Eq, Ord, Show, Hashable)
-
--- -- Do we need the `hashable` instance?
--- -- | Wrapper to defined a 'Hashable' instance for 'Digest'.
--- newtype HashableDigest a = HashableDigest StorePathHash
-
--- instance Hashable StorePathHash where
---   hashWithSalt s (HashableDigest d) = unsafeDupablePerformIO $
---     B.withByteArray d $ \ptr -> hashPtrWithSalt ptr (B.length d) s
 
 instance Hashable Path where
   hashWithSalt s (Path digest name) =
@@ -77,18 +74,51 @@ instance Hashable Path where
     digest `hashWithSalt` name
 
 
+type PathSet = HashSet Path
+
 -- | Information about substitutes for a 'Path'.
 data SubstitutablePathInfo = SubstitutablePathInfo
   { -- | The .drv which led to this 'Path'.
     deriver      :: !(Maybe Path)
   , -- | The references of the 'Path'
-    references   :: !(HashSet Path)
+    references   :: !PathSet
   , -- | The (likely compressed) size of the download of this 'Path'.
     downloadSize :: !Integer
   , -- | The size of the uncompressed NAR serialization of this
     -- 'Path'.
     narSize      :: !Integer
-  }
+  } deriving (Eq, Ord, Show)
+
+-- | Information about 'Path'.
+data ValidPathInfo = ValidPathInfo
+  { -- | Path itself
+    path             :: !Path
+  , -- | The .drv which led to this 'Path'.
+    deriverVP        :: !(Maybe Path)
+  , -- | NAR hash
+    narHash          :: !Text
+  , -- | The references of the 'Path'
+    referencesVP     :: !PathSet
+  , -- | Registration time should be time_t
+    registrationTime :: !Integer
+  , -- | The size of the uncompressed NAR serialization of this
+    -- 'Path'.
+    narSizeVP        :: !Integer
+  , -- | Whether the path is ultimately trusted, that is, it's a
+    -- derivation output that was built locally.
+    ultimate         :: !Bool
+  , -- | Signatures
+    sigs             :: ![Text]
+  , -- | Content-addressed
+    -- Store path is computed from a cryptographic hash
+    -- of the contents of the path, plus some other bits of data like
+    -- the "name" part of the path.
+    --
+    -- ‘ca’ has one of the following forms:
+    -- * ‘text:sha256:<sha256 hash of file contents>’ (paths by makeTextPath() / addTextToStore())
+    -- * ‘fixed:<r?>:<ht>:<h>’ (paths by makeFixedOutputPath() / addToStore())
+    ca               :: !Text
+  } deriving (Eq, Ord, Show)
 
 -- | A valid filename or directory name
 newtype FilePathPart = FilePathPart { unFilePathPart :: BSC.ByteString }
@@ -100,7 +130,6 @@ filePathPart :: BSC.ByteString -> Maybe FilePathPart
 filePathPart p = case BSC.any (`elem` ['/', '\NUL']) p of
   False -> Just $ FilePathPart p
   True  -> Nothing
-
 
 -- | Convert a ByteString to base 32 in the way that Nix does
 toNixBase32 :: BSL.ByteString -> BSL.ByteString
@@ -118,3 +147,4 @@ toNixBase32 x = BSL.toLazyByteString $ mconcat $ map (BSL.word8 . (symbols UV.!)
                           --TODO: This is probably pretty slow; replace with something that doesn't use BSL.index
                           c = ((hash `BSL.index` i) `shift` (-j')) .|. (if i >= hashSize - 1 then 0 else (hash `BSL.index` (i + 1)) `shift` (8 - j'))
                       in c .&. 0x1f
+type Roots = Map Path Path
