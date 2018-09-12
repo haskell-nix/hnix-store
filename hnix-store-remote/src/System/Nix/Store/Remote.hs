@@ -39,6 +39,7 @@ import           Control.Monad
 import qualified System.Nix.Build      as Build
 import qualified System.Nix.Derivation as Drv
 import qualified System.Nix.GC         as GC
+import           System.Nix.Hash
 import           System.Nix.Path
 import           System.Nix.Util
 
@@ -46,7 +47,6 @@ import           System.Nix.Store.Remote.Types
 import           System.Nix.Store.Remote.Protocol
 import           System.Nix.Store.Remote.Util
 
-import           Crypto.Hash
 
 type RepairFlag = Bool
 type CheckFlag = Bool
@@ -148,10 +148,10 @@ queryDerivationOutputNames p = do
   sockGetPaths
 
 -- XXX: this is broken as I don't know how to get hashes from paths (fix mkPath)
-queryPathFromHashPart :: Digest PathHashAlgo -> MonadStore (Maybe Path)
+queryPathFromHashPart :: StorePathHash -> MonadStore (Maybe Path)
 queryPathFromHashPart d = do
   runOpArgs QueryPathFromHashPart $
-    putByteStringLen $ LBS.fromStrict $ convert d
+    putByteStringLen $ LBS.fromStrict $ getTruncatedHash d
   sockGetPath
 
 type Source = () -- abstract binary source
@@ -159,8 +159,8 @@ addToStoreNar :: ValidPathInfo -> Source -> RepairFlag -> CheckSigsFlag -> Monad
 addToStoreNar = undefined  -- XXX
 
 type PathFilter = Path -> Bool
-addToStore :: LBS.ByteString -> Path -> Bool -> PathHashAlgo -> PathFilter -> RepairFlag -> MonadStore Path
-addToStore name pth recursive hashAlgo pfilter repair = undefined -- XXX
+addToStore :: LBS.ByteString -> Path -> Bool -> PathFilter -> RepairFlag -> MonadStore Path
+addToStore name pth recursive pfilter repair = undefined -- XXX
 
 addTextToStore :: LBS.ByteString -> LBS.ByteString -> PathSet -> RepairFlag -> MonadStore (Maybe Path)
 addTextToStore name text references' repair = do

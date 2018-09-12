@@ -6,32 +6,27 @@ Maintainer  : Shea Levy <shea@shealevy.com>
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module System.Nix.Path
   ( FilePathPart(..)
-  , PathHashAlgo
   , Path(..)
   , PathSet
   , SubstitutablePathInfo(..)
   , ValidPathInfo(..)
   , PathName(..)
+  , Roots
   , filePathPart
   , pathName
-  , Roots
   ) where
 
-import           Crypto.Hash               (Digest)
-import           Crypto.Hash.Algorithms    (SHA256)
-import           Crypto.Hash.Truncated     (Truncated)
-import qualified Data.ByteArray            as B
-import qualified Data.ByteString           as BS
+
 import qualified Data.ByteString.Char8     as BSC
 import           Data.Hashable             (Hashable (..), hashPtrWithSalt)
-import           Data.HashMap.Strict       (HashMap)
 import           Data.HashSet              (HashSet)
 import           Data.Map.Strict           (Map)
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
-import           System.IO.Unsafe          (unsafeDupablePerformIO)
 import           Text.Regex.Base.RegexLike (makeRegex, matchTest)
 import           Text.Regex.TDFA.Text      (Regex)
+
+import           System.Nix.Hash           (StorePathHash, toNixBase32)
 
 -- | The name portion of a Nix path.
 --
@@ -52,24 +47,15 @@ pathName n = case matchTest nameRegex n of
   True  -> Just $ PathName n
   False -> Nothing
 
--- | The hash algorithm used for store path hashes.
-type PathHashAlgo = Truncated SHA256 20
 
 -- | A path in a store.
-data Path = Path !(Digest PathHashAlgo) !PathName
+data Path = Path !StorePathHash !PathName
   deriving (Eq, Ord, Show)
-
--- | Wrapper to defined a 'Hashable' instance for 'Digest'.
-newtype HashableDigest a = HashableDigest (Digest a)
-
-instance Hashable (HashableDigest a) where
-  hashWithSalt s (HashableDigest d) = unsafeDupablePerformIO $
-    B.withByteArray d $ \ptr -> hashPtrWithSalt ptr (B.length d) s
 
 instance Hashable Path where
   hashWithSalt s (Path digest name) =
     s `hashWithSalt`
-    (HashableDigest digest) `hashWithSalt` name
+    digest `hashWithSalt` name
 
 
 type PathSet = HashSet Path
@@ -87,7 +73,7 @@ data SubstitutablePathInfo = SubstitutablePathInfo
     narSize      :: !Integer
   } deriving (Eq, Ord, Show)
 
--- | Information about @Path@
+-- | Information about 'Path'.
 data ValidPathInfo = ValidPathInfo
   { -- | Path itself
     path             :: !Path

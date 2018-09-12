@@ -6,14 +6,11 @@ Maintainer  : Shea Levy <shea@shealevy.com>
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module System.Nix.Store
   ( PathName, pathNameContents, pathName
-  , PathHashAlgo, Path(..)
+  , Path(..)
   , StoreEffects(..)
   , SubstitutablePathInfo(..)
   ) where
 
-import Crypto.Hash (Digest)
-import Crypto.Hash.Truncated (Truncated)
-import Crypto.Hash.Algorithms (SHA256)
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.ByteArray as B
 import Data.Text (Text)
@@ -24,6 +21,7 @@ import Data.HashSet (HashSet)
 import Data.HashMap.Strict (HashMap)
 import System.IO.Unsafe (unsafeDupablePerformIO)
 
+import System.Nix.Hash
 import System.Nix.Path
 import System.Nix.Nar
 
@@ -63,7 +61,7 @@ data StoreEffects rootedPath validPath m =
     , -- | Get the output names of the derivation at a 'Path'.
       derivationOutputNames :: !(validPath -> m (HashSet Text))
     , -- | Get a full 'Path' corresponding to a given 'Digest'.
-      pathFromHashPart :: !(Digest PathHashAlgo -> m Path)
+      pathFromHashPart :: !(StorePathHash -> m Path)
     , -- | Add a non-nar file to the store
       addFile :: !(BS.ByteString -> m validPath)
     }

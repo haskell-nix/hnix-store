@@ -14,11 +14,11 @@ import qualified Data.HashSet              as HashSet
 
 import           Network.Socket.ByteString (recv, sendAll)
 
+import           System.Nix.Hash
 import           System.Nix.Store.Remote.Types
 import           System.Nix.Path
 import           System.Nix.Util
 
-import           Crypto.Hash
 
 genericIncremental :: (MonadIO m) => m (Maybe B.ByteString) -> Get a -> m a
 genericIncremental getsome parser = go decoder
