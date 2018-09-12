@@ -14,6 +14,7 @@ module System.Nix.Hash (
 
   -- * Eliminate hashes for the store
   , hashToBase32
+  -- , hashToBase64
 
   -- * cryptohash-sha256 style incremental hash building
   , init
@@ -32,6 +33,7 @@ import           Data.Bits
 import qualified Data.ByteString              as BS
 import qualified Data.ByteString.Lazy         as BSL
 import qualified Data.ByteString.Lazy.Builder as BSL
+import           Data.Char
 import qualified Data.Hashable                as Hashable
 import           Data.Semigroup               ((<>))
 import           Data.Word
@@ -56,11 +58,11 @@ finalize ctx = StorePathHash . truncate52 $ SHA.finalize ctx
 
 
 hash :: BS.ByteString -> StorePathHash
-hash bs = StorePathHash . truncate52 $ SHA.hash bs
+hash bs = StorePathHash . truncate' $ SHA.hash bs
 
 
 hashlazy :: BSL.ByteString -> StorePathHash
-hashlazy bs = StorePathHash . truncate52 $ SHA.hashlazy bs
+hashlazy bs = StorePathHash . truncate' $ SHA.hashlazy bs
 
 
 -- | Import and validate a store path hash
@@ -86,12 +88,15 @@ truncate52 digest =
     Just (x,xs) -> BS.cons (mask4bits .&. x) xs
     where mask4bits = 2^5 - 1 :: Word8
 
+truncate' :: BS.ByteString -> BS.ByteString
+truncate' = BS.drop 12 -- BS.take 20
+
 
 -- | Convert a ByteString to base 32 in the way that Nix does
 toNixBase32 :: BSL.ByteString -> BSL.ByteString
 toNixBase32 x = BSL.toLazyByteString $ mconcat $ map (BSL.word8 . (symbols UV.!) . fromIntegral) vals
   where vals = byteStringToQuintets x
-        symbols = UV.fromList $ map (fromIntegral . fromEnum) $ filter (`notElem` ("eotu" :: String)) $ ['0'..'9'] <> ['a'..'z']
+        symbols = UV.fromList $ map (fromIntegral . ord) $ filter (`notElem` ("eotu" :: String)) $ ['0'..'9'] <> ['a'..'z']
         -- See https://github.com/NixOS/nix/blob/6f1743b1a5116ca57a60b481ee4083c891b7a334/src/libutil/hash.cc#L109
         byteStringToQuintets :: BSL.ByteString -> [Word8]
         byteStringToQuintets hash = map f [len-1, len-2 .. 0]
