@@ -23,7 +23,7 @@ import           System.Nix.Path           (PathSet)
 data Action = ReturnLive | ReturnDead | DeleteDead | DeleteSpecific
   deriving (Eq, Ord, Enum, Show)
 
- -- | Garbage collector operation options
+-- | Garbage collector operation options
 data Options = Options
   { -- | operation
     operation      :: !Action

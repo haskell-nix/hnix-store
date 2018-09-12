@@ -87,7 +87,7 @@ data SubstitutablePathInfo = SubstitutablePathInfo
     narSize      :: !Integer
   } deriving (Eq, Ord, Show)
 
- -- | Information about 'Path'.
+-- | Information about @Path@
 data ValidPathInfo = ValidPathInfo
   { -- | Path itself
     path             :: !Path

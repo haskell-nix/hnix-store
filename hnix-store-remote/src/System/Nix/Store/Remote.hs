@@ -175,7 +175,7 @@ buildPaths ps bm = void $ simpleOpArgs EnsurePath $ do
   putPaths ps
   putInt $ fromEnum bm
 
-buildDerivation :: PathName -> Drv.BasicDerivation -> Build.BuildMode -> MonadStore Build.BuildResult
+buildDerivation :: PathName -> Drv.Derivation -> Build.BuildMode -> MonadStore Build.BuildResult
 buildDerivation = undefined  -- XXX
 
 ensurePath :: Path -> MonadStore ()

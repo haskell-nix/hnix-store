@@ -47,7 +47,13 @@ library
   hs-source-dirs:      src
   default-language:    Haskell2010
 
+Flag bounded_memory
+     description: Run tests of constant memory use (requires +RTS -T)
+     default: False
+
 test-suite format-tests
+   if flag(bounded_memory)
+     cpp-options: -DBOUNDED_MEMORY
    ghc-options: -rtsopts -fprof-auto
    type: exitcode-stdio-1.0
    main-is: Driver.hs
