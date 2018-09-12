@@ -34,7 +34,7 @@ data BuildStatus =
   deriving (Eq, Ord, Enum, Show)
 
 
- -- | Result of the build
+-- | Result of the build
 data BuildResult = BuildResult
   { -- | build status, MiscFailure should be default
     status             :: !BuildStatus
