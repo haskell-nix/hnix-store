@@ -26,7 +26,6 @@ library
                      , System.Nix.Store
                      , System.Nix.Util
   build-depends:       base >=4.10 && <4.11
-                     , basement
                      , bytestring
                      , binary
                      , bytestring
@@ -34,10 +33,7 @@ library
                      , cryptohash-sha256
                      , directory
                      , filepath
-                      -- Drop foundation when we can drop cryptonite <0.25
-                     , foundation
                      , hashable
-                     , memory
                      , mtl
                      , regex-base
                      , regex-tdfa-text

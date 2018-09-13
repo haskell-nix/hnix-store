@@ -12,7 +12,6 @@ module System.Nix.Store
   ) where
 
 import qualified Data.ByteString.Lazy as BS
-import qualified Data.ByteArray as B
 import Data.Text (Text)
 import Text.Regex.Base.RegexLike (makeRegex, matchTest)
 import Text.Regex.TDFA.Text (Regex)
