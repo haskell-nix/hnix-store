@@ -18,7 +18,6 @@ import           System.Nix.Store.Remote.Types
 import           System.Nix.Path
 import           System.Nix.Util
 
-import           Crypto.Hash
 
 genericIncremental :: (MonadIO m) => m (Maybe B.ByteString) -> Get a -> m a
 genericIncremental getsome parser = go decoder
@@ -71,7 +70,10 @@ textToLBS = LBS.fromStrict . BSC.pack . T.unpack
 -- XXX: needs work
 mkPath :: LBS.ByteString -> Maybe Path
 mkPath p = case (pathName $ lBSToText p) of
-             Just x -> Just $ Path (hash $ LBS.toStrict p) x --XXX: hash
+             -- TODO: replace `undefined` with digest encoding function when
+             --       [issue 24](https://github.com/haskell-nix/hnix-store/issues/24)
+             --       is closed
+             Just x -> Just $ Path (undefined $ LBS.toStrict p) x --XXX: hash
              Nothing -> Nothing
 
 -- WOOT

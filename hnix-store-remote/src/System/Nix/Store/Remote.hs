@@ -30,7 +30,6 @@ module System.Nix.Store.Remote (
   ) where
 
 import           Data.Maybe
-import           Data.ByteArray            (convert)
 import qualified Data.ByteString.Lazy      as LBS
 import qualified Data.Map.Strict           as M
 
@@ -39,14 +38,13 @@ import           Control.Monad
 import qualified System.Nix.Build      as Build
 import qualified System.Nix.Derivation as Drv
 import qualified System.Nix.GC         as GC
+import           System.Nix.Hash       (Digest, HashAlgorithm)
 import           System.Nix.Path
 import           System.Nix.Util
 
 import           System.Nix.Store.Remote.Types
 import           System.Nix.Store.Remote.Protocol
 import           System.Nix.Store.Remote.Util
-
-import           Crypto.Hash
 
 type RepairFlag = Bool
 type CheckFlag = Bool
@@ -151,7 +149,10 @@ queryDerivationOutputNames p = do
 queryPathFromHashPart :: Digest PathHashAlgo -> MonadStore (Maybe Path)
 queryPathFromHashPart d = do
   runOpArgs QueryPathFromHashPart $
-    putByteStringLen $ LBS.fromStrict $ convert d
+    -- TODO: replace `undefined` with digest encoding function when
+    --       [issue 24](https://github.com/haskell-nix/hnix-store/issues/24) is
+    --       closed
+    putByteStringLen $ LBS.fromStrict $ undefined d
   sockGetPath
 
 type Source = () -- abstract binary source
@@ -159,7 +160,7 @@ addToStoreNar :: ValidPathInfo -> Source -> RepairFlag -> CheckSigsFlag -> Monad
 addToStoreNar = undefined  -- XXX
 
 type PathFilter = Path -> Bool
-addToStore :: LBS.ByteString -> Path -> Bool -> PathHashAlgo -> PathFilter -> RepairFlag -> MonadStore Path
+addToStore :: LBS.ByteString -> Path -> Bool -> HashAlgorithm -> PathFilter -> RepairFlag -> MonadStore Path
 addToStore name pth recursive hashAlgo pfilter repair = undefined -- XXX
 
 addTextToStore :: LBS.ByteString -> LBS.ByteString -> PathSet -> RepairFlag -> MonadStore (Maybe Path)

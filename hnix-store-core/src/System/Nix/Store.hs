@@ -11,11 +11,7 @@ module System.Nix.Store
   , SubstitutablePathInfo(..)
   ) where
 
-import Crypto.Hash (Digest)
-import Crypto.Hash.Truncated (Truncated)
-import Crypto.Hash.Algorithms (SHA256)
 import qualified Data.ByteString.Lazy as BS
-import qualified Data.ByteArray as B
 import Data.Text (Text)
 import Text.Regex.Base.RegexLike (makeRegex, matchTest)
 import Text.Regex.TDFA.Text (Regex)
@@ -24,6 +20,7 @@ import Data.HashSet (HashSet)
 import Data.HashMap.Strict (HashMap)
 import System.IO.Unsafe (unsafeDupablePerformIO)
 
+import System.Nix.Hash (Digest)
 import System.Nix.Path
 import System.Nix.Nar
 
