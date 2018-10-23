@@ -17,10 +17,8 @@ module System.Nix.Path
   , Roots
   ) where
 
-import           Crypto.Hash               (Digest)
-import           Crypto.Hash.Algorithms    (SHA256)
-import           Crypto.Hash.Truncated     (Truncated)
-import qualified Data.ByteArray            as B
+import           System.Nix.Hash           (Digest(..),
+                                            HashAlgorithm(TruncatedSHA256))
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Char8     as BSC
 import           Data.Hashable             (Hashable (..), hashPtrWithSalt)
@@ -32,6 +30,9 @@ import qualified Data.Text                 as T
 import           System.IO.Unsafe          (unsafeDupablePerformIO)
 import           Text.Regex.Base.RegexLike (makeRegex, matchTest)
 import           Text.Regex.TDFA.Text      (Regex)
+
+-- | The hash algorithm used for store path hashes.
+type PathHashAlgo = TruncatedSHA256
 
 -- | The name portion of a Nix path.
 --
@@ -52,25 +53,9 @@ pathName n = case matchTest nameRegex n of
   True  -> Just $ PathName n
   False -> Nothing
 
--- | The hash algorithm used for store path hashes.
-type PathHashAlgo = Truncated SHA256 20
-
 -- | A path in a store.
 data Path = Path !(Digest PathHashAlgo) !PathName
   deriving (Eq, Ord, Show)
-
--- | Wrapper to defined a 'Hashable' instance for 'Digest'.
-newtype HashableDigest a = HashableDigest (Digest a)
-
-instance Hashable (HashableDigest a) where
-  hashWithSalt s (HashableDigest d) = unsafeDupablePerformIO $
-    B.withByteArray d $ \ptr -> hashPtrWithSalt ptr (B.length d) s
-
-instance Hashable Path where
-  hashWithSalt s (Path digest name) =
-    s `hashWithSalt`
-    (HashableDigest digest) `hashWithSalt` name
-
 
 type PathSet = HashSet Path
 
@@ -130,3 +115,6 @@ filePathPart p = case BSC.any (`elem` ['/', '\NUL']) p of
   True  -> Nothing
 
 type Roots = Map Path Path
+
+instance Hashable Path where
+  hashWithSalt s (Path hash name) = s `hashWithSalt` hash `hashWithSalt` name
