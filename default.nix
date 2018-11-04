@@ -3,7 +3,7 @@
 }:
 mkDerivation {
   pname = "nix-derivation";
-  version = "1.0.1";
+  version = "1.0.2";
   src = ./.;
   isLibrary = true;
   isExecutable = true;
