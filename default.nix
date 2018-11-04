@@ -1,5 +1,5 @@
-{ mkDerivation, attoparsec, base, containers, deepseq, pretty-show
-, QuickCheck, stdenv, system-filepath, text, vector
+{ mkDerivation, attoparsec, base, containers, criterion, deepseq
+, pretty-show, QuickCheck, stdenv, system-filepath, text, vector
 }:
 mkDerivation {
   pname = "nix-derivation";
@@ -14,6 +14,7 @@ mkDerivation {
   testHaskellDepends = [
     attoparsec base QuickCheck system-filepath text vector
   ];
+  benchmarkHaskellDepends = [ attoparsec base criterion text ];
   description = "Parse and render *.drv files";
   license = stdenv.lib.licenses.bsd3;
 }
