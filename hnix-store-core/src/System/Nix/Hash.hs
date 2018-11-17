@@ -1,30 +1,25 @@
 {-|
-Description : Trunctions of cryptographic hashes.
-Maintainer  : Shea Levy <shea@shealevy.com>
+Description : Cryptographic hashes for hnix-store.
+Maintainer  : Shea Levy <shea@shealevy.com>; Greg Hale <imalsogreg@gmail.com>
 -}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE CPP #-}
-module System.Nix.Hash where
+module System.Nix.Hash (
+    HNix.Digest
 
-import Control.Monad (void)
-import Data.Coerce (coerce)
-import qualified Data.ByteString as BS
-import Data.Hashable (Hashable (..))
-import Data.Proxy (Proxy(..))
-import Data.Word (Word8)
-import GHC.TypeLits (Nat, KnownNat, natVal, type (<=))
-import Foreign.Ptr (castPtr, Ptr)
-import Foreign.Marshal.Utils (copyBytes)
+  , HNix.HashAlgorithm(..)
+  , HNix.HasDigest(..)
+  , HNix.hash
+  , HNix.hashLazy
 
-data HashAlgorithm = TruncatedSHA256 | MD5
+  , HNix.printAsBase32
+  ) where
 
-newtype Digest (algo :: HashAlgorithm) = Digest { getDigestBytes :: BS.ByteString }
-  deriving (Eq, Ord, Show)
+import qualified System.Nix.Internal.Hash as HNix
 
-instance Hashable (Digest algo) where
-  hashWithSalt s (Digest bytes) = hashWithSalt s bytes
