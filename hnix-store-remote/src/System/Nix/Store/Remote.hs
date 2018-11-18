@@ -52,7 +52,7 @@ import qualified System.Nix.GC             as GC
 import           System.Nix.Hash           (Digest, HashAlgorithm)
 import           System.Nix.Path
 import           System.Nix.Hash
-import           System.Nix.Nar            (localPackNar, putNar)
+import           System.Nix.Nar            (localPackNar, putNar, narEffectsIO)
 import           System.Nix.Util
 
 import           System.Nix.Store.Remote.Types
@@ -206,10 +206,10 @@ addToStore
   -> MonadStore Path
 addToStore name pth recursive algoProxy pfilter repair = do
   -- Get length first
-  len <- liftIO $ LBS.length . B.runPut . putNar <$> localPackNar undefined pth
+  len <- liftIO $ LBS.length . B.runPut . putNar <$> localPackNar narEffectsIO pth
   -- Fetch full NAR bytestring separately. We are trying to
   -- avoid forcing the full string in memory
-  bs  :: LBS.ByteString <- liftIO $ B.runPut . putNar <$> localPackNar undefined pth
+  bs  :: LBS.ByteString <- liftIO $ B.runPut . putNar <$> localPackNar narEffectsIO pth
   runOpArgs AddToStore $ do
     putByteStringLen name
     -- TODO: really send the string 0 or 1? Or is this Word8's 0 and 1?
