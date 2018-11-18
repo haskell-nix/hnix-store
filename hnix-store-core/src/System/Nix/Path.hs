@@ -18,7 +18,7 @@ module System.Nix.Path
   ) where
 
 import           System.Nix.Hash           (Digest(..),
-                                            HashAlgorithm(Truncated, SHA256))
+                                            HashAlgorithm'(Truncated, SHA256))
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Char8     as BSC
 import           Data.Hashable             (Hashable (..), hashPtrWithSalt)

@@ -1,4 +1,10 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications    #-}
 module System.Nix.Store.Remote (
     runStore
   , isValidPathUncached
@@ -32,6 +38,7 @@ module System.Nix.Store.Remote (
 import           Data.Maybe
 import qualified Data.ByteString.Lazy      as LBS
 import qualified Data.Map.Strict           as M
+import           Data.Proxy                (Proxy(Proxy))
 
 import           Control.Monad
 
@@ -40,6 +47,7 @@ import qualified System.Nix.Derivation as Drv
 import qualified System.Nix.GC         as GC
 import           System.Nix.Hash       (Digest, HashAlgorithm)
 import           System.Nix.Path
+import           System.Nix.Hash
 import           System.Nix.Util
 
 import           System.Nix.Store.Remote.Types
@@ -159,9 +167,40 @@ type Source = () -- abstract binary source
 addToStoreNar :: ValidPathInfo -> Source -> RepairFlag -> CheckSigsFlag -> MonadStore ()
 addToStoreNar = undefined  -- XXX
 
+
+-- class BaseHashAlgorithm (a :: HashAlgorithm) where
+--   baseHashAlgorithm :: Bool
+
+-- instance BaseHashAlgorithm MD5 where
+--   baseHashAlgorithm = MD5
+
+-- instance BaseHashAlgorithm SHA1 where
+--   baseHashAlgorithm = SHA1
+
+-- instance BaseHashAlgorithm SHA256 where
+--   baseHashAlgorithm = SHA256
+
+-- instance forall n a.BaseHashAlgorithm a => BaseHashAlgorithm (Truncated n a) where
+--   baseHashAlgorithm = baseHashAlgorithm @a
+
 type PathFilter = Path -> Bool
-addToStore :: LBS.ByteString -> Path -> Bool -> HashAlgorithm -> PathFilter -> RepairFlag -> MonadStore Path
-addToStore name pth recursive hashAlgo pfilter repair = undefined -- XXX
+addToStore
+  :: forall a. AlgoVal a
+  => LBS.ByteString
+  -> Path
+  -> Bool
+  -> Proxy a
+  -> PathFilter
+  -> RepairFlag
+  -> MonadStore Path
+addToStore name pth recursive algoProxy pfilter repair = do
+  runOpArgs AddToStore $ do
+    putByteStringLen name
+    putByteStringLen $ if algoVal @a == SHA256 && recursive then 0 else 1
+    putByteStringLen $ if recursive then 0 else 1
+    putByteStringLen name
+  fmap (fromMaybe "TODO: Error") sockGetPath
+
 
 addTextToStore :: LBS.ByteString -> LBS.ByteString -> PathSet -> RepairFlag -> MonadStore (Maybe Path)
 addTextToStore name text references' repair = do

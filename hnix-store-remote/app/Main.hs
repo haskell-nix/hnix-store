@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedStrings   #-}
 import qualified Data.ByteString.Lazy as LBS
-import qualified Data.HashSet as HS
-import qualified System.Nix.GC as GC
-import System.Nix.Store.Remote
-import System.Nix.Store.Remote.Util
-import Data.Maybe
-import Control.Monad.Reader
+import qualified Data.HashSet         as HS
+import           Data.Maybe
+import           Control.Monad.Reader
+import           Text.Pretty.Simple
 
-import Text.Pretty.Simple
+import qualified System.Nix.GC                as GC
+import           System.Nix.Store.Remote
+import           System.Nix.Store.Remote.Util
 
 noSuchPath = fromJust $ mkPath "blah"
 

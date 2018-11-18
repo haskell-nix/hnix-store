@@ -13,7 +13,9 @@ Maintainer  : Shea Levy <shea@shealevy.com>; Greg Hale <imalsogreg@gmail.com>
 module System.Nix.Hash (
     HNix.Digest
 
-  , HNix.HashAlgorithm(..)
+  , HNix.HashAlgorithm
+  , HNix.HashAlgorithm'(..)
+  , HNix.AlgoVal(..)
   , HNix.HasDigest(..)
   , HNix.hash
   , HNix.hashLazy
