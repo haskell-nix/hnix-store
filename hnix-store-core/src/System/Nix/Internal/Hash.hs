@@ -47,21 +47,6 @@ data HashAlgorithm' n
 
 type HashAlgorithm = HashAlgorithm' Nat
 
-class AlgoVal (a :: HashAlgorithm) where
-  algoVal :: HashAlgorithm' Integer
-
-instance AlgoVal MD5 where
-  algoVal = MD5
-
-instance AlgoVal SHA1 where
-  algoVal = SHA1
-
-instance AlgoVal SHA256 where
-  algoVal = SHA256
-
-instance forall a n.(AlgoVal a, KnownNat n) => AlgoVal (Truncated n a) where
-  algoVal = Truncated (natVal (Proxy @n)) (algoVal @a)
-
 -- | Types with kind @HashAlgorithm@ may be a @HasDigest@ instance
 --   if they are able to hash bytestrings via the init/update/finalize
 --   API of cryptonite
@@ -185,3 +170,20 @@ truncateDigest (Digest c) = Digest $ BS.pack $ map truncOutputByte [0.. n-1]
 
 digits32 :: V.Vector Char
 digits32 = V.fromList "0123456789abcdfghijklmnpqrsvwxyz"
+
+
+-- | Convert type-level @HashAlgorithm@ into the value level
+class AlgoVal (a :: HashAlgorithm) where
+  algoVal :: HashAlgorithm' Integer
+
+instance AlgoVal MD5 where
+  algoVal = MD5
+
+instance AlgoVal SHA1 where
+  algoVal = SHA1
+
+instance AlgoVal SHA256 where
+  algoVal = SHA256
+
+instance forall a n.(AlgoVal a, KnownNat n) => AlgoVal (Truncated n a) where
+  algoVal = Truncated (natVal (Proxy @n)) (algoVal @a)

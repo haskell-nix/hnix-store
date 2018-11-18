@@ -35,19 +35,24 @@ module System.Nix.Store.Remote (
   , queryMissing
   ) where
 
+import           Control.Monad
+import           Control.Monad.IO.Class    (liftIO)
+import qualified Data.Binary               as B
+import qualified Data.Binary.Put           as B
 import           Data.Maybe
 import qualified Data.ByteString.Lazy      as LBS
 import qualified Data.Map.Strict           as M
 import           Data.Proxy                (Proxy(Proxy))
+import qualified Data.Text.Lazy                 as T
+import qualified Data.Text.Lazy.Encoding        as T
 
-import           Control.Monad
-
-import qualified System.Nix.Build      as Build
-import qualified System.Nix.Derivation as Drv
-import qualified System.Nix.GC         as GC
-import           System.Nix.Hash       (Digest, HashAlgorithm)
+import qualified System.Nix.Build          as Build
+import qualified System.Nix.Derivation     as Drv
+import qualified System.Nix.GC             as GC
+import           System.Nix.Hash           (Digest, HashAlgorithm)
 import           System.Nix.Path
 import           System.Nix.Hash
+import           System.Nix.Nar            (localPackNar, putNar)
 import           System.Nix.Util
 
 import           System.Nix.Store.Remote.Types
@@ -183,23 +188,42 @@ addToStoreNar = undefined  -- XXX
 -- instance forall n a.BaseHashAlgorithm a => BaseHashAlgorithm (Truncated n a) where
 --   baseHashAlgorithm = baseHashAlgorithm @a
 
+printHashType :: HashAlgorithm' Integer -> T.Text
+printHashType MD5 = "MD5"
+printHashType SHA1 = "SHA1"
+printHashType SHA256 = "SHA256"
+printHashType (Truncated _ a) = printHashType a
+
 type PathFilter = Path -> Bool
 addToStore
-  :: forall a. AlgoVal a
+  :: forall a. (HasDigest a, AlgoVal a)
   => LBS.ByteString
-  -> Path
+  -> FilePath
   -> Bool
   -> Proxy a
   -> PathFilter
   -> RepairFlag
   -> MonadStore Path
 addToStore name pth recursive algoProxy pfilter repair = do
+  -- Get length first
+  len <- liftIO $ LBS.length . B.runPut . putNar <$> localPackNar undefined pth
+  -- Fetch full NAR bytestring separately. We are trying to
+  -- avoid forcing the full string in memory
+  bs  :: LBS.ByteString <- liftIO $ B.runPut . putNar <$> localPackNar undefined pth
   runOpArgs AddToStore $ do
     putByteStringLen name
-    putByteStringLen $ if algoVal @a == SHA256 && recursive then 0 else 1
-    putByteStringLen $ if recursive then 0 else 1
-    putByteStringLen name
-  fmap (fromMaybe "TODO: Error") sockGetPath
+    -- TODO: really send the string 0 or 1? Or is this Word8's 0 and 1?
+    putByteStringLen $ if algoVal @a `elem` [SHA256, Truncated 20 SHA256]
+                                            && recursive
+                       then "0"
+                       else "1"
+    -- TODO: really send the string 0 or 1? Or is this Word8's 0 and 1?
+    putByteStringLen $ if recursive then "0" else "1"
+    putByteStringLen (T.encodeUtf8 . printHashType $ algoVal @a)
+
+    putInt len
+    B.putLazyByteString bs
+  fmap (fromMaybe $ error "TODO: Error") sockGetPath
 
 
 addTextToStore :: LBS.ByteString -> LBS.ByteString -> PathSet -> RepairFlag -> MonadStore (Maybe Path)
