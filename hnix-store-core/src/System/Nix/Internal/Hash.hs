@@ -11,6 +11,7 @@ Maintainer  : Greg Hale <imalsogreg@gmail.com>
 {-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE TypeInType          #-}
 
 module System.Nix.Internal.Hash where
 
@@ -23,6 +24,7 @@ import           Data.Bits             (xor)
 import qualified Data.ByteString       as BS
 import qualified Data.ByteString.Lazy  as BSL
 import qualified Data.Hashable         as DataHashable
+import           Data.Kind             (Type)
 import           Data.List             (foldl')
 import           Data.Proxy            (Proxy(Proxy))
 import qualified Data.Text             as T
@@ -34,12 +36,31 @@ import           GHC.TypeLits
 -- | A tag for different hashing algorithms
 --   Also used as a type-level tag for hash digests
 --   (e.g. @Digest SHA256@ is the type for a sha256 hash)
-data HashAlgorithm
+--
+--  When used at the type level, `n` is `Nat`
+data HashAlgorithm' n
   = MD5
   | SHA1
   | SHA256
-  | Truncated Nat HashAlgorithm
+  | Truncated n (HashAlgorithm' n)
+  deriving (Eq, Show)
 
+type HashAlgorithm = HashAlgorithm' Nat
+
+class AlgoVal (a :: HashAlgorithm) where
+  algoVal :: HashAlgorithm' Integer
+
+instance AlgoVal MD5 where
+  algoVal = MD5
+
+instance AlgoVal SHA1 where
+  algoVal = SHA1
+
+instance AlgoVal SHA256 where
+  algoVal = SHA256
+
+instance forall a n.(AlgoVal a, KnownNat n) => AlgoVal (Truncated n a) where
+  algoVal = Truncated (natVal (Proxy @n)) (algoVal @a)
 
 -- | Types with kind @HashAlgorithm@ may be a @HasDigest@ instance
 --   if they are able to hash bytestrings via the init/update/finalize
@@ -49,7 +70,7 @@ data HashAlgorithm
 --   monomorphic hashing libraries, such as `cryptohash-sha256`.
 class HasDigest (a :: HashAlgorithm) where
 
-  type AlgoCtx a :: *
+  type AlgoCtx a :: Type
 
   initialize        :: AlgoCtx a
   update            :: AlgoCtx a -> BS.ByteString -> AlgoCtx a
