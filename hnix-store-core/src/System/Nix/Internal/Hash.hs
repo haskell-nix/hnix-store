@@ -97,6 +97,10 @@ hashLazy :: forall a.HasDigest a => BSL.ByteString -> Digest a
 hashLazy bsl =
   finalize $ foldl' (update @a) (initialize @a) (BSL.toChunks bsl)
 
+-- | Hash file
+hashFile :: forall a.HasDigest a => FilePath -> IO (Digest a)
+hashFile fp = hashLazy <$> BSL.readFile fp
+
 digestText32 :: forall a. HashAlgoText a => Digest a -> T.Text
 digestText32 d = algoString (Proxy :: Proxy a) <> ":" <> printAsBase32 d
 
