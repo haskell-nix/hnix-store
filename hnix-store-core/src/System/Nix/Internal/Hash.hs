@@ -76,6 +76,7 @@ class HasDigest (a :: HashAlgorithm) where
   initialize        :: AlgoCtx a
   update            :: AlgoCtx a -> BS.ByteString -> AlgoCtx a
   finalize          :: AlgoCtx a -> Digest a
+  hashName          :: T.Text
 
 
 -- | The cryptographic hash of of a strict bytestring, where hash
@@ -111,30 +112,37 @@ printAsBase16 (Digest bs) = printHashBytes16 bs
 printAsBase32 :: Digest a -> T.Text
 printAsBase32 (Digest bs) = printHashBytes32 bs
 
+-- | Print lowercased name of the hashing algorithm
+printHashAlgo :: forall a.HasDigest a => Digest a -> T.Text
+printHashAlgo _ = hashName @a
 
 instance HasDigest MD5 where
   type AlgoCtx 'MD5 = MD5.Ctx
   initialize = MD5.init
   update = MD5.update
   finalize = Digest . MD5.finalize
+  hashName = T.pack "md5"
 
 instance HasDigest 'SHA1 where
   type AlgoCtx SHA1 = SHA1.Ctx
   initialize = SHA1.init
   update = SHA1.update
   finalize = Digest . SHA1.finalize
+  hashName = T.pack "sha1"
 
 instance HasDigest 'SHA256 where
   type AlgoCtx SHA256 = SHA256.Ctx
   initialize = SHA256.init
   update = SHA256.update
   finalize = Digest . SHA256.finalize
+  hashName = T.pack "sha256"
 
 instance (HasDigest a, KnownNat n) => HasDigest (Truncated n a) where
   type AlgoCtx (Truncated n a) = AlgoCtx a
   initialize = initialize @a
   update = update @a
   finalize = truncateDigest @n . finalize @a
+  hashName = hashName @a
 
 -- | A raw hash digest, with a type-level tag
 newtype Digest (a :: HashAlgorithm) = Digest

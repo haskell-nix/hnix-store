@@ -22,6 +22,7 @@ module System.Nix.Hash (
 
   , HNix.printAsBase16
   , HNix.printAsBase32
+  , HNix.printHashAlgo
   ) where
 
 import qualified System.Nix.Internal.Hash as HNix
