@@ -20,6 +20,7 @@ module System.Nix.Hash (
   , HNix.hash
   , HNix.hashLazy
 
+  , HNix.printAsBase16
   , HNix.printAsBase32
   ) where
 

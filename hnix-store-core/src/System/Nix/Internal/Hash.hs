@@ -102,6 +102,10 @@ digestText32 d = algoString (Proxy :: Proxy a) <> ":" <> printAsBase32 d
 digestText16 :: forall a. HashAlgoText a => Digest a -> T.Text
 digestText16 (Digest bs) = algoString (Proxy :: Proxy a) <> ":" <> T.decodeUtf8 (Base16.encode bs)
 
+-- | Convert any Digest to a base16-encoded string.
+printAsBase16 :: Digest a -> T.Text
+printAsBase16 (Digest bs) = printHashBytes16 bs
+
 -- | Convert any Digest to a base32-encoded string.
 --   This is not used in producing store path hashes
 printAsBase32 :: Digest a -> T.Text
@@ -144,6 +148,17 @@ newtype Digest (a :: HashAlgorithm) = Digest
 --   hashWithSalt a (Digest bs) = DataHashable.hashWithSalt a bs
 --   hashWithSalt = coerce . DataHash
 
+-- | Internal function for encoding bytestrings into base16 according to
+--  nix's convention
+printHashBytes16 :: BS.ByteString -> T.Text
+printHashBytes16 c = T.pack $ concatMap char16 [0 .. (fromIntegral (BS.length c - 1))]
+  where
+    -- The base16 encoding is twice as long as the base256 digest
+    char16 :: Integer -> [Char]
+    char16 i = [digits16 V.! (fromIntegral (byte i) `div` 16),
+                digits16 V.! (fromIntegral (byte i) `mod` 16)]
+      where
+        byte j   = BS.index c (fromIntegral j)
 
 -- | Internal function for encoding bytestrings into base32 according to
 --  nix's convention
@@ -190,6 +205,10 @@ truncateDigest (Digest c) = Digest $ BS.pack $ map truncOutputByte [0.. n-1]
                 then xor x (inputByte $ fromIntegral j)
                 else x
 
+digits16 :: V.Vector Char
+digits16 = V.fromList "0123456789abcdef"
+
+-- omitted: E O U T
 digits32 :: V.Vector Char
 digits32 = V.fromList "0123456789abcdfghijklmnpqrsvwxyz"
 
