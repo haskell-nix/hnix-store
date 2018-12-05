@@ -43,6 +43,7 @@ library
                      , regex-base
                      , regex-tdfa-text
                      , text
+                     , time
                      , unix
                      , unordered-containers
                      , vector

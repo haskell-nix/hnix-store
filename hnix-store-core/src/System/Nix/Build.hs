@@ -10,6 +10,7 @@ module System.Nix.Build (
   , buildSuccess
   ) where
 
+import           Data.Time                 (UTCTime)
 import           Data.Text                 (Text)
 import           Data.HashSet              (HashSet)
 import           System.Nix.Path           (Path)
@@ -39,12 +40,15 @@ data BuildResult = BuildResult
   { -- | build status, MiscFailure should be default
     status             :: !BuildStatus
   , -- | possible build error message
-    error              :: !(Maybe Text)
+    errorMessage       :: !(Maybe Text)
   , -- | How many times this build was performed
     timesBuilt         :: !Integer
   , -- | If timesBuilt > 1, whether some builds did not produce the same result
     isNonDeterministic :: !Bool
-    -- XXX: | startTime stopTime time_t
+  ,  -- Start time of this build
+    startTime          :: !UTCTime
+  ,  -- Stop time of this build
+    stopTime           :: !UTCTime
   } deriving (Eq, Ord, Show)
 
 buildSuccess BuildResult{..} = status == Built || status == Substituted || status == AlreadyValid
