@@ -157,7 +157,7 @@ runStore code = do
       sockPut $ putInt workerMagic1
       soc <- ask
       vermagic <- liftIO $ recv soc 16
-      let (magic2, daemonProtoVersion) = flip runGet (LBS.fromStrict vermagic) $ (,) <$> getInt <*> getInt
+      let (magic2, _daemonProtoVersion) = flip runGet (LBS.fromStrict vermagic) $ (,) <$> (getInt :: Get Int) <*> (getInt :: Get Int)
       unless (magic2 == workerMagic2) $ error "Worker magic 2 mismatch"
 
       sockPut $ putInt protoVersion -- clientVersion
