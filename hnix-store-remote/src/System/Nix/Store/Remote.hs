@@ -59,6 +59,9 @@ import           System.Nix.Store.Remote.Types
 import           System.Nix.Store.Remote.Protocol
 import           System.Nix.Store.Remote.Util
 
+-- tmp
+import qualified Data.ByteString.Base64.Lazy as B64
+
 type RepairFlag = Bool
 type CheckFlag = Bool
 type CheckSigsFlag = Bool
@@ -194,7 +197,50 @@ printHashType SHA1 = "SHA1"
 printHashType SHA256 = "SHA256"
 printHashType (Truncated _ a) = printHashType a
 
+
+-- **********************************************************
+-- ** This is the c++ code we are porting for `addToStore` **
+-- **********************************************************
+--
+-- Path RemoteStore::addToStore(const string & name, const Path & _srcPath,
+--     bool recursive, HashType hashAlgo, PathFilter & filter, RepairFlag repair)
+-- {
+--     if (repair) throw Error("repairing is not supported when building through the Nix daemon");
+
+--     auto conn(getConnection());
+
+--     Path srcPath(absPath(_srcPath));
+
+--     conn->to << wopAddToStore << name
+--        << ((hashAlgo == htSHA256 && recursive) ? 0 : 1) /* backwards compatibility hack */
+--        << (recursive ? 1 : 0)
+--        << printHashType(hashAlgo);
+
+--     try {
+--         conn->to.written = 0;
+--         conn->to.warn = true;
+--         connections->incCapacity();
+--         {
+--             Finally cleanup([&]() { connections->decCapacity(); });
+--             dumpPath(srcPath, conn->to, filter);
+--         }
+--         conn->to.warn = false;
+--         conn.processStderr();
+--     } catch (SysError & e) {
+--         /* Daemon closed while we were sending the path. Probably OOM
+--            or I/O error. */
+--         if (e.errNo == EPIPE)
+--             try {
+--                 conn.processStderr();
+--             } catch (EndOfFile & e) { }
+--         throw;
+--     }
+
+--     return readStorePath(*this, conn->from);
+-- }
+
 type PathFilter = Path -> Bool
+
 addToStore
   :: forall a. (HasDigest a, AlgoVal a)
   => LBS.ByteString
@@ -206,25 +252,52 @@ addToStore
   -> MonadStore Path
 addToStore name pth recursive algoProxy pfilter repair = do
   -- Get length first
-  len <- liftIO $ LBS.length . B.runPut . putNar <$> localPackNar narEffectsIO pth
+  -- len <- liftIO $ LBS.length . B.runPut . putNar <$> localPackNar narEffectsIO pth
   -- Fetch full NAR bytestring separately. We are trying to
   -- avoid forcing the full string in memory
   bs  :: LBS.ByteString <- liftIO $ B.runPut . putNar <$> localPackNar narEffectsIO pth
+  liftIO $ print (LBS.length bs)
+  bs' <- liftIO $ putNar <$> localPackNar narEffectsIO pth
+  let bs'' = putByteStringLen "nix-archive-1"
+  let bs = sampleRegularBaseline
+  let len = LBS.length bs
   runOpArgs AddToStore $ do
     putByteStringLen name
     -- TODO: really send the string 0 or 1? Or is this Word8's 0 and 1?
     putByteStringLen $ if algoVal @a `elem` [SHA256, Truncated 20 SHA256]
                                             && recursive
-                       then "0"
-                       else "1"
+                       then (LBS.pack [0])
+                       else (LBS.pack [1])
+                       -- then "0"
+                       -- else "1"
     -- TODO: really send the string 0 or 1? Or is this Word8's 0 and 1?
-    putByteStringLen $ if recursive then "0" else "1"
-    putByteStringLen (T.encodeUtf8 . printHashType $ algoVal @a)
+    putByteStringLen $ if recursive
+                       then (LBS.pack [1])
+                       else (LBS.pack [0])
+                       -- then "1"
+                       -- else "0"
 
-    putInt len
+    -- putByteStringLen (T.encodeUtf8 . T.toLower . printHashType $ algoVal @a)
+
+    -- putByteStringLen bs
+    -- putInt len
     B.putLazyByteString bs
+    -- bs''
+    -- when (len `mod` 8 /= 0) $
+    --   let pad x = forM_ (take x $ cycle [0]) B.putWord8
+    --   in  pad $ fromIntegral $ 8 - (len `mod` 8)
+
   fmap (fromMaybe $ error "TODO: Error") sockGetPath
 
+
+-- "hi" file turned to a NAR with `nix-store --dump`, Base64 encoded
+sampleRegularBaseline :: LBS.ByteString
+sampleRegularBaseline = B64.decodeLenient $ LBS.concat
+  ["DQAAAAAAAABuaXgtYXJjaGl2ZS0xAAAAAQAAAAAAAAAoAAAAAAA"
+  ,"AAAQAAAAAAAAAdHlwZQAAAAAHAAAAAAAAAHJlZ3VsYXIACAAAAA"
+  ,"AAAABjb250ZW50cwMAAAAAAAAAaGkKAAAAAAABAAAAAAAAACkAA"
+  ,"AAAAAAA"
+  ]
 
 addTextToStore :: LBS.ByteString -> LBS.ByteString -> PathSet -> RepairFlag -> MonadStore (Maybe Path)
 addTextToStore name text references' repair = do

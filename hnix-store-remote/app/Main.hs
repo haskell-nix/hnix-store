@@ -2,10 +2,12 @@
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.HashSet         as HS
 import           Data.Maybe
+import           Data.Proxy
 import           Control.Monad.Reader
 import           Text.Pretty.Simple
 
 import qualified System.Nix.GC                as GC
+import           System.Nix.Path              (PathHashAlgo)
 import           System.Nix.Store.Remote
 import           System.Nix.Store.Remote.Util
 
@@ -17,19 +19,27 @@ main = do
 
     verifyStore False False
 
-    (Just path) <- addTextToStore "hnix-store" "test" (HS.fromList [])  False
+    (Just path)  <- addTextToStore "hnix-store" "test" (HS.fromList [])  False
+
+    -- (Just path2) <-  addTextToStore "hnix-store2" "test2" (HS.fromList [])  False
+    path2 <- addToStore "hi-test-file"
+      "/home/greghale/code/hnix-store/hnix-store-remote/hi"
+      False (Proxy :: Proxy PathHashAlgo) (const True) False
 
     valid <- isValidPathUncached path
-    case valid of
-      True -> do
+    valid2 <- isValidPathUncached path2
+
+    case (valid, valid2) of
+      (True, True) -> do
         info <- queryPathInfoUncached path
-        return (path, info)
+        info2 <- queryPathInfoUncached path2
+        return (path, info, path2, info2)
       _ -> error "shouldn't happen"
 
   pPrint x
   case x of
     (Left err, log) -> putStrLn err >> print log
-    (Right (path, pathinfo), log) -> do
+    (Right (path, pathinfo, path2, pathinfo2), log) -> do
       gcres <- runStore $ do
         collectGarbage $ GC.Options
           { GC.operation = GC.DeleteSpecific
