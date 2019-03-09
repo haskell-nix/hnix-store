@@ -2,9 +2,9 @@
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.HashSet         as HS
 import           Data.Maybe
-import           Data.Proxy
 import           Control.Monad.Reader
 import           Text.Pretty.Simple
+import           Data.Proxy
 
 import qualified System.Nix.GC                as GC
 import           System.Nix.Path              (PathHashAlgo)

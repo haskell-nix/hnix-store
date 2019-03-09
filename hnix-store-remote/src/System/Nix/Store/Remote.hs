@@ -175,7 +175,6 @@ type Source = () -- abstract binary source
 addToStoreNar :: ValidPathInfo -> Source -> RepairFlag -> CheckSigsFlag -> MonadStore ()
 addToStoreNar = undefined  -- XXX
 
-
 -- class BaseHashAlgorithm (a :: HashAlgorithm) where
 --   baseHashAlgorithm :: Bool
 
@@ -196,48 +195,6 @@ printHashType MD5 = "MD5"
 printHashType SHA1 = "SHA1"
 printHashType SHA256 = "SHA256"
 printHashType (Truncated _ a) = printHashType a
-
-
--- **********************************************************
--- ** This is the c++ code we are porting for `addToStore` **
--- **********************************************************
---
--- Path RemoteStore::addToStore(const string & name, const Path & _srcPath,
---     bool recursive, HashType hashAlgo, PathFilter & filter, RepairFlag repair)
--- {
---     if (repair) throw Error("repairing is not supported when building through the Nix daemon");
-
---     auto conn(getConnection());
-
---     Path srcPath(absPath(_srcPath));
-
---     conn->to << wopAddToStore << name
---        << ((hashAlgo == htSHA256 && recursive) ? 0 : 1) /* backwards compatibility hack */
---        << (recursive ? 1 : 0)
---        << printHashType(hashAlgo);
-
---     try {
---         conn->to.written = 0;
---         conn->to.warn = true;
---         connections->incCapacity();
---         {
---             Finally cleanup([&]() { connections->decCapacity(); });
---             dumpPath(srcPath, conn->to, filter);
---         }
---         conn->to.warn = false;
---         conn.processStderr();
---     } catch (SysError & e) {
---         /* Daemon closed while we were sending the path. Probably OOM
---            or I/O error. */
---         if (e.errNo == EPIPE)
---             try {
---                 conn.processStderr();
---             } catch (EndOfFile & e) { }
---         throw;
---     }
-
---     return readStorePath(*this, conn->from);
--- }
 
 type PathFilter = Path -> Bool
 
