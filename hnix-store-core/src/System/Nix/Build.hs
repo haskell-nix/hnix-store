@@ -11,8 +11,8 @@ module System.Nix.Build (
   ) where
 
 import           Data.Text                 (Text)
-import           Data.HashSet              (HashSet)
-import           System.Nix.Path           (Path)
+--import           Data.HashSet              (HashSet)
+--import           System.Nix.Path           (Path)
 
 data BuildMode = Normal | Repair | Check
   deriving (Eq, Ord, Enum, Show)
@@ -37,14 +37,17 @@ data BuildStatus =
 -- | Result of the build
 data BuildResult = BuildResult
   { -- | build status, MiscFailure should be default
-    status             :: !BuildStatus
+    _buildResult_status             :: !BuildStatus
   , -- | possible build error message
-    error              :: !(Maybe Text)
+    _buildResult_error              :: !(Maybe Text)
   , -- | How many times this build was performed
-    timesBuilt         :: !Integer
+    _buildResult_timesBuilt         :: !Integer
   , -- | If timesBuilt > 1, whether some builds did not produce the same result
-    isNonDeterministic :: !Bool
+    _buildResult_isNonDeterministic :: !Bool
     -- XXX: | startTime stopTime time_t
   } deriving (Eq, Ord, Show)
 
-buildSuccess BuildResult{..} = status == Built || status == Substituted || status == AlreadyValid
+buildSuccess :: BuildResult -> Bool
+buildSuccess BuildResult{..} = _buildResult_status == Built
+  || _buildResult_status == Substituted
+  || _buildResult_status == AlreadyValid

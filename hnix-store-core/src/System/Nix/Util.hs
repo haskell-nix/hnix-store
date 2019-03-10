@@ -18,16 +18,16 @@ getInt = fromIntegral <$> getWord64le
 -- length prefixed string packing with padding to 8 bytes
 putByteStringLen :: LBS.ByteString -> Put
 putByteStringLen x = do
-  putInt $ fromIntegral $ len
+  putInt len
   putLazyByteString x
   when (len `mod` 8 /= 0) $
     pad $ fromIntegral $ 8 - (len `mod` 8)
   where len = LBS.length x
-        pad x = forM_ (take x $ cycle [0]) putWord8
+        pad x' = forM_ (take x' $ cycle [0]) putWord8
 
 putByteStrings :: Foldable t => t LBS.ByteString -> Put
 putByteStrings xs = do
-  putInt $ fromIntegral $ length xs
+  putInt $ length xs
   mapM_ putByteStringLen xs
 
 getByteStringLen :: Get LBS.ByteString

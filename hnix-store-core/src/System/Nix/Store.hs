@@ -13,16 +13,16 @@ module System.Nix.Store
 
 import qualified Data.ByteString.Lazy as BS
 import Data.Text (Text)
-import Text.Regex.Base.RegexLike (makeRegex, matchTest)
-import Text.Regex.TDFA.Text (Regex)
-import Data.Hashable (Hashable(..), hashPtrWithSalt)
+--import Text.Regex.Base.RegexLike (makeRegex, matchTest)
+--import Text.Regex.TDFA.Text (Regex)
+--import Data.Hashable (Hashable(..), hashPtrWithSalt)
 import Data.HashSet (HashSet)
 import Data.HashMap.Strict (HashMap)
-import System.IO.Unsafe (unsafeDupablePerformIO)
+--import System.IO.Unsafe (unsafeDupablePerformIO)
 
 import System.Nix.Hash (Digest)
 import System.Nix.Path
-import System.Nix.Nar
+--import System.Nix.Nar
 
 
 -- | Interactions with the Nix store.

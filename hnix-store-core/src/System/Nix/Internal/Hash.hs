@@ -28,10 +28,6 @@ import qualified Data.Hashable          as DataHashable
 import           Data.Kind              (Type)
 import           Data.List              (foldl')
 import           Data.Proxy             (Proxy(Proxy))
-import qualified Data.Map               as Map
-import qualified Data.Maybe             as Maybe
-import           Data.Monoid
-import           Data.Proxy             (Proxy(Proxy))
 import           Data.Text              (Text)
 import qualified Data.Text              as T
 import qualified Data.Text.Encoding     as T
@@ -110,26 +106,26 @@ printAsBase32 :: Digest a -> T.Text
 printAsBase32 (Digest bs) = printHashBytes32 bs
 
 
-instance HasDigest MD5 where
+instance HasDigest 'MD5 where
   type AlgoCtx 'MD5 = MD5.Ctx
   initialize = MD5.init
   update = MD5.update
   finalize = Digest . MD5.finalize
 
 instance HasDigest 'SHA1 where
-  type AlgoCtx SHA1 = SHA1.Ctx
+  type AlgoCtx 'SHA1 = SHA1.Ctx
   initialize = SHA1.init
   update = SHA1.update
   finalize = Digest . SHA1.finalize
 
 instance HasDigest 'SHA256 where
-  type AlgoCtx SHA256 = SHA256.Ctx
+  type AlgoCtx 'SHA256 = SHA256.Ctx
   initialize = SHA256.init
   update = SHA256.update
   finalize = Digest . SHA256.finalize
 
-instance (HasDigest a, KnownNat n) => HasDigest (Truncated n a) where
-  type AlgoCtx (Truncated n a) = AlgoCtx a
+instance (HasDigest a, KnownNat n) => HasDigest ('Truncated n a) where
+  type AlgoCtx ('Truncated n a) = AlgoCtx a
   initialize = initialize @a
   update = update @a
   finalize = truncateDigest @n . finalize @a
@@ -162,8 +158,7 @@ printHashBytes32 c = T.pack $ concatMap char32 [nChar - 1, nChar - 2 .. 0]
     char32 i = [digits32 V.! digitInd]
       where
         byte j   = BS.index c (fromIntegral j)
-        digitInd = fromIntegral $
-                   sum [fromIntegral (byte j) * (256^j)
+        digitInd = sum [fromIntegral (byte j) * (256^j)
                        | j <- [0 .. BS.length c - 1]]
                    `div` (32^i)
                    `mod` 32
@@ -179,7 +174,7 @@ parseHashBytes32 b = BS.pack $ map word32 [nChar -1, nChar - 2 .. 0]
     word32 i = fromIntegral wordInd
       where
         word :: Int -> Char
-        word j = T.index b i
+        word j = T.index b j
 
         wordInd :: Int
         wordInd = fromIntegral $
@@ -187,9 +182,9 @@ parseHashBytes32 b = BS.pack $ map word32 [nChar -1, nChar - 2 .. 0]
                       | j <- [0 .. T.length b - 1]]
                   `div` (32^i)
 
-roundtrip :: (Digest SHA256, T.Text, BS.ByteString)
+roundtrip :: (Digest 'SHA256, T.Text, BS.ByteString)
 roundtrip =
-  let d          = hash @SHA256 (BSC.pack "hello")
+  let d          = hash @'SHA256 (BSC.pack "hello")
       encoded    = printAsBase32 d :: T.Text
       decoded    = parseHashBytes32 encoded
   in (d, encoded, decoded)
@@ -200,7 +195,7 @@ roundtrip =
 --   bytestring into a head part (truncation length) and tail part (leftover
 --   part) right-pads the leftovers with 0 to the truncation length, and
 --   combines the two strings bytewise with `xor`
-truncateDigest :: forall n a.(HasDigest a, KnownNat n) => Digest a -> Digest (Truncated n a)
+truncateDigest :: forall n a.(HasDigest a, KnownNat n) => Digest a -> Digest ('Truncated n a)
 truncateDigest (Digest c) = Digest $ BS.pack $ map truncOutputByte [0.. n-1]
   where
 
@@ -225,14 +220,14 @@ digits32 = V.fromList "0123456789abcdfghijklmnpqrsvwxyz"
 class AlgoVal (a :: HashAlgorithm) where
   algoVal :: HashAlgorithm' Integer
 
-instance AlgoVal MD5 where
+instance AlgoVal 'MD5 where
   algoVal = MD5
 
-instance AlgoVal SHA1 where
+instance AlgoVal 'SHA1 where
   algoVal = SHA1
 
-instance AlgoVal SHA256 where
+instance AlgoVal 'SHA256 where
   algoVal = SHA256
 
-instance forall a n.(AlgoVal a, KnownNat n) => AlgoVal (Truncated n a) where
+instance forall a n.(AlgoVal a, KnownNat n) => AlgoVal ('Truncated n a) where
   algoVal = Truncated (natVal (Proxy @n)) (algoVal @a)

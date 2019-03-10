@@ -21,12 +21,10 @@ module System.Nix.Nar (
   ) where
 
 import           Control.Applicative
-import           Control.Monad              (replicateM, replicateM_, (<=<))
 import qualified Data.Binary                as B
 import qualified Data.Binary.Get            as B
 import qualified Data.Binary.Put            as B
 import           Data.Bool                  (bool)
-import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Char8      as BSC
 import qualified Data.ByteString.Lazy       as BSL
 import           Data.Foldable              (forM_)
@@ -151,32 +149,32 @@ getNar = fmap Nar $ header >> parens getFile
       getFile = getRegularFile <|> getDirectory <|> getSymLink
 
       getRegularFile = do
-          assertStr "type"
-          assertStr "regular"
+          _ <- assertStr "type"
+          _ <- assertStr "regular"
           mExecutable <- optional $ Executable <$ (assertStr "executable"
                                                    >> assertStr "")
-          assertStr "contents"
+          _ <- assertStr "contents"
           (fSize, contents) <- sizedStr
           return $ Regular (fromMaybe NonExecutable mExecutable) fSize contents
 
       getDirectory = do
-          assertStr "type"
-          assertStr "directory"
+          _ <- assertStr "type"
+          _ <- assertStr "directory"
           fs <- many getEntry
           return $ Directory (Map.fromList fs)
 
       getSymLink = do
-          assertStr "type"
-          assertStr "symlink"
-          assertStr "target"
+          _ <- assertStr "type"
+          _ <- assertStr "symlink"
+          _ <- assertStr "target"
           fmap (SymLink . E.decodeUtf8 . BSL.toStrict) str
 
       getEntry = do
-          assertStr "entry"
+          _ <- assertStr "entry"
           parens $ do
-              assertStr "name"
+              _ <- assertStr "name"
               name <- E.decodeUtf8 . BSL.toStrict <$> str
-              assertStr "node"
+              _ <- assertStr "node"
               file <- parens getFile
               maybe (fail $ "Bad FilePathPart: " ++ show name)
                     (return . (,file))
@@ -189,6 +187,7 @@ getNar = fmap Nar $ header >> parens getFile
           n <- B.getInt64le
           s <- B.getLazyByteString n
           p <- B.getByteString . fromIntegral $ padLen n
+          _ <- pure p
           return (n,s)
 
       parens m = assertStr "(" *> m <* assertStr ")"
@@ -207,7 +206,7 @@ padLen n = (8 - n) `mod` 8
 
 -- | Unpack a NAR into a non-nix-store directory (e.g. for testing)
 localUnpackNar :: Monad m => NarEffects m -> FilePath -> Nar -> m ()
-localUnpackNar effs basePath (Nar fso) = localUnpackFSO basePath fso
+localUnpackNar effs basePath0 (Nar fso0) = localUnpackFSO basePath0 fso0
 
   where
 
@@ -222,8 +221,8 @@ localUnpackNar effs basePath (Nar fso) = localUnpackFSO basePath fso
 
        Directory contents -> do
          narCreateDir effs basePath
-         forM_ (Map.toList contents) $ \(FilePathPart path', fso) ->
-           localUnpackFSO (basePath </> BSC.unpack path') fso
+         forM_ (Map.toList contents) $ \(FilePathPart path', fso') ->
+           localUnpackFSO (basePath </> BSC.unpack path') fso'
 
 
 -- | Pack a NAR from a filepath

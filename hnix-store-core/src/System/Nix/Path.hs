@@ -19,24 +19,19 @@ module System.Nix.Path
   , Roots
   ) where
 
-import           System.Nix.Hash           (Digest(..),
+import           System.Nix.Hash           (Digest,
                                             HashAlgorithm'(Truncated, SHA256))
 import           System.Nix.Internal.Hash
-import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Char8     as BSC
-import           Data.Hashable             (Hashable (..), hashPtrWithSalt)
-import           Data.HashMap.Strict       (HashMap)
+import           Data.Hashable             (Hashable (..))
 import           Data.HashSet              (HashSet)
 import           Data.Map.Strict           (Map)
-import           Data.Monoid
 import           Data.Text                 (Text)
-import qualified Data.Text                 as T
-import           System.IO.Unsafe          (unsafeDupablePerformIO)
 import           Text.Regex.Base.RegexLike (makeRegex, matchTest)
 import           Text.Regex.TDFA.Text      (Regex)
 
 -- | The hash algorithm used for store path hashes.
-type PathHashAlgo = Truncated 20 SHA256
+type PathHashAlgo = 'Truncated 20 'SHA256
 
 
 -- | The name portion of a Nix path.
@@ -125,4 +120,4 @@ filePathPart p = case BSC.any (`elem` ['/', '\NUL']) p of
 type Roots = Map Path Path
 
 instance Hashable Path where
-  hashWithSalt s (Path hash name) = s `hashWithSalt` hash `hashWithSalt` name
+  hashWithSalt s (Path hash' name) = s `hashWithSalt` hash' `hashWithSalt` name
