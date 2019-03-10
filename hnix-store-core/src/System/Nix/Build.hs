@@ -15,6 +15,8 @@ import           Data.Text                 (Text)
 import           Data.HashSet              (HashSet)
 import           System.Nix.Path           (Path)
 
+-- keep the order of these Enums to match enums from reference implementations
+-- src/libstore/store-api.hh
 data BuildMode = Normal | Repair | Check
   deriving (Eq, Ord, Enum, Show)
 
