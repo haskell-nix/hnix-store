@@ -12,7 +12,6 @@ module System.Nix.Path
   , pathToText
   , PathSet
   , SubstitutablePathInfo(..)
-  , ValidPathInfo(..)
   , PathName(..)
   , filePathPart
   , pathName
@@ -78,37 +77,6 @@ data SubstitutablePathInfo = SubstitutablePathInfo
   , -- | The size of the uncompressed NAR serialization of this
     -- 'Path'.
     narSize      :: !Integer
-  } deriving (Eq, Ord, Show)
-
--- | Information about @Path@
-data ValidPathInfo = ValidPathInfo
-  { -- | Path itself
-    path             :: !Path
-  , -- | The .drv which led to this 'Path'.
-    deriverVP        :: !(Maybe Path)
-  , -- | NAR hash
-    narHash          :: !Text
-  , -- | The references of the 'Path'
-    referencesVP     :: !PathSet
-  , -- | Registration time should be time_t
-    registrationTime :: !Integer
-  , -- | The size of the uncompressed NAR serialization of this
-    -- 'Path'.
-    narSizeVP        :: !Integer
-  , -- | Whether the path is ultimately trusted, that is, it's a
-    -- derivation output that was built locally.
-    ultimate         :: !Bool
-  , -- | Signatures
-    sigs             :: ![Text]
-  , -- | Content-addressed
-    -- Store path is computed from a cryptographic hash
-    -- of the contents of the path, plus some other bits of data like
-    -- the "name" part of the path.
-    --
-    -- ‘ca’ has one of the following forms:
-    -- * ‘text:sha256:<sha256 hash of file contents>’ (paths by makeTextPath() / addTextToStore())
-    -- * ‘fixed:<r?>:<ht>:<h>’ (paths by makeFixedOutputPath() / addToStore())
-    ca               :: !Text
   } deriving (Eq, Ord, Show)
 
 -- | A valid filename or directory name

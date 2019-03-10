@@ -27,6 +27,7 @@ library
                      , System.Nix.ReadonlyStore
                      , System.Nix.Store
                      , System.Nix.Util
+                     , System.Nix.ValidPath
   build-depends:       base >=4.10
                      , base16-bytestring
                      , bytestring
