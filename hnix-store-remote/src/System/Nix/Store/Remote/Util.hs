@@ -1,22 +1,40 @@
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE RecordWildCards     #-}
 module System.Nix.Store.Remote.Util where
 
 import           Control.Monad.Reader
+
+import           Prelude                   hiding (FilePath)
 
 import           Data.Maybe
 import           Data.Binary.Get
 import           Data.Binary.Put
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
+import           Data.Time
+import           Data.Time.Clock.POSIX
 import qualified Data.ByteString           as B
 import qualified Data.ByteString.Char8     as BSC
 import qualified Data.ByteString.Lazy      as LBS
+import qualified Data.Map.Strict           as M
+import qualified Data.Set                  as S
+import qualified Data.HashMap.Strict       as HashMap
 import qualified Data.HashSet              as HashSet
+import qualified Data.Vector
+
+import qualified Filesystem.Path.CurrentOS
+import           Filesystem.Path.CurrentOS (FilePath)
 
 import           Network.Socket.ByteString (recv, sendAll)
 
+import           Nix.Derivation
+
 import           System.Nix.Store.Remote.Types
-import           System.Nix.Hash
+import           System.Nix.Build
+import qualified System.Nix.Hash           as Hash
 import           System.Nix.Path
+import           System.Nix.Internal.Path
 import           System.Nix.Util
 
 
@@ -32,17 +50,20 @@ genericIncremental getsome parser = go decoder
           error msg
 
 getSocketIncremental :: Get a -> MonadStore a
-getSocketIncremental = genericIncremental sockGet
+getSocketIncremental = genericIncremental sockGet8
+  where
+    sockGet8 :: MonadStore (Maybe BSC.ByteString)
+    sockGet8 = do
+      soc <- storeSocket <$> ask
+      liftIO $ Just <$> recv soc 8
 
 sockPut :: Put -> MonadStore ()
 sockPut p = do
-  soc <- ask
+  soc <- storeSocket <$> ask
   liftIO $ sendAll soc $ LBS.toStrict $ runPut p
 
-sockGet :: MonadStore (Maybe BSC.ByteString)
-sockGet = do
-  soc <- ask
-  liftIO $ Just <$> recv soc 8
+sockGet :: Get a -> MonadStore a
+sockGet = getSocketIncremental
 
 sockGetPath :: MonadStore (Maybe Path)
 sockGetPath = getSocketIncremental getPath
@@ -68,36 +89,100 @@ lBSToText = T.pack . BSC.unpack . LBS.toStrict
 textToLBS :: Text -> LBS.ByteString
 textToLBS = LBS.fromStrict . BSC.pack . T.unpack
 
--- XXX: needs work
+putText :: Text -> Put
+putText = putByteStringLen . textToLBS
+
+putTexts :: [Text] -> Put
+putTexts = putByteStrings . (map textToLBS)
+
 mkPath :: LBS.ByteString -> Maybe Path
 mkPath p = case (pathName $ lBSToText p) of
-             -- TODO: replace `undefined` with digest encoding function when
-             --       [issue 24](https://github.com/haskell-nix/hnix-store/issues/24)
-             --       is closed
-             Just x -> Just $ Path (hash $ LBS.toStrict p) x --XXX: hash
+             Just x -> Just $ Path (Hash.hash $ LBS.toStrict p) x
              Nothing -> Nothing
 
--- WOOT
--- import           Data.ByteString.Base32    as Base32
---drvP = Path (fromJust $ digestFromByteString $ pls $ Base32.decode $ BSC.take 32 $ BSC.drop (BSC.length "/nix/store/") drv) (fromJust $ pathName $ T.pack $ BSC.unpack drv)
---pls (Left _) = error "unable to decode hash"
---pls (Right x) = x
+mkPathText :: T.Text -> Maybe Path
+mkPathText p = case pathName p of
+             Just x -> Just $ Path (Hash.hash $ BSC.pack $ T.unpack p) x
+             Nothing -> Nothing
 
 getPath :: Get (Maybe Path)
-getPath = mkPath <$> getByteStringLen
+getPath = parsePath <$> getByteStringLen
 
 getPaths :: Get PathSet
-getPaths = HashSet.fromList . catMaybes . map mkPath <$> getByteStrings
+getPaths = HashSet.fromList . catMaybes . map parsePath <$> getByteStrings
 
-putPathName :: PathName -> Put
-putPathName = putByteStringLen . textToLBS . pathNameContents
-
+{-
 putPath :: Path -> Put
-putPath (Path _hash name) = putPathName name
+putPath (Path _digest name) = putText $ pathNameContents name
 
 putPaths :: PathSet -> Put
-putPaths = putByteStrings . HashSet.map (\(Path _hash name) -> textToLBS $ pathNameContents name)
+putPaths = putByteStrings . HashSet.map (\(Path _digest name) -> textToLBS $ pathNameContents name)
+-}
+putPath :: StoreDir -> Path -> Put
+putPath sd  = putText . storedToText . makeStored sd
+
+putPaths :: StoreDir -> PathSet -> Put
+putPaths sd = putTexts . HashSet.toList .  HashSet.map (storedToText . makeStored sd)
 
 putBool :: Bool -> Put
 putBool True  = putInt (1 :: Int)
 putBool False = putInt (0 :: Int)
+
+getBool :: Get Bool
+getBool = (==1) <$> (getInt :: Get Int)
+
+putEnum :: (Enum a) => a -> Put
+putEnum = putInt . fromEnum
+
+getEnum :: (Enum a) => Get a
+getEnum = toEnum <$> getInt
+
+putTime :: UTCTime -> Put
+putTime = (putInt :: Int -> Put) . round . utcTimeToPOSIXSeconds
+
+getTime :: Get UTCTime
+getTime = posixSecondsToUTCTime <$> getEnum
+
+getBuildResult :: Get BuildResult
+getBuildResult = BuildResult
+  <$> getEnum
+  <*> (Just . lBSToText <$> getByteStringLen)
+  <*> getInt
+  <*> getBool
+  <*> getTime
+  <*> getTime
+
+putHashAlgo :: Hash.HashAlgorithm -> Put
+putHashAlgo Hash.MD5 = putText "md5"
+putHashAlgo Hash.SHA1 = putText "sha1"
+putHashAlgo Hash.SHA256 = putText "sha256"
+putHashAlgo (Hash.Truncated _ algo) = putHashAlgo algo
+
+putDerivation :: Derivation -> Put
+putDerivation Derivation{..} = do
+  putInt $ M.size outputs
+  forM_ (M.toList outputs) $ \(outputName, DerivationOutput{..}) -> do
+    putText outputName
+    putFP path
+    putText hashAlgo
+    putText hash
+    --putText $ printAsBase32 @PathHashAlgo digest
+
+  putFPs $ S.toList inputSrcs
+  putText platform
+  putText builder
+  putTexts $ Data.Vector.toList args
+
+  putInt $ M.size env
+  forM_ (M.toList env) $ \(first, second) -> putText first >> putText second
+
+putFP :: FilePath -> Put
+putFP p = putText (printFP p)
+
+printFP :: FilePath -> Text
+printFP p = case Filesystem.Path.CurrentOS.toText p of
+  Left t -> t
+  Right t -> t
+
+putFPs :: [FilePath] -> Put
+putFPs = putTexts . (map printFP)

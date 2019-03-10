@@ -1,7 +1,9 @@
 module System.Nix.Store.Remote.Types (
     MonadStore
+  , StoreConfig(..)
   , Logger(..)
   , Field(..)
+  , getStoreDir
   , getLog
   , flushLog
   , gotError
@@ -13,8 +15,17 @@ import           Network.Socket            (Socket)
 import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.State
+import           System.IO                 (Handle)
 
-type MonadStore a = ExceptT String (StateT [Logger] (ReaderT Socket IO)) a
+-- XXX
+import           System.Nix.Internal.Path  (StoreDir(..))
+
+data StoreConfig = StoreConfig {
+    storeDir        :: StoreDir
+  , storeSocket     :: Socket
+  }
+
+type MonadStore a = ExceptT String (StateT (Maybe Handle, [Logger]) (ReaderT StoreConfig IO)) a
 
 type ActivityID = Int
 type ActivityParentID = Int
@@ -41,13 +52,16 @@ isError (Error _ _) = True
 isError _           = False
 
 gotError :: MonadStore Bool
-gotError = any isError <$> get
+gotError = any isError . snd <$> get
 
 getError :: MonadStore [Logger]
-getError = filter isError <$> get
+getError = filter isError . snd <$> get
 
 getLog :: MonadStore [Logger]
-getLog = get
+getLog = snd <$> get
 
 flushLog :: MonadStore ()
-flushLog = put []
+flushLog = modify (\(a, _b) -> (a, []))
+
+getStoreDir :: MonadStore (StoreDir)
+getStoreDir = storeDir <$> ask
