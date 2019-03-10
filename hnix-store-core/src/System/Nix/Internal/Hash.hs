@@ -125,7 +125,10 @@ newtype Digest (a :: HashAlgorithm) = Digest
 printHashBytes32 :: BS.ByteString -> T.Text
 printHashBytes32 c = T.pack $ concatMap char32 [nChar - 1, nChar - 2 .. 0]
   where
-    -- The base32 encoding is 8/5's as long as the base256 digest
+    -- The base32 encoding is 8/5's as long as the base256 digest.  This `+ 1`
+    -- `- 1` business is a bit odd, but has always been used in C++ since the
+    -- base32 truncation was added in was first added in
+    -- d58a11e019813902b6c4547ca61a127938b2cc20.
     nChar = fromIntegral $ ((BS.length c * 8 - 1) `div` 5) + 1
 
     char32 :: Integer -> [Char]
