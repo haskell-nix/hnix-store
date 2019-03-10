@@ -7,7 +7,6 @@
 
 {-|
 Description : Allowed effects for interacting with Nar files.
-Maintainer  : Shea Levy <shea@shealevy.com>
 |-}
 module System.Nix.Nar (
     FileSystemObject(..)
@@ -18,6 +17,7 @@ module System.Nix.Nar (
   , localUnpackNar
   , narEffectsIO
   , putNar
+  , FilePathPart(..)
   ) where
 
 import           Control.Applicative
@@ -42,8 +42,6 @@ import           System.FilePath
 import           System.Posix.Files         (createSymbolicLink, fileSize, getFileStatus,
                                              isDirectory, readSymbolicLink)
 
-import           System.Nix.Path
-
 data NarEffects (m :: * -> *) = NarEffects {
     narReadFile   :: FilePath -> m BSL.ByteString
   , narWriteFile  :: FilePath -> BSL.ByteString -> m ()
@@ -64,6 +62,13 @@ data NarEffects (m :: * -> *) = NarEffects {
 
 data Nar = Nar { narFile :: FileSystemObject }
     deriving (Eq, Show)
+
+newtype FilePathPart = FilePathPart { unFilePathPart :: BSC.ByteString } deriving (Eq, Ord, Show)
+
+filePathPart :: BSC.ByteString -> Maybe FilePathPart
+filePathPart p = case BSC.any (`elem` ['/', '\NUL']) p of
+  False -> Just $ FilePathPart p
+  True  -> Nothing
 
 -- | A FileSystemObject (FSO) is an anonymous entity that can be NAR archived
 data FileSystemObject =

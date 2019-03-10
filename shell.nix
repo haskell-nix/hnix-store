@@ -9,7 +9,7 @@ let
     (map extract-external-inputs packages));
   package-envs = builtins.listToAttrs (map (p: {
     name = p;
-    value = haskellPackages.${p}.env;
+    value = (hslib.doCheck haskellPackages.${p}).env;
   }) packages);
 in (haskellPackages.mkDerivation {
   pname = "hnix-store-core";

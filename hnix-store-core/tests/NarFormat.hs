@@ -33,7 +33,7 @@ import           Test.Tasty.QuickCheck
 import           Text.Read                   (readMaybe)
 
 import           System.Nix.Nar
-import           System.Nix.Path
+import           System.Nix.StorePath
 
 
 

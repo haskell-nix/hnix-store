@@ -17,15 +17,11 @@ extra-source-files:  ChangeLog.md, README.md
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     System.Nix.Build
-                     , System.Nix.Derivation
-                     , System.Nix.GC
-                     , System.Nix.Hash
+  exposed-modules:     System.Nix.Hash
                      , System.Nix.Internal.Hash
                      , System.Nix.Nar
-                     , System.Nix.Path
+                     , System.Nix.StorePath
                      , System.Nix.Store
-                     , System.Nix.Util
   build-depends:       base >=4.10
                      , bytestring
                      , binary
@@ -41,6 +37,7 @@ library
                      , regex-base
                      , regex-tdfa-text
                      , text
+                     , time
                      , unix
                      , unordered-containers
                      , vector

@@ -1,66 +1,63 @@
 {-|
-Description : Types and effects for interacting with the Nix store.
-Maintainer  : Shea Levy <shea@shealevy.com>
+Description : Effects for interacting with the Nix store.
 -}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module System.Nix.Store
-  ( PathName, pathNameContents, pathName
-  , PathHashAlgo, Path(..)
-  , StoreEffects(..)
-  , SubstitutablePathInfo(..)
-  ) where
+{-# LANGUAGE RankNTypes #-}
+module System.Nix.Store where
 
-import qualified Data.ByteString.Lazy as BS
-import Data.Text (Text)
-import Text.Regex.Base.RegexLike (makeRegex, matchTest)
-import Text.Regex.TDFA.Text (Regex)
-import Data.Hashable (Hashable(..), hashPtrWithSalt)
-import Data.HashSet (HashSet)
-import Data.HashMap.Strict (HashMap)
-import System.IO.Unsafe (unsafeDupablePerformIO)
+import Data.ByteString.Lazy (ByteString)
+import System.Nix.Hash (NamedAlgorithm)
+import System.Nix.StorePath
+import System.Nix.Nar (Nar)
 
-import System.Nix.Hash (Digest)
-import System.Nix.Path
-import System.Nix.Nar
-
-
--- | Interactions with the Nix store.
+-- | Effect for interactions with the Nix store.
 --
--- @rootedPath@: A path plus a witness to the fact that the path is
--- reachable from a root whose liftime is at least as long as the
--- @rootedPath@ reference itself, when the implementation supports
--- this.
---
--- @validPath@: A @rootedPath@ plus a witness to the fact that the
--- path is valid. On implementations that support temporary roots,
--- this implies that the path will remain valid so long as the
--- reference is held.
+-- @root@: The root path of the store (e.g. "/nix/store").
 --
 -- @m@: The monad the effects operate in.
-data StoreEffects rootedPath validPath m =
-  StoreEffects
-    { -- | Project out the underlying 'Path' from a 'rootedPath'
-      fromRootedPath :: !(rootedPath -> Path)
-    , -- | Project out the underlying 'rootedPath' from a 'validPath'
-      fromValidPath :: !(validPath -> rootedPath)
-    , -- | Which of the given paths are valid?
-      validPaths :: !(HashSet rootedPath -> m (HashSet validPath))
-    , -- | Get the paths that refer to a given path.
-      referrers :: !(validPath -> m (HashSet Path))
-    , -- | Get a root to the 'Path'.
-      rootedPath :: !(Path -> m rootedPath)
-    , -- | Get information about substituters of a set of 'Path's
-      substitutablePathInfos ::
-        !(HashSet Path -> m (HashMap Path SubstitutablePathInfo))
-    , -- | Get the currently valid derivers of a 'Path'.
-      validDerivers :: !(Path -> m (HashSet Path))
-    , -- | Get the outputs of the derivation at a 'Path'.
-      derivationOutputs :: !(validPath -> m (HashSet Path))
-    , -- | Get the output names of the derivation at a 'Path'.
-      derivationOutputNames :: !(validPath -> m (HashSet Text))
-    , -- | Get a full 'Path' corresponding to a given 'Digest'.
-      pathFromHashPart :: !(Digest PathHashAlgo -> m Path)
-    , -- | Add a non-nar file to the store
-      addFile :: !(BS.ByteString -> m validPath)
-    }
+--
+-- A valid instance should follow the appropriate hashing algorithms
+-- for effects which add a new path to the store.
+data StoreEffects root m = StoreEffects
+  { -- | Add a regular file to the store with the given references,
+    -- hashed with 'SHA256'.
+    regularFileToStore
+      :: StorePathName
+      -> ByteString
+      -> StorePathSet root
+      -> m (StorePath root)
+  , -- ^ Add a fixed file (possibly not regular) to the store with a
+    -- given hash algorithm.
+    --
+    -- Note that conceptually this functionality overlaps with
+    -- 'regularFileToStore' (when the 'HashMode' is 'Flat @SHA256' and
+    -- the references set is empty), but for legacy reasons these
+    -- follow a different underlying algorithm for getting the store
+    -- path.
+    --
+    -- If the 'HashMode' is 'Fixed', the top level FSO of the 'Nar'
+    -- must be a 'Regular' object.
+    fixedFileToStore
+      :: forall a . (NamedAlgorithm a)
+      => StorePathName
+      -> HashMode a
+      -> Nar
+      -> m (StorePath root)
+  , -- ^ Import a serialization of a valid path into the store.
+    --
+    -- 'CheckSigs' is ignored if not a trusted user.
+    importPath
+      :: StorePathInfo root
+      -> Nar
+      -> Repair
+      -> CheckSigs
+      -> m ()
+  }
+
+
+-- | Flag to indicate whether a command should overwrite a specified
+-- path if it already exists (in an attempt to fix issues).
+data Repair = Repair | DontRepair
+
+-- | Flag to indicate whether signatures should be validated on an
+-- imported archive.
+data CheckSigs = CheckSigs | DontCheckSigs
