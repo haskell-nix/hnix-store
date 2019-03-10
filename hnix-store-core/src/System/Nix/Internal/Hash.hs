@@ -1,6 +1,5 @@
 {-|
 Description : Cryptographic hashes for hnix-store.
-Maintainer  : Greg Hale <imalsogreg@gmail.com>
 -}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds           #-}
@@ -49,17 +48,17 @@ data HashAlgorithm' n
   | Truncated n (HashAlgorithm' n)
   deriving (Eq, Show)
 
-class HashAlgoText a where
-  algoString :: Proxy a -> Text
+class NamedAlgo a where
+  algoName :: Text
 
-instance HashAlgoText 'MD5 where
-  algoString (Proxy :: Proxy 'MD5) = "md5"
+instance NamedAlgo 'MD5 where
+  algoName = "md5"
 
-instance HashAlgoText 'SHA1 where
-  algoString (Proxy :: Proxy 'SHA1) = "sha1"
+instance NamedAlgo 'SHA1 where
+  algoName = "sha1"
 
-instance HashAlgoText 'SHA256 where
-  algoString (Proxy :: Proxy 'SHA256) = "sha256"
+instance NamedAlgo 'SHA256 where
+  algoName = "sha256"
 
 type HashAlgorithm = HashAlgorithm' Nat
 
@@ -96,11 +95,11 @@ hashLazy :: forall a.HasDigest a => BSL.ByteString -> Digest a
 hashLazy bsl =
   finalize $ foldl' (update @a) (initialize @a) (BSL.toChunks bsl)
 
-digestText32 :: forall a. HashAlgoText a => Digest a -> T.Text
-digestText32 d = algoString (Proxy :: Proxy a) <> ":" <> printAsBase32 d
+digestText32 :: forall a. NamedAlgo a => Digest a -> T.Text
+digestText32 d = algoName @a <> ":" <> printAsBase32 d
 
-digestText16 :: forall a. HashAlgoText a => Digest a -> T.Text
-digestText16 (Digest bs) = algoString (Proxy :: Proxy a) <> ":" <> T.decodeUtf8 (Base16.encode bs)
+digestText16 :: forall a. NamedAlgo a => Digest a -> T.Text
+digestText16 (Digest bs) = algoName @a <> ":" <> T.decodeUtf8 (Base16.encode bs)
 
 -- | Convert any Digest to a base32-encoded string.
 --   This is not used in producing store path hashes
