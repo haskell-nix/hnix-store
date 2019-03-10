@@ -175,16 +175,10 @@ type Source = () -- abstract binary source
 addToStoreNar :: ValidPathInfo -> Source -> RepairFlag -> CheckSigsFlag -> MonadStore ()
 addToStoreNar = undefined  -- XXX
 
-printHashType :: HashAlgorithm' Integer -> T.Text
-printHashType MD5             = "MD5"
-printHashType SHA1            = "SHA1"
-printHashType SHA256          = "SHA256"
-printHashType (Truncated _ a) = printHashType a
-
 type PathFilter = Path -> Bool
 
 addToStore
-  :: forall a. (HasDigest a, AlgoVal a)
+  :: forall a. (HasDigest a, NamedAlgo a)
   => LBS.ByteString
   -> FilePath
   -> Bool
@@ -199,14 +193,12 @@ addToStore name pth recursive algoProxy pfilter repair = do
 
   runOpArgs AddToStore $ do
     putByteStringLen name
-    if algoVal @a `elem` [SHA256, Truncated 20 SHA256] && recursive
-      then putInt 0
-      else putInt 1
+    putInt 1
     if recursive
       then putInt 1
       else putInt 0
 
-    putByteStringLen (T.encodeUtf8 . T.toLower . printHashType $ algoVal @a)
+    putByteStringLen (T.encodeUtf8 . T.toLower . T.fromStrict $ algoName @a)
 
     B.putLazyByteString bs
 

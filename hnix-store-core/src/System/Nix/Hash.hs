@@ -4,10 +4,9 @@ Description : Cryptographic hashes for hnix-store.
 module System.Nix.Hash (
     HNix.Digest
 
-  , HNix.HashAlgorithm
-  , HNix.HashAlgorithm'(..)
-  , HNix.AlgoVal(..)
+  , HNix.HashAlgorithm(..)
   , HNix.HasDigest(..)
+  , HNix.NamedAlgo(..)
   , HNix.hash
   , HNix.hashLazy
 

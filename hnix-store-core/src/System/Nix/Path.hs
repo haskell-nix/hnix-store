@@ -20,7 +20,7 @@ module System.Nix.Path
   ) where
 
 import           System.Nix.Hash           (Digest(..),
-                                            HashAlgorithm'(Truncated, SHA256))
+                                            HashAlgorithm(Truncated, SHA256))
 import           System.Nix.Internal.Hash
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Char8     as BSC

@@ -39,14 +39,11 @@ import           GHC.TypeLits
 -- | A tag for different hashing algorithms
 --   Also used as a type-level tag for hash digests
 --   (e.g. @Digest SHA256@ is the type for a sha256 hash)
---
---  When used at the type level, `n` is `Nat`
-data HashAlgorithm' n
+data HashAlgorithm
   = MD5
   | SHA1
   | SHA256
-  | Truncated n (HashAlgorithm' n)
-  deriving (Eq, Show)
+  | Truncated Nat HashAlgorithm
 
 class NamedAlgo a where
   algoName :: Text
@@ -59,8 +56,6 @@ instance NamedAlgo 'SHA1 where
 
 instance NamedAlgo 'SHA256 where
   algoName = "sha256"
-
-type HashAlgorithm = HashAlgorithm' Nat
 
 -- | Types with kind @HashAlgorithm@ may be a @HasDigest@ instance
 --   if they are able to hash bytestrings via the init/update/finalize
@@ -191,20 +186,3 @@ truncateDigest (Digest c) = Digest $ BS.pack $ map truncOutputByte [0.. n-1]
 
 digits32 :: V.Vector Char
 digits32 = V.fromList "0123456789abcdfghijklmnpqrsvwxyz"
-
-
--- | Convert type-level @HashAlgorithm@ into the value level
-class AlgoVal (a :: HashAlgorithm) where
-  algoVal :: HashAlgorithm' Integer
-
-instance AlgoVal MD5 where
-  algoVal = MD5
-
-instance AlgoVal SHA1 where
-  algoVal = SHA1
-
-instance AlgoVal SHA256 where
-  algoVal = SHA256
-
-instance forall a n.(AlgoVal a, KnownNat n) => AlgoVal (Truncated n a) where
-  algoVal = Truncated (natVal (Proxy @n)) (algoVal @a)

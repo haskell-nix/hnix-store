@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE DataKinds   #-}
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.HashSet         as HS
 import           Data.Maybe
@@ -10,6 +11,7 @@ import qualified System.Nix.GC                as GC
 import           System.Nix.Path              (PathHashAlgo)
 import           System.Nix.Store.Remote
 import           System.Nix.Store.Remote.Util
+import           System.Nix.Hash
 
 noSuchPath = fromJust $ mkPath "blah"
 
@@ -24,7 +26,7 @@ main = do
     -- (Just path2) <-  addTextToStore "hnix-store2" "test2" (HS.fromList [])  False
     path2 <- addToStore "hi-test-file"
       "/home/greghale/code/hnix-store/hnix-store-remote/hi"
-      False (Proxy :: Proxy PathHashAlgo) (const True) False
+      False (Proxy :: Proxy 'SHA256) (const True) False
 
     valid <- isValidPathUncached path
     valid2 <- isValidPathUncached path2
