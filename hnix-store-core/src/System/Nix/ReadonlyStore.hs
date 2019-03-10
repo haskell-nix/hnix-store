@@ -28,5 +28,14 @@ makeTextPath nm h refs = makeStorePath ty h nm
   where
     ty = BS.intercalate ":" ("text" : map storePathToRawFilePath (HS.toList refs))
 
+makeFixedOutputPath :: (KnownStoreDir storeDir, ValidAlgo hashAlgo, NamedAlgo hashAlgo) => Bool -> Digest hashAlgo -> StorePathName -> StorePath storeDir
+makeFixedOutputPath recursive h nm =
+  makeStorePath ty h' nm
+  where
+    (ty, h') =
+      if recursive
+      then ("source", h)
+      else ("output:out", hash ("fixed:out:" <> encodeUtf8 (encodeBase16 h) <> ":"))
+
 computeStorePathForText :: (KnownStoreDir storeDir) => StorePathName -> ByteString -> StorePathSet storeDir -> StorePath storeDir
 computeStorePathForText nm s refs = makeTextPath nm (hash s) refs
