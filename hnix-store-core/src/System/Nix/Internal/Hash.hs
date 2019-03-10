@@ -2,18 +2,22 @@
 Description : Cryptographic hashes for hnix-store.
 Maintainer  : Greg Hale <imalsogreg@gmail.com>
 -}
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE AllowAmbiguousTypes       #-}
+{-# LANGUAGE DataKinds                 #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE TypeFamilies        #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE PolyKinds                 #-}
+{-# LANGUAGE RankNTypes                #-}
+{-# LANGUAGE TypeFamilies              #-}
+{-# LANGUAGE KindSignatures            #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE TypeApplications          #-}
+{-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE StandaloneDeriving        #-}
 
 module System.Nix.Internal.Hash where
 
+import Data.Text (Text)
 import qualified Crypto.Hash.MD5       as MD5
 import qualified Crypto.Hash.SHA1      as SHA1
 import qualified Crypto.Hash.SHA256    as SHA256
@@ -40,6 +44,17 @@ data HashAlgorithm
   | SHA256
   | Truncated Nat HashAlgorithm
 
+class NamedAlgorithm (a :: HashAlgorithm) where
+  algorithmName :: Text
+
+instance NamedAlgorithm 'MD5 where
+  algorithmName = "md5"
+
+instance NamedAlgorithm 'SHA1 where
+  algorithmName = "sha1"
+
+instance NamedAlgorithm 'SHA256 where
+  algorithmName = "sha256"
 
 -- | Types with kind @HashAlgorithm@ may be a @HasDigest@ instance
 --   if they are able to hash bytestrings via the init/update/finalize
@@ -114,6 +129,9 @@ newtype Digest (a :: HashAlgorithm) = Digest
     --   not some particular text encoding.
   } deriving (Show, Eq, Ord, DataHashable.Hashable)
 
+-- | A digest from a named hash algorithm.
+data NamedDigest =
+  forall a . NamedAlgorithm a => NamedDigest (Digest a)
 
 -- instance DataHashable.Hashable (Digest a) where
 --   hashWithSalt a (Digest bs) = DataHashable.hashWithSalt a bs

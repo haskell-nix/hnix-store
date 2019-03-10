@@ -14,6 +14,8 @@ module System.Nix.Hash (
     HNix.Digest
 
   , HNix.HashAlgorithm(..)
+  , HNix.NamedAlgorithm(..)
+  , HNix.NamedDigest(..)
   , HNix.HasDigest(..)
   , HNix.hash
   , HNix.hashLazy

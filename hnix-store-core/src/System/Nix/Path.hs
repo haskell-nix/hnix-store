@@ -4,21 +4,14 @@ Maintainer  : Shea Levy <shea@shealevy.com>
 -}
 {-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module System.Nix.Path
-  ( FilePathPart(..)
-  , PathHashAlgo
-  , Path(..)
-  , PathSet
-  , SubstitutablePathInfo(..)
-  , ValidPathInfo(..)
-  , PathName(..)
-  , filePathPart
-  , pathName
-  , Roots
-  ) where
+{-# LANGUAGE KindSignatures             #-}
+{-# LANGUAGE ExistentialQuantification  #-}
+module System.Nix.Path where
 
-import           System.Nix.Hash           (Digest(..),
-                                            HashAlgorithm(Truncated, SHA256))
+import Data.Word
+import           GHC.TypeLits
+import           System.Nix.Hash
+import           Data.Time
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Char8     as BSC
 import           Data.Hashable             (Hashable (..), hashPtrWithSalt)
@@ -32,8 +25,7 @@ import           Text.Regex.Base.RegexLike (makeRegex, matchTest)
 import           Text.Regex.TDFA.Text      (Regex)
 
 -- | The hash algorithm used for store path hashes.
-type PathHashAlgo = Truncated 20 SHA256
-
+type PathHashAlgo = 'Truncated 20 'SHA256
 
 -- | The name portion of a Nix path.
 --
@@ -55,67 +47,55 @@ pathName n = case matchTest nameRegex n of
   False -> Nothing
 
 -- | A path in a store.
-data Path = Path !(Digest PathHashAlgo) !PathName
+--
+-- @root@: The root path of the store (e.g. "/nix/store").
+data Path (root :: Symbol) = Path !(Digest PathHashAlgo) !PathName
   deriving (Eq, Ord, Show)
 
-type PathSet = HashSet Path
+type PathSet root = HashSet (Path root)
 
--- | Information about substitutes for a 'Path'.
-data SubstitutablePathInfo = SubstitutablePathInfo
-  { -- | The .drv which led to this 'Path'.
-    deriver      :: !(Maybe Path)
-  , -- | The references of the 'Path'
-    references   :: !PathSet
-  , -- | The (likely compressed) size of the download of this 'Path'.
-    downloadSize :: !Integer
-  , -- | The size of the uncompressed NAR serialization of this
-    -- 'Path'.
-    narSize      :: !Integer
-  } deriving (Eq, Ord, Show)
-
--- | Information about @Path@
-data ValidPathInfo = ValidPathInfo
+-- | Metadata about a valid @Path@ in the store.
+data PathInfo store = PathInfo
   { -- | Path itself
-    path             :: !Path
+    path             :: !(Path store)
   , -- | The .drv which led to this 'Path'.
-    deriverVP        :: !(Maybe Path)
-  , -- | NAR hash
-    narHash          :: !Text
-  , -- | The references of the 'Path'
-    referencesVP     :: !PathSet
-  , -- | Registration time should be time_t
-    registrationTime :: !Integer
+    deriver        :: !(Maybe (Path store))
+  , -- | The hash of the serialization of this path.
+    narHash          :: !NamedDigest
+  , -- | The references of the 'Path'.
+    references     :: !(PathSet store)
+  , -- | When this store path was registered valid.
+    registrationTime :: !UTCTime
   , -- | The size of the uncompressed NAR serialization of this
     -- 'Path'.
-    narSizeVP        :: !Integer
+    narSizeVP        :: !Word64
   , -- | Whether the path is ultimately trusted, that is, it's a
     -- derivation output that was built locally.
     ultimate         :: !Bool
-  , -- | Signatures
-    sigs             :: ![Text]
-  , -- | Content-addressed
-    -- Store path is computed from a cryptographic hash
-    -- of the contents of the path, plus some other bits of data like
-    -- the "name" part of the path.
-    --
-    -- ‘ca’ has one of the following forms:
-    -- * ‘text:sha256:<sha256 hash of file contents>’ (paths by makeTextPath() / addTextToStore())
-    -- * ‘fixed:<r?>:<ht>:<h>’ (paths by makeFixedOutputPath() / addToStore())
-    ca               :: !Text
-  } deriving (Eq, Ord, Show)
+  , -- | Signatures attesting to the validity of this registration.
+    sigs             :: ![Text] -- TODO better type?
+  , -- | Whether or not the store path is content-addressed, and if so
+    ca               :: !(Maybe ContentAddressedHash)
+  }
 
--- | A valid filename or directory name
-newtype FilePathPart = FilePathPart { unFilePathPart :: BSC.ByteString }
-  deriving (Eq, Ord, Show)
 
--- | Construct FilePathPart from Text by checking that there
---   are no '/' or '\\NUL' characters
-filePathPart :: BSC.ByteString -> Maybe FilePathPart
-filePathPart p = case BSC.any (`elem` ['/', '\NUL']) p of
-  False -> Just $ FilePathPart p
-  True  -> Nothing
+-- | The different types of content-addressed hashing we have in Nix.
+data ContentAddressedHash
+  = RegularFile (Digest SHA256)
+    -- ^ A regular file hashed like sha256sum.
+  | forall algo . NamedAlgorithm algo =>
+      FixedFile (HashMode algo) (Digest algo)
+      -- ^ A file hashed via the add-fixed-file-to-store approach.
+      -- This can in fact overlap with RegularFile (if the 'HashMode'
+      -- is 'Flat @SHA256'), but the resulting Nix store hash is
+      -- different for stupid legacy reasons.
 
-type Roots = Map Path Path
+-- | A specification of how to hash a file.
+data HashMode (a :: HashAlgorithm)
+  = Flat -- ^ Normal hashing of a regular file.
+  | Recursive -- ^ Hashing of a serialization of a file, compatible
+              -- with directories and executable files as well as
+              -- regular files.
 
-instance Hashable Path where
+instance Hashable (Path store) where
   hashWithSalt s (Path hash name) = s `hashWithSalt` hash `hashWithSalt` name

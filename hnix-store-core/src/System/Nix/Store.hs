@@ -2,65 +2,51 @@
 Description : Types and effects for interacting with the Nix store.
 Maintainer  : Shea Levy <shea@shealevy.com>
 -}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module System.Nix.Store
-  ( PathName, pathNameContents, pathName
-  , PathHashAlgo, Path(..)
-  , StoreEffects(..)
-  , SubstitutablePathInfo(..)
-  ) where
+module System.Nix.Store where
 
-import qualified Data.ByteString.Lazy as BS
-import Data.Text (Text)
-import Text.Regex.Base.RegexLike (makeRegex, matchTest)
-import Text.Regex.TDFA.Text (Regex)
-import Data.Hashable (Hashable(..), hashPtrWithSalt)
-import Data.HashSet (HashSet)
-import Data.HashMap.Strict (HashMap)
-import System.IO.Unsafe (unsafeDupablePerformIO)
-
-import System.Nix.Hash (Digest)
+import Data.ByteString.Lazy (ByteString)
+import System.Nix.Hash (NamedAlgorithm, HashAlgorithm)
 import System.Nix.Path
 import System.Nix.Nar
 
-
 -- | Interactions with the Nix store.
 --
--- @rootedPath@: A path plus a witness to the fact that the path is
--- reachable from a root whose liftime is at least as long as the
--- @rootedPath@ reference itself, when the implementation supports
--- this.
---
--- @validPath@: A @rootedPath@ plus a witness to the fact that the
--- path is valid. On implementations that support temporary roots,
--- this implies that the path will remain valid so long as the
--- reference is held.
+-- @root@: The root path of the store (e.g. "/nix/store").
 --
 -- @m@: The monad the effects operate in.
-data StoreEffects rootedPath validPath m =
-  StoreEffects
-    { -- | Project out the underlying 'Path' from a 'rootedPath'
-      fromRootedPath :: !(rootedPath -> Path)
-    , -- | Project out the underlying 'rootedPath' from a 'validPath'
-      fromValidPath :: !(validPath -> rootedPath)
-    , -- | Which of the given paths are valid?
-      validPaths :: !(HashSet rootedPath -> m (HashSet validPath))
-    , -- | Get the paths that refer to a given path.
-      referrers :: !(validPath -> m (HashSet Path))
-    , -- | Get a root to the 'Path'.
-      rootedPath :: !(Path -> m rootedPath)
-    , -- | Get information about substituters of a set of 'Path's
-      substitutablePathInfos ::
-        !(HashSet Path -> m (HashMap Path SubstitutablePathInfo))
-    , -- | Get the currently valid derivers of a 'Path'.
-      validDerivers :: !(Path -> m (HashSet Path))
-    , -- | Get the outputs of the derivation at a 'Path'.
-      derivationOutputs :: !(validPath -> m (HashSet Path))
-    , -- | Get the output names of the derivation at a 'Path'.
-      derivationOutputNames :: !(validPath -> m (HashSet Text))
-    , -- | Get a full 'Path' corresponding to a given 'Digest'.
-      pathFromHashPart :: !(Digest PathHashAlgo -> m Path)
-    , -- | Add a non-nar file to the store
-      addFile :: !(BS.ByteString -> m validPath)
-    }
+data StoreEffects root m = StoreEffects
+  { regularFileToStore -- ^ Add a regular file to the store with the
+                       -- given references, hashed with 'SHA256'.
+      :: PathName -- ^ The name of the path.
+      -> ByteString -- ^ The contents of the file.
+      -> PathSet root -- ^ The references of the path.
+      -> m (Path root) -- ^ The added store path.
+  , fixedFileToStore -- ^ Add a fixed file (possibly not regular) to
+                     -- the store with the diven hash algorithm.
+      :: forall a . (NamedAlgorithm a)
+      => PathName -- ^ The name of the path.
+      -> HashMode a -- ^ How to hash the file.
+      -> Nar -- ^ A nix archive dump of the file.
+      -> m (Path root)
+  , importPath -- ^ Import a serialization of a valid path into the
+               -- store.
+      :: PathInfo root -- ^ Store path metadata.
+      -> Nar -- ^ A nix archive dump of file.
+      -> Repair -- ^ Whether to overwrite the path if it is already
+                -- valid in the store.
+      -> CheckSigs -- ^ Whether to validate the signatures on the
+                   -- archive. Ignored if not a trusted user.
+      -> m ()
+  }
+
+
+-- | Flag to indicate whether a command should overwrite a specified
+-- path if it already exists (in an attempt to fix issues).
+data Repair = Repair | DontRepair
+
+-- | Flag to indicate whether signatures should be validated on an
+-- imported archive.
+data CheckSigs = CheckSigs | DontCheckSigs
