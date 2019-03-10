@@ -1,1 +1,1 @@
-(import ../release.nix).hnix-store-core.env
+(import ../shell.nix).hnix-store-core

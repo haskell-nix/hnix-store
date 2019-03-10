@@ -1,1 +1,1 @@
-(import ../release.nix).hnix-store-remote.env
+(import ../shell.nix).hnix-store-remote
