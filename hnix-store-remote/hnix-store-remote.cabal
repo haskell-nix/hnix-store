@@ -20,7 +20,7 @@ library
                      , System.Nix.Store.Remote.Types
                      , System.Nix.Store.Remote.Util
 
-  build-depends:       base >=4.10 && <4.12
+  build-depends:       base >=4.10
                      , base64-bytestring
                      , bytestring
                      , binary
