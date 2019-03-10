@@ -1,5 +1,5 @@
 let
-  packages = [ "hnix-store-core" "hnix-store-remote" ];
+  packages = [ "hnix-store-core" "hnix-store-remote" "hnix-store-s3" ];
   inherit (import ./. {}) pkgs haskellPackages;
   hslib = pkgs.haskell.lib;
   extract-external-inputs = p:
