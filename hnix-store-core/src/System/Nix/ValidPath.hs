@@ -8,8 +8,7 @@ module System.Nix.ValidPath
   ( ValidPath(..)
   ) where
 
-import           System.Nix.Hash           (Digest(..),
-                                            HashAlgorithm(Truncated, SHA256))
+import           System.Nix.Hash           (Digest(..))
 import           System.Nix.Path           (Path(..), PathSet)
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Char8     as BSC

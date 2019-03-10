@@ -25,6 +25,7 @@ library
                      , System.Nix.Nar
                      , System.Nix.Path
                      , System.Nix.ReadonlyStore
+                     , System.Nix.Internal.Path
                      , System.Nix.Store
                      , System.Nix.Util
                      , System.Nix.ValidPath
@@ -64,6 +65,7 @@ test-suite format-tests
    other-modules:
        NarFormat
        Hash
+       Path
    hs-source-dirs:
        tests
    build-depends:
