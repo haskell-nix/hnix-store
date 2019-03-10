@@ -175,25 +175,10 @@ type Source = () -- abstract binary source
 addToStoreNar :: ValidPathInfo -> Source -> RepairFlag -> CheckSigsFlag -> MonadStore ()
 addToStoreNar = undefined  -- XXX
 
--- class BaseHashAlgorithm (a :: HashAlgorithm) where
---   baseHashAlgorithm :: Bool
-
--- instance BaseHashAlgorithm MD5 where
---   baseHashAlgorithm = MD5
-
--- instance BaseHashAlgorithm SHA1 where
---   baseHashAlgorithm = SHA1
-
--- instance BaseHashAlgorithm SHA256 where
---   baseHashAlgorithm = SHA256
-
--- instance forall n a.BaseHashAlgorithm a => BaseHashAlgorithm (Truncated n a) where
---   baseHashAlgorithm = baseHashAlgorithm @a
-
 printHashType :: HashAlgorithm' Integer -> T.Text
-printHashType MD5 = "MD5"
-printHashType SHA1 = "SHA1"
-printHashType SHA256 = "SHA256"
+printHashType MD5             = "MD5"
+printHashType SHA1            = "SHA1"
+printHashType SHA256          = "SHA256"
 printHashType (Truncated _ a) = printHashType a
 
 type PathFilter = Path -> Bool
@@ -208,53 +193,25 @@ addToStore
   -> RepairFlag
   -> MonadStore Path
 addToStore name pth recursive algoProxy pfilter repair = do
-  -- Get length first
-  -- len <- liftIO $ LBS.length . B.runPut . putNar <$> localPackNar narEffectsIO pth
-  -- Fetch full NAR bytestring separately. We are trying to
-  -- avoid forcing the full string in memory
+
+  -- TODO: Is this lazy enough? We need `B.putLazyByteString bs` to stream `bs`
   bs  :: LBS.ByteString <- liftIO $ B.runPut . putNar <$> localPackNar narEffectsIO pth
-  liftIO $ print (LBS.length bs)
-  bs' <- liftIO $ putNar <$> localPackNar narEffectsIO pth
-  let bs'' = putByteStringLen "nix-archive-1"
-  let bs = sampleRegularBaseline
-  let len = LBS.length bs
+
   runOpArgs AddToStore $ do
     putByteStringLen name
-    -- TODO: really send the string 0 or 1? Or is this Word8's 0 and 1?
-    putByteStringLen $ if algoVal @a `elem` [SHA256, Truncated 20 SHA256]
-                                            && recursive
-                       then (LBS.pack [0])
-                       else (LBS.pack [1])
-                       -- then "0"
-                       -- else "1"
-    -- TODO: really send the string 0 or 1? Or is this Word8's 0 and 1?
-    putByteStringLen $ if recursive
-                       then (LBS.pack [1])
-                       else (LBS.pack [0])
-                       -- then "1"
-                       -- else "0"
+    if algoVal @a `elem` [SHA256, Truncated 20 SHA256] && recursive
+      then putInt 0
+      else putInt 1
+    if recursive
+      then putInt 1
+      else putInt 0
 
-    -- putByteStringLen (T.encodeUtf8 . T.toLower . printHashType $ algoVal @a)
+    putByteStringLen (T.encodeUtf8 . T.toLower . printHashType $ algoVal @a)
 
-    -- putByteStringLen bs
-    -- putInt len
     B.putLazyByteString bs
-    -- bs''
-    -- when (len `mod` 8 /= 0) $
-    --   let pad x = forM_ (take x $ cycle [0]) B.putWord8
-    --   in  pad $ fromIntegral $ 8 - (len `mod` 8)
 
   fmap (fromMaybe $ error "TODO: Error") sockGetPath
 
-
--- "hi" file turned to a NAR with `nix-store --dump`, Base64 encoded
-sampleRegularBaseline :: LBS.ByteString
-sampleRegularBaseline = B64.decodeLenient $ LBS.concat
-  ["DQAAAAAAAABuaXgtYXJjaGl2ZS0xAAAAAQAAAAAAAAAoAAAAAAA"
-  ,"AAAQAAAAAAAAAdHlwZQAAAAAHAAAAAAAAAHJlZ3VsYXIACAAAAA"
-  ,"AAAABjb250ZW50cwMAAAAAAAAAaGkKAAAAAAABAAAAAAAAACkAA"
-  ,"AAAAAAA"
-  ]
 
 addTextToStore :: LBS.ByteString -> LBS.ByteString -> PathSet -> RepairFlag -> MonadStore (Maybe Path)
 addTextToStore name text references' repair = do
