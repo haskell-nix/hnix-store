@@ -126,7 +126,7 @@ printHashBytes32 :: BS.ByteString -> T.Text
 printHashBytes32 c = T.pack $ concatMap char32 [nChar - 1, nChar - 2 .. 0]
   where
     -- The base32 encoding is 8/5's as long as the base256 digest
-    nChar = fromIntegral $ BS.length c * 8 `div` 5
+    nChar = fromIntegral $ ((BS.length c * 8 - 1) `div` 5) + 1
 
     char32 :: Integer -> [Char]
     char32 i = [digits32 V.! digitInd]
