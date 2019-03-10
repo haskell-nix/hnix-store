@@ -3,11 +3,13 @@ Description : Types and effects for interacting with the Nix store.
 Maintainer  : Shea Levy <shea@shealevy.com>
 -}
 {-# LANGUAGE DataKinds                  #-}
+{-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module System.Nix.Path
   ( FilePathPart(..)
   , PathHashAlgo
   , Path(..)
+  , pathToText
   , PathSet
   , SubstitutablePathInfo(..)
   , ValidPathInfo(..)
@@ -19,12 +21,14 @@ module System.Nix.Path
 
 import           System.Nix.Hash           (Digest(..),
                                             HashAlgorithm'(Truncated, SHA256))
+import           System.Nix.Internal.Hash
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Char8     as BSC
 import           Data.Hashable             (Hashable (..), hashPtrWithSalt)
 import           Data.HashMap.Strict       (HashMap)
 import           Data.HashSet              (HashSet)
 import           Data.Map.Strict           (Map)
+import           Data.Monoid
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import           System.IO.Unsafe          (unsafeDupablePerformIO)
@@ -46,7 +50,7 @@ newtype PathName = PathName
 -- | A regular expression for matching a valid 'PathName'
 nameRegex :: Regex
 nameRegex =
-  makeRegex "[a-zA-Z0-9\\+\\-\\_\\?\\=][a-zA-Z0-9\\+\\-\\.\\_\\?\\=]*"
+  makeRegex ("[a-zA-Z0-9\\+\\-\\_\\?\\=][a-zA-Z0-9\\+\\-\\.\\_\\?\\=]*" :: String)
 
 -- | Construct a 'PathName', assuming the provided contents are valid.
 pathName :: Text -> Maybe PathName
@@ -57,6 +61,9 @@ pathName n = case matchTest nameRegex n of
 -- | A path in a store.
 data Path = Path !(Digest PathHashAlgo) !PathName
   deriving (Eq, Ord, Show)
+
+pathToText :: Text -> Path -> Text
+pathToText storeDir (Path h nm) = storeDir <> "/" <> printAsBase32 h <> "-" <> pathNameContents nm
 
 type PathSet = HashSet Path
 

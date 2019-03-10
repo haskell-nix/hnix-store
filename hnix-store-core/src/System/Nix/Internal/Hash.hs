@@ -12,25 +12,29 @@ Maintainer  : Greg Hale <imalsogreg@gmail.com>
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE TypeInType          #-}
+{-# LANGUAGE OverloadedStrings   #-}
 
 module System.Nix.Internal.Hash where
 
-import qualified Crypto.Hash.MD5       as MD5
-import qualified Crypto.Hash.SHA1      as SHA1
-import qualified Crypto.Hash.SHA256    as SHA256
-import qualified Data.ByteString       as BS
-import qualified Data.ByteString.Char8 as BSC
-import           Data.Bits             (xor)
-import qualified Data.ByteString       as BS
-import qualified Data.ByteString.Lazy  as BSL
-import qualified Data.Hashable         as DataHashable
-import           Data.Kind             (Type)
-import           Data.List             (foldl')
-import           Data.Proxy            (Proxy(Proxy))
-import qualified Data.Text             as T
-import qualified Data.Text.Encoding    as T
-import qualified Data.Vector           as V
-import           Data.Word             (Word8)
+import qualified Crypto.Hash.MD5        as MD5
+import qualified Crypto.Hash.SHA1       as SHA1
+import qualified Crypto.Hash.SHA256     as SHA256
+import qualified Data.ByteString        as BS
+import qualified Data.ByteString.Base16 as Base16
+import qualified Data.ByteString.Char8  as BSC
+import           Data.Bits              (xor)
+import qualified Data.ByteString        as BS
+import qualified Data.ByteString.Lazy   as BSL
+import qualified Data.Hashable          as DataHashable
+import           Data.Kind              (Type)
+import           Data.List              (foldl')
+import           Data.Monoid
+import           Data.Proxy             (Proxy(Proxy))
+import           Data.Text              (Text)
+import qualified Data.Text              as T
+import qualified Data.Text.Encoding     as T
+import qualified Data.Vector            as V
+import           Data.Word              (Word8)
 import           GHC.TypeLits
 
 -- | A tag for different hashing algorithms
@@ -44,6 +48,18 @@ data HashAlgorithm' n
   | SHA256
   | Truncated n (HashAlgorithm' n)
   deriving (Eq, Show)
+
+class HashAlgoText a where
+  algoString :: Proxy a -> Text
+
+instance HashAlgoText 'MD5 where
+  algoString (Proxy :: Proxy 'MD5) = "md5"
+
+instance HashAlgoText 'SHA1 where
+  algoString (Proxy :: Proxy 'SHA1) = "sha1"
+
+instance HashAlgoText 'SHA256 where
+  algoString (Proxy :: Proxy 'SHA256) = "sha256"
 
 type HashAlgorithm = HashAlgorithm' Nat
 
@@ -80,8 +96,11 @@ hashLazy :: forall a.HasDigest a => BSL.ByteString -> Digest a
 hashLazy bsl =
   finalize $ foldl' (update @a) (initialize @a) (BSL.toChunks bsl)
 
+digestText32 :: forall a. HashAlgoText a => Digest a -> T.Text
+digestText32 d = algoString (Proxy :: Proxy a) <> ":" <> printAsBase32 d
 
-
+digestText16 :: forall a. HashAlgoText a => Digest a -> T.Text
+digestText16 (Digest bs) = algoString (Proxy :: Proxy a) <> ":" <> T.decodeUtf8 (Base16.encode bs)
 
 -- | Convert any Digest to a base32-encoded string.
 --   This is not used in producing store path hashes
