@@ -24,9 +24,11 @@ library
                      , System.Nix.Internal.Hash
                      , System.Nix.Nar
                      , System.Nix.Path
+                     , System.Nix.ReadonlyStore
                      , System.Nix.Store
                      , System.Nix.Util
   build-depends:       base >=4.10
+                     , base16-bytestring
                      , bytestring
                      , binary
                      , bytestring
@@ -62,7 +64,7 @@ test-suite format-tests
        NarFormat
        Hash
    hs-source-dirs:
-       tests 
+       tests
    build-depends:
        hnix-store-core
      , base

@@ -15,6 +15,7 @@ import qualified Data.HashSet              as HashSet
 import           Network.Socket.ByteString (recv, sendAll)
 
 import           System.Nix.Store.Remote.Types
+import           System.Nix.Hash
 import           System.Nix.Path
 import           System.Nix.Util
 
@@ -73,7 +74,7 @@ mkPath p = case (pathName $ lBSToText p) of
              -- TODO: replace `undefined` with digest encoding function when
              --       [issue 24](https://github.com/haskell-nix/hnix-store/issues/24)
              --       is closed
-             Just x -> Just $ Path (undefined $ LBS.toStrict p) x --XXX: hash
+             Just x -> Just $ Path (hash $ LBS.toStrict p) x --XXX: hash
              Nothing -> Nothing
 
 -- WOOT

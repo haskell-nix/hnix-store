@@ -127,6 +127,13 @@ runOp op = runOpArgs op $ return ()
 
 runOpArgs :: WorkerOp -> Put -> MonadStore ()
 runOpArgs op args = do
+
+  -- Temporary hack for printing the messages destined for nix-daemon socket
+  when False $
+    liftIO $ LBS.writeFile "mytestfile2" $ runPut $ do
+      putInt $ opNum op
+      args
+
   sockPut $ do
     putInt $ opNum op
     args

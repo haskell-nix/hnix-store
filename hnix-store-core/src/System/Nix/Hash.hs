@@ -12,10 +12,12 @@ Maintainer  : Shea Levy <shea@shealevy.com>; Greg Hale <imalsogreg@gmail.com>
 {-# LANGUAGE CPP #-}
 module System.Nix.Hash (
     HNix.Digest
-
   , HNix.HashAlgorithm(..)
+  , HNix.HashForm'(..)
+  , HNix.HashForm
   , HNix.NamedAlgorithm(..)
-  , HNix.NamedDigest(..)
+  , HNix.AnyDigest(..)
+  , HNix.AlgoVal(..)
   , HNix.HasDigest(..)
   , HNix.hash
   , HNix.hashLazy
