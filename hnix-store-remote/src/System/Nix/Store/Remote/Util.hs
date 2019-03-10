@@ -95,29 +95,12 @@ putText = putByteStringLen . textToLBS
 putTexts :: [Text] -> Put
 putTexts = putByteStrings . (map textToLBS)
 
-mkPath :: LBS.ByteString -> Maybe Path
-mkPath p = case (pathName $ lBSToText p) of
-             Just x -> Just $ Path (Hash.hash $ LBS.toStrict p) x
-             Nothing -> Nothing
-
-mkPathText :: T.Text -> Maybe Path
-mkPathText p = case pathName p of
-             Just x -> Just $ Path (Hash.hash $ BSC.pack $ T.unpack p) x
-             Nothing -> Nothing
-
 getPath :: Get (Maybe Path)
 getPath = parsePath <$> getByteStringLen
 
 getPaths :: Get PathSet
 getPaths = HashSet.fromList . catMaybes . map parsePath <$> getByteStrings
 
-{-
-putPath :: Path -> Put
-putPath (Path _digest name) = putText $ pathNameContents name
-
-putPaths :: PathSet -> Put
-putPaths = putByteStrings . HashSet.map (\(Path _digest name) -> textToLBS $ pathNameContents name)
--}
 putPath :: StoreDir -> Path -> Put
 putPath sd  = putText . storedToText . makeStored sd
 

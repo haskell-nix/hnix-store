@@ -142,6 +142,7 @@ withPath action = do
   (Just path) <- addTextToStore "hnix-store" "test" (HS.fromList [])  False
   action path
 
+invalidPath =  Path (hash "invalid") $ fromJust $ pathName "invalid"
 {-
  - broken
 
@@ -233,7 +234,7 @@ spec_protocol = Hspec.around withNixDaemon $ do
     context "isValidPathUncached" $ do
       itRights "validates path" $ withPath $ \path -> do
         (isValidPathUncached path) `shouldReturn` True
-      itLefts "fails on invalid path" $ isValidPathUncached $ fromJust $ mkPath "nopez"
+      itLefts "fails on invalid path" $ isValidPathUncached $ invalidPath
 
     context "queryAllValidPaths" $ do
       itRights "empty query" $ queryAllValidPaths

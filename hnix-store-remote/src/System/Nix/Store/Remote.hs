@@ -108,12 +108,12 @@ querySubstitutablePathInfos ps = do
   cnt <- sockGetInt
   forM (take cnt $ cycle [(0 :: Int)]) $ pure $ do
       _pth <- sockGetPath
-      drv <- sockGetStr
+      drv <- sockGetPath
       refs <- sockGetPaths
       dlSize <- sockGetInt
       narSize' <- sockGetInt
       return $ SubstitutablePathInfo {
-                 deriver = mkPath drv
+                 deriver = drv
                , references = refs
                , downloadSize = dlSize
                , narSize = narSize'
@@ -128,7 +128,7 @@ queryPathInfoUncached path = do
   valid <- sockGetBool
   unless valid $ error "Path is not valid"
 
-  deriver <- mkPath <$> sockGetStr
+  deriver <- sockGetPath
   narHash <- lBSToText <$> sockGetStr
   references <- sockGetPaths
   registrationTime <- sockGet getTime
