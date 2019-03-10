@@ -27,6 +27,8 @@ import qualified Data.Hashable         as DataHashable
 import           Data.Kind             (Type)
 import           Data.List             (foldl')
 import           Data.Proxy            (Proxy(Proxy))
+import qualified Data.Map              as Map
+import qualified Data.Maybe            as Maybe
 import qualified Data.Text             as T
 import qualified Data.Text.Encoding    as T
 import qualified Data.Vector           as V
@@ -144,6 +146,31 @@ printHashBytes32 c = T.pack $ concatMap char32 [nChar - 1, nChar - 2 .. 0]
                    `div` (32^i)
                    `mod` 32
 
+-- | Internal function for decoding base32 bytestrings in nix's convention
+--   back into a bytestring that's useable as a SHA256 Digest
+parseHashBytes32 :: T.Text -> BS.ByteString
+parseHashBytes32 b = BS.pack $ map word32 [nChar -1, nChar - 2 .. 0]
+  where
+    nChar = (T.length b * 5 - 1 `div` 8) + 1
+
+    word32 :: Int -> Word8
+    word32 i = fromIntegral wordInd
+      where
+        word :: Int -> Char
+        word j = T.index b i
+
+        wordInd :: Int
+        wordInd = fromIntegral $
+                  sum [fromEnum (word j) * (256^j)
+                      | j <- [0 .. T.length b - 1]]
+                  `div` (32^i)
+
+roundtrip :: (Digest SHA256, T.Text, BS.ByteString)
+roundtrip =
+  let d          = hash @SHA256 (BSC.pack "hello")
+      encoded    = printAsBase32 d :: T.Text
+      decoded    = parseHashBytes32 encoded
+  in (d, encoded, decoded)
 
 -- | Internal function for producing the bitwise truncation of bytestrings.
 --   When truncation length is greater than the length of the bytestring,
