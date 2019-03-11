@@ -35,6 +35,7 @@ import qualified Data.Text.Encoding     as T
 import qualified Data.Vector            as V
 import           Data.Word              (Word8)
 import           GHC.TypeLits
+import qualified System.Nix.Base32      as Base32
 
 -- | A tag for different hashing algorithms
 --   Also used as a type-level tag for hash digests
@@ -92,7 +93,7 @@ hashLazy bsl =
 
 -- | Encode a Digest in the special Nix base-32 encoding.
 encodeBase32 :: Digest a -> T.Text
-encodeBase32 (Digest bs) = printHashBytes32 bs
+encodeBase32 (Digest bs) = Base32.encode bs
 
 -- | Encode a Digest in hex.
 encodeBase16 :: Digest a -> T.Text
@@ -131,33 +132,6 @@ newtype Digest (a :: HashAlgorithm) = Digest
   } deriving (Show, Eq, Ord, DataHashable.Hashable)
 
 
--- instance DataHashable.Hashable (Digest a) where
---   hashWithSalt a (Digest bs) = DataHashable.hashWithSalt a bs
---   hashWithSalt = coerce . DataHash
-
-
--- | Internal function for encoding bytestrings into base32 according to
---  nix's convention
-printHashBytes32 :: BS.ByteString -> T.Text
-printHashBytes32 c = T.pack $ concatMap char32 [nChar - 1, nChar - 2 .. 0]
-  where
-    -- The base32 encoding is 8/5's as long as the base256 digest.  This `+ 1`
-    -- `- 1` business is a bit odd, but has always been used in C++ since the
-    -- base32 truncation was added in was first added in
-    -- d58a11e019813902b6c4547ca61a127938b2cc20.
-    nChar = fromIntegral $ ((BS.length c * 8 - 1) `div` 5) + 1
-
-    char32 :: Integer -> [Char]
-    char32 i = [digits32 V.! digitInd]
-      where
-        byte j   = BS.index c (fromIntegral j)
-        digitInd = fromIntegral $
-                   sum [fromIntegral (byte j) * (256^j)
-                       | j <- [0 .. BS.length c - 1]]
-                   `div` (32^i)
-                   `mod` 32
-
-
 -- | Internal function for producing the bitwise truncation of bytestrings.
 --   When truncation length is greater than the length of the bytestring,
 --   but less than twice the bytestring length, truncation splits the
@@ -180,6 +154,3 @@ truncateDigest (Digest c) = Digest $ BS.pack $ map truncOutputByte [0.. n-1]
     aux i x j = if j `mod` fromIntegral n == fromIntegral i
                 then xor x (inputByte $ fromIntegral j)
                 else x
-
-digits32 :: V.Vector Char
-digits32 = V.fromList "0123456789abcdfghijklmnpqrsvwxyz"
