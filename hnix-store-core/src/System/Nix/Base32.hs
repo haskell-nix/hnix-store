@@ -7,7 +7,7 @@ import qualified Data.ByteString        as BS
 import qualified Data.Text              as T
 import qualified Data.Vector            as V
 
--- | Encode a 'ByteString' in Nix's base32 encoding
+-- | Encode a 'BS.ByteString' in Nix's base32 encoding
 encode :: BS.ByteString -> T.Text
 encode c = T.pack $ concatMap char32 [nChar - 1, nChar - 2 .. 0]
   where

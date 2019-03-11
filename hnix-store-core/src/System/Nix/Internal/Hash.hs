@@ -1,5 +1,6 @@
 {-|
-Description : Cryptographic hashes for hnix-store.
+Description : Cryptographic hashing interface for hnix-store, on top
+              of the cryptohash family of libraries.
 -}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds           #-}
@@ -37,15 +38,37 @@ import           Data.Word              (Word8)
 import           GHC.TypeLits
 import qualified System.Nix.Base32      as Base32
 
--- | A tag for different hashing algorithms
---   Also used as a type-level tag for hash digests
---   (e.g. @Digest SHA256@ is the type for a sha256 hash)
+-- | The universe of supported hash algorithms.
+--
+-- Currently only intended for use at the type level.
 data HashAlgorithm
   = MD5
   | SHA1
   | SHA256
   | Truncated Nat HashAlgorithm
+    -- ^ The hash algorithm obtained by truncating the result of the
+    -- input 'HashAlgorithm' to the given number of bytes. See
+    -- 'truncateDigest' for a description of the truncation algorithm.
 
+-- | The result of running a 'HashAlgorithm'.
+newtype Digest (a :: HashAlgorithm) =
+  Digest BS.ByteString deriving (Show, Eq, Ord, DataHashable.Hashable)
+
+-- | The primitive interface for incremental hashing for a given
+-- 'HashAlgorithm'. Every 'HashAlgorithm' should have an instance.
+class HasDigest (a :: HashAlgorithm) where
+  -- | The incremental state for constructing a hash.
+  type AlgoCtx a :: Type
+
+  -- | Start building a new hash.
+  initialize        :: AlgoCtx a
+  -- | Append a 'BS.ByteString' to the overall contents to be hashed.
+  update            :: AlgoCtx a -> BS.ByteString -> AlgoCtx a
+  -- | Finish hashing and generate the output.
+  finalize          :: AlgoCtx a -> Digest a
+
+-- | An algorithm with a canonical name, for serialization purposes
+-- (e.g. SRI hashes)
 class NamedAlgo a where
   algoName :: Text
 
@@ -58,23 +81,8 @@ instance NamedAlgo 'SHA1 where
 instance NamedAlgo 'SHA256 where
   algoName = "sha256"
 
--- | Types with kind @HashAlgorithm@ may be a @HasDigest@ instance
---   if they are able to hash bytestrings via the init/update/finalize
---   API of cryptonite
+-- | Hash an entire (strict) 'BS.ByteString' as a single call.
 --
---   Each instance defined here simply defers to one of the underlying
---   monomorphic hashing libraries, such as `cryptohash-sha256`.
-class HasDigest (a :: HashAlgorithm) where
-
-  type AlgoCtx a :: Type
-
-  initialize        :: AlgoCtx a
-  update            :: AlgoCtx a -> BS.ByteString -> AlgoCtx a
-  finalize          :: AlgoCtx a -> Digest a
-
-
--- | The cryptographic hash of of a strict bytestring, where hash
---   algorithm is chosen by the type of the digest
 --   For example:
 --   > let d = hash "Hello, sha-256!" :: Digest SHA256
 --   or
@@ -84,9 +92,10 @@ hash :: forall a.HasDigest a => BS.ByteString -> Digest a
 hash bs =
   finalize $ update @a (initialize @a) bs
 
--- | The cryptographic hash of a lazy bytestring. Use is the same
---   as for @hash@. This runs in constant space, but forces the
---   entire bytestring
+-- | Hash an entire (lazy) 'BSL.ByteString' as a single call.
+--
+-- Use is the same as for 'hash'.  This runs in constant space, but
+-- forces the entire bytestring.
 hashLazy :: forall a.HasDigest a => BSL.ByteString -> Digest a
 hashLazy bsl =
   finalize $ foldl' (update @a) (initialize @a) (BSL.toChunks bsl)
@@ -99,49 +108,44 @@ encodeBase32 (Digest bs) = Base32.encode bs
 encodeBase16 :: Digest a -> T.Text
 encodeBase16 (Digest bs) = T.decodeUtf8 (Base16.encode bs)
 
-
-instance HasDigest MD5 where
+instance HasDigest 'MD5 where
   type AlgoCtx 'MD5 = MD5.Ctx
   initialize = MD5.init
   update = MD5.update
   finalize = Digest . MD5.finalize
 
 instance HasDigest 'SHA1 where
-  type AlgoCtx SHA1 = SHA1.Ctx
+  type AlgoCtx 'SHA1 = SHA1.Ctx
   initialize = SHA1.init
   update = SHA1.update
   finalize = Digest . SHA1.finalize
 
 instance HasDigest 'SHA256 where
-  type AlgoCtx SHA256 = SHA256.Ctx
+  type AlgoCtx 'SHA256 = SHA256.Ctx
   initialize = SHA256.init
   update = SHA256.update
   finalize = Digest . SHA256.finalize
 
-instance (HasDigest a, KnownNat n) => HasDigest (Truncated n a) where
-  type AlgoCtx (Truncated n a) = AlgoCtx a
+-- | Reuses the underlying 'HasDigest' instance, but does a
+-- 'truncateDigest' at the end.
+instance (HasDigest a, KnownNat n) => HasDigest ('Truncated n a) where
+  type AlgoCtx ('Truncated n a) = AlgoCtx a
   initialize = initialize @a
   update = update @a
   finalize = truncateDigest @n . finalize @a
 
--- | A raw hash digest, with a type-level tag
-newtype Digest (a :: HashAlgorithm) = Digest
-  { digestBytes :: BS.ByteString
-    -- ^ The bytestring in a Digest is an opaque string of bytes,
-    --   not some particular text encoding.
-  } deriving (Show, Eq, Ord, DataHashable.Hashable)
-
-
--- | Internal function for producing the bitwise truncation of bytestrings.
---   When truncation length is greater than the length of the bytestring,
---   but less than twice the bytestring length, truncation splits the
---   bytestring into a head part (truncation length) and tail part (leftover
---   part) right-pads the leftovers with 0 to the truncation length, and
---   combines the two strings bytewise with `xor`
-truncateDigest :: forall n a.(HasDigest a, KnownNat n) => Digest a -> Digest (Truncated n a)
-truncateDigest (Digest c) = Digest $ BS.pack $ map truncOutputByte [0.. n-1]
+-- | Bytewise truncation of a 'Digest'.
+--
+-- When truncation length is greater than the length of the bytestring
+-- but less than twice the bytestring length, truncation splits the
+-- bytestring into a head part (truncation length) and tail part
+-- (leftover part), right-pads the leftovers with 0 to the truncation
+-- length, and combines the two strings bytewise with 'xor'.
+truncateDigest
+  :: forall n a.(KnownNat n) => Digest a -> Digest ('Truncated n a)
+truncateDigest (Digest c) =
+    Digest $ BS.pack $ map truncOutputByte [0.. n-1]
   where
-
     n = fromIntegral $ natVal (Proxy @n)
 
     truncOutputByte :: Int -> Word8
