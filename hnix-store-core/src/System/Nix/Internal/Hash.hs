@@ -90,16 +90,13 @@ hashLazy :: forall a.HasDigest a => BSL.ByteString -> Digest a
 hashLazy bsl =
   finalize $ foldl' (update @a) (initialize @a) (BSL.toChunks bsl)
 
-digestText32 :: forall a. NamedAlgo a => Digest a -> T.Text
-digestText32 d = algoName @a <> ":" <> printAsBase32 d
+-- | Encode a Digest in the special Nix base-32 encoding.
+encodeBase32 :: Digest a -> T.Text
+encodeBase32 (Digest bs) = printHashBytes32 bs
 
-digestText16 :: forall a. NamedAlgo a => Digest a -> T.Text
-digestText16 (Digest bs) = algoName @a <> ":" <> T.decodeUtf8 (Base16.encode bs)
-
--- | Convert any Digest to a base32-encoded string.
---   This is not used in producing store path hashes
-printAsBase32 :: Digest a -> T.Text
-printAsBase32 (Digest bs) = printHashBytes32 bs
+-- | Encode a Digest in hex.
+encodeBase16 :: Digest a -> T.Text
+encodeBase16 (Digest bs) = T.decodeUtf8 (Base16.encode bs)
 
 
 instance HasDigest MD5 where

@@ -10,7 +10,8 @@ module System.Nix.Hash (
   , HNix.hash
   , HNix.hashLazy
 
-  , HNix.printAsBase32
+  , HNix.encodeBase32
+  , HNix.encodeBase16
   ) where
 
 import qualified System.Nix.Internal.Hash as HNix

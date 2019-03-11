@@ -63,7 +63,7 @@ data Path = Path !(Digest PathHashAlgo) !PathName
   deriving (Eq, Ord, Show)
 
 pathToText :: Text -> Path -> Text
-pathToText storeDir (Path h nm) = storeDir <> "/" <> printAsBase32 h <> "-" <> pathNameContents nm
+pathToText storeDir (Path h nm) = storeDir <> "/" <> encodeBase32 h <> "-" <> pathNameContents nm
 
 type PathSet = HashSet Path
 

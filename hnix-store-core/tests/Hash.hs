@@ -32,11 +32,11 @@ spec_hash = do
   describe "hashing parity with nix-store" $ do
 
     it "produces (base32 . sha256) of \"nix-output:foo\" the same as Nix does at the moment for placeholder \"foo\"" $
-      shouldBe (printAsBase32 (hash @SHA256 "nix-output:foo"))
+      shouldBe (encodeBase32 (hash @SHA256 "nix-output:foo"))
                "1x0ymrsy7yr7i9wdsqy9khmzc1yy7nvxw6rdp72yzn50285s67j5"
 
     it "produces (base32 . sha1) of \"Hello World\" the same as the thesis" $
-      shouldBe (printAsBase32 (hash @SHA1 "Hello World"))
+      shouldBe (encodeBase32 (hash @SHA1 "Hello World"))
                "s23c9fs0v32pf6bhmcph5rbqsyl5ak8a"
 
     -- The example in question:
@@ -45,5 +45,5 @@ spec_hash = do
       let exampleStr =
             "source:sha256:2bfef67de873c54551d884fdab3055d84d573e654efa79db3"
             <> "c0d7b98883f9ee3:/nix/store:myfile"
-      shouldBe (printAsBase32 @PathHashAlgo (hash exampleStr))
+      shouldBe (encodeBase32 @PathHashAlgo (hash exampleStr))
         "xv2iccirbrvklck36f1g7vldn5v58vck"
