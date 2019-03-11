@@ -178,7 +178,7 @@ addToStoreNar = undefined  -- XXX
 type PathFilter = Path -> Bool
 
 addToStore
-  :: forall a. (HasDigest a, NamedAlgo a)
+  :: forall a. (ValidAlgo a, NamedAlgo a)
   => LBS.ByteString
   -> FilePath
   -> Bool

@@ -56,7 +56,7 @@ newtype Digest (a :: HashAlgorithm) =
 
 -- | The primitive interface for incremental hashing for a given
 -- 'HashAlgorithm'. Every 'HashAlgorithm' should have an instance.
-class HasDigest (a :: HashAlgorithm) where
+class ValidAlgo (a :: HashAlgorithm) where
   -- | The incremental state for constructing a hash.
   type AlgoCtx a :: Type
 
@@ -88,7 +88,7 @@ instance NamedAlgo 'SHA256 where
 --   or
 --   > :set -XTypeApplications
 --   > let d = hash @SHA256 "Hello, sha-256!"
-hash :: forall a.HasDigest a => BS.ByteString -> Digest a
+hash :: forall a.ValidAlgo a => BS.ByteString -> Digest a
 hash bs =
   finalize $ update @a (initialize @a) bs
 
@@ -96,7 +96,7 @@ hash bs =
 --
 -- Use is the same as for 'hash'.  This runs in constant space, but
 -- forces the entire bytestring.
-hashLazy :: forall a.HasDigest a => BSL.ByteString -> Digest a
+hashLazy :: forall a.ValidAlgo a => BSL.ByteString -> Digest a
 hashLazy bsl =
   finalize $ foldl' (update @a) (initialize @a) (BSL.toChunks bsl)
 
@@ -108,27 +108,27 @@ encodeBase32 (Digest bs) = Base32.encode bs
 encodeBase16 :: Digest a -> T.Text
 encodeBase16 (Digest bs) = T.decodeUtf8 (Base16.encode bs)
 
-instance HasDigest 'MD5 where
+instance ValidAlgo 'MD5 where
   type AlgoCtx 'MD5 = MD5.Ctx
   initialize = MD5.init
   update = MD5.update
   finalize = Digest . MD5.finalize
 
-instance HasDigest 'SHA1 where
+instance ValidAlgo 'SHA1 where
   type AlgoCtx 'SHA1 = SHA1.Ctx
   initialize = SHA1.init
   update = SHA1.update
   finalize = Digest . SHA1.finalize
 
-instance HasDigest 'SHA256 where
+instance ValidAlgo 'SHA256 where
   type AlgoCtx 'SHA256 = SHA256.Ctx
   initialize = SHA256.init
   update = SHA256.update
   finalize = Digest . SHA256.finalize
 
--- | Reuses the underlying 'HasDigest' instance, but does a
+-- | Reuses the underlying 'ValidAlgo' instance, but does a
 -- 'truncateDigest' at the end.
-instance (HasDigest a, KnownNat n) => HasDigest ('Truncated n a) where
+instance (ValidAlgo a, KnownNat n) => ValidAlgo ('Truncated n a) where
   type AlgoCtx ('Truncated n a) = AlgoCtx a
   initialize = initialize @a
   update = update @a
