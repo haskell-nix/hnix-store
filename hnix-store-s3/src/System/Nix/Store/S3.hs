@@ -13,7 +13,7 @@ s3BinaryStoreEffects
   => BucketName
   -> BinaryStoreEffects m
 s3BinaryStoreEffects bucketName' =
-  BinaryStoreEffects (upsertFile' bucketName')
+  BinaryStoreEffects upsertFile'
   where
-    upsertFile' bucketName pth d mimeType =
-      void . send $ putObject bucketName (ObjectKey pth) (toBody d) & poContentType ?~ mimeType
+    upsertFile' pth d mimeType =
+      void . send $ putObject bucketName' (ObjectKey pth) (toBody d) & poContentType ?~ mimeType
