@@ -58,8 +58,8 @@ class ValidAlgo (a :: HashAlgorithm) where
   -- | Finish hashing and generate the output.
   finalize          :: AlgoCtx a -> Digest a
 
--- | An algorithm with a canonical name, for serialization purposes
--- (e.g. SRI hashes)
+-- | A 'HashAlgorithm' with a canonical name, for serialization
+-- purposes (e.g. SRI hashes)
 class NamedAlgo (a :: HashAlgorithm) where
   algoName :: Text
 
@@ -91,26 +91,29 @@ hashLazy :: forall a.ValidAlgo a => BSL.ByteString -> Digest a
 hashLazy bsl =
   finalize $ foldl' (update @a) (initialize @a) (BSL.toChunks bsl)
 
--- | Encode a Digest in the special Nix base-32 encoding.
+-- | Encode a 'Digest' in the special Nix base-32 encoding.
 encodeBase32 :: Digest a -> T.Text
 encodeBase32 (Digest bs) = Base32.encode bs
 
--- | Encode a Digest in hex.
+-- | Encode a 'Digest' in hex.
 encodeBase16 :: Digest a -> T.Text
 encodeBase16 (Digest bs) = T.decodeUtf8 (Base16.encode bs)
 
+-- | Uses "Crypto.Hash.MD5" from cryptohash-md5.
 instance ValidAlgo 'MD5 where
   type AlgoCtx 'MD5 = MD5.Ctx
   initialize = MD5.init
   update = MD5.update
   finalize = Digest . MD5.finalize
 
+-- | Uses "Crypto.Hash.SHA1" from cryptohash-sha1.
 instance ValidAlgo 'SHA1 where
   type AlgoCtx 'SHA1 = SHA1.Ctx
   initialize = SHA1.init
   update = SHA1.update
   finalize = Digest . SHA1.finalize
 
+-- | Uses "Crypto.Hash.SHA256" from cryptohash-sha256.
 instance ValidAlgo 'SHA256 where
   type AlgoCtx 'SHA256 = SHA256.Ctx
   initialize = SHA256.init
