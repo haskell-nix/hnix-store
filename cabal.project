@@ -1,1 +1,1 @@
-packages: ./hnix-store-core/*.cabal ./hnix-store-remote/*.cabal
+packages: ./hnix-store-core/*.cabal ./hnix-store-remote/*.cabal ./hnix-store-binary/*.cabal ./hnix-store-s3/*.cabal
