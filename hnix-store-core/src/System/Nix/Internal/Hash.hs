@@ -3,15 +3,11 @@ Description : Cryptographic hashing interface for hnix-store, on top
               of the cryptohash family of libraries.
 -}
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE TypeFamilies        #-}
-{-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE TypeInType          #-}
+{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE OverloadedStrings   #-}
 
 module System.Nix.Internal.Hash where
@@ -21,21 +17,16 @@ import qualified Crypto.Hash.SHA1       as SHA1
 import qualified Crypto.Hash.SHA256     as SHA256
 import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Base16 as Base16
-import qualified Data.ByteString.Char8  as BSC
 import           Data.Bits              (xor)
-import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Lazy   as BSL
 import qualified Data.Hashable          as DataHashable
-import           Data.Kind              (Type)
 import           Data.List              (foldl')
-import           Data.Monoid
 import           Data.Proxy             (Proxy(Proxy))
 import           Data.Text              (Text)
 import qualified Data.Text              as T
 import qualified Data.Text.Encoding     as T
-import qualified Data.Vector            as V
 import           Data.Word              (Word8)
-import           GHC.TypeLits
+import           GHC.TypeLits           (Nat, KnownNat, natVal)
 import qualified System.Nix.Base32      as Base32
 
 -- | The universe of supported hash algorithms.
@@ -58,7 +49,7 @@ newtype Digest (a :: HashAlgorithm) =
 -- 'HashAlgorithm'. Every 'HashAlgorithm' should have an instance.
 class ValidAlgo (a :: HashAlgorithm) where
   -- | The incremental state for constructing a hash.
-  type AlgoCtx a :: Type
+  type AlgoCtx a
 
   -- | Start building a new hash.
   initialize        :: AlgoCtx a
@@ -69,7 +60,7 @@ class ValidAlgo (a :: HashAlgorithm) where
 
 -- | An algorithm with a canonical name, for serialization purposes
 -- (e.g. SRI hashes)
-class NamedAlgo a where
+class NamedAlgo (a :: HashAlgorithm) where
   algoName :: Text
 
 instance NamedAlgo 'MD5 where
