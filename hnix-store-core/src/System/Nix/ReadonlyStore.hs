@@ -7,6 +7,7 @@ module System.Nix.ReadonlyStore where
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.HashSet as HS
+import           Data.Text (Text)
 import           Data.Text.Encoding
 import           System.Nix.Hash
 import           System.Nix.StorePath
@@ -36,6 +37,10 @@ makeFixedOutputPath recursive h nm =
       if recursive
       then ("source", h)
       else ("output:out", hash ("fixed:out:" <> encodeUtf8 (encodeBase16 h) <> ":"))
+
+makeFixedOutputCA :: Bool -> Digest hashAlgo -> Text
+makeFixedOutputCA recursive h =
+  "fixed:" <> (if recursive then "r:" else "") <> encodeBase16 h
 
 computeStorePathForText :: (KnownStoreDir storeDir) => StorePathName -> ByteString -> StorePathSet storeDir -> StorePath storeDir
 computeStorePathForText nm s refs = makeTextPath nm (hash s) refs
