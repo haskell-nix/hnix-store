@@ -15,10 +15,13 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     System.Nix.Store.Binary
+                     , System.Nix.Store.Binary.Local
 
   build-depends:       base >=4.10 && <4.12
                      , binary
                      , bytestring
+                     , directory
+                     , filepath
                      , lzma
                      , mtl
                      , text
