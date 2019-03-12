@@ -10,7 +10,7 @@ import qualified Data.HashSet as HS
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Text.Encoding
-import           System.Nix.Internal.Hash
+import           System.Nix.Hash
 import           System.Nix.Path
 
 makeStorePath :: Text -> Text -> Digest 'SHA256 -> Text -> Path
@@ -18,11 +18,12 @@ makeStorePath storeDir ty h nm = Path storeHash (PathName nm)
   where
     s = T.intercalate ":"
       [ ty
-      , digestText16 h
+      , algoName @'SHA256
+      , encodeBase16 h
       , storeDir
       , nm
       ]
-    storeHash = truncateDigest $ hash $ encodeUtf8 s
+    storeHash = hash $ encodeUtf8 s
 
 makeTextPath :: Text -> Text -> Digest 'SHA256 -> PathSet -> Path
 makeTextPath storeDir nm h refs = makeStorePath storeDir ty h nm

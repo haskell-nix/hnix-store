@@ -1,17 +1,13 @@
 {-|
-Description : Cryptographic hashes for hnix-store.
-Maintainer  : Greg Hale <imalsogreg@gmail.com>
+Description : Cryptographic hashing interface for hnix-store, on top
+              of the cryptohash family of libraries.
 -}
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE TypeFamilies        #-}
-{-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE TypeInType          #-}
+{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE OverloadedStrings   #-}
 
 module System.Nix.Internal.Hash where
@@ -21,162 +17,129 @@ import qualified Crypto.Hash.SHA1       as SHA1
 import qualified Crypto.Hash.SHA256     as SHA256
 import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Base16 as Base16
-import qualified Data.ByteString.Char8  as BSC
 import           Data.Bits              (xor)
-import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Lazy   as BSL
 import qualified Data.Hashable          as DataHashable
-import           Data.Kind              (Type)
 import           Data.List              (foldl')
-import           Data.Monoid
 import           Data.Proxy             (Proxy(Proxy))
 import           Data.Text              (Text)
 import qualified Data.Text              as T
 import qualified Data.Text.Encoding     as T
-import qualified Data.Vector            as V
 import           Data.Word              (Word8)
-import           GHC.TypeLits
+import           GHC.TypeLits           (Nat, KnownNat, natVal)
+import qualified System.Nix.Base32      as Base32
 
--- | A tag for different hashing algorithms
---   Also used as a type-level tag for hash digests
---   (e.g. @Digest SHA256@ is the type for a sha256 hash)
+-- | The universe of supported hash algorithms.
 --
---  When used at the type level, `n` is `Nat`
-data HashAlgorithm' n
+-- Currently only intended for use at the type level.
+data HashAlgorithm
   = MD5
   | SHA1
   | SHA256
-  | Truncated n (HashAlgorithm' n)
-  deriving (Eq, Show)
+  | Truncated Nat HashAlgorithm
+    -- ^ The hash algorithm obtained by truncating the result of the
+    -- input 'HashAlgorithm' to the given number of bytes. See
+    -- 'truncateDigest' for a description of the truncation algorithm.
 
-class HashAlgoText a where
-  algoString :: Proxy a -> Text
+-- | The result of running a 'HashAlgorithm'.
+newtype Digest (a :: HashAlgorithm) =
+  Digest BS.ByteString deriving (Show, Eq, Ord, DataHashable.Hashable)
 
-instance HashAlgoText 'MD5 where
-  algoString (Proxy :: Proxy 'MD5) = "md5"
+-- | The primitive interface for incremental hashing for a given
+-- 'HashAlgorithm'. Every 'HashAlgorithm' should have an instance.
+class ValidAlgo (a :: HashAlgorithm) where
+  -- | The incremental state for constructing a hash.
+  type AlgoCtx a
 
-instance HashAlgoText 'SHA1 where
-  algoString (Proxy :: Proxy 'SHA1) = "sha1"
-
-instance HashAlgoText 'SHA256 where
-  algoString (Proxy :: Proxy 'SHA256) = "sha256"
-
-type HashAlgorithm = HashAlgorithm' Nat
-
--- | Types with kind @HashAlgorithm@ may be a @HasDigest@ instance
---   if they are able to hash bytestrings via the init/update/finalize
---   API of cryptonite
---
---   Each instance defined here simply defers to one of the underlying
---   monomorphic hashing libraries, such as `cryptohash-sha256`.
-class HasDigest (a :: HashAlgorithm) where
-
-  type AlgoCtx a :: Type
-
+  -- | Start building a new hash.
   initialize        :: AlgoCtx a
+  -- | Append a 'BS.ByteString' to the overall contents to be hashed.
   update            :: AlgoCtx a -> BS.ByteString -> AlgoCtx a
+  -- | Finish hashing and generate the output.
   finalize          :: AlgoCtx a -> Digest a
 
+-- | A 'HashAlgorithm' with a canonical name, for serialization
+-- purposes (e.g. SRI hashes)
+class NamedAlgo (a :: HashAlgorithm) where
+  algoName :: Text
 
--- | The cryptographic hash of of a strict bytestring, where hash
---   algorithm is chosen by the type of the digest
+instance NamedAlgo 'MD5 where
+  algoName = "md5"
+
+instance NamedAlgo 'SHA1 where
+  algoName = "sha1"
+
+instance NamedAlgo 'SHA256 where
+  algoName = "sha256"
+
+-- | Hash an entire (strict) 'BS.ByteString' as a single call.
+--
 --   For example:
 --   > let d = hash "Hello, sha-256!" :: Digest SHA256
 --   or
 --   > :set -XTypeApplications
 --   > let d = hash @SHA256 "Hello, sha-256!"
-hash :: forall a.HasDigest a => BS.ByteString -> Digest a
+hash :: forall a.ValidAlgo a => BS.ByteString -> Digest a
 hash bs =
   finalize $ update @a (initialize @a) bs
 
--- | The cryptographic hash of a lazy bytestring. Use is the same
---   as for @hash@. This runs in constant space, but forces the
---   entire bytestring
-hashLazy :: forall a.HasDigest a => BSL.ByteString -> Digest a
+-- | Hash an entire (lazy) 'BSL.ByteString' as a single call.
+--
+-- Use is the same as for 'hash'.  This runs in constant space, but
+-- forces the entire bytestring.
+hashLazy :: forall a.ValidAlgo a => BSL.ByteString -> Digest a
 hashLazy bsl =
   finalize $ foldl' (update @a) (initialize @a) (BSL.toChunks bsl)
 
-digestText32 :: forall a. HashAlgoText a => Digest a -> T.Text
-digestText32 d = algoString (Proxy :: Proxy a) <> ":" <> printAsBase32 d
+-- | Encode a 'Digest' in the special Nix base-32 encoding.
+encodeBase32 :: Digest a -> T.Text
+encodeBase32 (Digest bs) = Base32.encode bs
 
-digestText16 :: forall a. HashAlgoText a => Digest a -> T.Text
-digestText16 (Digest bs) = algoString (Proxy :: Proxy a) <> ":" <> T.decodeUtf8 (Base16.encode bs)
+-- | Encode a 'Digest' in hex.
+encodeBase16 :: Digest a -> T.Text
+encodeBase16 (Digest bs) = T.decodeUtf8 (Base16.encode bs)
 
--- | Convert any Digest to a base32-encoded string.
---   This is not used in producing store path hashes
-printAsBase32 :: Digest a -> T.Text
-printAsBase32 (Digest bs) = printHashBytes32 bs
-
-
-instance HasDigest MD5 where
+-- | Uses "Crypto.Hash.MD5" from cryptohash-md5.
+instance ValidAlgo 'MD5 where
   type AlgoCtx 'MD5 = MD5.Ctx
   initialize = MD5.init
   update = MD5.update
   finalize = Digest . MD5.finalize
 
-instance HasDigest 'SHA1 where
-  type AlgoCtx SHA1 = SHA1.Ctx
+-- | Uses "Crypto.Hash.SHA1" from cryptohash-sha1.
+instance ValidAlgo 'SHA1 where
+  type AlgoCtx 'SHA1 = SHA1.Ctx
   initialize = SHA1.init
   update = SHA1.update
   finalize = Digest . SHA1.finalize
 
-instance HasDigest 'SHA256 where
-  type AlgoCtx SHA256 = SHA256.Ctx
+-- | Uses "Crypto.Hash.SHA256" from cryptohash-sha256.
+instance ValidAlgo 'SHA256 where
+  type AlgoCtx 'SHA256 = SHA256.Ctx
   initialize = SHA256.init
   update = SHA256.update
   finalize = Digest . SHA256.finalize
 
-instance (HasDigest a, KnownNat n) => HasDigest (Truncated n a) where
-  type AlgoCtx (Truncated n a) = AlgoCtx a
+-- | Reuses the underlying 'ValidAlgo' instance, but does a
+-- 'truncateDigest' at the end.
+instance (ValidAlgo a, KnownNat n) => ValidAlgo ('Truncated n a) where
+  type AlgoCtx ('Truncated n a) = AlgoCtx a
   initialize = initialize @a
   update = update @a
   finalize = truncateDigest @n . finalize @a
 
--- | A raw hash digest, with a type-level tag
-newtype Digest (a :: HashAlgorithm) = Digest
-  { digestBytes :: BS.ByteString
-    -- ^ The bytestring in a Digest is an opaque string of bytes,
-    --   not some particular text encoding.
-  } deriving (Show, Eq, Ord, DataHashable.Hashable)
-
-
--- instance DataHashable.Hashable (Digest a) where
---   hashWithSalt a (Digest bs) = DataHashable.hashWithSalt a bs
---   hashWithSalt = coerce . DataHash
-
-
--- | Internal function for encoding bytestrings into base32 according to
---  nix's convention
-printHashBytes32 :: BS.ByteString -> T.Text
-printHashBytes32 c = T.pack $ concatMap char32 [nChar - 1, nChar - 2 .. 0]
+-- | Bytewise truncation of a 'Digest'.
+--
+-- When truncation length is greater than the length of the bytestring
+-- but less than twice the bytestring length, truncation splits the
+-- bytestring into a head part (truncation length) and tail part
+-- (leftover part), right-pads the leftovers with 0 to the truncation
+-- length, and combines the two strings bytewise with 'xor'.
+truncateDigest
+  :: forall n a.(KnownNat n) => Digest a -> Digest ('Truncated n a)
+truncateDigest (Digest c) =
+    Digest $ BS.pack $ map truncOutputByte [0.. n-1]
   where
-    -- The base32 encoding is 8/5's as long as the base256 digest.  This `+ 1`
-    -- `- 1` business is a bit odd, but has always been used in C++ since the
-    -- base32 truncation was added in was first added in
-    -- d58a11e019813902b6c4547ca61a127938b2cc20.
-    nChar = fromIntegral $ ((BS.length c * 8 - 1) `div` 5) + 1
-
-    char32 :: Integer -> [Char]
-    char32 i = [digits32 V.! digitInd]
-      where
-        byte j   = BS.index c (fromIntegral j)
-        digitInd = fromIntegral $
-                   sum [fromIntegral (byte j) * (256^j)
-                       | j <- [0 .. BS.length c - 1]]
-                   `div` (32^i)
-                   `mod` 32
-
-
--- | Internal function for producing the bitwise truncation of bytestrings.
---   When truncation length is greater than the length of the bytestring,
---   but less than twice the bytestring length, truncation splits the
---   bytestring into a head part (truncation length) and tail part (leftover
---   part) right-pads the leftovers with 0 to the truncation length, and
---   combines the two strings bytewise with `xor`
-truncateDigest :: forall n a.(HasDigest a, KnownNat n) => Digest a -> Digest (Truncated n a)
-truncateDigest (Digest c) = Digest $ BS.pack $ map truncOutputByte [0.. n-1]
-  where
-
     n = fromIntegral $ natVal (Proxy @n)
 
     truncOutputByte :: Int -> Word8
@@ -189,23 +152,3 @@ truncateDigest (Digest c) = Digest $ BS.pack $ map truncOutputByte [0.. n-1]
     aux i x j = if j `mod` fromIntegral n == fromIntegral i
                 then xor x (inputByte $ fromIntegral j)
                 else x
-
-digits32 :: V.Vector Char
-digits32 = V.fromList "0123456789abcdfghijklmnpqrsvwxyz"
-
-
--- | Convert type-level @HashAlgorithm@ into the value level
-class AlgoVal (a :: HashAlgorithm) where
-  algoVal :: HashAlgorithm' Integer
-
-instance AlgoVal MD5 where
-  algoVal = MD5
-
-instance AlgoVal SHA1 where
-  algoVal = SHA1
-
-instance AlgoVal SHA256 where
-  algoVal = SHA256
-
-instance forall a n.(AlgoVal a, KnownNat n) => AlgoVal (Truncated n a) where
-  algoVal = Truncated (natVal (Proxy @n)) (algoVal @a)

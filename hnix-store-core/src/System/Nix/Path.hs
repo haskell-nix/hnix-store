@@ -20,7 +20,7 @@ module System.Nix.Path
   ) where
 
 import           System.Nix.Hash           (Digest(..),
-                                            HashAlgorithm'(Truncated, SHA256))
+                                            HashAlgorithm(Truncated, SHA256))
 import           System.Nix.Internal.Hash
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Char8     as BSC
@@ -63,7 +63,7 @@ data Path = Path !(Digest PathHashAlgo) !PathName
   deriving (Eq, Ord, Show)
 
 pathToText :: Text -> Path -> Text
-pathToText storeDir (Path h nm) = storeDir <> "/" <> printAsBase32 h <> "-" <> pathNameContents nm
+pathToText storeDir (Path h nm) = storeDir <> "/" <> encodeBase32 h <> "-" <> pathNameContents nm
 
 type PathSet = HashSet Path
 
