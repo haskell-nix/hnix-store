@@ -28,7 +28,7 @@ library
                      , System.Nix.ReadonlyStore
                      , System.Nix.Store
                      , System.Nix.Util
-  build-depends:       base >=4.10
+  build-depends:       base >=4.10 && <5
                      , base16-bytestring
                      , bytestring
                      , binary
