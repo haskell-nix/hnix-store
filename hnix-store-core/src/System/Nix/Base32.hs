@@ -12,10 +12,13 @@ encode :: BS.ByteString -> T.Text
 encode c = T.pack $ concatMap char32 [nChar - 1, nChar - 2 .. 0]
   where
     digits32 = V.fromList "0123456789abcdfghijklmnpqrsvwxyz"
-    -- The base32 encoding is 8/5's as long as the base256 digest.  This `+ 1`
-    -- `- 1` business is a bit odd, but has always been used in C++ since the
-    -- base32 truncation was added in was first added in
-    -- d58a11e019813902b6c4547ca61a127938b2cc20.
+    -- Each base32 character gives us 5 bits of information, while
+    -- each byte gives is 8. Because 'div' rounds down, we need to add
+    -- one extra character to the result, and because of that extra 1
+    -- we need to subtract one from the number of bits in the
+    -- bytestring to cover for the case where the number of bits is
+    -- already a factor of 5. Thus, the + 1 outside of the 'div' and
+    -- the - 1 inside of it.
     nChar = fromIntegral $ ((BS.length c * 8 - 1) `div` 5) + 1
 
     byte = BS.index c . fromIntegral
