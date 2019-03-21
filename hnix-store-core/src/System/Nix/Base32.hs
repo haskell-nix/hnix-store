@@ -9,7 +9,7 @@ import qualified Data.Vector            as V
 
 -- | Encode a 'BS.ByteString' in Nix's base32 encoding
 encode :: BS.ByteString -> T.Text
-encode c = T.pack $ concatMap char32 [nChar - 1, nChar - 2 .. 0]
+encode c = T.pack $ map char32 [nChar - 1, nChar - 2 .. 0]
   where
     digits32 = V.fromList "0123456789abcdfghijklmnpqrsvwxyz"
     -- Each base32 character gives us 5 bits of information, while
@@ -30,8 +30,8 @@ encode c = T.pack $ concatMap char32 [nChar - 1, nChar - 2 .. 0]
                      | j <- [0 .. BS.length c - 1]
                      ]
 
-    char32 :: Integer -> [Char]
-    char32 i = [digits32 V.! digitInd]
+    char32 :: Integer -> Char
+    char32 i = digits32 V.! digitInd
       where
         digitInd = fromIntegral $
                    bAsInteger
