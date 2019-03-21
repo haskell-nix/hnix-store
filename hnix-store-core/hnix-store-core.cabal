@@ -1,5 +1,5 @@
 name:                hnix-store-core
-version:             0.1.0.0
+version:             0.1.1.0
 synopsis:            Core effects for interacting with the Nix store.
 description:
         This package contains types and functions needed to describe
@@ -23,10 +23,12 @@ library
                      , System.Nix.GC
                      , System.Nix.Hash
                      , System.Nix.Internal.Hash
+                     , System.Nix.Internal.StorePath
                      , System.Nix.Nar
                      , System.Nix.Path
                      , System.Nix.ReadonlyStore
                      , System.Nix.Store
+                     , System.Nix.StorePath
                      , System.Nix.Util
   build-depends:       base >=4.10 && <5
                      , base16-bytestring
