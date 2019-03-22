@@ -1,34 +1,32 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
-
+{-# LANGUAGE ScopedTypeVariables #-}
 module System.Nix.ReadonlyStore where
 
 import           Data.ByteString (ByteString)
-import           Data.ByteString.Base16 as Base16
+import qualified Data.ByteString as BS
 import qualified Data.HashSet as HS
-import           Data.Text (Text)
-import qualified Data.Text as T
 import           Data.Text.Encoding
 import           System.Nix.Hash
-import           System.Nix.Path
+import           System.Nix.StorePath
 
-makeStorePath :: Text -> Text -> Digest 'SHA256 -> Text -> Path
-makeStorePath storeDir ty h nm = Path storeHash (PathName nm)
+makeStorePath :: forall storeDir . (KnownStoreDir storeDir) => ByteString -> Digest 'SHA256 -> StorePathName -> StorePath storeDir
+makeStorePath ty h nm = StorePath storeHash nm
   where
-    s = T.intercalate ":"
+    s = BS.intercalate ":"
       [ ty
-      , algoName @'SHA256
-      , encodeBase16 h
-      , storeDir
-      , nm
+      , encodeUtf8 $ algoName @'SHA256
+      , encodeUtf8 $ encodeBase16 h
+      , storeDirVal @storeDir
+      , encodeUtf8 $ unStorePathName nm
       ]
-    storeHash = hash $ encodeUtf8 s
+    storeHash = hash s
 
-makeTextPath :: Text -> Text -> Digest 'SHA256 -> PathSet -> Path
-makeTextPath storeDir nm h refs = makeStorePath storeDir ty h nm
+makeTextPath :: (KnownStoreDir storeDir) => StorePathName -> Digest 'SHA256 -> StorePathSet storeDir -> StorePath storeDir
+makeTextPath nm h refs = makeStorePath ty h nm
   where
-    ty = T.intercalate ":" ("text" : map (pathToText storeDir) (HS.toList refs))
+    ty = BS.intercalate ":" ("text" : map storePathToRawFilePath (HS.toList refs))
 
-computeStorePathForText :: Text -> Text -> ByteString -> PathSet -> Path
-computeStorePathForText storeDir nm s refs = makeTextPath storeDir nm (hash s) refs
+computeStorePathForText :: (KnownStoreDir storeDir) => StorePathName -> ByteString -> StorePathSet storeDir -> StorePath storeDir
+computeStorePathForText nm s refs = makeTextPath nm (hash s) refs

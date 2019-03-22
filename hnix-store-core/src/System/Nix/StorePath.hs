@@ -14,6 +14,7 @@ module System.Nix.StorePath
   , storePathNameRegex
   , -- * Rendering out 'StorePath's
     storePathToRawFilePath
+  , storeDirVal
   , KnownStoreDir
   ) where
 

@@ -7,6 +7,9 @@ Description : Representation of Nix store paths.
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 module System.Nix.Internal.StorePath where
 import System.Nix.Hash (HashAlgorithm(Truncated, SHA256), Digest, encodeBase32)
 import Text.Regex.Base.RegexLike (makeRegex, matchTest)
@@ -19,6 +22,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BC
 import Data.Hashable (Hashable(..))
 import Data.HashSet (HashSet)
+import Data.Proxy (Proxy(..))
 
 -- | A path in a Nix store.
 --
@@ -132,10 +136,10 @@ type RawFilePath = ByteString
 
 -- | Render a 'StorePath' as a 'RawFilePath'.
 storePathToRawFilePath
-  :: (KnownStoreDir storeDir)
+  :: forall storeDir . (KnownStoreDir storeDir)
   => StorePath storeDir
   -> RawFilePath
-storePathToRawFilePath s@(StorePath {..}) = BS.concat
+storePathToRawFilePath (StorePath {..}) = BS.concat
     [ root
     , "/"
     , hashPart
@@ -143,9 +147,14 @@ storePathToRawFilePath s@(StorePath {..}) = BS.concat
     , name
     ]
   where
-    root = BC.pack $ symbolVal s
+    root = storeDirVal @storeDir
     hashPart = encodeUtf8 $ encodeBase32 storePathHash
     name = encodeUtf8 $ unStorePathName storePathName
+
+-- | Get a value-level representation of a 'KnownStoreDir'
+storeDirVal :: forall storeDir . (KnownStoreDir storeDir)
+            => ByteString
+storeDirVal = BC.pack $ symbolVal @storeDir Proxy
 
 -- | A 'StoreDir' whose value is known at compile time.
 type KnownStoreDir = KnownSymbol
