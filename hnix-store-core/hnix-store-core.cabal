@@ -23,7 +23,6 @@ library
                      , System.Nix.Internal.Hash
                      , System.Nix.Internal.StorePath
                      , System.Nix.Nar
-                     , System.Nix.Path
                      , System.Nix.ReadonlyStore
                      , System.Nix.StorePath
                      , System.Nix.Util
