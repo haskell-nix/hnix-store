@@ -6,15 +6,13 @@ Maintainer  : Shea Levy <shea@shealevy.com>
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module System.Nix.Path
-  ( FilePathPart(..)
-  , PathHashAlgo
+  ( PathHashAlgo
   , Path(..)
   , pathToText
   , PathSet
   , SubstitutablePathInfo(..)
   , ValidPathInfo(..)
   , PathName(..)
-  , filePathPart
   , pathName
   , Roots
   ) where
@@ -110,17 +108,6 @@ data ValidPathInfo = ValidPathInfo
     -- * ‘fixed:<r?>:<ht>:<h>’ (paths by makeFixedOutputPath() / addToStore())
     ca               :: !Text
   } deriving (Eq, Ord, Show)
-
--- | A valid filename or directory name
-newtype FilePathPart = FilePathPart { unFilePathPart :: BSC.ByteString }
-  deriving (Eq, Ord, Show)
-
--- | Construct FilePathPart from Text by checking that there
---   are no '/' or '\\NUL' characters
-filePathPart :: BSC.ByteString -> Maybe FilePathPart
-filePathPart p = case BSC.any (`elem` ['/', '\NUL']) p of
-  False -> Just $ FilePathPart p
-  True  -> Nothing
 
 type Roots = Map Path Path
 
