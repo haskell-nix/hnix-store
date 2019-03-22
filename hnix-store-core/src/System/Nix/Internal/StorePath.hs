@@ -157,4 +157,9 @@ storeDirVal :: forall storeDir . (KnownStoreDir storeDir)
 storeDirVal = BC.pack $ symbolVal @storeDir Proxy
 
 -- | A 'StoreDir' whose value is known at compile time.
+--
+-- A valid instance of 'KnownStoreDir' should represent a valid path,
+-- i.e. all "characters" fit into bytes (as determined by the logic of
+-- 'BC.pack') and there are no 0 "characters". Currently this is not
+-- enforced, but it should be.
 type KnownStoreDir = KnownSymbol
