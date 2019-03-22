@@ -6,6 +6,7 @@ Description : Representation of Nix store paths.
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module System.Nix.Internal.StorePath where
 import System.Nix.Hash (HashAlgorithm(Truncated, SHA256), Digest, encodeBase32)
 import Text.Regex.Base.RegexLike (makeRegex, matchTest)
@@ -16,6 +17,8 @@ import GHC.TypeLits (Symbol, KnownSymbol, symbolVal)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BC
+import Data.Hashable (Hashable(..))
+import Data.HashSet (HashSet)
 
 -- | A path in a Nix store.
 --
@@ -36,6 +39,10 @@ data StorePath (storeDir :: StoreDir) = StorePath
     storePathName :: !StorePathName
   }
 
+instance Hashable (StorePath storeDir) where
+  hashWithSalt s (StorePath {..}) =
+    s `hashWithSalt` storePathHash `hashWithSalt` storePathName
+
 -- | The name portion of a Nix path.
 --
 -- 'unStorePathName' must only contain a-zA-Z0-9+._?=-, can't start
@@ -44,10 +51,13 @@ data StorePath (storeDir :: StoreDir) = StorePath
 newtype StorePathName = StorePathName
   { -- | Extract the contents of the name.
     unStorePathName :: Text
-  }
+  } deriving (Hashable)
 
 -- | The hash algorithm used for store path hashes.
 type StorePathHashAlgo = 'Truncated 20 'SHA256
+
+-- | A set of 'StorePath's.
+type StorePathSet storeDir = HashSet (StorePath storeDir)
 
 -- | A type-level representation of the root directory of a Nix store.
 --

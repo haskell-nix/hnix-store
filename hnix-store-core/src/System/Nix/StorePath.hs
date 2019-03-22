@@ -5,6 +5,7 @@ module System.Nix.StorePath
   ( -- * Basic store path types
     StorePath(..)
   , StorePathName
+  , StorePathSet
   , StorePathHashAlgo
   , StoreDir
   , -- * Manipulating 'StorePathName'
