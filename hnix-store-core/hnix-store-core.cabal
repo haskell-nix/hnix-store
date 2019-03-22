@@ -19,7 +19,6 @@ cabal-version:       >=1.10
 library
   exposed-modules:     System.Nix.Base32
                      , System.Nix.Build
-                     , System.Nix.Derivation
                      , System.Nix.GC
                      , System.Nix.Hash
                      , System.Nix.Internal.Hash
