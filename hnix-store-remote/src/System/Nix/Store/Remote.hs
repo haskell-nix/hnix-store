@@ -18,11 +18,9 @@ module System.Nix.Store.Remote (
   , queryDerivationOutputs
   , queryDerivationOutputNames
   , queryPathFromHashPart
-  , addToStoreNar
   , addToStore
   , addTextToStore
   , buildPaths
-  , buildDerivation
   , ensurePath
   , addTempRoot
   , addIndirectRoot
@@ -32,24 +30,20 @@ module System.Nix.Store.Remote (
   , optimiseStore
   , verifyStore
   , addSignatures
-  , queryMissing
   ) where
 
 import           Control.Monad
 import           Control.Monad.IO.Class    (liftIO)
-import qualified Data.Binary               as B
 import qualified Data.Binary.Put           as B
 import           Data.Maybe
 import qualified Data.ByteString.Lazy      as LBS
 import qualified Data.Map.Strict           as M
-import           Data.Proxy                (Proxy(Proxy))
+import           Data.Proxy                (Proxy)
 import qualified Data.Text.Lazy                 as T
 import qualified Data.Text.Lazy.Encoding        as T
 
 import qualified System.Nix.Build          as Build
-import qualified System.Nix.Derivation     as Drv
 import qualified System.Nix.GC             as GC
-import           System.Nix.Hash           (Digest, HashAlgorithm)
 import           System.Nix.Path
 import           System.Nix.Hash
 import           System.Nix.Nar            (localPackNar, putNar, narEffectsIO)
@@ -59,12 +53,8 @@ import           System.Nix.Store.Remote.Types
 import           System.Nix.Store.Remote.Protocol
 import           System.Nix.Store.Remote.Util
 
--- tmp
-import qualified Data.ByteString.Base64.Lazy as B64
-
 type RepairFlag = Bool
 type CheckFlag = Bool
-type CheckSigsFlag = Bool
 type SubstituteFlag = Bool
 
 --setOptions :: StoreSetting -> MonadStore ()
@@ -171,10 +161,6 @@ queryPathFromHashPart d = do
     putByteStringLen $ LBS.fromStrict $ undefined d
   sockGetPath
 
-type Source = () -- abstract binary source
-addToStoreNar :: ValidPathInfo -> Source -> RepairFlag -> CheckSigsFlag -> MonadStore ()
-addToStoreNar = undefined  -- XXX
-
 type PathFilter = Path -> Bool
 
 addToStore
@@ -217,9 +203,6 @@ buildPaths :: PathSet -> Build.BuildMode -> MonadStore ()
 buildPaths ps bm = void $ simpleOpArgs EnsurePath $ do
   putPaths ps
   putInt $ fromEnum bm
-
-buildDerivation :: PathName -> Drv.Derivation -> Build.BuildMode -> MonadStore Build.BuildResult
-buildDerivation = undefined  -- XXX
 
 ensurePath :: Path -> MonadStore ()
 ensurePath pn = void $ simpleOpArgs EnsurePath $ putPath pn
@@ -275,9 +258,3 @@ addSignatures :: Path -> [LBS.ByteString] -> MonadStore ()
 addSignatures p signatures = void $ simpleOpArgs AddSignatures $ do
   putPath p
   putByteStrings signatures
-
--- TODO:
-queryMissing :: PathSet -> MonadStore (PathSet, PathSet, PathSet, Integer, Integer)
-queryMissing ps = undefined --  willBuild willSubstitute unknown downloadSize narSize
-
-
