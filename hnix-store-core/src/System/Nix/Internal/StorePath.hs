@@ -10,8 +10,13 @@ Description : Representation of Nix store paths.
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE TypeInType #-} -- Needed for GHC 8.4.4 for some reason
 module System.Nix.Internal.StorePath where
-import System.Nix.Hash (HashAlgorithm(Truncated, SHA256), Digest, encodeBase32)
+import System.Nix.Hash
+  ( HashAlgorithm(Truncated, SHA256)
+  , Digest
+  , encodeBase32
+  )
 import Text.Regex.Base.RegexLike (makeRegex, matchTest)
 import Text.Regex.TDFA.Text (Regex)
 import Data.Text (Text)
