@@ -20,6 +20,7 @@ library
   exposed-modules:     System.Nix.Base32
                      , System.Nix.Hash
                      , System.Nix.Internal.Hash
+                     , System.Nix.Internal.Nar
                      , System.Nix.Internal.StorePath
                      , System.Nix.Nar
                      , System.Nix.ReadonlyStore
