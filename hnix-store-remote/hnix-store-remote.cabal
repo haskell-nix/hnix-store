@@ -1,5 +1,5 @@
 name:                hnix-store-remote
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            Remote hnix store
 description:         Implementation of the nix store using the daemon protocol.
 homepage:            https://github.com/haskell-nix/hnix-store
@@ -38,15 +38,3 @@ library
   hs-source-dirs:      src
   default-language:    Haskell2010
   ghc-options:         -Wall
-
-executable hnix-store-temporary-live-test
-  main-is:             Main.hs
-  hs-source-dirs:      app
-  build-depends:       base
-                     , mtl
-                     , bytestring
-                     , hnix-store-core
-                     , hnix-store-remote
-                     , unordered-containers
-                     , pretty-simple
-  default-language:    Haskell2010

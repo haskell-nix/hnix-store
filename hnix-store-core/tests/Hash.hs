@@ -23,7 +23,7 @@ import           Test.Tasty.QuickCheck
 import           Text.Read                   (readMaybe)
 
 import           System.Nix.Hash
-import           System.Nix.Path
+import           System.Nix.StorePath
 import           NarFormat -- TODO: Move the fixtures into a common module
 
 spec_hash :: Spec
@@ -45,5 +45,5 @@ spec_hash = do
       let exampleStr =
             "source:sha256:2bfef67de873c54551d884fdab3055d84d573e654efa79db3"
             <> "c0d7b98883f9ee3:/nix/store:myfile"
-      shouldBe (encodeBase32 @PathHashAlgo (hash exampleStr))
+      shouldBe (encodeBase32 @StorePathHashAlgo (hash exampleStr))
         "xv2iccirbrvklck36f1g7vldn5v58vck"

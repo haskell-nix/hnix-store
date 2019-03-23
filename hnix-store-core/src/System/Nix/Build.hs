@@ -12,7 +12,6 @@ module System.Nix.Build (
 
 import           Data.Text                 (Text)
 import           Data.HashSet              (HashSet)
-import           System.Nix.Path           (Path)
 
 data BuildMode = Normal | Repair | Check
   deriving (Eq, Ord, Enum, Show)
