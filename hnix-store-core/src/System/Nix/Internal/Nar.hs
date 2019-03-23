@@ -29,22 +29,23 @@ import           Data.Traversable           (forM)
 import           GHC.Int                    (Int64)
 import           System.Directory
 import           System.FilePath
-import           System.Posix.Files         (createSymbolicLink, fileSize, getFileStatus,
-                                             isDirectory, readSymbolicLink)
 
+-- | Copied from @RawFilePath@ in the @unix@ package, duplicated here
+-- to avoid the dependency.
+type RawFilePath = BS.ByteString
 
 data NarEffects (m :: * -> *) = NarEffects {
-    narReadFile   :: FilePath -> m BSL.ByteString
-  , narWriteFile  :: FilePath -> BSL.ByteString -> m ()
-  , narListDir    :: FilePath -> m [FilePath]
-  , narCreateDir  :: FilePath -> m ()
-  , narCreateLink :: FilePath -> FilePath -> m ()
-  , narGetPerms   :: FilePath -> m Permissions
-  , narSetPerms   :: FilePath -> Permissions ->  m ()
-  , narIsDir      :: FilePath -> m Bool
-  , narIsSymLink  :: FilePath -> m Bool
-  , narFileSize   :: FilePath -> m Int64
-  , narReadLink   :: FilePath -> m FilePath
+    narReadFile   :: RawFilePath -> m BSL.ByteString
+  , narWriteFile  :: RawFilePath -> BSL.ByteString -> m ()
+  , narListDir    :: RawFilePath -> m [FilePathPart]
+  , narCreateDir  :: RawFilePath -> m ()
+  , narCreateLink :: RawFilePath -> RawFilePath -> m ()
+  , narGetPerms   :: RawFilePath -> m Permissions
+  , narSetPerms   :: RawFilePath -> Permissions ->  m ()
+  , narIsDir      :: RawFilePath -> m Bool
+  , narIsSymLink  :: RawFilePath -> m Bool
+  , narFileSize   :: RawFilePath -> m Int64
+  , narReadLink   :: RawFilePath -> m RawFilePath
 }
 
 
@@ -71,7 +72,7 @@ data FileSystemObject =
     -- ^ Reguar file, with its executable state, size (bytes) and contents
   | Directory (Map.Map FilePathPart FileSystemObject)
     -- ^ Directory with mapping of filenames to sub-FSOs
-  | SymLink T.Text
+  | SymLink RawFilePath
     -- ^ Symbolic link target
   deriving (Eq, Show)
 
@@ -100,7 +101,7 @@ putNar (Nar file) = header <> parens (putFile file)
             >> putContents fSize contents
 
         putFile (SymLink target) =
-               strs ["type", "symlink", "target", BSL.fromStrict $ E.encodeUtf8 target]
+               strs ["type", "symlink", "target", BSL.fromStrict target]
 
         -- toList sorts the entries by FilePathPart before serializing
         putFile (Directory entries) =
@@ -169,7 +170,7 @@ getNar = fmap Nar $ header >> parens getFile
           assertStr "type"
           assertStr "symlink"
           assertStr "target"
-          fmap (SymLink . E.decodeUtf8 . BSL.toStrict) str
+          fmap (SymLink . BSL.toStrict) str
 
       getEntry = do
           assertStr "entry"
@@ -206,7 +207,7 @@ padLen n = (8 - n) `mod` 8
 
 
 -- | Unpack a NAR into a non-nix-store directory (e.g. for testing)
-localUnpackNar :: Monad m => NarEffects m -> FilePath -> Nar -> m ()
+localUnpackNar :: Monad m => NarEffects m -> RawFilePath -> Nar -> m ()
 localUnpackNar effs basePath (Nar fso) = localUnpackFSO basePath fso
 
   where
@@ -218,16 +219,16 @@ localUnpackNar effs basePath (Nar fso) = localUnpackFSO basePath fso
          p <- narGetPerms effs basePath
          (narSetPerms effs) basePath (p {executable = isExec == Executable})
 
-       SymLink targ -> narCreateLink effs (T.unpack targ) basePath
+       SymLink targ -> narCreateLink effs targ basePath
 
        Directory contents -> do
          narCreateDir effs basePath
          forM_ (Map.toList contents) $ \(FilePathPart path', fso) ->
-           localUnpackFSO (basePath </> BSC.unpack path') fso
+           localUnpackFSO (BSC.concat [basePath, "/", path']) fso
 
 
 -- | Pack a NAR from a filepath
-localPackNar :: Monad m => NarEffects m -> FilePath -> m Nar
+localPackNar :: Monad m => NarEffects m -> RawFilePath -> m Nar
 localPackNar effs basePath = Nar <$> localPackFSO basePath
 
   where
@@ -235,33 +236,15 @@ localPackNar effs basePath = Nar <$> localPackFSO basePath
     localPackFSO path' = do
       fType <- (,) <$> narIsDir effs path' <*> narIsSymLink effs path'
       case fType of
-        (_,  True) -> SymLink . T.pack <$> narReadLink effs path'
+        (_,  True) -> SymLink <$> narReadLink effs path'
         (False, _) -> Regular <$> isExecutable effs path'
                               <*> narFileSize effs path'
                               <*> narReadFile effs path'
         (True , _) -> fmap (Directory . Map.fromList) $ do
           fs <- narListDir effs path'
           forM fs $ \fp ->
-            (FilePathPart (BSC.pack $  fp),) <$> localPackFSO (path' </> fp)
+            (fp,) <$> localPackFSO (BSC.concat [path', "/", unFilePathPart fp])
 
-
-
-narEffectsIO :: NarEffects IO
-narEffectsIO = NarEffects {
-    narReadFile   = BSL.readFile
-  , narWriteFile  = BSL.writeFile
-  , narListDir    = listDirectory
-  , narCreateDir  = createDirectory
-  , narCreateLink = createSymbolicLink
-  , narGetPerms   = getPermissions
-  , narSetPerms   = setPermissions
-  , narIsDir      = fmap isDirectory <$> getFileStatus
-  , narIsSymLink  = pathIsSymbolicLink
-  , narFileSize   = fmap (fromIntegral . fileSize) <$> getFileStatus
-  , narReadLink   = readSymbolicLink
-  }
-
-
-isExecutable :: Functor m => NarEffects m -> FilePath -> m IsExecutable
+isExecutable :: Functor m => NarEffects m -> RawFilePath -> m IsExecutable
 isExecutable effs fp =
   bool NonExecutable Executable . executable <$> narGetPerms effs fp

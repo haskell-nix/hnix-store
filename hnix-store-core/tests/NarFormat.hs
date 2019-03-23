@@ -33,8 +33,25 @@ import           Test.Tasty.QuickCheck
 import           Text.Read                   (readMaybe)
 
 import           System.Nix.Nar
+import           System.Posix.Files         (createSymbolicLink, fileSize, getFileStatus,
+                                             isDirectory, readSymbolicLink)
+import           System.Directory
 
-
+-- TODO: Move this to a unix-backed effects library
+narEffectsIO :: NarEffects IO
+narEffectsIO = NarEffects {
+    narReadFile   = BSL.readFile . BSC.unpack
+  , narWriteFile  = BSL.writeFile . BSC.unpack
+  , narListDir    = (fmap (map (FilePathPart . BSC.pack))) . listDirectory . BSC.unpack
+  , narCreateDir  = createDirectory . BSC.unpack
+  , narCreateLink = (. BSC.unpack) . createSymbolicLink . BSC.unpack
+  , narGetPerms   = getPermissions . BSC.unpack
+  , narSetPerms   = setPermissions . BSC.unpack
+  , narIsDir      = fmap isDirectory <$> getFileStatus . BSC.unpack
+  , narIsSymLink  = pathIsSymbolicLink . BSC.unpack
+  , narFileSize   = fmap (fromIntegral . fileSize) <$> getFileStatus . BSC.unpack
+  , narReadLink   = (fmap BSC.pack) . readSymbolicLink . BSC.unpack
+  }
 
 spec_narEncoding :: Spec
 spec_narEncoding = do
@@ -122,9 +139,9 @@ unit_streamLargeFileToNar =
     where
       bigFileName = "bigFile.bin"
       narFileName = "bigFile.nar"
-      makeBigFile = \sz -> BSL.writeFile bigFileName
+      makeBigFile = \sz -> BSL.writeFile (BSC.unpack bigFileName)
                            (BSL.take sz $ BSL.cycle "Lorem ipsum")
-      rmFiles     = removeFile bigFileName >> removeFile narFileName
+      rmFiles     = removeFile (BSC.unpack bigFileName) >> removeFile narFileName
 
 
 -- ****************  Utilities  ************************

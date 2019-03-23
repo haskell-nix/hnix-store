@@ -9,10 +9,10 @@ module System.Nix.Nar
   , getNar
   , localPackNar
   , localUnpackNar
-  , narEffectsIO
   , putNar
   , FilePathPart(..)
   , filePathPart
+  , NarEffects(..)
   ) where
 
 import System.Nix.Internal.Nar
