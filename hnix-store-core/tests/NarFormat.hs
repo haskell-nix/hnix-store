@@ -36,17 +36,21 @@ import           System.Nix.Nar
 import           System.Posix.Files         (createSymbolicLink, fileSize, getFileStatus,
                                              isDirectory, readSymbolicLink)
 import           System.Directory
+import           Data.Bool                  (bool)
 
 -- TODO: Move this to a unix-backed effects library
 narEffectsIO :: NarEffects IO
 narEffectsIO = NarEffects {
     narReadFile   = BSL.readFile . BSC.unpack
-  , narWriteFile  = BSL.writeFile . BSC.unpack
+  , narWriteFile  = \f e c -> do
+      let f' = BSC.unpack f
+      BSL.writeFile f' c
+      p <- getPermissions f'
+      setPermissions f' (p { executable = e == Executable})
   , narListDir    = (fmap (map (FilePathPart . BSC.pack))) . listDirectory . BSC.unpack
   , narCreateDir  = createDirectory . BSC.unpack
   , narCreateLink = (. BSC.unpack) . createSymbolicLink . BSC.unpack
-  , narGetPerms   = getPermissions . BSC.unpack
-  , narSetPerms   = setPermissions . BSC.unpack
+  , narIsExec     = (fmap (bool NonExecutable Executable . executable)) . getPermissions . BSC.unpack
   , narIsDir      = fmap isDirectory <$> getFileStatus . BSC.unpack
   , narIsSymLink  = pathIsSymbolicLink . BSC.unpack
   , narFileSize   = fmap (fromIntegral . fileSize) <$> getFileStatus . BSC.unpack

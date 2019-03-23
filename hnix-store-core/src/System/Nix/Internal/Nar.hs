@@ -36,12 +36,11 @@ type RawFilePath = BS.ByteString
 
 data NarEffects (m :: * -> *) = NarEffects {
     narReadFile   :: RawFilePath -> m BSL.ByteString
-  , narWriteFile  :: RawFilePath -> BSL.ByteString -> m ()
+  , narWriteFile  :: RawFilePath -> IsExecutable -> BSL.ByteString -> m ()
   , narListDir    :: RawFilePath -> m [FilePathPart]
   , narCreateDir  :: RawFilePath -> m ()
   , narCreateLink :: RawFilePath -> RawFilePath -> m ()
-  , narGetPerms   :: RawFilePath -> m Permissions
-  , narSetPerms   :: RawFilePath -> Permissions ->  m ()
+  , narIsExec     :: RawFilePath -> m IsExecutable
   , narIsDir      :: RawFilePath -> m Bool
   , narIsSymLink  :: RawFilePath -> m Bool
   , narFileSize   :: RawFilePath -> m Int64
@@ -214,10 +213,8 @@ localUnpackNar effs basePath (Nar fso) = localUnpackFSO basePath fso
 
     localUnpackFSO basePath fso = case fso of
 
-       Regular isExec _ bs -> do
-         (narWriteFile effs) basePath bs
-         p <- narGetPerms effs basePath
-         (narSetPerms effs) basePath (p {executable = isExec == Executable})
+       Regular isExec _ bs ->
+         (narWriteFile effs) basePath isExec bs
 
        SymLink targ -> narCreateLink effs targ basePath
 
@@ -237,14 +234,10 @@ localPackNar effs basePath = Nar <$> localPackFSO basePath
       fType <- (,) <$> narIsDir effs path' <*> narIsSymLink effs path'
       case fType of
         (_,  True) -> SymLink <$> narReadLink effs path'
-        (False, _) -> Regular <$> isExecutable effs path'
+        (False, _) -> Regular <$> narIsExec effs path'
                               <*> narFileSize effs path'
                               <*> narReadFile effs path'
         (True , _) -> fmap (Directory . Map.fromList) $ do
           fs <- narListDir effs path'
           forM fs $ \fp ->
             (fp,) <$> localPackFSO (BSC.concat [path', "/", unFilePathPart fp])
-
-isExecutable :: Functor m => NarEffects m -> RawFilePath -> m IsExecutable
-isExecutable effs fp =
-  bool NonExecutable Executable . executable <$> narGetPerms effs fp
