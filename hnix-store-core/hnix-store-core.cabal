@@ -18,7 +18,6 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     System.Nix.Base32
-                     , System.Nix.Build
                      , System.Nix.Hash
                      , System.Nix.Internal.Hash
                      , System.Nix.Internal.StorePath
