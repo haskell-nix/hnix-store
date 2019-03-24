@@ -11,12 +11,12 @@ import           Data.Text.Encoding
 import           System.Nix.Hash
 import           System.Nix.StorePath
 
-makeStorePath :: forall storeDir . (KnownStoreDir storeDir) => ByteString -> Digest 'SHA256 -> StorePathName -> StorePath storeDir
+makeStorePath :: forall storeDir hashAlgo . (KnownStoreDir storeDir, NamedAlgo hashAlgo) => ByteString -> Digest hashAlgo -> StorePathName -> StorePath storeDir
 makeStorePath ty h nm = StorePath storeHash nm
   where
     s = BS.intercalate ":"
       [ ty
-      , encodeUtf8 $ algoName @'SHA256
+      , encodeUtf8 $ algoName @hashAlgo
       , encodeUtf8 $ encodeBase16 h
       , storeDirVal @storeDir
       , encodeUtf8 $ unStorePathName nm
