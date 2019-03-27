@@ -16,6 +16,7 @@ import System.Nix.Hash
   ( HashAlgorithm(Truncated, SHA256)
   , Digest
   , encodeBase32
+  , SomeNamedDigest
   )
 import Text.Regex.Base.RegexLike (makeRegex, matchTest)
 import Text.Regex.TDFA.Text (Regex)
@@ -67,6 +68,36 @@ type StorePathHashAlgo = 'Truncated 20 'SHA256
 
 -- | A set of 'StorePath's.
 type StorePathSet storeDir = HashSet (StorePath storeDir)
+
+-- | An address for a content-addressable store path, i.e. one whose
+-- store path hash is purely a function of its contents (as opposed to
+-- paths that are derivation outputs, whose hashes are a function of
+-- the contents of the derivation file instead).
+--
+-- For backwards-compatibility reasons, the same information is
+-- encodable in multiple ways, depending on the method used to add the
+-- path to the store. These unfortunately result in separate store
+-- paths.
+data ContentAddressableAddress
+  = -- | The path is a plain file added via makeTextPath or
+    -- addTextToStore. It is addressed according to a sha256sum of the
+    -- file contents.
+    Text !(Digest 'SHA256)
+  | -- | The path was added to the store via makeFixedOutputPath or
+    -- addToStore. It is addressed according to some hash algorithm
+    -- applied to the nar serialization via some 'NarHashMode'.
+    Fixed !NarHashMode !SomeNamedDigest
+
+-- | Schemes for hashing a nix archive.
+--
+-- For backwards-compatibility reasons, there are two different modes
+-- here, even though 'Recursive' should be able to cover both.
+data NarHashMode
+  = -- | Require the nar to represent a non-executable regular file.
+    RegularFile
+  | -- | Hash an arbitrary nar, including a non-executable regular
+    -- file if so desired.
+    Recursive
 
 -- | A type-level representation of the root directory of a Nix store.
 --

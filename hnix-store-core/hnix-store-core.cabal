@@ -20,10 +20,13 @@ library
   exposed-modules:     System.Nix.Base32
                      , System.Nix.Hash
                      , System.Nix.Internal.Hash
+                     , System.Nix.Internal.Signature
                      , System.Nix.Internal.StorePath
                      , System.Nix.Nar
                      , System.Nix.ReadonlyStore
+                     , System.Nix.Signature
                      , System.Nix.StorePath
+                     , System.Nix.StorePathMetadata
                      , System.Nix.Util
   build-depends:       base >=4.10 && <5
                      , base16-bytestring
@@ -40,6 +43,8 @@ library
                      , mtl
                      , regex-base
                      , regex-tdfa-text
+                     , saltine
+                     , time
                      , text
                      , unix
                      , unordered-containers

@@ -7,6 +7,7 @@ module System.Nix.Hash (
   , HNix.HashAlgorithm(..)
   , HNix.ValidAlgo(..)
   , HNix.NamedAlgo(..)
+  , HNix.SomeNamedDigest(..)
   , HNix.hash
   , HNix.hashLazy
 

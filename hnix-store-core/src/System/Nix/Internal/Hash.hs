@@ -9,6 +9,7 @@ Description : Cryptographic hashing interface for hnix-store, on top
 {-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE ExistentialQuantification #-}
 
 module System.Nix.Internal.Hash where
 
@@ -71,6 +72,9 @@ instance NamedAlgo 'SHA1 where
 
 instance NamedAlgo 'SHA256 where
   algoName = "sha256"
+
+-- | A digest whose 'NamedAlgo' is not known at compile time.
+data SomeNamedDigest = forall a . NamedAlgo a => SomeDigest (Digest a)
 
 -- | Hash an entire (strict) 'BS.ByteString' as a single call.
 --
