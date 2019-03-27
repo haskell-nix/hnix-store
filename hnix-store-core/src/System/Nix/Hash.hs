@@ -13,6 +13,7 @@ module System.Nix.Hash (
 
   , HNix.encodeBase32
   , HNix.encodeBase16
+  , HNix.encodeSomeDigest
   ) where
 
 import qualified System.Nix.Internal.Hash as HNix
