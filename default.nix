@@ -36,9 +36,10 @@ let
       then pkgs.lib.composeExtensions orig.overrides overlay
       else overlay;
   };
-  
+
 in {
   haskellPackages =
     pkgs.haskell.packages.${compiler}.override overrideHaskellPackages;
   inherit pkgs;
+  nixpkgs = pkgs;
 }
