@@ -12,6 +12,7 @@ via `nix-daemon`.
 
 ```haskell
 
+import Control.Monad.IO.Class (liftIO)
 import Data.HashSet as HS
 import System.Nix.Store.Remote
 
@@ -21,6 +22,6 @@ main = do
     roots <- findRoots
     liftIO $ print roots
 
-    res <- addTextToStore "hnix-store" "test" (HS.fromList [])  False
-    print res
+    res <- addTextToStore "hnix-store" "test" (HS.fromList []) False
+    liftIO $ print res
 ```
