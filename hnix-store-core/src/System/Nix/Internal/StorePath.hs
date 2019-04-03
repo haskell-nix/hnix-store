@@ -47,7 +47,7 @@ data StorePath (storeDir :: StoreDir) = StorePath
     -- this is typically the package name and version (e.g.
     -- hello-1.2.3).
     storePathName :: !StorePathName
-  }
+  } deriving (Eq)
 
 instance Hashable (StorePath storeDir) where
   hashWithSalt s (StorePath {..}) =
@@ -61,7 +61,7 @@ instance Hashable (StorePath storeDir) where
 newtype StorePathName = StorePathName
   { -- | Extract the contents of the name.
     unStorePathName :: Text
-  } deriving (Hashable)
+  } deriving (Eq, Hashable)
 
 -- | The hash algorithm used for store path hashes.
 type StorePathHashAlgo = 'Truncated 20 'SHA256
