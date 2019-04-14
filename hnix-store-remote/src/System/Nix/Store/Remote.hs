@@ -9,6 +9,7 @@
 {-# LANGUAGE RecordWildCards     #-}
 module System.Nix.Store.Remote (
     runStore
+  , addTextToStore
   , syncWithGC
   , optimiseStore
   , verifyStore

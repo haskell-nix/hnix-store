@@ -52,4 +52,4 @@ data (KnownStoreDir a) => ValidPath a = ValidPath
     -- * ‘text:sha256:<sha256 hash of file contents>’ (paths by makeTextPath() / addTextToStore())
     -- * ‘fixed:<r?>:<ht>:<h>’ (paths by makeFixedOutputPath() / addToStore())
     ca               :: !Text
-  } deriving (Eq, Ord)
+  } deriving (Eq, Ord) -- , Show)

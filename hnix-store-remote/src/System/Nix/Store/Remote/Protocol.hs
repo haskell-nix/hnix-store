@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 module System.Nix.Store.Remote.Protocol (
     WorkerOp(..)
   , simpleOp
@@ -25,6 +26,10 @@ import           System.Nix.Store.Remote.Logger
 import           System.Nix.Store.Remote.Types
 import           System.Nix.Store.Remote.Util
 import           System.Nix.Util
+import           System.Nix.StorePath
+
+import GHC.TypeLits
+import Data.Proxy
 
 protoVersion :: Int
 protoVersion = 0x115
@@ -149,6 +154,13 @@ runOpArgs op args = do
 
 runStore :: MonadStore a -> IO (Either String a, [Logger])
 runStore = runStoreOpts defaultSockPath "/nix/store"
+
+--oo :: StoreDir "lal"
+--oo = Proxy
+
+--lal str = (Proxy :: someSymbolVal str)
+  --case someSymbolVal str of
+  --  SomeSymbol user_proxy -> user_proxy
 
 runStoreOpts :: FilePath -> FilePath -> MonadStore a -> IO (Either String a, [Logger])
 runStoreOpts sockPath storePath code = do
