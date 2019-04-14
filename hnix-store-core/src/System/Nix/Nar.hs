@@ -18,6 +18,8 @@ module System.Nix.Nar (
   , localUnpackNar
   , narEffectsIO
   , putNar
+  , FilePathPart(..)
+  , filePathPart
   ) where
 
 import           Control.Applicative
@@ -42,7 +44,6 @@ import           System.FilePath
 import           System.Posix.Files         (createSymbolicLink, fileSize, getFileStatus,
                                              isDirectory, readSymbolicLink)
 
-import           System.Nix.Path
 
 data NarEffects (m :: * -> *) = NarEffects {
     narReadFile   :: FilePath -> m BSL.ByteString
@@ -64,6 +65,17 @@ data NarEffects (m :: * -> *) = NarEffects {
 
 data Nar = Nar { narFile :: FileSystemObject }
     deriving (Eq, Show)
+
+-- | A valid filename or directory name
+newtype FilePathPart = FilePathPart { unFilePathPart :: BSC.ByteString }
+  deriving (Eq, Ord, Show)
+
+-- | Construct FilePathPart from Text by checking that there
+--   are no '/' or '\\NUL' characters
+filePathPart :: BSC.ByteString -> Maybe FilePathPart
+filePathPart p = case BSC.any (`elem` ['/', '\NUL']) p of
+  False -> Just $ FilePathPart p
+  True  -> Nothing
 
 -- | A FileSystemObject (FSO) is an anonymous entity that can be NAR archived
 data FileSystemObject =

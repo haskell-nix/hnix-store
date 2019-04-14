@@ -16,9 +16,7 @@ import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           System.IO                 (Handle)
-
--- XXX
-import           System.Nix.Internal.Path  (StoreDir(..))
+import           System.Nix.StorePath
 
 data StoreConfig = StoreConfig {
     storeDir        :: StoreDir

@@ -157,7 +157,7 @@ runStoreOpts sockPath storePath code = do
     open path = do
       soc <- socket AF_UNIX Stream 0
       connect soc (SockAddrUnix path)
-      return $ StoreConfig { storeSocket = soc, storeDir = T.pack storePath }
+      return $ StoreConfig { storeSocket = soc } -- , storeDir = oo }
     greet = do
       sockPut $ putInt workerMagic1
       soc <- storeSocket <$> ask

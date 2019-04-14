@@ -9,7 +9,7 @@ module System.Nix.ValidPath
   ) where
 
 import           System.Nix.Hash           (Digest(..))
-import           System.Nix.Path           (Path(..), PathSet)
+import           System.Nix.StorePath      (StorePath(..), StorePathSet, KnownStoreDir)
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Char8     as BSC
 import           Data.Hashable             (Hashable (..), hashPtrWithSalt)
@@ -24,15 +24,15 @@ import           Text.Regex.Base.RegexLike (makeRegex, matchTest)
 import           Text.Regex.TDFA.Text      (Regex)
 
 -- | Information about @Path@
-data ValidPath = ValidPath
+data (KnownStoreDir a) => ValidPath a = ValidPath
   { -- | Path itself
-    path             :: !Path
+    path             :: !(StorePath a)
   , -- | The .drv which led to this 'Path'.
-    deriver          :: !(Maybe Path)
+    deriver          :: !(Maybe (StorePath a))
   , -- | NAR hash
     narHash          :: !Text
   , -- | The references of the 'Path'
-    references       :: !PathSet
+    references       :: !(StorePathSet a)
   , -- | Registration time
     registrationTime :: !UTCTime
   , -- | The size of the uncompressed NAR serialization of this
@@ -52,4 +52,4 @@ data ValidPath = ValidPath
     -- * ‘text:sha256:<sha256 hash of file contents>’ (paths by makeTextPath() / addTextToStore())
     -- * ‘fixed:<r?>:<ht>:<h>’ (paths by makeFixedOutputPath() / addToStore())
     ca               :: !Text
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Ord)

@@ -1,0 +1,45 @@
+name:                hnix-store-remote
+version:             0.2.0.0
+synopsis:            Remote hnix store
+description:         Implementation of the nix store using the daemon protocol.
+homepage:            https://github.com/haskell-nix/hnix-store
+license:             Apache-2.0
+license-file:        LICENSE
+author:              Richard Marko
+maintainer:          srk@48.io
+copyright:           2018 Richard Marko
+category:            System
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+library
+  exposed-modules:     System.Nix.Store.Remote
+                     , System.Nix.Store.Remote.Logger
+                     , System.Nix.Store.Remote.Protocol
+                     , System.Nix.Store.Remote.Types
+                     , System.Nix.Store.Remote.Util
+
+  build-depends:       base >=4.10 && <5
+                     , base64-bytestring
+                     , bytestring
+                     , binary
+                     , bytestring
+                     , containers
+                     , filepath
+                     , text
+                     , unix
+                     , network
+                     , nix-derivation
+                     , mtl
+                     , unordered-containers
+                     , system-filepath
+                     , time
+--                   , pretty-simple
+--                   , base16-bytestring
+--                   , base32-bytestring
+                     , hnix-store-core
+                     , vector
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+  ghc-options:         -Wall

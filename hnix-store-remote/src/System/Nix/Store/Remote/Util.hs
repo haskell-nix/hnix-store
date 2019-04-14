@@ -16,7 +16,7 @@ import           Data.Time
 import           Data.Time.Clock.POSIX
 import qualified Data.ByteString           as B
 import qualified Data.ByteString.Char8     as BSC
-import qualified Data.ByteString.Lazy      as LBS
+import qualified Data.ByteString.Lazy      as BSL
 import qualified Data.Map.Strict           as M
 import qualified Data.Set                  as S
 import qualified Data.HashMap.Strict       as HashMap
@@ -32,10 +32,12 @@ import           Nix.Derivation
 
 import           System.Nix.Store.Remote.Types
 import           System.Nix.Build
-import qualified System.Nix.Hash           as Hash
-import           System.Nix.Path
-import           System.Nix.Internal.Path
+import           System.Nix.StorePath
+import           System.Nix.Internal.Hash (Digest(..))
+import           System.Nix.Hash
 import           System.Nix.Util
+
+import           System.FilePath.Posix     (takeBaseName, takeDirectory)
 
 
 genericIncremental :: (MonadIO m) => m (Maybe B.ByteString) -> Get a -> m a
@@ -60,16 +62,10 @@ getSocketIncremental = genericIncremental sockGet8
 sockPut :: Put -> MonadStore ()
 sockPut p = do
   soc <- storeSocket <$> ask
-  liftIO $ sendAll soc $ LBS.toStrict $ runPut p
+  liftIO $ sendAll soc $ BSL.toStrict $ runPut p
 
 sockGet :: Get a -> MonadStore a
 sockGet = getSocketIncremental
-
-sockGetPath :: MonadStore (Maybe Path)
-sockGetPath = getSocketIncremental getPath
-
-sockGetPaths :: MonadStore PathSet
-sockGetPaths = getSocketIncremental getPaths
 
 sockGetInt :: Integral a => MonadStore a
 sockGetInt = getSocketIncremental getInt
@@ -77,35 +73,52 @@ sockGetInt = getSocketIncremental getInt
 sockGetBool :: MonadStore Bool
 sockGetBool = (== (1 :: Int)) <$> sockGetInt
 
-sockGetStr :: MonadStore LBS.ByteString
+sockGetStr :: MonadStore BSL.ByteString
 sockGetStr = getSocketIncremental getByteStringLen
 
-sockGetStrings :: MonadStore [LBS.ByteString]
+sockGetStrings :: MonadStore [BSL.ByteString]
 sockGetStrings = getSocketIncremental getByteStrings
 
-lBSToText :: LBS.ByteString -> Text
-lBSToText = T.pack . BSC.unpack . LBS.toStrict
+sockGetPath :: (KnownStoreDir a) => MonadStore (Maybe (StorePath a))
+sockGetPath = getSocketIncremental getPath
 
-textToLBS :: Text -> LBS.ByteString
-textToLBS = LBS.fromStrict . BSC.pack . T.unpack
+sockGetPaths :: (KnownStoreDir a) => MonadStore (StorePathSet a)
+sockGetPaths = getSocketIncremental getPaths
+
+
+lBSToText :: BSL.ByteString -> Text
+lBSToText = T.pack . BSC.unpack . BSL.toStrict
+
+textToBSL :: Text -> BSL.ByteString
+textToBSL = BSL.fromStrict . BSC.pack . T.unpack
 
 putText :: Text -> Put
-putText = putByteStringLen . textToLBS
+putText = putByteStringLen . textToBSL
 
 putTexts :: [Text] -> Put
-putTexts = putByteStrings . (map textToLBS)
+putTexts = putByteStrings . (map textToBSL)
 
-getPath :: Get (Maybe Path)
+parsePath :: (KnownStoreDir storeDir) => BSL.ByteString -> Maybe (StorePath storeDir)
+parsePath p = case name of
+    Nothing -> Nothing
+    Just n -> Just $ StorePath digest n
+  where
+  base = T.pack . takeBaseName . BSC.unpack . BSL.toStrict $ p 
+  parts = T.breakOn "-" base
+  digest = Digest . BSC.pack . T.unpack . fst $ parts
+  name = makeStorePathName . T.drop 1 . snd $ parts
+
+getPath :: (KnownStoreDir storeDir) => Get (Maybe (StorePath storeDir))
 getPath = parsePath <$> getByteStringLen
 
-getPaths :: Get PathSet
+getPaths :: (KnownStoreDir storeDir) => Get (StorePathSet storeDir)
 getPaths = HashSet.fromList . catMaybes . map parsePath <$> getByteStrings
 
-putPath :: StoreDir -> Path -> Put
-putPath sd  = putText . storedToText . makeStored sd
+putPath :: (KnownStoreDir storeDir) => StorePath storeDir -> Put
+putPath  = putByteStringLen . BSL.fromStrict . storePathToRawFilePath
 
-putPaths :: StoreDir -> PathSet -> Put
-putPaths sd = putTexts . HashSet.toList .  HashSet.map (storedToText . makeStored sd)
+putPaths :: (KnownStoreDir storeDir) => StorePathSet storeDir -> Put
+putPaths = putByteStrings . HashSet.toList .  HashSet.map (BSL.fromStrict . storePathToRawFilePath)
 
 putBool :: Bool -> Put
 putBool True  = putInt (1 :: Int)
@@ -135,19 +148,14 @@ getBuildResult = BuildResult
   <*> getTime
   <*> getTime
 
-putHashAlgo :: Hash.HashAlgorithm -> Put
-putHashAlgo Hash.MD5 = putText "md5"
-putHashAlgo Hash.SHA1 = putText "sha1"
-putHashAlgo Hash.SHA256 = putText "sha256"
-putHashAlgo (Hash.Truncated _ algo) = putHashAlgo algo
-
-putDerivation :: Derivation -> Put
+{-
+putDerivation :: (NamedAlgo a) => Derivation -> Put
 putDerivation Derivation{..} = do
   putInt $ M.size outputs
   forM_ (M.toList outputs) $ \(outputName, DerivationOutput{..}) -> do
     putText outputName
     putFP path
-    putText hashAlgo
+    putText algoName
     putText hash
     --putText $ printAsBase32 @PathHashAlgo digest
 
@@ -158,6 +166,7 @@ putDerivation Derivation{..} = do
 
   putInt $ M.size env
   forM_ (M.toList env) $ \(first, second) -> putText first >> putText second
+-}
 
 putFP :: FilePath -> Put
 putFP p = putText (printFP p)
