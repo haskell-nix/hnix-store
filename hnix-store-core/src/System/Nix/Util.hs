@@ -7,6 +7,7 @@ module System.Nix.Util where
 import           Control.Monad
 import           Data.Binary.Get
 import           Data.Binary.Put
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 
 putInt :: Integral a => a -> Put
@@ -16,18 +17,17 @@ getInt :: Integral a => Get a
 getInt = fromIntegral <$> getWord64le
 
 -- length prefixed string packing with padding to 8 bytes
-putByteStringLen :: LBS.ByteString -> Put
+putByteStringLen :: BS.ByteString -> Put
 putByteStringLen x = do
-  putInt $ fromIntegral $ len
-  putLazyByteString x
-  when (len `mod` 8 /= 0) $
-    pad $ fromIntegral $ 8 - (len `mod` 8)
-  where len = LBS.length x
-        pad x = forM_ (take x $ cycle [0]) putWord8
+  putInt $ len
+  putByteString x
+  pad $ 8 - (len `mod` 8)
+  where len = BS.length x
+        pad x = replicateM_ x (putWord8 0)
 
-putByteStrings :: Foldable t => t LBS.ByteString -> Put
+putByteStrings :: Foldable t => t BS.ByteString -> Put
 putByteStrings xs = do
-  putInt $ fromIntegral $ length xs
+  putInt $ length xs
   mapM_ putByteStringLen xs
 
 getByteStringLen :: Get LBS.ByteString
@@ -38,11 +38,10 @@ getByteStringLen = do
     pads <- unpad $ fromIntegral $ 8 - (len `mod` 8)
     unless (all (==0) pads) $ fail $ "No zeroes" ++ show (st, len, pads)
   return st
-  where unpad x = sequence $ replicate x getWord8
+  where unpad x = replicateM x getWord8
 
 getByteStrings :: Get [LBS.ByteString]
 getByteStrings = do
   count <- getInt
   res <- sequence $ replicate count getByteStringLen
   return res
-
