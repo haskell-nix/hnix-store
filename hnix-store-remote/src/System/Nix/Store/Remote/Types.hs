@@ -1,20 +1,23 @@
 module System.Nix.Store.Remote.Types (
     MonadStore
+  , Error(..)
   , Logger(..)
   , Field(..)
-  , getLog
-  , flushLog
-  , gotError
-  , getError) where
+  ) where
 
-
-import qualified Data.ByteString.Lazy      as LBS
-import           Network.Socket            (Socket)
 import           Control.Monad.Except
 import           Control.Monad.Reader
-import           Control.Monad.State
+import qualified Data.ByteString.Lazy      as LBS
+import           Network.Socket            (Socket)
+import           Pipes
 
-type MonadStore a = ExceptT String (StateT [Logger] (ReaderT Socket IO)) a
+data Error =
+    LogError Int LBS.ByteString
+  | ParseError String
+  | ConnError String
+  deriving (Eq, Show)
+
+type MonadStore a = ExceptT Error (Producer Logger (ReaderT Socket IO)) a
 
 type ActivityID = Int
 type ActivityParentID = Int
@@ -35,19 +38,3 @@ data Logger =
   | StopActivity  ActivityID
   | Result        ActivityID ResultType [Field]
   deriving (Eq, Ord, Show)
-
-isError :: Logger -> Bool
-isError (Error _ _) = True
-isError _           = False
-
-gotError :: MonadStore Bool
-gotError = any isError <$> get
-
-getError :: MonadStore [Logger]
-getError = filter isError <$> get
-
-getLog :: MonadStore [Logger]
-getLog = get
-
-flushLog :: MonadStore ()
-flushLog = put []

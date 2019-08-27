@@ -1,23 +1,25 @@
+{-# LANGUAGE TypeApplications #-}
 module System.Nix.Store.Remote.Protocol (
     WorkerOp(..)
-  , simpleOp
-  , simpleOpArgs
   , runOp
+  , runOp_
   , runOpArgs
-  , runStore) where
+  , runOpArgs_
+  , runStore
+  , runStore_
+  ) where
 
-import           Control.Exception         (bracket)
-import           Control.Monad.Except
+import           Control.Exception         (SomeException, bracket, catch, displayException)
+import           Control.Monad.Except      (throwError, runExceptT)
 import           Control.Monad.Reader
-import           Control.Monad.State
 
-import           Data.Binary.Get
 import           Data.Binary.Put
-import qualified Data.ByteString.Char8     as BSC
-import qualified Data.ByteString.Lazy      as LBS
+import           Data.Binary.Get
 
-import           Network.Socket            hiding (send, sendTo, recv, recvFrom)
-import           Network.Socket.ByteString (recv)
+import           Network.Socket
+
+import           Pipes
+import qualified Pipes.Prelude as Pipes
 
 import           System.Nix.Store.Remote.Logger
 import           System.Nix.Store.Remote.Types
@@ -106,65 +108,57 @@ opNum NarFromPath                 = 38
 opNum AddToStoreNar               = 39
 opNum QueryMissing                = 40
 
+runOp :: WorkerOp -> Get a -> MonadStore a
+runOp op result = runOpArgs op mempty result
 
-simpleOp :: WorkerOp -> MonadStore Bool
-simpleOp op = do
-  simpleOpArgs op $ return ()
+runOp_ :: WorkerOp -> MonadStore ()
+runOp_ op = runOp op (skip 8)
 
-simpleOpArgs :: WorkerOp -> Put -> MonadStore Bool
-simpleOpArgs op args = do
-  runOpArgs op args
-  err <- gotError
-  case err of
-    True -> do
-      Error _num msg <- head <$> getError
-      throwError $ BSC.unpack $ LBS.toStrict msg
-    False -> do
-      sockGetBool
-
-runOp :: WorkerOp -> MonadStore ()
-runOp op = runOpArgs op $ return ()
-
-runOpArgs :: WorkerOp -> Put -> MonadStore ()
-runOpArgs op args = do
-
-  -- Temporary hack for printing the messages destined for nix-daemon socket
-  when False $
-    liftIO $ LBS.writeFile "mytestfile2" $ runPut $ do
-      putInt $ opNum op
-      args
-
+runOpArgs :: WorkerOp -> Put -> Get a -> MonadStore a
+runOpArgs op args result = do
   sockPut $ do
-    putInt $ opNum op
+    putInt (opNum op)
     args
+  streamLogs
+  sockGet result
 
-  out <- processOutput
-  modify (++out)
-  err <- gotError
-  when err $ do
-    Error _num msg <- head <$> getError
-    throwError $ BSC.unpack $ LBS.toStrict msg
+runOpArgs_ :: WorkerOp -> Put -> MonadStore ()
+runOpArgs_ op args = runOpArgs op args (skip 8)
 
-runStore :: MonadStore a -> IO (Either String a, [Logger])
-runStore code = do
-  bracket (open sockPath) close run
+runStore :: Consumer Logger IO (Either Error a) -> MonadStore a -> IO (Either Error a)
+runStore sink code =
+  bracket (open sockPath) close run `catch` onException
   where
     open path = do
-      soc <- socket AF_UNIX Stream 0
-      connect soc (SockAddrUnix path)
-      return soc
+      sock <- socket AF_UNIX Stream 0
+      connect sock (SockAddrUnix path)
+      return sock
+
     greet = do
       sockPut $ putInt workerMagic1
-      soc <- ask
-      vermagic <- liftIO $ recv soc 16
-      let (magic2, daemonProtoVersion) = flip runGet (LBS.fromStrict vermagic) $ (,) <$> getInt <*> getInt
-      unless (magic2 == workerMagic2) $ error "Worker magic 2 mismatch"
+
+      magic2 <- sockGetInt
+      _ <- sockGetInt -- daemonVersion
+
+      unless (magic2 == workerMagic2) $
+        throwError (ConnError "Worker magic 2 mismatch")
 
       sockPut $ putInt protoVersion -- clientVersion
       sockPut $ putInt (0 :: Int)   -- affinity
       sockPut $ putInt (0 :: Int)   -- obsolete reserveSpace
 
-      processOutput
+      streamLogs -- receive startup error messages, if any
 
     run sock =
-      flip runReaderT sock $ flip runStateT [] $ runExceptT (greet >> code)
+      let producer =
+            runExceptT $ do
+              greet
+              code
+          effect = producer >-> hoist liftIO sink
+      in  runReaderT (runEffect effect) sock
+
+    onException :: SomeException -> IO (Either Error a)
+    onException = return . Left . ConnError . displayException
+
+runStore_ :: MonadStore a -> IO (Either Error a)
+runStore_ = runStore Pipes.drain

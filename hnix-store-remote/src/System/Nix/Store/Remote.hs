@@ -22,13 +22,12 @@ type RepairFlag = Bool
 type CheckFlag = Bool
 
 syncWithGC :: MonadStore ()
-syncWithGC = void $ simpleOp SyncWithGC
+syncWithGC = runOp_ SyncWithGC
 
 optimiseStore :: MonadStore ()
-optimiseStore = void $ simpleOp OptimiseStore
+optimiseStore = runOp_ OptimiseStore
 
--- returns True on errors
-verifyStore :: CheckFlag -> RepairFlag -> MonadStore Bool
-verifyStore check repair = simpleOpArgs VerifyStore $ do
+verifyStore :: CheckFlag -> RepairFlag -> MonadStore ()
+verifyStore check repair = runOpArgs_ VerifyStore $ do
   putBool check
   putBool repair

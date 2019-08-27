@@ -1,14 +1,15 @@
 module System.Nix.Store.Remote.Logger (
     Logger(..)
   , Field(..)
-  , processOutput)
-  where
+  , streamLogs
+  ) where
 
+import           Control.Monad.Except      (throwError)
+import           Control.Monad             (replicateM)
 import           Control.Monad.Reader      (ask, liftIO)
 import           Data.Binary.Get
-
 import           Network.Socket.ByteString (recv)
-
+import           Pipes                     (lift, yield)
 import           System.Nix.Store.Remote.Types
 import           System.Nix.Util
 
@@ -26,30 +27,38 @@ controlParser = do
     0x52534c54 -> Result        <$> getInt <*> getInt <*> getFields
     x          -> fail           $ "Invalid control message received:" ++ show x
 
-processOutput :: MonadStore [Logger]
-processOutput = go decoder
-  where decoder = runGetIncremental controlParser
-        go :: Decoder Logger -> MonadStore [Logger]
-        go (Done _leftover _consumed ctrl) = do
-          case ctrl of
-            e@(Error _ _) -> return [e]
-            Last -> return [Last]
-            -- we should probably handle Read here as well
-            x -> do
-              next <- go decoder
-              return $ x:next
-        go (Partial k) = do
-          soc <- ask
-          chunk <- liftIO (Just <$> recv soc 8)
-          go (k chunk)
+logger :: Logger -> MonadStore ()
+logger = lift . yield
 
-        go (Fail _leftover _consumed msg) = do
-          error msg
+streamLogs :: MonadStore ()
+streamLogs = go decoder
+  where
+    go :: Decoder Logger -> MonadStore ()
+    go (Done _leftover _consumed ctrl) = do
+      case ctrl of
+        e@(Error status err) -> do
+          logger e
+          throwError (LogError status err)
+        Last ->
+          logger Last
+        -- we should probably handle Read here as well
+        x -> do
+          logger x
+          go decoder
+    go (Partial cont) = do
+      soc <- ask
+      chunk <- liftIO (recv soc 8)
+      go (cont (Just chunk))
+    go (Fail _leftover _consumed msg) =
+      throwError (ParseError msg)
+
+    decoder :: Decoder Logger
+    decoder = runGetIncremental controlParser
 
 getFields :: Get [Field]
 getFields = do
-  cnt <- getInt
-  sequence $ replicate cnt getField
+  count <- getInt
+  replicateM count getField
 
 getField :: Get Field
 getField = do
