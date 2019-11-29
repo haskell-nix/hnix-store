@@ -15,6 +15,8 @@ module System.Nix.Nar (
   , Nar(..)
   , getNar
   , localPackNar
+  , localPackNar'
+  , FilePathFilter
   , localUnpackNar
   , narEffectsIO
   , putNar
@@ -240,10 +242,15 @@ localUnpackNar effs basePath (Nar fso) = localUnpackFSO basePath fso
 
 -- | Pack a NAR from a filepath
 localPackNar :: Monad m => NarEffects m -> FilePath -> m Nar
-localPackNar effs basePath = Nar <$> localPackFSO basePath
+localPackNar effs basePath = localPackNar' effs basePath (const True)
+
+type FilePathFilter = FilePath -> Bool
+
+-- | Pack a NAR from a filepath, omitting the entries matching `filter`
+localPackNar' :: Monad m => NarEffects m -> FilePath -> FilePathFilter -> m Nar
+localPackNar' effs basePath pathFilter = Nar <$> localPackFSO basePath
 
   where
-
     localPackFSO path' = do
       fType <- (,) <$> narIsDir effs path' <*> narIsSymLink effs path'
       case fType of
@@ -252,7 +259,7 @@ localPackNar effs basePath = Nar <$> localPackFSO basePath
                               <*> narFileSize effs path'
                               <*> narReadFile effs path'
         (True , _) -> fmap (Directory . Map.fromList) $ do
-          fs <- narListDir effs path'
+          fs <- filter (pathFilter . (path' </>)) <$> narListDir effs path'
           forM fs $ \fp ->
             (FilePathPart (BSC.pack $  fp),) <$> localPackFSO (path' </> fp)
 

@@ -13,10 +13,15 @@ import           Data.Maybe
 
 import           Data.Proxy
 import           Data.Text.Encoding    ( encodeUtf8 )
+import           Data.Text            as T
+import           Data.Text.Encoding   as T
 import           Data.Text.Lazy       as TL
 import           Data.Text.Lazy.Encoding as TL
+import           Data.ByteString.Char8 as BS
 
+import           System.FilePath
 import           System.Nix.Hash
+import           System.Nix.Internal.Hash
 import           System.Nix.Nar
 import           System.Nix.StorePath
 import           System.Nix.Store.Remote
@@ -40,8 +45,10 @@ spec_addToStore = do
       let name = fromJust $ makeStorePathName "test-recursive-add"
       let srcPath = "./tests/data/add-recursive"
       let recursive = True
-      let filter path = False -- not used anyway.
+      let filter :: FilePathFilter
+          filter path | takeBaseName path == "ignore" = False
+                      | otherwise = True
       let repair = False
-      res <- runStore $ addToStore @'SHA256 name srcPath recursive filter repair
-      res `shouldBe` (Right "/nix/store/0mbh3xdb9fkqb2i3iwv6hhz7qiicca83-test-recursive-add",[Last])
+      res <- runStore $ (addToStore @'SHA256 name srcPath recursive filter repair :: MonadStore "/nix/store" (StorePath "/nix/store"))
+      res `shouldBe` (Right (StorePath (Digest $ T.encodeUtf8 "0mbh3xdb9fkqb2i3iwv6hhz7qiicca83") name),[Last])
 

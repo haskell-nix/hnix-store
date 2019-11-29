@@ -1,3 +1,7 @@
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE DataKinds #-}
+
 module System.Nix.Store.Remote.Types (
     MonadStore
   , Logger(..)
@@ -8,13 +12,15 @@ module System.Nix.Store.Remote.Types (
   , getError) where
 
 
+import           System.Nix.Internal.StorePath
 import qualified Data.ByteString.Lazy      as LBS
 import           Network.Socket            (Socket)
 import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.State
 
-type MonadStore a = ExceptT String (StateT [Logger] (ReaderT Socket IO)) a
+type MonadStore (storeDir :: StoreDir) a = ExceptT String (StateT [Logger] (ReaderT Socket IO)) a
+-- type AMonadStore s a = forall storeDir. MonadStore storeDir a
 
 type ActivityID = Int
 type ActivityParentID = Int
@@ -40,14 +46,14 @@ isError :: Logger -> Bool
 isError (Error _ _) = True
 isError _           = False
 
-gotError :: MonadStore Bool
+gotError :: MonadStore s Bool
 gotError = any isError <$> get
 
-getError :: MonadStore [Logger]
+getError :: MonadStore s [Logger]
 getError = filter isError <$> get
 
-getLog :: MonadStore [Logger]
+getLog :: MonadStore s [Logger]
 getLog = get
 
-flushLog :: MonadStore ()
+flushLog :: MonadStore s ()
 flushLog = put []

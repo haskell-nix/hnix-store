@@ -49,6 +49,9 @@ data StorePath (storeDir :: StoreDir) = StorePath
     storePathName :: !StorePathName
   } deriving (Eq, Ord)
 
+instance forall storeDir. KnownStoreDir storeDir => Show (StorePath storeDir) where
+  show = show . storePathToRawFilePath
+
 instance Hashable (StorePath storeDir) where
   hashWithSalt s (StorePath {..}) =
     s `hashWithSalt` storePathHash `hashWithSalt` storePathName

@@ -30,29 +30,29 @@ genericIncremental getsome parser = go decoder
         go (Fail _leftover _consumed msg) = do
           error msg
 
-getSocketIncremental :: Get a -> MonadStore a
+getSocketIncremental :: Get a -> MonadStore s a
 getSocketIncremental = genericIncremental sockGet
 
-sockPut :: Put -> MonadStore ()
+sockPut :: Put -> MonadStore s ()
 sockPut p = do
   soc <- ask
   liftIO $ sendAll soc $ LBS.toStrict $ runPut p
 
-sockGet :: MonadStore (Maybe BSC.ByteString)
+sockGet :: MonadStore s (Maybe BSC.ByteString)
 sockGet = do
   soc <- ask
   liftIO $ Just <$> recv soc 8
 
-sockGetInt :: Integral a => MonadStore a
+sockGetInt :: Integral a => MonadStore s a
 sockGetInt = getSocketIncremental getInt
 
-sockGetBool :: MonadStore Bool
+sockGetBool :: MonadStore s Bool
 sockGetBool = (== (1 :: Int)) <$> sockGetInt
 
-sockGetStr :: MonadStore LBS.ByteString
+sockGetStr :: MonadStore s LBS.ByteString
 sockGetStr = getSocketIncremental getByteStringLen
 
-sockGetStrings :: MonadStore [LBS.ByteString]
+sockGetStrings :: MonadStore s [LBS.ByteString]
 sockGetStrings = getSocketIncremental getByteStrings
 
 lBSToText :: LBS.ByteString -> Text

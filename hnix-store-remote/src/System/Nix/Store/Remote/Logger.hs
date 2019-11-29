@@ -26,10 +26,10 @@ controlParser = do
     0x52534c54 -> Result        <$> getInt <*> getInt <*> getFields
     x          -> fail           $ "Invalid control message received:" ++ show x
 
-processOutput :: MonadStore [Logger]
+processOutput :: MonadStore s [Logger]
 processOutput = go decoder
   where decoder = runGetIncremental controlParser
-        go :: Decoder Logger -> MonadStore [Logger]
+        go :: Decoder Logger -> MonadStore s [Logger]
         go (Done _leftover _consumed ctrl) = do
           case ctrl of
             e@(Error _ _) -> return [e]

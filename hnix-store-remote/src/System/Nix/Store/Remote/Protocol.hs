@@ -107,11 +107,11 @@ opNum AddToStoreNar               = 39
 opNum QueryMissing                = 40
 
 
-simpleOp :: WorkerOp -> MonadStore Bool
+simpleOp :: WorkerOp -> MonadStore s Bool
 simpleOp op = do
   simpleOpArgs op $ return ()
 
-simpleOpArgs :: WorkerOp -> Put -> MonadStore Bool
+simpleOpArgs :: WorkerOp -> Put -> MonadStore s Bool
 simpleOpArgs op args = do
   runOpArgs op args
   err <- gotError
@@ -122,10 +122,10 @@ simpleOpArgs op args = do
     False -> do
       sockGetBool
 
-runOp :: WorkerOp -> MonadStore ()
+runOp :: WorkerOp -> MonadStore s ()
 runOp op = runOpArgs op $ return ()
 
-runOpArgs :: WorkerOp -> Put -> MonadStore ()
+runOpArgs :: WorkerOp -> Put -> MonadStore s ()
 runOpArgs op args = do
 
   -- Temporary hack for printing the messages destined for nix-daemon socket
@@ -145,7 +145,7 @@ runOpArgs op args = do
     Error _num msg <- head <$> getError
     throwError $ BSC.unpack $ LBS.toStrict msg
 
-runStore :: MonadStore a -> IO (Either String a, [Logger])
+runStore :: MonadStore s a -> IO (Either String a, [Logger])
 runStore code = do
   bracket (open sockPath) close run
   where
