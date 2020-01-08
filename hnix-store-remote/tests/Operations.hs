@@ -51,4 +51,6 @@ spec_addToStore = do
       let repair = False
       res <- runStore $ (addToStore @'SHA256 name srcPath recursive filter repair :: MonadStore "/nix/store" (StorePath "/nix/store"))
       res `shouldBe` (Right (StorePath (Digest $ T.encodeUtf8 "0mbh3xdb9fkqb2i3iwv6hhz7qiicca83") name),[Last])
+      -- FIXME this is not the right way to make a nix path due to the encoding being performed twice.
+      -- It gives something like /nix/store/0ybsdrp66r3nddm7jwkkg9wkcrknd0q70f32f9vp6y3qcin3fwrm-test-recursive-add
 

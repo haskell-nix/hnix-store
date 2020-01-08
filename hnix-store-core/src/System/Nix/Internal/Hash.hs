@@ -21,7 +21,7 @@ import qualified Data.ByteString.Base16 as Base16
 import           Data.Bits              (xor)
 import qualified Data.ByteString.Lazy   as BSL
 import qualified Data.Hashable          as DataHashable
-import           Data.List              (foldl')
+import           Data.List              (foldl', find)
 import           Data.Proxy             (Proxy(Proxy))
 import           Data.Text              (Text)
 import qualified Data.Text              as T
@@ -75,6 +75,14 @@ instance NamedAlgo 'SHA256 where
 
 -- | A digest whose 'NamedAlgo' is not known at compile time.
 data SomeNamedDigest = forall a . NamedAlgo a => SomeDigest (Digest a)
+
+-- | Build a valid named digest from its name
+mkDigest :: Text -> BS.ByteString -> Maybe SomeNamedDigest
+mkDigest "sha1"   = Just . SomeDigest . Digest @'SHA1
+mkDigest "sha256" = Just . SomeDigest . Digest @'SHA256
+mkDigest "md5"    = Just . SomeDigest . Digest @'MD5
+mkDigest _        = const Nothing
+
 
 -- | Hash an entire (strict) 'BS.ByteString' as a single call.
 --

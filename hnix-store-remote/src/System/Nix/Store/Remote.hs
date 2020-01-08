@@ -10,15 +10,21 @@
 module System.Nix.Store.Remote (
     runStore
   , addToStore
+  , addToStore'
+  , addTextToStore
   , syncWithGC
   , optimiseStore
   , verifyStore
+  , RecursiveFlag
+  , RepairFlag
+  , CheckFlag
   ) where
 
 import           Prelude                 as P
 import           Control.Monad
 import           Control.Monad.Except
 
+import           Data.Foldable            ( toList )
 import           Data.Text               as T
 import           Data.Text.Encoding      as T
 import           Data.Text.Lazy          as TL
@@ -60,9 +66,18 @@ addToStore :: forall hashType storeDir. (NamedAlgo hashType, ValidAlgo hashType,
     -> FilePathFilter
     -> RepairFlag
     -> MonadStore storeDir (StorePath storeDir)
-addToStore name srcPath recursive pathFilter repair = do
+addToStore name srcPath recursive pathFilter repair =
+    addToStore' @hashType @storeDir name (localPackNar' narEffectsIO srcPath pathFilter) recursive repair
+
+addToStore' :: forall hashType storeDir. (NamedAlgo hashType, ValidAlgo hashType, KnownStoreDir storeDir)
+    => StorePathName
+    -> IO Nar
+    -> RecursiveFlag
+    -> RepairFlag
+    -> MonadStore storeDir (StorePath storeDir)
+addToStore' name narAction recursive repair = do
   when repair $ throwError "addToStore: Cannot repair when using a daemon."
-  nar <- liftIO $ localPackNar' narEffectsIO srcPath pathFilter
+  nar <- liftIO narAction
   runOpArgs AddToStore $ do
     putByteStringLen $ strToN $ unStorePathName name
     putBool $ not (recursive && algoName @hashType == "sha256") -- backward compatibility hack
@@ -70,22 +85,42 @@ addToStore name srcPath recursive pathFilter repair = do
     putByteStringLen $ strToN (algoName @hashType)
     putNar nar
 
+  getStorePath
+
+
+makeStorePath :: forall storeDir. KnownStoreDir storeDir => BS.ByteString -> Maybe (StorePath storeDir)
+makeStorePath path = BS.stripPrefix (storeDirVal @storeDir <> "/") path >>= \basename ->
+  if '/' `BS.elem` basename
+  then Nothing
+  else let (drvHash, drvName) = BS.break (== '-') basename in
+    if BS.length drvHash /= 32 || BS.length drvName <= 1
+    then Nothing
+    else StorePath (Digest drvHash) <$> (makeStorePathName $ T.tail $ T.decodeUtf8 $ drvName)
+
+getStorePath :: forall storeDir. KnownStoreDir storeDir => MonadStore storeDir (StorePath storeDir)
+getStorePath = do
   path <- LBS.toStrict <$> sockGetStr
   case makeStorePath path of
     Just storePath -> return storePath
-    Nothing -> throwError $ "Path '" ++ (show path) ++ "' is not a valid store path in this store"
+    Nothing -> throwError $ "Path '" ++ show path ++ "' is not a valid store path in this store"
 
- where
-  strToN = TL.encodeUtf8 . TL.fromStrict
-  
-  makeStorePath :: BS.ByteString -> Maybe (StorePath storeDir)
-  makeStorePath path = BS.stripPrefix (storeDirVal @storeDir <> "/") path >>= \basename ->
-    if '/' `BS.elem` basename
-    then Nothing
-    else let (drvHash, drvName) = BS.break (== '-') basename in
-      if BS.length drvHash /= 32 || BS.length drvName <= 1
-      then Nothing
-      else StorePath (Digest drvHash) <$> (makeStorePathName $ T.tail $ T.decodeUtf8 $ drvName)
+strToN :: T.Text -> LBS.ByteString
+strToN = TL.encodeUtf8 . TL.fromStrict
+
+addTextToStore :: forall hashType storeDir. (NamedAlgo hashType, ValidAlgo hashType, KnownStoreDir storeDir)
+    => StorePathName
+    -> TL.Text
+    -> StorePathSet storeDir
+    -> RepairFlag
+    -> MonadStore storeDir (StorePath storeDir)
+addTextToStore name text references repair = do
+  when repair $ throwError "addTextToStore: Cannot repair when using a daemon."
+  runOpArgs AddTextToStore $ do
+    putByteStringLen $ strToN $ unStorePathName name
+    putByteStringLen $ TL.encodeUtf8 text
+    putByteStrings $ P.map (LBS.fromStrict . storePathToRawFilePath) $ toList references
+
+  getStorePath
 
 
 
