@@ -7,6 +7,7 @@ module System.Nix.ReadonlyStore where
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.HashSet as HS
+import           Data.Text (Text)
 import           Data.Text.Encoding
 import           System.Nix.Hash
 import           System.Nix.StorePath
@@ -27,6 +28,15 @@ makeTextPath :: (KnownStoreDir storeDir) => StorePathName -> Digest 'SHA256 -> S
 makeTextPath nm h refs = makeStorePath ty h nm
   where
     ty = BS.intercalate ":" ("text" : map storePathToRawFilePath (HS.toList refs))
+
+makeFixedOutputPath :: (KnownStoreDir storeDir, ValidAlgo hashAlgo, NamedAlgo hashAlgo) => NarHashMode -> Digest hashAlgo -> StorePathName -> StorePath storeDir
+makeFixedOutputPath narHashMode h nm =
+  makeStorePath ty h' nm
+  where
+    (ty, h') =
+      case narHashMode of
+        Recursive -> ("source", h)
+        RegularFile -> ("output:out", hash ("fixed:out:" <> encodeUtf8 (encodeBase16 h) <> ":"))
 
 computeStorePathForText :: (KnownStoreDir storeDir) => StorePathName -> ByteString -> StorePathSet storeDir -> StorePath storeDir
 computeStorePathForText nm s refs = makeTextPath nm (hash s) refs

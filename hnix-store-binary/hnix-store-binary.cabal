@@ -1,0 +1,33 @@
+name:                hnix-store-binary
+version:             0.1.0.0
+synopsis:            Binary hnix store API
+description:
+homepage:            https://github.com/haskell-nix/hnix-store
+license:             Apache-2.0
+license-file:        LICENSE
+author:              Brian McKenna
+maintainer:          brian@brianmckenna.org
+copyright:           2019 Brian McKenna
+category:            System
+build-type:          Simple
+extra-source-files:  ChangeLog.md, README.md
+cabal-version:       >=1.10
+
+library
+  exposed-modules:     System.Nix.Store.Binary
+                     , System.Nix.Store.Binary.Local
+
+  build-depends:       base >=4.10 && <4.12
+                     , binary
+                     , bytestring
+                     , directory
+                     , filepath
+                     , lzma
+                     , mtl
+                     , text
+                     , time
+                     , unordered-containers
+                     , hnix-store-core
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+  ghc-options:         -Wall

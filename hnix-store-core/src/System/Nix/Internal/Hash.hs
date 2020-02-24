@@ -103,6 +103,16 @@ encodeBase32 (Digest bs) = Base32.encode bs
 encodeBase16 :: Digest a -> T.Text
 encodeBase16 (Digest bs) = T.decodeUtf8 (Base16.encode bs)
 
+-- | Encode a 'Digest' in algorithm:hash format.
+encodeDigest :: forall a. NamedAlgo a => Digest a -> Text
+encodeDigest d =
+  algoName @a <> ":" <> encodeBase16 d
+
+-- | Encode a 'Digest' in algorithm:hash format.
+encodeSomeDigest :: SomeNamedDigest -> Text
+encodeSomeDigest (SomeDigest d) =
+  encodeDigest d
+
 -- | Uses "Crypto.Hash.MD5" from cryptohash-md5.
 instance ValidAlgo 'MD5 where
   type AlgoCtx 'MD5 = MD5.Ctx

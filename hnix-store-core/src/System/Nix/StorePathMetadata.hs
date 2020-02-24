@@ -1,12 +1,17 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+
 {-|
 Description : Metadata about Nix store paths.
 -}
 module System.Nix.StorePathMetadata where
 
-import System.Nix.StorePath (StorePath, StorePathSet, ContentAddressableAddress)
-import System.Nix.Hash (SomeNamedDigest)
+import System.Nix.StorePath (ContentAddressableAddress (..), NarHashMode (..), StorePath, StorePathSet, storePathName, unStorePathName)
+import System.Nix.Hash (Digest, NamedAlgo, SomeNamedDigest, algoName, encodeBase16, encodeSomeDigest)
 import Data.Set (Set)
 import Data.Time (UTCTime)
+import Data.Text as T
 import Data.Word (Word64)
 import System.Nix.Signature (NarSignature)
 
@@ -47,3 +52,42 @@ data StorePathTrust
   | -- | It was built elsewhere (and substituted or similar) and so
     -- is less trusted
     BuiltElsewhere
+
+data NarInfo
+  = NarInfo
+  { -- | URL to compressed Nar file.
+    narUrl :: Text
+  , -- | Form of compression used on Nar file.
+    narCompression :: Text
+  , -- | The hash of the nar serialization of the path.
+    fileHash :: !SomeNamedDigest
+  , -- | The size of the nar the path, in bytes.
+    fileBytes :: !(Maybe Word64)
+  }
+
+-- | Serialize to .narinfo contents
+encodeNarInfo
+  :: StorePathMetadata storeDir
+  -> NarInfo
+  -> Text
+encodeNarInfo storePathMetadata narInfo =
+  T.unlines
+    [ "StorePath: " <> unStorePathName (storePathName (path storePathMetadata))
+    , "URL: " <> narUrl narInfo
+    , "Compression: " <> narCompression narInfo
+    , "FileHash: " <> encodeSomeDigest (fileHash narInfo)
+    , "FileSize: " <> foldMap (T.pack . show) (fileBytes narInfo)
+    , "NarHash: " <> encodeSomeDigest (narHash storePathMetadata)
+    , "NarSize: " <> foldMap (T.pack . show) (narBytes storePathMetadata)
+    , "References: "
+    , "CA: " <> foldMap encodeContentAddressableAddress (contentAddressableAddress storePathMetadata)
+    ]
+  where
+    encodeContentAddressableAddress (Text d) =
+      "text:sha256:" <> encodeBase16 d
+    encodeContentAddressableAddress (Fixed m d) =
+      "fixed:" <> encodeNarHashMode m <> ":" <> encodeSomeDigest d
+    encodeNarHashMode RegularFile =
+      ""
+    encodeNarHashMode Recursive =
+      "r:"
