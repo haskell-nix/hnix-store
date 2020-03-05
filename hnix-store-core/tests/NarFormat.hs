@@ -23,7 +23,7 @@ import qualified Data.Map                    as Map
 import           Data.Maybe                  (fromMaybe, isJust)
 import qualified Data.Text                   as T
 import           GHC.Stats                   (getRTSStats, max_live_bytes)
-import           System.Directory            (removeFile)
+import           System.Directory            (doesDirectoryExist, removeFile)
 import           System.Environment          (getEnv)
 import qualified System.Process              as P
 import           Test.Tasty                  as T
@@ -106,12 +106,19 @@ unit_packSelfSrcDir = do
   case ver of
     Left  (e :: SomeException) -> print "No nix-store on system"
     Right _ -> do
-      hnixNar <- runPut . put <$> localPackNar narEffectsIO "src"
-      nixStoreNar <- getNixStoreDump "src"
-      HU.assertEqual
-        "src dir serializes the same between hnix-store and nix-store"
-        hnixNar
-        nixStoreNar
+      let go dir = do
+            srcHere <- doesDirectoryExist dir
+            case srcHere of
+              False -> return ()
+              True -> do
+                hnixNar <- runPut . put <$> localPackNar narEffectsIO dir
+                nixStoreNar <- getNixStoreDump dir
+                HU.assertEqual
+                  "src dir serializes the same between hnix-store and nix-store"
+                  hnixNar
+                  nixStoreNar
+      go "src"
+      go "hnix-store-core/src"
 
 unit_streamLargeFileToNar :: HU.Assertion
 unit_streamLargeFileToNar =
