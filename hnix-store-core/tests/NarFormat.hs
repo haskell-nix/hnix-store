@@ -2,67 +2,116 @@
 {-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections       #-}
+{-# LANGUAGE TypeApplications    #-}
 
 module NarFormat where
 
-import           Control.Applicative         ((<|>))
-import           Control.Concurrent          (threadDelay)
-import           Control.Exception           (SomeException, bracket, try)
-import           Control.Monad               (replicateM)
-import           Control.Monad.IO.Class      (liftIO)
-import           Data.Binary                 (put)
-import           Data.Binary.Get             (Get (..), runGet)
-import           Data.Binary.Put             (Put (..), runPut)
-import qualified Data.ByteString             as BS
-import qualified Data.ByteString.Base64.Lazy as B64
-import qualified Data.ByteString.Char8       as BSC
-import qualified Data.ByteString.Lazy        as BSL
-import qualified Data.ByteString.Lazy.Char8  as BSLC
+import           Control.Applicative              (many, optional, (<|>))
+import           Control.Concurrent               (threadDelay)
+import qualified Control.Concurrent               as Concurrent
+import           Control.Exception                (SomeException, finally, try)
+import           Control.Monad                    (replicateM, replicateM_,
+                                                   when)
+import           Control.Monad.IO.Class           (liftIO)
+import           Data.Binary                      (put)
+import           Data.Binary.Get                  (Get (..), getByteString,
+                                                   getInt64le,
+                                                   getLazyByteString, runGet)
+import           Data.Binary.Put                  (Put (..), putInt64le,
+                                                   putLazyByteString, runPut)
+import qualified Data.ByteString                  as BS
+import qualified Data.ByteString.Base64.Lazy      as B64
+import qualified Data.ByteString.Char8            as BSC
+import qualified Data.ByteString.Lazy             as BSL
+import qualified Data.ByteString.Lazy.Char8       as BSLC
 import           Data.Int
-import qualified Data.Map                    as Map
-import           Data.Maybe                  (fromMaybe, isJust)
-import qualified Data.Text                   as T
-import           GHC.Stats                   (getRTSStats, max_live_bytes)
-import           System.Directory            (doesDirectoryExist, removeFile)
-import           System.Environment          (getEnv)
-import qualified System.Process              as P
-import           Test.Tasty                  as T
+import qualified Data.Map                         as Map
+import           Data.Maybe                       (fromMaybe, isJust)
+import qualified Data.Text                        as T
+import qualified Data.Text.Encoding               as E
+import           GHC.Stats                        (getRTSStats, max_live_bytes)
+import           System.Directory                 (doesDirectoryExist,
+                                                   doesFileExist, doesPathExist,
+                                                   listDirectory,
+                                                   removeDirectoryRecursive,
+                                                   removeFile)
+import qualified System.Directory                 as Directory
+import           System.Environment               (getEnv)
+import           System.FilePath                  ((<.>), (</>))
+import qualified System.IO                        as IO
+import qualified System.IO.Streams.File           as IOStreamsFile
+import qualified System.IO.Streams.Process        as IOStreamsProcess
+import qualified System.IO.Temp                   as Temp
+import qualified System.Posix.Process             as Unix
+import qualified System.Process                   as P
+import qualified System.Process.ByteString.Lazy   as ProcessByteString
+import           Test.Tasty                       as T
 import           Test.Tasty.Hspec
-import qualified Test.Tasty.HUnit            as HU
+import qualified Test.Tasty.HUnit                 as HU
 import           Test.Tasty.QuickCheck
-import           Text.Read                   (readMaybe)
+import qualified Text.Printf                      as Printf
+import           Text.Read                        (readMaybe)
 
+import qualified System.Nix.Internal.Nar.Streamer as Nar
 import           System.Nix.Nar
 
 
+
+withBytesAsHandle bytes act = do
+  Temp.withSystemTempFile "nar-test-file-XXXXX" $ \tmpFile h -> do
+    IO.hClose h
+    BSL.writeFile tmpFile bytes
+    IO.withFile tmpFile IO.ReadMode act
 
 spec_narEncoding :: Spec
 spec_narEncoding = do
 
   -- For a Haskell embedded Nar, check that (decode . encode === id)
-  let roundTrip n = runGet getNar (runPut $ putNar n) `shouldBe` n
+  let
+    withTempDir act = Temp.withSystemTempDirectory "nar-test" act
+
+
+    roundTrip :: String -> Nar -> IO ()
+    roundTrip narFileName n = withTempDir $ \tmpDir -> do
+        let packageFilePath = tmpDir </> narFileName
+
+        e <- doesPathExist packageFilePath
+        e `shouldBe` False
+
+        res <- withBytesAsHandle (runPut (putNar n)) $ \h -> do
+          unpackNarIO narEffectsIO h packageFilePath
+        res `shouldBe` Right ()
+
+        e <- doesPathExist packageFilePath
+        e `shouldBe` True
+
+        res <- Temp.withSystemTempFile "nar-test-file-hnix" $ \tmpFile h -> do
+          buildNarIO narEffectsIO packageFilePath h
+          IO.hClose h
+          BSL.readFile tmpFile
+
+        res `shouldBe` (runPut $ putNar n)
 
   -- For a Haskell embedded Nar, check that encoding it gives
   -- the same bytestring as `nix-store --dump`
-  let encEqualsNixStore n b = runPut (putNar n) `shouldBe` b
+  let
+    encEqualsNixStore :: Nar -> BSL.ByteString -> IO ()
+    encEqualsNixStore n b = runPut (putNar n) `shouldBe` b
 
 
   describe "parser-roundtrip" $ do
     it "roundtrips regular" $ do
-      roundTrip (Nar sampleRegular)
+      roundTrip "sampleRegular" (Nar sampleRegular)
 
     it "roundtrips regular 2" $ do
-      roundTrip (Nar sampleRegular')
+      roundTrip "sampleRegular'" (Nar sampleRegular')
 
     it "roundtrips executable" $ do
-      roundTrip (Nar sampleExecutable)
-
-    it "roundtrips symlink" $ do
-      roundTrip (Nar sampleSymLink)
+      roundTrip "sampleExecutable" (Nar sampleExecutable)
 
     it "roundtrips directory" $ do
-      roundTrip (Nar sampleDirectory)
-
+      roundTrip "sampleDirectory" (Nar sampleDirectory)
 
   describe "matches-nix-store fixture" $ do
     it "matches regular" $ do
@@ -80,6 +129,7 @@ spec_narEncoding = do
     it "matches directory" $ do
       encEqualsNixStore (Nar sampleDirectory) sampleDirectoryBaseline
 
+
 unit_nixStoreRegular :: HU.Assertion
 unit_nixStoreRegular = filesystemNixStore "regular" (Nar sampleRegular)
 
@@ -89,20 +139,29 @@ unit_nixStoreDirectory = filesystemNixStore "directory" (Nar sampleDirectory)
 unit_nixStoreDirectory' :: HU.Assertion
 unit_nixStoreDirectory' = filesystemNixStore "directory'" (Nar sampleDirectory')
 
-unit_nixStoreBigFile :: HU.Assertion
-unit_nixStoreBigFile = getBigFileSize >>= \sz ->
-  filesystemNixStore "bigfile'" (Nar $ sampleLargeFile sz)
+test_nixStoreBigFile :: TestTree
+test_nixStoreBigFile = packThenExtract "bigfile" $ \baseDir -> do
+  mkBigFile (baseDir </> "bigfile")
 
-unit_nixStoreBigDir :: HU.Assertion
-unit_nixStoreBigDir = getBigFileSize >>= \sz ->
-  filesystemNixStore "bigfile'" (Nar $ sampleLargeDir sz)
+
+test_nixStoreBigDir :: TestTree
+test_nixStoreBigDir = packThenExtract "bigdir" $ \baseDir -> do
+  let testDir = baseDir </> "bigdir"
+  Directory.createDirectory testDir
+  mkBigFile (testDir </> "bf1")
+  mkBigFile (testDir </> "bf2")
+  -- flip mapM_ [1..100] $ \i ->
+  --   mkBigFile (testDir </> ('f': show i))
+  -- -- Directory.createDirectory (testDir </> "")
+
 
 prop_narEncodingArbitrary :: Nar -> Property
 prop_narEncodingArbitrary n = runGet getNar (runPut $ putNar n) === n
 
 unit_packSelfSrcDir :: HU.Assertion
-unit_packSelfSrcDir = do
+unit_packSelfSrcDir = Temp.withSystemTempDirectory "nar-test" $ \tmpDir -> do
   ver <- try (P.readProcess "nix-store" ["--version"] "")
+  let narFile = tmpDir </> "src.nar"
   case ver of
     Left  (e :: SomeException) -> print "No nix-store on system"
     Right _ -> do
@@ -111,27 +170,106 @@ unit_packSelfSrcDir = do
             case srcHere of
               False -> return ()
               True -> do
-                hnixNar <- runPut . put <$> localPackNar narEffectsIO dir
-                nixStoreNar <- getNixStoreDump dir
+                IO.withFile narFile IO.WriteMode $ \h ->
+                  buildNarIO narEffectsIO "src" h
+                hnixNar <- BSL.readFile narFile
+                nixStoreNar <- getNixStoreDump "src"
                 HU.assertEqual
                   "src dir serializes the same between hnix-store and nix-store"
                   hnixNar
                   nixStoreNar
       go "src"
       go "hnix-store-core/src"
+-- ||||||| merged common ancestors
+--       hnixNar <- runPut . put <$> localPackNar narEffectsIO "src"
+--       nixStoreNar <- getNixStoreDump "src"
+--       HU.assertEqual
+--         "src dir serializes the same between hnix-store and nix-store"
+--         hnixNar
+--         nixStoreNar
+-- =======
+--       let narFile = tmpDir </> "src.nar"
+--       IO.withFile narFile IO.WriteMode $ \h ->
+--         buildNarIO narEffectsIO "src" h
+--       hnixNar <- BSL.readFile narFile
+--       nixStoreNar <- getNixStoreDump "src"
+--       HU.assertEqual
+--         "src dir serializes the same between hnix-store and nix-store"
+--         hnixNar
+--         nixStoreNar
+-- >>>>>>> Use streaming to consume and produce NARs
 
-unit_streamLargeFileToNar :: HU.Assertion
-unit_streamLargeFileToNar =
-  bracket (getBigFileSize >>= makeBigFile) (const rmFiles) $ \_ -> do
-    nar <- localPackNar narEffectsIO bigFileName
-    BSL.writeFile narFileName . runPut . put $ nar
-    assertBoundedMemory
+-- passes
+test_streamLargeFileToNar :: TestTree
+test_streamLargeFileToNar = HU.testCaseSteps "streamLargeFileToNar" $ \step -> do
+
+  step "create test file"
+  mkBigFile bigFileName
+  -- BSL.writeFile narFileName =<< buildNarIO narEffectsIO bigFileName
+  --
+  step "create nar file"
+  IO.withFile narFileName IO.WriteMode $ \h ->
+    buildNarIO narEffectsIO bigFileName h
+
+  step "assert bounded memory"
+  assertBoundedMemory
+  rmFiles
     where
       bigFileName = "bigFile.bin"
       narFileName = "bigFile.nar"
-      makeBigFile = \sz -> BSL.writeFile bigFileName
-                           (BSL.take sz $ BSL.cycle "Lorem ipsum")
       rmFiles     = removeFile bigFileName >> removeFile narFileName
+
+
+--------------------------------------------------------------------------------
+test_streamManyFilesToNar :: TestTree
+test_streamManyFilesToNar = HU.testCaseSteps "streamManyFilesToNar" $ \step ->
+  Temp.withSystemTempDirectory "hnix-store" $ \baseDir -> do
+    let
+
+      packagePath = baseDir </> "package_with_many_files"
+      packagePath' = baseDir </> "package_with_many_files2"
+      narFile = packagePath <.> "nar"
+
+      rmFiles = try @SomeException @() $ do
+        e <- doesPathExist narFile
+        when e $ removeDirectoryRecursive narFile
+
+      run =  do
+        filesPrecount <- countProcessFiles
+        IO.withFile "hnar" IO.WriteMode $ \h ->
+          buildNarIO narEffectsIO narFile h
+        filesPostcount <- countProcessFiles
+        return $ filesPostcount - filesPrecount
+
+    step "create test files"
+    Directory.createDirectory packagePath
+    flip mapM_ [0..1000] $ \i -> do
+      BSL.writeFile (Printf.printf (packagePath </> "%08d") (i :: Int)) "hi\n"
+      Concurrent.threadDelay 50
+
+    filesPrecount <- countProcessFiles
+
+    step "pack nar"
+    IO.withFile narFile IO.WriteMode $ \h ->
+      buildNarIO narEffectsIO packagePath h
+
+    step "unpack nar"
+    r <- IO.withFile narFile IO.ReadMode $ \h ->
+      unpackNarIO narEffectsIO h packagePath'
+    r `shouldBe` Right ()
+
+    step "check constant file usage"
+    filesPostcount <- countProcessFiles
+    (filesPostcount - filesPrecount) `shouldSatisfy` (< 50)
+
+    -- step "check file exists"
+    -- e <- doesPathExist packagePath'
+    -- e `shouldBe` True
+
+    -- step "read the NAR back in"
+    -- filesCreated <- run `finally` rmFiles
+    -- filesCreated `shouldSatisfy` (< 50)
+
 
 
 -- ****************  Utilities  ************************
@@ -147,19 +285,33 @@ filesystemNixStore testErrorName n = do
     -- Left is not an error - testing machine simply doesn't have
     -- `nix-store` executable, so pass
     Left  (e :: SomeException) -> print "No nix-store on system"
-    Right _ ->
-      bracket (return ()) (\_ -> P.runCommand "rm -rf testfile nixstorenar.nar hnix.nar") $ \_ -> do
+    Right _ -> Temp.withSystemTempDirectory "hnix-store" $ \baseDir -> do
+
+      let
+        testFile    = baseDir </> "testfile"
+        nixNarFile  = baseDir </> "nixstorenar.nar"
+        hnixNarFile = baseDir </> "hnix.nar"
+
+        assertExists f = do
+          e <- doesPathExist f
+          e `shouldBe` True
 
       -- stream nar contents to unpacked file(s)
-      localUnpackNar narEffectsIO "testfile" n
+      withBytesAsHandle (runPut $ putNar n) $ \h ->
+        unpackNarIO narEffectsIO h testFile
+
+      assertExists testFile
 
       -- nix-store converts those files to nar
-      getNixStoreDump "testfile" >>= BSL.writeFile "nixstorenar.nar"
+      getNixStoreDump testFile >>= BSL.writeFile nixNarFile
+      assertExists nixNarFile
 
       -- hnix converts those files to nar
-      localPackNar narEffectsIO "testfile" >>= BSL.writeFile "hnix.nar" . runPut . putNar
+      IO.withFile hnixNarFile IO.WriteMode $ \h ->
+        buildNarIO narEffectsIO testFile h
+      assertExists hnixNarFile
 
-      diffResult <- P.readProcess "diff" ["nixstorenar.nar", "hnix.nar"] ""
+      diffResult <- P.readProcess "diff" [nixNarFile, hnixNarFile] ""
 
       assertBoundedMemory
       HU.assertEqual testErrorName diffResult ""
@@ -176,6 +328,60 @@ assertBoundedMemory = do
 #endif
 
 
+packThenExtract
+  :: String
+     -- ^ Test name (will also be used for file name)
+  -> (String -> IO ())
+     -- ^ Action to create some files that we will
+     --   pack into a NAR
+  -> TestTree
+packThenExtract testName setup =
+  HU.testCaseSteps testName $ \step ->
+  Temp.withSystemTempDirectory "hnix-store" $ \baseDir -> do
+    setup baseDir
+
+    let narFile = baseDir </> testName
+
+    ver <- try (P.readProcess "nix-store" ["--version"] "")
+    case ver of
+      Left (e :: SomeException) -> print "No nix-store on system"
+      Right _ -> do
+        let
+          nixNarFile  = narFile ++ ".nix"
+          hnixNarFile = narFile ++ ".hnix"
+          outputFile  = narFile ++ ".out"
+
+        step $ "Produce nix-store nar to " ++ nixNarFile
+        (_,_,_,handle) <- P.createProcess (P.shell $ "nix-store --dump " ++ narFile ++ " > " ++ nixNarFile)
+        P.waitForProcess handle
+
+        step $ "Build NAR from " ++ narFile ++ " to " ++ hnixNarFile
+        -- narBS <- buildNarIO narEffectsIO narFile
+        IO.withFile hnixNarFile IO.WriteMode $ \h ->
+          buildNarIO narEffectsIO narFile h
+
+        -- BSL.writeFile hnixNarFile narBS
+
+        step $ "Unpack NAR to " ++ outputFile
+        narHandle <- IO.withFile nixNarFile IO.ReadMode $ \h ->
+          unpackNarIO narEffectsIO h outputFile
+
+        return ()
+
+
+
+
+
+
+-- | Count file descriptors owned by the current process
+countProcessFiles :: IO Int
+countProcessFiles = do
+  pid <- Unix.getProcessID
+  let fdDir = "/proc/" ++ show pid ++ "/fd"
+  fds  <- P.readProcess "ls" [fdDir] ""
+  return $ length $ words fds
+
+
 -- | Read the binary output of `nix-store --dump` for a filepath
 getNixStoreDump :: String -> IO BSL.ByteString
 getNixStoreDump fp = do
@@ -189,17 +395,17 @@ getNixStoreDump fp = do
 
 -- | Simple regular text file with contents 'hi'
 sampleRegular :: FileSystemObject
-sampleRegular = Regular NonExecutable 3 "hi\n"
+sampleRegular = Regular Nar.NonExecutable 3 "hi\n"
 
 -- | Simple text file with some c code
 sampleRegular' :: FileSystemObject
-sampleRegular' = Regular NonExecutable (BSL.length str) str
+sampleRegular' = Regular Nar.NonExecutable (BSL.length str) str
   where str =
           "#include <stdio.h>\n\nint main(int argc, char *argv[]){ exit 0; }\n"
 
 -- | Executable file
 sampleExecutable :: FileSystemObject
-sampleExecutable = Regular Executable (BSL.length str) str
+sampleExecutable = Regular Nar.Executable (BSL.length str) str
   where str = "#!/bin/bash\n\ngcc -o hello hello.c\n"
 
 -- | A simple symlink
@@ -220,24 +426,24 @@ sampleDirectory' :: FileSystemObject
 sampleDirectory' = Directory $ Map.fromList [
 
     (FilePathPart "foo", Directory $ Map.fromList [
-        (FilePathPart "foo.txt", Regular NonExecutable 8 "foo text")
+        (FilePathPart "foo.txt", Regular Nar.NonExecutable 8 "foo text")
       , (FilePathPart "tobar"  , SymLink "../bar/bar.txt")
       ])
 
   , (FilePathPart "bar", Directory $ Map.fromList [
-        (FilePathPart "bar.txt", Regular NonExecutable 8 "bar text")
+        (FilePathPart "bar.txt", Regular Nar.NonExecutable 8 "bar text")
       , (FilePathPart "tofoo"  , SymLink "../foo/foo.txt")
       ])
   ]
 
 sampleLargeFile :: Int64 -> FileSystemObject
 sampleLargeFile fSize =
-  Regular NonExecutable fSize (BSL.take fSize (BSL.cycle "Lorem ipsum "))
+  Regular Nar.NonExecutable fSize (BSL.take fSize (BSL.cycle "Lorem ipsum "))
 
 
 sampleLargeFile' :: Int64 -> FileSystemObject
 sampleLargeFile' fSize =
-  Regular NonExecutable fSize (BSL.take fSize (BSL.cycle "Lorems ipsums "))
+  Regular Nar.NonExecutable fSize (BSL.take fSize (BSL.cycle "Lorems ipsums "))
 
 sampleLargeDir :: Int64 -> FileSystemObject
 sampleLargeDir fSize = Directory $ Map.fromList $ [
@@ -245,15 +451,24 @@ sampleLargeDir fSize = Directory $ Map.fromList $ [
   , (FilePathPart "bf2", sampleLargeFile' fSize)
   ]
   ++ [ (FilePathPart (BSC.pack $ 'f' : show n),
-        Regular NonExecutable 10000 (BSL.take 10000 (BSL.cycle "hi ")))
+        Regular Nar.NonExecutable 10000 (BSL.take 10000 (BSL.cycle "hi ")))
      | n <- [1..100]]
   ++ [
   (FilePathPart "d", Directory $ Map.fromList
       [ (FilePathPart (BSC.pack $ "df" ++ show n)
-        , Regular NonExecutable 10000 (BSL.take 10000 (BSL.cycle "subhi ")))
+        , Regular Nar.NonExecutable 10000 (BSL.take 10000 (BSL.cycle "subhi ")))
       | n <- [1..100]]
      )
   ]
+
+--------------------------------------------------------------------------------
+sampleDirWithManyFiles :: Int -> FileSystemObject
+sampleDirWithManyFiles nFiles =
+  Directory $ Map.fromList $ mkFile <$> take nFiles [0..]
+  where
+    mkFile :: Int -> (FilePathPart, FileSystemObject)
+    mkFile i = (FilePathPart (BSC.pack (Printf.printf "%08d" i)),
+                sampleRegular)
 
 -- * For each sample above, feed it into `nix-store --dump`,
 -- and base64 encode the resulting NAR binary. This lets us
@@ -322,7 +537,7 @@ sampleDirectoryBaseline = B64.decodeLenient $ BSL.concat
 
 -- | Control testcase sizes (bytes) by env variable
 getBigFileSize :: IO Int64
-getBigFileSize = fromMaybe 1000000 . readMaybe <$> (getEnv "HNIX_BIG_FILE_SIZE" <|> pure "")
+getBigFileSize = fromMaybe 5000000 . readMaybe <$> (getEnv "HNIX_BIG_FILE_SIZE" <|> pure "")
 
 
 -- | Add a link to a FileSystemObject. This is useful
@@ -334,6 +549,36 @@ mkLink ::
   -> FileSystemObject -- ^ FileSystemObject to add link to
   -> FileSystemObject
 mkLink = undefined -- TODO
+
+mkBigFile :: FilePath -> IO ()
+mkBigFile path = do
+  fsize <- getBigFileSize
+  BSL.writeFile path (BSL.take fsize $ BSL.cycle "Lorem ipsum")
+
+
+-- | Construct FilePathPart from Text by checking that there
+--   are no '/' or '\\NUL' characters
+filePathPart :: BSC.ByteString -> Maybe FilePathPart
+filePathPart p = case BSC.any (`elem` ['/', '\NUL']) p of
+  False -> Just $ FilePathPart p
+  True  -> Nothing
+
+data Nar = Nar { narFile :: FileSystemObject }
+    deriving (Eq, Show)
+
+-- | A FileSystemObject (FSO) is an anonymous entity that can be NAR archived
+data FileSystemObject =
+    Regular Nar.IsExecutable Int64 BSL.ByteString
+    -- ^ Reguar file, with its executable state, size (bytes) and contents
+  | Directory (Map.Map FilePathPart FileSystemObject)
+    -- ^ Directory with mapping of filenames to sub-FSOs
+  | SymLink T.Text
+    -- ^ Symbolic link target
+  deriving (Eq, Show)
+
+-- | A valid filename or directory name
+newtype FilePathPart = FilePathPart { unFilePathPart :: BSC.ByteString }
+  deriving (Eq, Ord, Show)
 
 
 instance Arbitrary Nar where
@@ -353,7 +598,7 @@ instance Arbitrary FileSystemObject where
         arbFile = do
           Positive fSize <- arbitrary
           Regular
-            <$> elements [NonExecutable, Executable]
+            <$> elements [Nar.NonExecutable, Nar.Executable]
             <*> pure (fromIntegral fSize)
             <*> oneof  [
                   fmap (BSL.take fSize . BSL.cycle . BSL.pack . getNonEmpty) arbitrary , -- Binary File
@@ -370,3 +615,120 @@ instance Arbitrary FileSystemObject where
           nm <- arbName
           f <- oneof [arbFile, arbDirectory (n `div` 2)]
           return (nm,f)
+
+------------------------------------------------------------------------------
+-- | Serialize Nar to lazy ByteString
+putNar :: Nar -> Put
+putNar (Nar file) = header <> parens (putFile file)
+    where
+
+        header   = str "nix-archive-1"
+
+        putFile (Regular isExec fSize contents) =
+               strs ["type", "regular"]
+            >> (if isExec == Nar.Executable
+               then strs ["executable", ""]
+               else return ())
+            >> putContents fSize contents
+
+        putFile (SymLink target) =
+               strs ["type", "symlink", "target", BSL.fromStrict $ E.encodeUtf8 target]
+
+        -- toList sorts the entries by FilePathPart before serializing
+        putFile (Directory entries) =
+               strs ["type", "directory"]
+            <> mapM_ putEntry (Map.toList entries)
+
+        putEntry (FilePathPart name, fso) = do
+            str "entry"
+            parens $ do
+              str "name"
+              str (BSL.fromStrict name)
+              str "node"
+              parens (putFile fso)
+
+        parens m = str "(" >> m >> str ")"
+
+        -- Do not use this for file contents
+        str :: BSL.ByteString -> Put
+        str t = let len = BSL.length t
+            in int len <> pad len t
+
+        putContents :: Int64 -> BSL.ByteString -> Put
+        putContents fSize bs = str "contents" <> int fSize <> (pad fSize bs)
+
+        int :: Integral a => a -> Put
+        int n = putInt64le $ fromIntegral n
+
+        pad :: Int64 -> BSL.ByteString -> Put
+        pad strSize bs = do
+          putLazyByteString bs
+          putLazyByteString (BSL.replicate (padLen strSize) 0)
+
+        strs :: [BSL.ByteString] -> Put
+        strs = mapM_ str
+
+-- | Distance to the next multiple of 8
+padLen :: Int64 -> Int64
+padLen n = (8 - n) `mod` 8
+
+
+------------------------------------------------------------------------------
+-- | Deserialize a Nar from lazy ByteString
+getNar :: Get Nar
+getNar = fmap Nar $ header >> parens getFile
+    where
+
+      header   = assertStr "nix-archive-1"
+
+      -- Fetch a FileSystemObject
+      getFile = getRegularFile <|> getDirectory <|> getSymLink
+
+      getRegularFile = do
+          assertStr "type"
+          assertStr "regular"
+          mExecutable <- optional $ Nar.Executable <$ (assertStr "executable"
+                                                       >> assertStr "")
+          assertStr "contents"
+          (fSize, contents) <- sizedStr
+          return $ Regular (fromMaybe Nar.NonExecutable mExecutable) fSize contents
+
+      getDirectory = do
+          assertStr "type"
+          assertStr "directory"
+          fs <- many getEntry
+          return $ Directory (Map.fromList fs)
+
+      getSymLink = do
+          assertStr "type"
+          assertStr "symlink"
+          assertStr "target"
+          fmap (SymLink . E.decodeUtf8 . BSL.toStrict) str
+
+      getEntry = do
+          assertStr "entry"
+          parens $ do
+              assertStr "name"
+              name <- E.decodeUtf8 . BSL.toStrict <$> str
+              assertStr "node"
+              file <- parens getFile
+              maybe (fail $ "Bad FilePathPart: " ++ show name)
+                    (return . (,file))
+                    (filePathPart $ E.encodeUtf8 name)
+
+      -- Fetch a length-prefixed, null-padded string
+      str = fmap snd sizedStr
+
+      sizedStr = do
+          n <- getInt64le
+          s <- getLazyByteString n
+          p <- getByteString . fromIntegral $ padLen n
+          return (n,s)
+
+      parens m = assertStr "(" *> m <* assertStr ")"
+
+      assertStr s = do
+          s' <- str
+          if s == s'
+              then return s
+              else fail "No"
