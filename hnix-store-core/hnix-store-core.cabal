@@ -21,6 +21,9 @@ library
                      , System.Nix.Hash
                      , System.Nix.Internal.Base32
                      , System.Nix.Internal.Hash
+                     , System.Nix.Internal.Nar.Parser
+                     , System.Nix.Internal.Nar.Streamer
+                     , System.Nix.Internal.Nar.Effects
                      , System.Nix.Internal.Signature
                      , System.Nix.Internal.StorePath
                      , System.Nix.Nar
@@ -30,10 +33,12 @@ library
                      , System.Nix.StorePathMetadata
                      , System.Nix.Util
   build-depends:       base >=4.10 && <5
+                     , algebraic-graphs
                      , base16-bytestring
                      , bytestring
                      , binary
                      , bytestring
+                     , cereal
                      , containers
                      , cryptohash-md5
                      , cryptohash-sha1
@@ -78,7 +83,10 @@ test-suite format-tests
      , bytestring
      , containers
      , directory
+     , filepath
+     , io-streams
      , process
+     , process-extras
      , tasty
      , tasty-discover
      , tasty-hspec
@@ -86,4 +94,5 @@ test-suite format-tests
      , tasty-quickcheck
      , temporary
      , text
+     , unix
    default-language: Haskell2010
