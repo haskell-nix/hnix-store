@@ -1,5 +1,5 @@
 name:                hnix-store-core
-version:             0.2.0.0
+version:             0.3.0.0
 synopsis:            Core effects for interacting with the Nix store.
 description:
         This package contains types and functions needed to describe
