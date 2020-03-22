@@ -99,9 +99,19 @@ hashLazy bsl =
 encodeBase32 :: Digest a -> T.Text
 encodeBase32 (Digest bs) = Base32.encode bs
 
+-- | Decode a 'Digest' in the special Nix base-32 encoding.
+decodeBase32 :: T.Text -> Either String (Digest a)
+decodeBase32 t = Digest <$> Base32.decode t
+
 -- | Encode a 'Digest' in hex.
 encodeBase16 :: Digest a -> T.Text
 encodeBase16 (Digest bs) = T.decodeUtf8 (Base16.encode bs)
+
+-- | Decode a 'Digest' in hex
+decodeBase16 :: T.Text -> Either String (Digest a)
+decodeBase16 t = case Base16.decode (T.encodeUtf8 t) of
+  (x, "") -> Right $ Digest x
+  _       -> Left $ "Unable to decode base16 string " ++ T.unpack t
 
 -- | Uses "Crypto.Hash.MD5" from cryptohash-md5.
 instance ValidAlgo 'MD5 where

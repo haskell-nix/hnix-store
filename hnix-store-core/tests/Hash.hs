@@ -5,26 +5,20 @@
 
 module Hash where
 
-import           Control.Monad.IO.Class      (liftIO)
-import           Control.Exception           (bracket)
-import qualified Data.ByteString             as BS
+import           Control.Monad               (forM_)
+import qualified Data.ByteString.Char8       as BSC
+import qualified Data.ByteString.Base16      as B16
 import qualified Data.ByteString.Base64.Lazy as B64
 import qualified Data.ByteString.Lazy        as BSL
-import           Data.Monoid                 ((<>))
-import qualified Data.Text                   as T
-import           System.Directory            (removeFile)
-import           System.IO.Temp              (withSystemTempFile, writeSystemTempFile)
-import qualified System.IO                   as IO -- (hGetContents, hPutStr, openFile)
-import qualified System.Process              as P
-import           Test.Tasty                  as T
-import           Test.Tasty.Hspec
-import qualified Test.Tasty.HUnit            as HU
-import           Test.Tasty.QuickCheck
-import           Text.Read                   (readMaybe)
 
+import           Test.Tasty.Hspec
+import           Test.Tasty.QuickCheck
+
+import           System.Nix.Base32
 import           System.Nix.Hash
+import           System.Nix.Internal.Hash
 import           System.Nix.StorePath
-import           NarFormat -- TODO: Move the fixtures into a common module
+import           Arbitrary
 
 spec_hash :: Spec
 spec_hash = do
@@ -34,7 +28,9 @@ spec_hash = do
     it "produces (base32 . sha256) of \"nix-output:foo\" the same as Nix does at the moment for placeholder \"foo\"" $
       shouldBe (encodeBase32 (hash @SHA256 "nix-output:foo"))
                "1x0ymrsy7yr7i9wdsqy9khmzc1yy7nvxw6rdp72yzn50285s67j5"
-
+    it "produces (base16 . md5) of \"Hello World\" the same as the thesis" $
+      shouldBe (encodeBase16 (hash @MD5 "Hello World"))
+               "b10a8db164e0754105b7a99be72e3fe5"
     it "produces (base32 . sha1) of \"Hello World\" the same as the thesis" $
       shouldBe (encodeBase32 (hash @SHA1 "Hello World"))
                "s23c9fs0v32pf6bhmcph5rbqsyl5ak8a"
@@ -47,3 +43,52 @@ spec_hash = do
             <> "c0d7b98883f9ee3:/nix/store:myfile"
       shouldBe (encodeBase32 @StorePathHashAlgo (hash exampleStr))
         "xv2iccirbrvklck36f1g7vldn5v58vck"
+
+-- | Test that Nix-like base32 encoding roundtrips
+prop_nixBase32Roundtrip = forAllShrink nonEmptyString genericShrink $
+  \x -> Right (BSC.pack x) === (decode . encode . BSC.pack $ x)
+
+-- | API variants
+prop_nixBase16Roundtrip =
+  \(x :: Digest StorePathHashAlgo) -> Right x === (decodeBase16 . encodeBase16 $ x)
+
+-- | Hash encoding conversion ground-truth.
+-- Similiar to nix/tests/hash.sh
+spec_nixhash :: Spec
+spec_nixhash = do
+
+  describe "hashing parity with nix-nash" $ do
+
+    let
+      samples = [
+          ( "800d59cfcd3c05e900cb4e214be48f6b886a08df"
+          , "vw46m23bizj4n8afrc0fj19wrp7mj3c0"
+          , "gA1Zz808BekAy04hS+SPa4hqCN8="
+          )
+        , ( "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+          , "1b8m03r63zqhnjf7l5wnldhh7c134ap5vpj0850ymkq1iyzicy5s"
+          , "ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0="
+          )
+        , ( "204a8fc6dda82f0a0ced7beb8e08a41657c16ef468b228a8279be331a703c33596fd15c13b1b07f9aa1d3bea57789ca031ad85c7a71dd70354ec631238ca3445"
+          , "12k9jiq29iyqm03swfsgiw5mlqs173qazm3n7daz43infy12pyrcdf30fkk3qwv4yl2ick8yipc2mqnlh48xsvvxl60lbx8vp38yji0"
+          , "IEqPxt2oLwoM7XvrjgikFlfBbvRosiioJ5vjMacDwzWW/RXBOxsH+aodO+pXeJygMa2Fx6cd1wNU7GMSOMo0RQ=="
+          )
+        ]
+
+    it "b16 encoded . b32 decoded should equal original b16" $
+      forM_ samples $ \(b16, b32, b64) -> shouldBe (B16.encode <$> decode b32) (Right b16)
+
+    it "b64 encoded . b32 decoded should equal original b64" $
+      forM_ samples $ \(b16, b32, b64) -> shouldBe (B64.encode . BSL.fromStrict <$> decode b32) (Right b64)
+
+    it "b32 encoded . b64 decoded should equal original b32" $
+      forM_ samples $ \(b16, b32, b64) -> shouldBe (encode . BSL.toStrict <$> B64.decode b64 ) (Right b32)
+
+    it "b16 encoded . b64 decoded should equal original b16" $
+      forM_ samples $ \(b16, b32, b64) -> shouldBe (B16.encode . BSL.toStrict <$> B64.decode b64 ) (Right b16)
+
+    it "b32 encoded . b16 decoded should equal original b32" $
+      forM_ samples $ \(b16, b32, b64) -> shouldBe (encode $ fst $ B16.decode b16 ) b32
+
+    it "b64 encoded . b16 decoded should equal original b64" $
+      forM_ samples $ \(b16, b32, b64) -> shouldBe (B64.encode $ BSL.fromStrict $ fst $ B16.decode b16 ) b64

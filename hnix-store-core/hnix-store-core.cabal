@@ -19,6 +19,7 @@ cabal-version:       >=1.10
 library
   exposed-modules:     System.Nix.Base32
                      , System.Nix.Hash
+                     , System.Nix.Internal.Base32
                      , System.Nix.Internal.Hash
                      , System.Nix.Internal.Signature
                      , System.Nix.Internal.StorePath
@@ -63,6 +64,7 @@ test-suite format-tests
    type: exitcode-stdio-1.0
    main-is: Driver.hs
    other-modules:
+       Arbitrary
        NarFormat
        Hash
    hs-source-dirs:
@@ -70,6 +72,7 @@ test-suite format-tests
    build-depends:
        hnix-store-core
      , base
+     , base16-bytestring
      , base64-bytestring
      , binary
      , bytestring

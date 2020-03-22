@@ -10,7 +10,7 @@
 in {
   haskellPackages =
     pkgs.haskellPackages.override overrideHaskellPackages;
-  haskell844Packages =
-    pkgs.haskell.packages.ghc844.override overrideHaskellPackages;
+  haskell865Packages =
+    pkgs.haskell.packages.ghc865.override overrideHaskellPackages;
   inherit pkgs;
 }
