@@ -31,6 +31,8 @@ data NarEffects (m :: * -> *) = NarEffects {
   , narIsSymLink  :: FilePath -> m Bool
   , narFileSize   :: FilePath -> m Int64
   , narReadLink   :: FilePath -> m FilePath
+  , narDeleteDir  :: FilePath -> m ()
+  , narDeleteFile :: FilePath -> m ()
 }
 
 
@@ -51,6 +53,8 @@ narEffectsIO = NarEffects {
   , narIsSymLink  = IO.liftIO . Directory.pathIsSymbolicLink
   , narFileSize   = \n -> fmap (fromIntegral . fileSize) $ IO.liftIO (getFileStatus n)
   , narReadLink   = IO.liftIO . readSymbolicLink
+  , narDeleteDir  = IO.liftIO . Directory.removeDirectoryRecursive
+  , narDeleteFile = IO.liftIO . Directory.removeFile
   }
 
 

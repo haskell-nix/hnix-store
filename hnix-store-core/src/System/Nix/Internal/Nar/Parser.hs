@@ -1,5 +1,6 @@
 -- | A streaming parser for the NAR format
 
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
@@ -8,30 +9,33 @@
 
 module System.Nix.Internal.Nar.Parser where
 
-import qualified Algebra.Graph          as Graph
-import qualified Algebra.Graph.ToGraph  as Graph
-import qualified Control.Concurrent     as Concurrent
-import           Control.Monad          (forM, when)
-import qualified Control.Monad.Except   as Except
-import qualified Control.Monad.Fail     as Fail
-import qualified Control.Monad.IO.Class as IO
-import qualified Control.Monad.Reader   as Reader
-import qualified Control.Monad.State    as State
-import qualified Control.Monad.Trans    as Trans
-import qualified Data.Binary.Put        as B
-import qualified Data.ByteString        as BS
-import qualified Data.ByteString.Lazy   as BSL
-import           Data.Int               (Int64)
-import qualified Data.IORef             as IORef
-import qualified Data.List              as List
-import qualified Data.Map               as Map
-import           Data.Maybe             (catMaybes)
-import qualified Data.Serialize         as S
-import qualified Data.Text              as T
-import qualified Data.Text.Encoding     as E
-import qualified System.Directory       as Directory
-import           System.FilePath        as FilePath
-import qualified System.IO              as IO
+import qualified Algebra.Graph                   as Graph
+import qualified Algebra.Graph.ToGraph           as Graph
+import qualified Control.Concurrent              as Concurrent
+import qualified Control.Exception.Lifted        as ExceptionLifted
+import           Control.Monad                   (forM, when)
+import qualified Control.Monad.Except            as Except
+import qualified Control.Monad.Fail              as Fail
+import qualified Control.Monad.IO.Class          as IO
+import qualified Control.Monad.Reader            as Reader
+import qualified Control.Monad.State             as State
+import qualified Control.Monad.Trans             as Trans
+import qualified Control.Monad.Trans.Control     as Base
+import qualified Data.Binary.Put                 as B
+import qualified Data.ByteString                 as BS
+import qualified Data.ByteString.Lazy            as BSL
+import qualified Data.Either                     as Either
+import           Data.Int                        (Int64)
+import qualified Data.IORef                      as IORef
+import qualified Data.List                       as List
+import qualified Data.Map                        as Map
+import           Data.Maybe                      (catMaybes)
+import qualified Data.Serialize                  as S
+import qualified Data.Text                       as T
+import qualified Data.Text.Encoding              as E
+import qualified System.Directory                as Directory
+import           System.FilePath                 as FilePath
+import qualified System.IO                       as IO
 
 import qualified System.Nix.Internal.Nar.Effects as Nar
 
@@ -51,12 +55,11 @@ newtype NarParser m a = NarParser
            , Reader.MonadReader (Nar.NarEffects m)
            )
 
-
 -- | Run a @NarParser@ over a byte stream
 --   This is suitable for testing the top-level NAR parser, or any of the
 --   smaller utilities parsers, if you have bytes appropriate for them
 runParser
-  :: IO.MonadIO m
+  :: forall m a.(IO.MonadIO m, Base.MonadBaseControl IO m)
   => Nar.NarEffects m
      -- ^ Provide the effects set, usually @narEffectsIO@
   -> NarParser m a
@@ -68,7 +71,12 @@ runParser
      -- ^ The root file system object to be created by the NAR
   -> m (Either String a)
 runParser effs (NarParser action) h target = do
-  Reader.runReaderT (Except.runExceptT $ State.evalStateT action state0) effs
+  unpackResult <- Reader.runReaderT
+                  (Except.runExceptT (State.evalStateT action state0)) effs
+                  `ExceptionLifted.catch` exceptionHandler
+  when (Either.isLeft unpackResult) cleanup
+  return unpackResult
+
   where
     state0 :: ParserState
     state0 = ParserState
@@ -77,6 +85,17 @@ runParser effs (NarParser action) h target = do
       , directoryStack = [target]
       , links          = []
       }
+    exceptionHandler :: ExceptionLifted.SomeException -> m (Either String a)
+    exceptionHandler e = do
+      return (Left $ "Exception while unpacking NAR file: " ++ show e)
+
+    cleanup :: m ()
+    cleanup = do
+      isDir <- Nar.narIsDir effs target
+      if isDir
+        then Nar.narDeleteDir  effs target
+        else Nar.narDeleteFile effs target
+
 
 instance Trans.MonadTrans NarParser where
   lift act = NarParser $ (Trans.lift . Trans.lift . Trans.lift) act
@@ -157,7 +176,10 @@ parseFile :: forall m.(IO.MonadIO m, Fail.MonadFail m) => NarParser m ()
 parseFile = do
 
   s <- parseStr
-  when (s `notElem` ["executable", "contents"]) (Fail.fail "todo")
+  when (s `notElem` ["executable", "contents"])
+       (Fail.fail $ "Parser found " ++ show s ++
+                    " when expecting element from " ++
+                    show ["executable", "contents"])
   when (s == "executable") $ do
     expectStr ""
     expectStr "contents"
