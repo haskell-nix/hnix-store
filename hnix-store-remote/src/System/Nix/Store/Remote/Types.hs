@@ -1,20 +1,32 @@
 module System.Nix.Store.Remote.Types (
     MonadStore
+  , NixRemoteError(..)
+  , ActivityID
+  , ActivityParentID
+  , ActivityType
+  , Verbosity
+  , ResultType
   , Logger(..)
   , Field(..)
-  , getLog
   , flushLog
-  , gotError
-  , getError) where
+  ) where
 
+import Control.Exception
 
 import qualified Data.ByteString.Lazy      as LBS
+import           Data.DList
 import           Network.Socket            (Socket)
-import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.State
 
-type MonadStore a = ExceptT String (StateT [Logger] (ReaderT Socket IO)) a
+type MonadStore a = StateT (DList Logger) (ReaderT Socket IO) a
+
+-- | Exceptions that may be thrown while interacting with the nix-daemon.
+data NixRemoteError = ParseError String
+                    | ProtocolError Int String
+                    deriving (Show)
+
+instance Exception NixRemoteError
 
 type ActivityID = Int
 type ActivityParentID = Int
@@ -36,18 +48,5 @@ data Logger =
   | Result        ActivityID ResultType [Field]
   deriving (Eq, Ord, Show)
 
-isError :: Logger -> Bool
-isError (Error _ _) = True
-isError _           = False
-
-gotError :: MonadStore Bool
-gotError = any isError <$> get
-
-getError :: MonadStore [Logger]
-getError = filter isError <$> get
-
-getLog :: MonadStore [Logger]
-getLog = get
-
 flushLog :: MonadStore ()
-flushLog = put []
+flushLog = put mempty

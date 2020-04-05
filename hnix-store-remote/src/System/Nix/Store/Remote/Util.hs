@@ -2,7 +2,6 @@ module System.Nix.Store.Remote.Util where
 
 import           Control.Monad.Reader
 
-import           Data.Maybe
 import           Data.Binary.Get
 import           Data.Binary.Put
 import           Data.Text                 (Text)
@@ -10,12 +9,10 @@ import qualified Data.Text                 as T
 import qualified Data.ByteString           as B
 import qualified Data.ByteString.Char8     as BSC
 import qualified Data.ByteString.Lazy      as LBS
-import qualified Data.HashSet              as HashSet
 
 import           Network.Socket.ByteString (recv, sendAll)
 
 import           System.Nix.Store.Remote.Types
-import           System.Nix.Hash
 import           System.Nix.Util
 
 

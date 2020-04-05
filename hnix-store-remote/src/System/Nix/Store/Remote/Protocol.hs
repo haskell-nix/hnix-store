@@ -4,6 +4,7 @@ module System.Nix.Store.Remote.Protocol (
   , simpleOpArgs
   , runOp
   , runOpArgs
+  , runOpArgsDebug
   , runStore) where
 
 import           Control.Exception         (bracket)
@@ -13,11 +14,14 @@ import           Control.Monad.State
 
 import           Data.Binary.Get
 import           Data.Binary.Put
-import qualified Data.ByteString.Char8     as BSC
 import qualified Data.ByteString.Lazy      as LBS
 
-import           Network.Socket            hiding (send, sendTo, recv, recvFrom)
+import           Data.DList                (toList)
+
+import           Network.Socket
 import           Network.Socket.ByteString (recv)
+
+import           System.IO
 
 import           System.Nix.Store.Remote.Logger
 import           System.Nix.Store.Remote.Types
@@ -114,13 +118,7 @@ simpleOp op = do
 simpleOpArgs :: WorkerOp -> Put -> MonadStore Bool
 simpleOpArgs op args = do
   runOpArgs op args
-  err <- gotError
-  case err of
-    True -> do
-      Error _num msg <- head <$> getError
-      throwError $ BSC.unpack $ LBS.toStrict msg
-    False -> do
-      sockGetBool
+  sockGetBool
 
 runOp :: WorkerOp -> MonadStore ()
 runOp op = runOpArgs op $ return ()
@@ -128,24 +126,20 @@ runOp op = runOpArgs op $ return ()
 runOpArgs :: WorkerOp -> Put -> MonadStore ()
 runOpArgs op args = do
 
-  -- Temporary hack for printing the messages destined for nix-daemon socket
-  when False $
-    liftIO $ LBS.writeFile "mytestfile2" $ runPut $ do
-      putInt $ opNum op
-      args
-
   sockPut $ do
     putInt $ opNum op
     args
 
-  out <- processOutput
-  modify (++out)
-  err <- gotError
-  when err $ do
-    Error _num msg <- head <$> getError
-    throwError $ BSC.unpack $ LBS.toStrict msg
+  processOutput
+  -- modify (++out)
 
-runStore :: MonadStore a -> IO (Either String a, [Logger])
+-- | Writes all sent messages to stderr.
+runOpArgsDebug :: WorkerOp -> Put -> MonadStore ()
+runOpArgsDebug op args = do
+    liftIO $ LBS.hPutStr stderr (runPut (putInt (opNum op) *> args))
+    runOpArgs op args
+
+runStore :: MonadStore a -> IO (a, [Logger])
 runStore code = do
   bracket (open sockPath) close run
   where
@@ -157,6 +151,7 @@ runStore code = do
       sockPut $ putInt workerMagic1
       soc <- ask
       vermagic <- liftIO $ recv soc 16
+      -- todo: better checks here
       let (magic2, daemonProtoVersion) = flip runGet (LBS.fromStrict vermagic) $ (,) <$> getInt <*> getInt
       unless (magic2 == workerMagic2) $ error "Worker magic 2 mismatch"
 
@@ -166,5 +161,8 @@ runStore code = do
 
       processOutput
 
-    run sock =
-      flip runReaderT sock $ flip runStateT [] $ runExceptT (greet >> code)
+    run sock = do
+      (a, dl) <- flip runReaderT sock $
+                 flip runStateT mempty $
+                 (greet >> code)
+      pure (a, toList dl)

@@ -4,8 +4,15 @@ module System.Nix.Store.Remote.Logger (
   , processOutput)
   where
 
+import           Control.Exception
+
 import           Control.Monad.Reader      (ask, liftIO)
+import           Control.Monad.State       (modify)
 import           Data.Binary.Get
+
+import qualified Data.ByteString.Lazy.Char8 as LBS
+
+import           Data.DList                (snoc)
 
 import           Network.Socket.ByteString (recv)
 
@@ -26,25 +33,24 @@ controlParser = do
     0x52534c54 -> Result        <$> getInt <*> getInt <*> getFields
     x          -> fail           $ "Invalid control message received:" ++ show x
 
-processOutput :: MonadStore [Logger]
+processOutput :: MonadStore ()
 processOutput = go decoder
   where decoder = runGetIncremental controlParser
-        go :: Decoder Logger -> MonadStore [Logger]
+        go :: Decoder Logger -> MonadStore ()
         go (Done _leftover _consumed ctrl) = do
           case ctrl of
-            e@(Error _ _) -> return [e]
-            Last -> return [Last]
+            Error i e -> liftIO (throwIO (ProtocolError i (LBS.unpack e)))
+            Last -> modify (`snoc` Last)
             -- we should probably handle Read here as well
             x -> do
-              next <- go decoder
-              return $ x:next
+              modify (`snoc` x)
+              go decoder
         go (Partial k) = do
           soc <- ask
           chunk <- liftIO (Just <$> recv soc 8)
           go (k chunk)
-
-        go (Fail _leftover _consumed msg) = do
-          error msg
+        go (Fail _leftover _consumed msg) =
+          liftIO (throwIO (ParseError msg))
 
 getFields :: Get [Field]
 getFields = do

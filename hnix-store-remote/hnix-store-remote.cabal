@@ -26,6 +26,7 @@ library
                      , binary
                      , bytestring
                      , containers
+                     , dlist
                      , text
                      , unix
                      , network
