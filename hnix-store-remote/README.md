@@ -11,17 +11,10 @@ via `nix-daemon`.
 ## Example
 
 ```haskell
-
-import Control.Monad.IO.Class (liftIO)
-import Data.HashSet as HS
 import System.Nix.Store.Remote
 
-main = do
-  runStore $ do
+main =
+  runStore_ $ do
     syncWithGC
-    roots <- findRoots
-    liftIO $ print roots
-
-    res <- addTextToStore "hnix-store" "test" (HS.fromList []) False
-    liftIO $ print res
+    optimiseStore
 ```

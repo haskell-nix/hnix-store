@@ -30,6 +30,7 @@ library
                      , unix
                      , network
                      , mtl
+                     , pipes
                      , unordered-containers
 --                   , pretty-simple
 --                   , base16-bytestring
