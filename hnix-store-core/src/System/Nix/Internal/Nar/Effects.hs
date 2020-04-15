@@ -1,22 +1,28 @@
 -- |
 
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE RankNTypes     #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE KindSignatures      #-}
+{-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module System.Nix.Internal.Nar.Effects
   ( NarEffects(..)
   , narEffectsIO
   ) where
 
-import qualified Control.Monad.IO.Class as IO
-import qualified Data.ByteString        as BS
-import qualified Data.ByteString.Lazy   as BSL
-import           Data.Int               (Int64)
-import qualified System.Directory       as Directory
-import qualified System.IO              as IO
-import           System.Posix.Files     (createSymbolicLink, fileSize,
-                                         getFileStatus, isDirectory,
-                                         readSymbolicLink)
+import qualified Control.Exception.Lifted    as Lifted
+import qualified Control.Monad.Fail          as MonadFail
+import qualified Control.Monad.IO.Class      as IO
+import           Control.Monad.Trans.Control (MonadBaseControl)
+import qualified Data.ByteString             as BS
+import qualified Data.ByteString.Lazy        as BSL
+import           Data.Int                    (Int64)
+import qualified System.Directory            as Directory
+import qualified System.Directory            as Directory
+import qualified System.IO                   as IO
+import           System.Posix.Files          (createSymbolicLink, fileSize,
+                                              getFileStatus, isDirectory,
+                                              readSymbolicLink)
 
 data NarEffects (m :: * -> *) = NarEffects {
     narReadFile   :: FilePath -> m BSL.ByteString
@@ -39,11 +45,15 @@ data NarEffects (m :: * -> *) = NarEffects {
 -- | A particular @NarEffects@ that uses regular POSIX for file manipulation
 --   You would replace this with your own @NarEffects@ if you wanted a
 --   different backend
-narEffectsIO :: IO.MonadIO m => NarEffects m
+narEffectsIO
+  :: (IO.MonadIO m,
+      MonadFail.MonadFail m,
+      MonadBaseControl IO m
+     ) => NarEffects m
 narEffectsIO = NarEffects {
     narReadFile   = IO.liftIO . BSL.readFile
   , narWriteFile  = \a b -> IO.liftIO $ BSL.writeFile a b
-  , narStreamFile = streamStringOutIO'
+  , narStreamFile = streamStringOutIO
   , narListDir    = IO.liftIO . Directory.listDirectory
   , narCreateDir  = IO.liftIO . Directory.createDirectory
   , narCreateLink = \f t -> IO.liftIO $ createSymbolicLink f t
@@ -59,12 +69,15 @@ narEffectsIO = NarEffects {
 
 
 -- | This default implementation for @narStreamFile@ requires @IO.MonadIO@
-streamStringOutIO'
-  :: forall m.IO.MonadIO m
-  => FilePath
+streamStringOutIO
+  :: forall m
+  .(IO.MonadIO m,
+    MonadFail.MonadFail m,
+    MonadBaseControl IO m
+  ) => FilePath
   -> m (Maybe BS.ByteString)
   -> m ()
-streamStringOutIO' f getChunk = do
+streamStringOutIO f getChunk = do
   h <- IO.liftIO $ do
     IO.openFile f IO.WriteMode
   let
@@ -75,5 +88,9 @@ streamStringOutIO' f getChunk = do
         Just c  -> do
           IO.liftIO $ BS.hPut h c
           go
+    cleanupException (e :: Lifted.SomeException) = do
+      IO.liftIO $ Directory.removeFile f
+      MonadFail.fail $
+        "Failed to stream string to " ++ f ++ ": " ++ show e
 
-  go
+  go `Lifted.catch` cleanupException
