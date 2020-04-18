@@ -77,20 +77,21 @@ streamStringOutIO
   ) => FilePath
   -> m (Maybe BS.ByteString)
   -> m ()
-streamStringOutIO f getChunk = do
-  h <- IO.liftIO $ do
-    IO.openFile f IO.WriteMode
-  let
-    go = do
+streamStringOutIO f getChunk =
+  Lifted.bracket
+    (IO.liftIO (IO.openFile f IO.WriteMode)) (IO.liftIO . IO.hClose) go
+  `Lifted.catch`
+    cleanupException
+  where
+    go :: IO.Handle -> m ()
+    go handle = do
       chunk <- getChunk
       case chunk of
-        Nothing -> IO.liftIO $ IO.hClose h
+        Nothing -> return ()
         Just c  -> do
-          IO.liftIO $ BS.hPut h c
-          go
+          IO.liftIO $ BS.hPut handle c
+          go handle
     cleanupException (e :: Lifted.SomeException) = do
       IO.liftIO $ Directory.removeFile f
       MonadFail.fail $
         "Failed to stream string to " ++ f ++ ": " ++ show e
-
-  go `Lifted.catch` cleanupException
