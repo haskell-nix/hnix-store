@@ -1,1 +1,1 @@
-(import ./release.nix).nix-derivation.env
+(import ./default.nix).nix-derivation.env
