@@ -1,4 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -6,7 +8,7 @@ module Main where
 
 import Data.Text (Text)
 import Data.Vector (Vector)
-import Filesystem.Path.CurrentOS (FilePath)
+import System.FilePath
 import Nix.Derivation (Derivation(..), DerivationOutput(..))
 import Prelude hiding (FilePath, either)
 import Test.QuickCheck (Arbitrary(..))
@@ -15,27 +17,23 @@ import qualified Data.Attoparsec.Text.Lazy
 import qualified Data.Text
 import qualified Data.Text.Lazy.Builder
 import qualified Data.Vector
-import qualified Filesystem.Path.CurrentOS
 import qualified Nix.Derivation
 import qualified Test.QuickCheck
 
 instance Arbitrary Text where
     arbitrary = fmap Data.Text.pack arbitrary
 
-instance Arbitrary FilePath where
-    arbitrary = fmap Filesystem.Path.CurrentOS.decodeString arbitrary
-
 instance Arbitrary a => Arbitrary (Vector a) where
     arbitrary = fmap Data.Vector.fromList arbitrary
 
-instance Arbitrary DerivationOutput where
+instance Arbitrary (DerivationOutput FilePath Text) where
     arbitrary = do
         path     <- arbitrary
         hashAlgo <- arbitrary
         hash     <- arbitrary
         return (DerivationOutput {..})
 
-instance Arbitrary Derivation where
+instance Arbitrary (Derivation FilePath Text) where
     arbitrary = do
         outputs   <- arbitrary
         inputDrvs <- arbitrary
@@ -46,7 +44,7 @@ instance Arbitrary Derivation where
         env       <- arbitrary
         return (Derivation {..})
 
-property :: Derivation -> Bool
+property :: Derivation FilePath Text -> Bool
 property derivation0 = either == Right derivation0
   where
     builder = Nix.Derivation.buildDerivation derivation0

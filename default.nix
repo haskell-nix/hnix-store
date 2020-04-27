@@ -1,20 +1,33 @@
-{ mkDerivation, attoparsec, base, containers, criterion, deepseq
-, pretty-show, QuickCheck, stdenv, system-filepath, text, vector
-}:
-mkDerivation {
-  pname = "nix-derivation";
-  version = "1.0.2";
-  src = ./.;
-  isLibrary = true;
-  isExecutable = true;
-  libraryHaskellDepends = [
-    attoparsec base containers deepseq system-filepath text vector
-  ];
-  executableHaskellDepends = [ attoparsec base pretty-show text ];
-  testHaskellDepends = [
-    attoparsec base QuickCheck system-filepath text vector
-  ];
-  benchmarkHaskellDepends = [ attoparsec base criterion text ];
-  description = "Parse and render *.drv files";
-  license = stdenv.lib.licenses.bsd3;
-}
+# You can build this repository using Nix by running:
+#
+#     $ nix-build -A nix-derivation release.nix
+#
+# You can also open up this repository inside of a Nix shell by running:
+#
+#     $ nix-shell -A nix-derivation.env release.nix
+#
+# ... and then Nix will supply the correct Haskell development environment for
+# you
+let
+  config = {
+    packageOverrides = pkgs: {
+      haskellPackages = pkgs.haskellPackages.override {
+        overrides = haskellPackagesNew: haskellPackagesOld: {
+          nix-derivation =
+            pkgs.haskell.lib.overrideCabal
+              (haskellPackagesNew.callCabal2nix "nix-derivation" ./. { })
+              (_: {
+#                 withBenchmarkDepends = true;
+                }
+              );
+        };
+      };
+    };
+  };
+
+  pkgs =
+    import <nixpkgs> { inherit config; };
+
+in
+  { nix-derivation = pkgs.haskellPackages.nix-derivation;
+  }

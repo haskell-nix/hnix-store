@@ -1,4 +1,7 @@
 {-# LANGUAGE DeriveGeneric  #-}
+{-# LANGUAGE DeriveFunctor  #-}
+{-# LANGUAGE FlexibleInstances  #-}
+{-# LANGUAGE KindSignatures  #-}
 
 -- | Shared types
 
@@ -11,42 +14,39 @@ module Nix.Derivation.Types
 import Control.DeepSeq (NFData)
 import Data.Map (Map)
 import Data.Set (Set)
-import Data.Text (Text)
 import Data.Vector (Vector)
-import Filesystem.Path.CurrentOS (FilePath)
 import GHC.Generics (Generic)
-import Prelude hiding (FilePath)
 
 -- | A Nix derivation
-data Derivation = Derivation
-    { outputs   :: Map Text DerivationOutput
+data Derivation fp txt = Derivation
+    { outputs   :: Map txt (DerivationOutput fp txt)
     -- ^ Outputs produced by this derivation where keys are output names
-    , inputDrvs :: Map FilePath (Set Text)
+    , inputDrvs :: Map fp (Set txt)
     -- ^ Inputs that are derivations where keys specify derivation paths and
     -- values specify which output names are used by this derivation
-    , inputSrcs :: Set FilePath
+    , inputSrcs :: Set fp
     -- ^ Inputs that are sources
-    , platform  :: Text
+    , platform  :: txt
     -- ^ Platform required for this derivation
-    , builder   :: Text
+    , builder   :: txt
     -- ^ Code to build the derivation, which can be a path or a builtin function
-    , args      :: Vector Text
+    , args      :: Vector txt
     -- ^ Arguments passed to the executable used to build to derivation
-    , env       :: Map Text Text
+    , env       :: Map txt txt
     -- ^ Environment variables provided to the executable used to build the
     -- derivation
     } deriving (Eq, Generic, Ord, Show)
 
-instance NFData Derivation
+instance (NFData a, NFData b) => NFData (Derivation a b)
 
 -- | An output of a Nix derivation
-data DerivationOutput = DerivationOutput
-    { path     :: FilePath
+data DerivationOutput fp txt = DerivationOutput
+    { path     :: fp
     -- ^ Path where the output will be saved
-    , hashAlgo :: Text
+    , hashAlgo :: txt
     -- ^ Hash used for expected hash computation
-    , hash     :: Text
+    , hash     :: txt
     -- ^ Expected hash
     } deriving (Eq, Generic, Ord, Show)
 
-instance NFData DerivationOutput
+instance (NFData a, NFData b) => NFData (DerivationOutput a b)

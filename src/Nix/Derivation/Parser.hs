@@ -8,17 +8,15 @@
 module Nix.Derivation.Parser
     ( -- * Parser
       parseDerivation
+    , parseDerivationWith
     ) where
 
 import Data.Attoparsec.Text.Lazy (Parser)
 import Data.Map (Map)
-import Data.Monoid ((<>))
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Vector (Vector)
 import Nix.Derivation.Types (Derivation(..), DerivationOutput(..))
-import Prelude hiding (FilePath)
-import Filesystem.Path.CurrentOS (FilePath)
 
 import qualified Data.Attoparsec.Text.Lazy
 import qualified Data.Map
@@ -26,7 +24,7 @@ import qualified Data.Set
 import qualified Data.Text
 import qualified Data.Text.Lazy
 import qualified Data.Vector
-import qualified Filesystem.Path.CurrentOS
+import qualified System.FilePath
 
 listOf :: Parser a -> Parser [a]
 listOf element = do
@@ -36,8 +34,13 @@ listOf element = do
     return es
 
 -- | Parse a derivation
-parseDerivation :: Parser Derivation
-parseDerivation = do
+parseDerivation :: Parser (Derivation FilePath Text)
+parseDerivation = parseDerivationWith filepathParser textParser
+
+-- | Parse a derivation using custom
+-- parsers for filepaths and text fields
+parseDerivationWith :: (Ord fp, Ord txt) => Parser fp -> Parser txt -> Parser (Derivation fp txt)
+parseDerivationWith filepath string = do
     "Derive("
 
     let keyValue0 = do
@@ -95,8 +98,8 @@ parseDerivation = do
 
     return (Derivation {..})
 
-string :: Parser Text
-string = do
+textParser :: Parser Text
+textParser = do
     "\""
     let predicate c = not (c == '"' || c == '\\')
     let loop = do
@@ -117,12 +120,13 @@ string = do
     text <- loop
     return (Data.Text.Lazy.toStrict text)
 
-filepath :: Parser FilePath
-filepath = do
-    text <- string
-    case Data.Text.uncons text of
-        Just ('/', _) -> do
-            return (Filesystem.Path.CurrentOS.fromText text)
+filepathParser :: Parser FilePath
+filepathParser = do
+    text <- textParser
+    let str = Data.Text.unpack text
+    case (Data.Text.uncons text, System.FilePath.isValid str) of
+        (Just ('/', _), True) -> do
+            return str
         _ -> do
             fail ("bad path ‘" <> Data.Text.unpack text <> "’ in derivation")
 

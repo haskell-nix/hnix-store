@@ -6,29 +6,33 @@
 module Nix.Derivation.Builder
     ( -- * Builder
       buildDerivation
+    , buildDerivationWith
     ) where
 
-import Data.Foldable (foldMap)
 import Data.Map (Map)
-import Data.Monoid ((<>))
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder)
 import Data.Vector (Vector)
-import Filesystem.Path.CurrentOS (FilePath)
 import Nix.Derivation.Types (Derivation(..), DerivationOutput(..))
-import Prelude hiding (FilePath)
 
 import qualified Data.Map
 import qualified Data.Set
 import qualified Data.Text
 import qualified Data.Text.Lazy.Builder
 import qualified Data.Vector
-import qualified Filesystem.Path.CurrentOS
 
 -- | Render a derivation as a `Builder`
-buildDerivation :: Derivation -> Builder
-buildDerivation (Derivation {..}) =
+buildDerivation :: Derivation FilePath Text -> Builder
+buildDerivation = buildDerivationWith filepath' string'
+
+-- | Render a derivation as a `Builder` using custom
+-- renderer for filepath and string
+buildDerivationWith :: (fp -> Builder)
+                    -> (txt -> Builder)
+                    -> Derivation fp txt
+                    -> Builder
+buildDerivationWith filepath string (Derivation {..}) =
         "Derive("
     <>  mapOf keyValue0 outputs
     <>  ","
@@ -89,12 +93,8 @@ setOf element xs = listOf element (Data.Set.toList xs)
 vectorOf :: (a -> Builder) -> Vector a -> Builder
 vectorOf element xs = listOf element (Data.Vector.toList xs)
 
-string :: Text -> Builder
-string = Data.Text.Lazy.Builder.fromText . Data.Text.pack . show
+string' :: Text -> Builder
+string' = Data.Text.Lazy.Builder.fromText . Data.Text.pack . show
 
-filepath :: FilePath -> Builder
-filepath p = string text
-  where
-    text = case Filesystem.Path.CurrentOS.toText p of
-        Left  t -> t
-        Right t -> t
+filepath' :: FilePath -> Builder
+filepath' p = string' $ Data.Text.pack p
