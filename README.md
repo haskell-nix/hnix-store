@@ -1,4 +1,4 @@
-# `nix-derivation 1.0.2`
+# `nix-derivation`
 
 Use this package to parse and render Nix derivations such as those stored
 in `/nix/store/*.drv` files.  For example, if you had the following derivation
