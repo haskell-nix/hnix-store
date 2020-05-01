@@ -11,7 +11,7 @@ license-file:        LICENSE
 author:              Shea Levy
 maintainer:          shea@shealevy.com
 copyright:           2018 Shea Levy
-category:            System
+category:            Nix
 build-type:          Simple
 extra-source-files:  ChangeLog.md, README.md
 cabal-version:       >=1.10
