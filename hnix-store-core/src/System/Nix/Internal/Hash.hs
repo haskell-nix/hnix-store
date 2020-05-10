@@ -44,7 +44,10 @@ data HashAlgorithm
 
 -- | The result of running a 'HashAlgorithm'.
 newtype Digest (a :: HashAlgorithm) =
-  Digest BS.ByteString deriving (Show, Eq, Ord, DataHashable.Hashable)
+  Digest BS.ByteString deriving (Eq, Ord, DataHashable.Hashable)
+
+instance Show (Digest a) where
+  show = ("Digest " ++) . show . encodeBase32
 
 -- | The primitive interface for incremental hashing for a given
 -- 'HashAlgorithm'. Every 'HashAlgorithm' should have an instance.
@@ -63,18 +66,52 @@ class ValidAlgo (a :: HashAlgorithm) where
 -- purposes (e.g. SRI hashes)
 class NamedAlgo (a :: HashAlgorithm) where
   algoName :: Text
+  hashSize :: Int
 
 instance NamedAlgo 'MD5 where
   algoName = "md5"
+  hashSize = 16
 
 instance NamedAlgo 'SHA1 where
   algoName = "sha1"
+  hashSize = 20
 
 instance NamedAlgo 'SHA256 where
   algoName = "sha256"
+  hashSize = 32
+
+{-
+instance NamedAlgo 'SHA512 where
+  algoName = "sha512"
+  hashSize = 64
+-}
 
 -- | A digest whose 'NamedAlgo' is not known at compile time.
-data SomeNamedDigest = forall a . NamedAlgo a => SomeDigest (Digest a)
+data SomeNamedDigest = forall a . (NamedAlgo a, ValidAlgo a) => SomeDigest (Digest a)
+
+instance Show SomeNamedDigest where
+  show sd = case sd of
+    SomeDigest (digest :: Digest hashType) -> T.unpack $ "SomeDigest " <> algoName @hashType <> ":" <> encodeBase32 digest
+
+mkNamedDigest :: Text -> Text -> Either String SomeNamedDigest
+mkNamedDigest name hash = case name of
+  "md5"    -> SomeDigest <$> decode @'MD5
+  "sha1"   -> SomeDigest <$> decode @'SHA1
+  "sha256" -> SomeDigest <$> decode @'SHA256
+  _        -> Left $ "Unknown hash name: " ++ T.unpack name
+ where
+  size = T.length hash
+  decode :: forall a . (NamedAlgo a, ValidAlgo a) => Either String (Digest a)
+  decode
+    | size == base16Len = decodeBase16 hash
+    | size == base32Len = decodeBase32 hash
+    -- | size == base64Len = decodeBase64 s -- TODO
+    | otherwise = Left $ T.unpack hash ++ " is not a valid " ++ T.unpack name ++ " hash."
+   where
+    hsize = hashSize @a
+    base16Len = hsize * 2
+    base32Len = ((hsize * 8 - 1) `div` 5) + 1;
+    -- base64Len = ((4 * hsize / 3) + 3) & ~3;
 
 -- | Hash an entire (strict) 'BS.ByteString' as a single call.
 --
