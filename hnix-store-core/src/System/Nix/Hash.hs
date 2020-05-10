@@ -10,6 +10,7 @@ module System.Nix.Hash (
   , HNix.SomeNamedDigest(..)
   , HNix.hash
   , HNix.hashLazy
+  , HNix.mkNamedDigest
 
   , HNix.encodeBase32
   , HNix.decodeBase32
