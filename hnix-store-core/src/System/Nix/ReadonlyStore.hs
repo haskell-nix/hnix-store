@@ -12,7 +12,12 @@ import           Data.Text.Encoding
 import           System.Nix.Hash
 import           System.Nix.StorePath
 
-makeStorePath :: forall hashAlgo . (NamedAlgo hashAlgo) => FilePath -> ByteString -> Digest hashAlgo -> StorePathName -> StorePath
+makeStorePath :: forall hashAlgo . (NamedAlgo hashAlgo)
+  => FilePath
+  -> ByteString
+  -> Digest hashAlgo
+  -> StorePathName
+  -> StorePath
 makeStorePath fp ty h nm = StorePath storeHash nm fp
   where
     s = BS.intercalate ":"
@@ -29,14 +34,18 @@ makeTextPath fp nm h refs = makeStorePath fp ty h nm
   where
     ty = BS.intercalate ":" ("text" : map storePathToRawFilePath (HS.toList refs))
 
-makeFixedOutputPath :: forall hashAlgo. (ValidAlgo hashAlgo, NamedAlgo hashAlgo) => FilePath -> Bool -> Digest hashAlgo -> StorePathName -> StorePath
+makeFixedOutputPath :: forall hashAlgo . (ValidAlgo hashAlgo, NamedAlgo hashAlgo)
+  => FilePath
+  -> Bool
+  -> Digest hashAlgo
+  -> StorePathName
+  -> StorePath
 makeFixedOutputPath fp recursive h nm =
-  makeStorePath fp ty h' nm
-  where
-    (ty, h') =
-      if recursive && algoName @hashAlgo == algoName @'SHA256
-      then ("source", h)
-      else ("output:out", hash ("fixed:out:" <> encodeUtf8 (encodeBase16 h) <> ":"))
+  if recursive && (algoName @hashAlgo) == "sha256"
+  then makeStorePath fp "source"     h  nm
+  else makeStorePath fp "output:out" h' nm
+ where
+  h' = hash @'SHA256 $ "fixed:out:" <> encodeUtf8 (algoName @hashAlgo) <> (if recursive then ":r:" else ":") <> encodeUtf8 (encodeBase16 h) <> ":"
 
 computeStorePathForText :: FilePath -> StorePathName -> ByteString -> StorePathSet -> StorePath
 computeStorePathForText fp nm s refs = makeTextPath fp nm (hash s) refs
