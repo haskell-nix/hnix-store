@@ -19,6 +19,7 @@ cabal-version:       >=1.10
 library
   exposed-modules:     System.Nix.Base32
                      , System.Nix.Build
+                     , System.Nix.Derivation
                      , System.Nix.Hash
                      , System.Nix.Internal.Base32
                      , System.Nix.Internal.Hash
@@ -43,6 +44,7 @@ library
                      , filepath
                      , hashable
                      , mtl
+                     , nix-derivation >= 1.1.1 && <2
                      , saltine
                      , time
                      , text
@@ -64,6 +66,7 @@ test-suite format-tests
    main-is: Driver.hs
    other-modules:
        Arbitrary
+       Derivation
        NarFormat
        Hash
        StorePath
@@ -83,6 +86,7 @@ test-suite format-tests
      , process
      , tasty
      , tasty-discover
+     , tasty-golden
      , tasty-hspec
      , tasty-hunit
      , tasty-quickcheck
