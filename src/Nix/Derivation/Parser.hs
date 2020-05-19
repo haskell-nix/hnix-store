@@ -9,6 +9,7 @@ module Nix.Derivation.Parser
     ( -- * Parser
       parseDerivation
     , parseDerivationWith
+    , textParser
     ) where
 
 import Data.Attoparsec.Text.Lazy (Parser)

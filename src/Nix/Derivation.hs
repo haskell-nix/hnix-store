@@ -83,9 +83,12 @@ module Nix.Derivation
 
       -- * Parse derivations
     , parseDerivation
+    , parseDerivationWith
+    , textParser
 
       -- * Render derivations
     , buildDerivation
+    , buildDerivationWith
     ) where
 
 import Nix.Derivation.Builder
