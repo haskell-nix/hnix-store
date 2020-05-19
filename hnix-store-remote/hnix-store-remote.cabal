@@ -33,6 +33,7 @@ library
                      , text
                      , unix
                      , network
+                     , nix-derivation >= 1.1.1 && <2
                      , mtl
                      , unordered-containers
                      , filepath
@@ -47,8 +48,8 @@ test-suite hnix-store-remote-tests
    ghc-options:       -rtsopts -fprof-auto
    type:              exitcode-stdio-1.0
    main-is:           Driver.hs
-   other-modules:
-       NixDaemon
+   other-modules:     Derivation
+                    , NixDaemon
    hs-source-dirs:    tests
    build-depends:
                        attoparsec
@@ -70,10 +71,12 @@ test-suite hnix-store-remote-tests
                      , tasty-quickcheck
                      , linux-namespaces
                      , mtl
+                     , nix-derivation
                      , temporary
                      , text
                      , time
                      , unix
                      , unordered-containers
                      , vector
+                     , which
    default-language: Haskell2010

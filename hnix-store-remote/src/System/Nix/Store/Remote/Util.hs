@@ -19,6 +19,8 @@ import qualified Data.ByteString.Lazy      as BSL
 
 import           Network.Socket.ByteString (recv, sendAll)
 
+import           Nix.Derivation
+
 import           System.Nix.Build
 import           System.Nix.StorePath
 import           System.Nix.Store.Remote.Binary
@@ -142,3 +144,20 @@ getBuildResult = BuildResult
   <*> getBool
   <*> getTime
   <*> getTime
+
+putDerivation :: Derivation StorePath Text -> Put
+putDerivation Derivation{..} = do
+  flip putMany (Data.Map.toList outputs)
+    $ \(outputName, DerivationOutput{..}) -> do
+      putText outputName
+      putPath path
+      putText hashAlgo
+      putText hash
+
+  putMany putPath inputSrcs
+  putText platform
+  putText builder
+  putMany putText args
+
+  flip putMany (Data.Map.toList env)
+    $ \(first, second) -> putText first >> putText second

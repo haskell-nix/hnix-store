@@ -54,6 +54,7 @@ import           System.Nix.Store.Remote.Types
 import           System.Nix.Store.Remote.Protocol
 import           System.Nix.Store.Remote.Util
 
+import           Derivation
 
 createProcessEnv :: FilePath
                  -> String
@@ -294,3 +295,9 @@ spec_protocol = Hspec.around withNixDaemon $ do
         path <- dummy
         liftIO $ putStrLn $ show path
         (isValidPathUncached path) `shouldReturn` True
+
+    context "derivation" $ do
+      itRights "build derivation" $ do
+        withDerivation $ \path drv -> do
+          result <- buildDerivation path drv Normal
+          result `shouldSatisfy` ((==AlreadyValid) . status)

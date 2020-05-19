@@ -16,6 +16,7 @@ module System.Nix.Store.Remote
   , addIndirectRoot
   , addTempRoot
   , buildPaths
+  , buildDerivation
   , ensurePath
   , findRoots
   , isValidPathUncached
@@ -41,6 +42,7 @@ import Data.ByteString.Lazy (ByteString)
 import Data.Map.Strict (Map)
 import Data.Text (Text)
 
+import Nix.Derivation (Derivation)
 import System.Nix.Build (BuildMode, BuildResult)
 import System.Nix.Hash (Digest, NamedAlgo, ValidAlgo, SomeNamedDigest(..))
 import System.Nix.Nar (Nar)
@@ -195,6 +197,23 @@ buildPaths ps bm = do
   void $ simpleOpArgs BuildPaths $ do
     putPaths ps
     putInt $ fromEnum bm
+
+buildDerivation :: StorePath
+                -> Derivation StorePath Text
+                -> BuildMode
+                -> MonadStore BuildResult
+buildDerivation p drv buildMode = do
+  runOpArgs BuildDerivation $ do
+    putPath p
+    putDerivation drv
+    putEnum buildMode
+    -- XXX: reason for this is unknown
+    -- but without it protocol just hangs waiting for
+    -- more data. Needs investigation
+    putInt 0
+
+  res <- getSocketIncremental $ getBuildResult
+  return res
 
 ensurePath :: StorePath -> MonadStore ()
 ensurePath pn = do

@@ -15,7 +15,6 @@ import System.Nix.StorePath (ContentAddressableAddress(..), NarHashMode(..))
 import Data.Text.Lazy.Builder (Builder)
 import qualified Data.Text.Lazy.Builder
 
-import qualified Data.Text
 import qualified System.Nix.Hash
 
 -- | Marshall `ContentAddressableAddress` to `Text`
@@ -35,14 +34,9 @@ contentAddressableAddressBuilder (Text digest) =
 contentAddressableAddressBuilder (Fixed narHashMode (SomeDigest digest)) =
      "fixed:"
   <> (Data.Text.Lazy.Builder.fromText $ System.Nix.Hash.algoName @hashAlgo)
-  <> buildNarHashMode narHashMode
   <> digestBuilder digest
-  where
-    buildNarHashMode Recursive = "true"
-    buildNarHashMode RegularFile = "false"
 
 digestBuilder :: Digest a -> Builder
 digestBuilder =
     Data.Text.Lazy.Builder.fromText
   . System.Nix.Hash.encodeBase32
-
