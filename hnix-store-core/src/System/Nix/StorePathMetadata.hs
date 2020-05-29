@@ -10,18 +10,18 @@ import Data.Time (UTCTime)
 import Data.Word (Word64)
 import System.Nix.Signature (NarSignature)
 
--- | Metadata about a 'StorePath' in @storeDir@.
-data StorePathMetadata storeDir = StorePathMetadata
+-- | Metadata about a 'StorePath'
+data StorePathMetadata = StorePathMetadata
   { -- | The path this metadata is about
-    path :: !(StorePath storeDir)
+    path :: !StorePath
   , -- | The path to the derivation file that built this path, if any
     -- and known.
-    deriverPath :: !(Maybe (StorePath storeDir))
+    deriverPath :: !(Maybe StorePath)
   , -- TODO should this be optional?
     -- | The hash of the nar serialization of the path.
     narHash :: !SomeNamedDigest
   , -- | The paths that this path directly references
-    references :: !(StorePathSet storeDir)
+    references :: !StorePathSet
   , -- | When was this path registered valid in the store?
     registrationTime :: !UTCTime
   , -- | The size of the nar serialization of the path, in bytes.
@@ -47,3 +47,4 @@ data StorePathTrust
   | -- | It was built elsewhere (and substituted or similar) and so
     -- is less trusted
     BuiltElsewhere
+  deriving (Show, Eq)

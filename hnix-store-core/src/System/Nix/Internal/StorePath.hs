@@ -16,19 +16,27 @@ import System.Nix.Hash
   ( HashAlgorithm(Truncated, SHA256)
   , Digest
   , encodeBase32
+  , decodeBase32
   , SomeNamedDigest
   )
-import Text.Regex.Base.RegexLike (makeRegex, matchTest)
-import Text.Regex.TDFA.Text (Regex)
+import System.Nix.Internal.Base32 (digits32)
+
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8)
+import qualified Data.Text as T
 import GHC.TypeLits (Symbol, KnownSymbol, symbolVal)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BC
+import qualified Data.Char
 import Data.Hashable (Hashable(..))
 import Data.HashSet (HashSet)
 import Data.Proxy (Proxy(..))
+
+import Data.Attoparsec.Text.Lazy (Parser, (<?>))
+
+import qualified Data.Attoparsec.Text.Lazy
+import qualified System.FilePath
 
 -- | A path in a Nix store.
 --
@@ -39,7 +47,7 @@ import Data.Proxy (Proxy(..))
 --
 -- See the 'StoreDir' haddocks for details on why we represent this at
 -- the type level.
-data StorePath (storeDir :: StoreDir) = StorePath
+data StorePath = StorePath
   { -- | The 160-bit hash digest reflecting the "address" of the name.
     -- Currently, this is a truncated SHA256 hash.
     storePathHash :: !(Digest StorePathHashAlgo)
@@ -47,11 +55,16 @@ data StorePath (storeDir :: StoreDir) = StorePath
     -- this is typically the package name and version (e.g.
     -- hello-1.2.3).
     storePathName :: !StorePathName
+  , -- | Root of the store
+    storePathRoot :: !FilePath
   } deriving (Eq, Ord)
 
-instance Hashable (StorePath storeDir) where
+instance Hashable StorePath where
   hashWithSalt s (StorePath {..}) =
     s `hashWithSalt` storePathHash `hashWithSalt` storePathName
+
+instance Show StorePath where
+  show p = BC.unpack $ storePathToRawFilePath p
 
 -- | The name portion of a Nix path.
 --
@@ -67,7 +80,7 @@ newtype StorePathName = StorePathName
 type StorePathHashAlgo = 'Truncated 20 'SHA256
 
 -- | A set of 'StorePath's.
-type StorePathSet storeDir = HashSet (StorePath storeDir)
+type StorePathSet = HashSet StorePath
 
 -- | An address for a content-addressable store path, i.e. one whose
 -- store path hash is purely a function of its contents (as opposed to
@@ -99,72 +112,30 @@ data NarHashMode
     -- file if so desired.
     Recursive
 
--- | A type-level representation of the root directory of a Nix store.
---
--- The extra complexity of type indices requires justification.
--- Fundamentally, this boils down to the fact that there is little
--- meaningful sense in which 'StorePath's rooted at different
--- directories are of the same type, i.e. there are few if any
--- non-trivial non-contrived functions or data types that could
--- equally well accept 'StorePath's from different stores. In current
--- practice, any real application dealing with Nix stores (including,
--- in particular, the Nix expression language) only operates over one
--- store root and only cares about 'StorePath's belonging to that
--- root. One could imagine a use case that cares about multiple store
--- roots at once (e.g. the normal \/nix\/store along with some private
--- store at \/root\/nix\/store to contain secrets), but in that case
--- distinguishing 'StorePath's that belong to one store or the other
--- is even /more/ critical: Most operations will only be correct over
--- one of the stores or another, and it would be an error to mix and
--- match (e.g. a 'StorePath' in one store could not legitimately refer
--- to one in another).
---
--- As of @5886bc5996537fbf00d1fcfbb29595b8ccc9743e@, the C++ Nix
--- codebase contains 30 separate places where we assert that a given
--- store dir is, in fact, in the store we care about; those run-time
--- assertions could be completely removed if we had stronger types
--- there. Moreover, there are dozens of other cases where input coming
--- from the user, from serializations, etc. is parsed and then
--- required to be in the appropriate store; this case is the
--- equivalent of an existentially quantified version of 'StorePath'
--- and, notably, requiring at runtime that the index matches the
--- ambient store directory we're working in. In every case where a
--- path is treated as a store path, there is exactly one legitimate
--- candidate for the store directory it belongs to.
---
--- It may be instructive to consider the example of "chroot stores".
--- Since Nix 2.0, it has been possible to have a store actually live
--- at one directory (say, $HOME\/nix\/store) with a different
--- effective store directory (say, \/nix\/store). Nix can build into
--- a chroot store by running the builds in a mount namespace where the
--- store is at the effective store directory, can download from a
--- binary cache containing paths for the effective store directory,
--- and can run programs in the store that expect to be living at the
--- effective store directory (via nix run). When viewed as store paths
--- (rather than random files in the filesystem), paths in a chroot
--- store have nothing in common with paths in a non-chroot store that
--- lives in the same directory, and a lot in common with paths in a
--- non-chroot store that lives in the effective store directory of the
--- store in question. Store paths in stores with the same effective
--- store directory share the same hashing scheme, can be copied
--- between each other, etc. Store paths in stores with different
--- effective store directories have no relationship to each other that
--- they don't have to arbitrary other files.
-type StoreDir = Symbol
+makeStorePathName :: Text -> Either String StorePathName
+makeStorePathName n = case validStorePathName n of
+  True  -> Right $ StorePathName n
+  False -> Left $ reasonInvalid n
 
--- | Smart constructor for 'StorePathName' that ensures the underlying
--- content invariant is met.
-makeStorePathName :: Text -> Maybe StorePathName
-makeStorePathName n = case matchTest storePathNameRegex n of
-  True  -> Just $ StorePathName n
-  False -> Nothing
+reasonInvalid :: Text -> String
+reasonInvalid n | n == ""            = "Empty name"
+reasonInvalid n | (T.length n > 211) = "Path too long"
+reasonInvalid n | (T.head n == '.')  = "Leading dot"
+reasonInvalid n | otherwise          = "Invalid character"
 
--- | Regular expression to match valid store path names.
-storePathNameRegex :: Regex
-storePathNameRegex = makeRegex r
-  where
-    r :: String
-    r = "[a-zA-Z0-9\\+\\-\\_\\?\\=][a-zA-Z0-9\\+\\-\\.\\_\\?\\=]*"
+validStorePathName :: Text -> Bool
+validStorePathName "" = False
+validStorePathName n  = (T.length n <= 211)
+                        && T.head n /= '.'
+                        && T.all validStorePathNameChar n
+
+validStorePathNameChar :: Char -> Bool
+validStorePathNameChar c = any ($ c) $
+    [ Data.Char.isAsciiLower -- 'a'..'z'
+    , Data.Char.isAsciiUpper -- 'A'..'Z'
+    , Data.Char.isDigit
+    ] ++
+    map (==) "+-._?="
 
 -- | Copied from @RawFilePath@ in the @unix@ package, duplicated here
 -- to avoid the dependency.
@@ -172,10 +143,9 @@ type RawFilePath = ByteString
 
 -- | Render a 'StorePath' as a 'RawFilePath'.
 storePathToRawFilePath
-  :: forall storeDir . (KnownStoreDir storeDir)
-  => StorePath storeDir
+  :: StorePath
   -> RawFilePath
-storePathToRawFilePath (StorePath {..}) = BS.concat
+storePathToRawFilePath StorePath {..} = BS.concat
     [ root
     , "/"
     , hashPart
@@ -183,19 +153,75 @@ storePathToRawFilePath (StorePath {..}) = BS.concat
     , name
     ]
   where
-    root = storeDirVal @storeDir
+    root = BC.pack storePathRoot
     hashPart = encodeUtf8 $ encodeBase32 storePathHash
     name = encodeUtf8 $ unStorePathName storePathName
 
--- | Get a value-level representation of a 'KnownStoreDir'
-storeDirVal :: forall storeDir . (KnownStoreDir storeDir)
-            => ByteString
-storeDirVal = BC.pack $ symbolVal @storeDir Proxy
+-- | Render a 'StorePath' as a 'FilePath'.
+storePathToFilePath
+  :: StorePath
+  -> FilePath
+storePathToFilePath = BC.unpack . storePathToRawFilePath
 
--- | A 'StoreDir' whose value is known at compile time.
---
--- A valid instance of 'KnownStoreDir' should represent a valid path,
--- i.e. all "characters" fit into bytes (as determined by the logic of
--- 'BC.pack') and there are no 0 "characters". Currently this is not
--- enforced, but it should be.
-type KnownStoreDir = KnownSymbol
+-- | Render a 'StorePath' as a 'Text'.
+storePathToText
+  :: StorePath
+  -> Text
+storePathToText = T.pack . BC.unpack . storePathToRawFilePath
+
+-- | Build `narinfo` suffix from `StorePath` which
+-- can be used to query binary caches.
+storePathToNarInfo
+  :: StorePath
+  -> BC.ByteString
+storePathToNarInfo StorePath {..} = BS.concat
+    [ encodeUtf8 $ encodeBase32 storePathHash
+    , ".narinfo"
+    ]
+
+-- | Parse `StorePath` from `BC.ByteString`, checking
+-- that store directory matches `expectedRoot`.
+parsePath
+  :: FilePath
+  -> BC.ByteString
+  -> Either String StorePath
+parsePath expectedRoot x =
+  let
+    (rootDir, fname) = System.FilePath.splitFileName . BC.unpack $ x
+    (digestPart, namePart) = T.breakOn "-" $ T.pack fname
+    digest = decodeBase32 digestPart
+    name = makeStorePathName . T.drop 1 $ namePart
+    --rootDir' = dropTrailingPathSeparator rootDir
+    -- cannot use ^^ as it drops multiple slashes /a/b/// -> /a/b
+    rootDir' = init rootDir
+    storeDir = if expectedRoot == rootDir'
+      then Right rootDir'
+      else Left $ unwords $ [ "Root store dir mismatch, expected", expectedRoot, "got", rootDir']
+  in
+    StorePath <$> digest <*> name <*> storeDir
+
+pathParser :: FilePath -> Parser StorePath
+pathParser expectedRoot = do
+  Data.Attoparsec.Text.Lazy.string (T.pack expectedRoot)
+    <?> "Store root mismatch" -- e.g. /nix/store
+
+  Data.Attoparsec.Text.Lazy.char '/'
+    <?> "Expecting path separator"
+
+  digest <- decodeBase32
+    <$> Data.Attoparsec.Text.Lazy.takeWhile1 (\c -> c `elem` digits32)
+    <?> "Invalid Base32 part"
+
+  Data.Attoparsec.Text.Lazy.char '-'
+    <?> "Expecting dash (path name separator)"
+
+  c0 <- Data.Attoparsec.Text.Lazy.satisfy (\c -> c /= '.' && validStorePathNameChar c)
+    <?> "Leading path name character is a dot or invalid character"
+
+  rest <- Data.Attoparsec.Text.Lazy.takeWhile validStorePathNameChar
+    <?> "Path name contains invalid character"
+
+  let name = makeStorePathName $ T.cons c0 rest
+
+  either fail return
+    $ StorePath <$> digest <*> name <*> pure expectedRoot

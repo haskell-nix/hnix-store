@@ -15,26 +15,65 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     System.Nix.Store.Remote
+                     , System.Nix.Store.Remote.Binary
+                     , System.Nix.Store.Remote.Builders
                      , System.Nix.Store.Remote.Logger
+                     , System.Nix.Store.Remote.Parsers
                      , System.Nix.Store.Remote.Protocol
                      , System.Nix.Store.Remote.Types
                      , System.Nix.Store.Remote.Util
 
   build-depends:       base >=4.10 && <5
-                     , base64-bytestring
+                     , attoparsec
                      , bytestring
                      , binary
                      , bytestring
                      , containers
+                     , filepath
                      , text
                      , unix
                      , network
                      , mtl
                      , unordered-containers
---                   , pretty-simple
---                   , base16-bytestring
---                   , base32-bytestring
+                     , filepath
+                     , time
                      , hnix-store-core
+                     , vector
   hs-source-dirs:      src
   default-language:    Haskell2010
   ghc-options:         -Wall
+
+test-suite hnix-store-remote-tests
+   ghc-options:       -rtsopts -fprof-auto
+   type:              exitcode-stdio-1.0
+   main-is:           Driver.hs
+   other-modules:
+       NixDaemon
+   hs-source-dirs:    tests
+   build-depends:
+                       attoparsec
+                     , hnix-store-core
+                     , hnix-store-remote
+                     , base
+                     , base64-bytestring
+                     , binary
+                     , bytestring
+                     , containers
+                     , directory
+                     , process
+                     , filepath
+                     , hspec-expectations-lifted
+                     , tasty
+                     , tasty-discover
+                     , tasty-hspec
+                     , tasty-hunit
+                     , tasty-quickcheck
+                     , linux-namespaces
+                     , mtl
+                     , temporary
+                     , text
+                     , time
+                     , unix
+                     , unordered-containers
+                     , vector
+   default-language: Haskell2010

@@ -7,17 +7,20 @@ module System.Nix.StorePath
   , StorePathName
   , StorePathSet
   , StorePathHashAlgo
-  , StoreDir
   , ContentAddressableAddress(..)
   , NarHashMode(..)
   , -- * Manipulating 'StorePathName'
     makeStorePathName
   , unStorePathName
-  , storePathNameRegex
+  , validStorePathName
   , -- * Rendering out 'StorePath's
-    storePathToRawFilePath
-  , storeDirVal
-  , KnownStoreDir
+    storePathToFilePath
+  , storePathToRawFilePath
+  , storePathToText
+  , storePathToNarInfo
+  , -- * Parsing 'StorePath's
+    parsePath
+  , pathParser
   ) where
 
 import System.Nix.Internal.StorePath
