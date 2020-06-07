@@ -47,4 +47,4 @@ data StorePathTrust
   | -- | It was built elsewhere (and substituted or similar) and so
     -- is less trusted
     BuiltElsewhere
-  deriving (Show, Eq)
+  deriving (Show, Eq, Ord)
