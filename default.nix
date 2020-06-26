@@ -212,10 +212,10 @@ let
         haskellPackages.cabal-install
       ];
 
-      testHaskellDepends = attrs.testHaskellDepends ++ [
-        pkgs.nix
-        haskellPackages.criterion
-      ];
+      # testHaskellDepends = attrs.testHaskellDepends ++ [
+      #   pkgs.nix
+      #   haskellPackages.criterion
+      # ];
 
       # Declare that the header set arguments as according Haskell.lib switches
       inherit allowInconsistentDependencies;
