@@ -66,7 +66,7 @@
 , doBenchmark ? false
 # For binaries named in `executableNamesToShellComplete` list, generate and bundle-into package an automatically loaded shell complettions
 , generateOptparseApplicativeCompletions ? false
-, executableNamesToShellComplete ? [ "hnix" ]
+, executableNamesToShellComplete ? [ "executableToComplete" ]
 
 
 # Include Hoogle into derivation
