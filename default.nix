@@ -114,7 +114,7 @@ let
 
   overlay = pkgs.lib.foldr pkgs.lib.composeExtensions (_: _: {}) [
     # (import "${side-overlay}/overlay.nix")
-    (self: super: with pkgs.haskell.lib;
+    (self: super:
       pkgs.lib.optionalAttrs withHoogle {
       ghc = super.ghc // { withPackages = super.ghc.withHoogle; };
       ghcWithPackages = self.ghc.withPackages;
