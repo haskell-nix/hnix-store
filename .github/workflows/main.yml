@@ -1,4 +1,4 @@
-name: "CI"
+name: "Nixpkgs, Linux"
 on:
   # On Git changes in PR
   pull_request:
@@ -30,7 +30,7 @@ env:
   failOnAllWarnings: "false"
   enableDeadCodeElimination: "false"
   disableOptimization: "true"
-  linkWithGold: "false"
+  linkWithGold: "true"
   enableLibraryProfiling: "false"
   enableExecutableProfiling: "false"
   doTracing: "false"
@@ -48,17 +48,14 @@ env:
   doBenchmark: "false"
   generateOptparseApplicativeCompletions: "false"
   executableNamesToShellComplete: '[ "replaceWithExecutableName" ]'
-  #
-  withHoogle: "false"
-  #
-  ghcjsTmpLogFile: "/tmp/ghcjsTmpLogFile.log"
-  ghcjsLogTailLength: "10000"
 
 jobs:
-  Nixpkgs_default_Linux:
-    name: Nixpkgs, NixOS unstable channel, default (GHC 8.8), Linux
+  build10:
+    name: "Nixpkgs-unstable channel, default GHC (8.8.3)"
     runs-on: ubuntu-latest
     continue-on-error: true
+    env:
+      rev: "nixpkgs-unstable"
     steps:
     - name: Git checkout
       uses: actions/checkout@v2
@@ -66,8 +63,21 @@ jobs:
       uses: cachix/install-nix-action@v10
     - name: Determined nix-build
       run: ./build.sh
-  Nixpkgs_stable_Linux:
-    name: Nixpkgs, NixOS stable channel, default (GHC 8.8), Linux
+  build20:
+    name: "NixOS-unstable channel, Strict build, default GHC (8.8.3)"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      buildStrictly: "true"
+    steps:
+    - name: Git checkout
+      uses: actions/checkout@v2
+    - name: Install Nix
+      uses: cachix/install-nix-action@v10
+    - name: Determined nix-build
+      run: ./build.sh
+  build30:
+    name: "NixOS 20.03 stable channel, default GHC (8.8.3)"
     runs-on: ubuntu-latest
     continue-on-error: true
     env:
@@ -79,8 +89,8 @@ jobs:
       uses: cachix/install-nix-action@v10
     - name: Determined nix-build
       run: ./build.sh
-  Nixpkgs_SDist_Optimize_Benchmark_Haddock_GHC-8-10_Linux:
-    name: Nixpkgs, SDist, Optimize, Benchmark, Haddock, GHC 8.10.1, Linux
+  build40:
+    name: "Quality test, SDist, Optimization, Benchmark, Haddock, GHC 8.10.1"
     runs-on: ubuntu-latest
     continue-on-error: true
     env:
@@ -100,12 +110,25 @@ jobs:
       uses: cachix/install-nix-action@v10
     - name: Determined nix-build
       run: ./build.sh
-  Nixpkgs_GHCJS_Linux:
-    name: Nixpkgs, GHCJS, Linux
+  build50:
+    name: "NixOS-unstable channel, GHC 8.6.5"
     runs-on: ubuntu-latest
     continue-on-error: true
     env:
-      compiler: "ghcjs"
+      compiler: "ghc865"
+    steps:
+    - name: Git checkout
+      uses: actions/checkout@v2
+    - name: Install Nix
+      uses: cachix/install-nix-action@v10
+    - name: Determined nix-build
+      run: ./build.sh
+  build60:
+    name: "NixOS-unstable channel, GHC 8.4.4"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      compiler: "ghc844"
     steps:
     - name: Git checkout
       uses: actions/checkout@v2
