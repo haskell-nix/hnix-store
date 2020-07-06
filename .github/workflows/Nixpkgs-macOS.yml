@@ -1,0 +1,27 @@
+name: "Nixpkgs, macOS"
+  # Due to macOS is a side-build to test the platform, using nixos-unstable for additional long-term stability of it
+on:
+  # On Git changes in PR
+  pull_request:
+  # On Git changes of the master
+  push:
+    branches:
+      - master
+  schedule:
+    # Every day at 04:45
+    - cron: "45 01 * * *"
+jobs:
+  Nixpkgs_unstable_macOS:
+    name: NixOS-unstable, default GHC (8.8)
+    runs-on: macos-latest
+    continue-on-error: true
+    env:
+      useRev: "true"
+      rev: "nixos-unstable"
+    steps:
+    - name: Git checkout
+      uses: actions/checkout@v2
+    - name: Install Nix
+      uses: cachix/install-nix-action@v10
+    - name: Determined nix-build
+      run: ./build.sh
