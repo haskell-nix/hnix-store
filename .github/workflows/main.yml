@@ -1,0 +1,151 @@
+name: "CI"
+on:
+  # On Git changes in PR
+  pull_request:
+  # On Git changes of the master
+  push:
+    branches:
+      - master
+  schedule:
+    # Every day at 03:45
+    - cron: "45 03 * * *"
+
+env:
+  ###
+  ### NOTE: This configuration uses `build.sh` interface, which uses `default.nix` interface, which exposes the Nixpkgs Haskell Lib interface.
+  ###
+  ### Documentation of this settings is mosly in `default.nix`, since most settings it Nixpkgs related
+  ### and the other part of keys explained in `build.sh`, since those address external procedures aound the builds.
+  ### Additional documentation is in Nixpkgs Haskell.lib: https://github.com/NixOS/nixpkgs/blob/master/pkgs/development/haskell-modules/lib.nix
+  ###
+  useRev: "true"
+  rev: "nixos-unstable"
+  cachixAccount: "replaceWithProjectNameInCachix"
+  allowInconsistentDependencies: "false"
+  doJailbreak: "false"
+  doCheck: "true"
+  sdistTarball: "false"
+  buildFromSdist: "false"
+  buildStrictly: "false"
+  failOnAllWarnings: "false"
+  enableDeadCodeElimination: "false"
+  disableOptimization: "true"
+  linkWithGold: "false"
+  enableLibraryProfiling: "false"
+  enableExecutableProfiling: "false"
+  doTracing: "false"
+  enableDWARFDebugging: "false"
+  doStrip: "false"
+  enableSharedLibraries: "true"
+  enableStaticLibraries: "false"
+  enableSharedExecutables: "false"
+  justStaticExecutables: "false"
+  enableSeparateBinOutput: "false"
+  checkUnusedPackages: "false"
+  doHaddock: "false"
+  doHyperlinkSource: "false"
+  doCoverage: "false"
+  doBenchmark: "false"
+  generateOptparseApplicativeCompletions: "false"
+  executableNamesToShellComplete: '[ "replaceWithExecutableName" ]'
+  #
+  withHoogle: "false"
+  #
+  ghcjsTmpLogFile: "/tmp/ghcjsTmpLogFile.log"
+  ghcjsLogTailLength: "10000"
+
+jobs:
+  Nixpkgs_default_Linux:
+    name: Nixpkgs, NixOS unstable channel, default (GHC 8.8), Linux
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+    - name: Git checkout
+      uses: actions/checkout@v2
+    - name: Install Nix
+      uses: cachix/install-nix-action@v10
+      with:
+        nix_path: nixpkgs=channel:nixpkgs-unstable
+    - name: Determined nix-build
+      run: ./build.sh
+  Nixpkgs_stable_Linux:
+    name: Nixpkgs, NixOS stable channel, default (GHC 8.8), Linux
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      rev: "nixos-20.03"
+    steps:
+    - name: Git checkout
+      uses: actions/checkout@v2
+    - name: Install Nix
+      uses: cachix/install-nix-action@v10
+      with:
+        nix_path: nixpkgs=channel:nixpkgs-unstable
+    - name: Determined nix-build
+      run: ./build.sh
+  Nixpkgs_SDist_Optimize_Benchmark_Haddock_GHC-8-10_Linux:
+    name: Nixpkgs, SDist, Optimize, Benchmark, Haddock, GHC 8.10.1, Linux
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      compiler: "ghc8101"
+      buildFromSdist: "true"
+      linkWithGold: "true"
+      doHaddock: "true"
+      doHyperlinkSource: "true"
+      doBenchmark: "true"
+      disableOptimization: "false"
+      enableDeadCodeElimination: "true"
+      generateOptparseApplicativeCompletions: "false"
+    steps:
+    - name: Git checkout
+      uses: actions/checkout@v2
+    - name: Install Nix
+      uses: cachix/install-nix-action@v10
+      with:
+        nix_path: nixpkgs=channel:nixpkgs-unstable
+    - name: Determined nix-build
+      run: ./build.sh
+  Nixpkgs_GHCJS_Linux:
+    name: Nixpkgs, GHCJS, Linux
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      compiler: "ghcjs"
+    steps:
+    - name: Git checkout
+      uses: actions/checkout@v2
+    - name: Install Nix
+      uses: cachix/install-nix-action@v10
+      with:
+        nix_path: nixpkgs=channel:nixpkgs-unstable
+    - name: Determined nix-build
+      run: ./build.sh
+  Nixpkgs_unstable_macOS:
+    name: Nixpkgs, unstable, default (GHC 8.8), macOS
+    runs-on: macos-latest
+    continue-on-error: true
+    env:
+      rev: "nixpkgs-unstable"
+    steps:
+    - name: Git checkout
+      uses: actions/checkout@v2
+    - name: Install Nix
+      uses: cachix/install-nix-action@v10
+      with:
+        nix_path: nixpkgs=channel:nixpkgs-unstable
+    - name: Determined nix-build
+      run: ./build.sh
+  Hackage_Cabal_GHC-8-10_Linux:
+    name: Hackage, Cabal, GHC 8.10, Linux
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-haskell@v1.1
+        with:
+          ghc-version: "8.10"
+          # cabal-version: "3.0.0.0"
+      - run: cabal v2-configure
+      - run: cabal v2-build
+      - run: cabal v2-test
