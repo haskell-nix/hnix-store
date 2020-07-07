@@ -1,4 +1,6 @@
-name: "Nixpkgs, GHC, Linux"
+name: "Nixpkgs, Linux, main"
+
+# When to trigger builds
 on:
   # On Git changes in PR
   pull_request:
@@ -9,6 +11,7 @@ on:
   schedule:
     # Every day at 03:45
     - cron: "45 03 * * *"
+
 
 env:
   ###
@@ -49,15 +52,13 @@ env:
   generateOptparseApplicativeCompletions: "false"
   executableNamesToShellComplete: '[ "replaceWithExecutableName" ]'
 
+
 jobs:
 
-  # Basic example
+  # NOTE: Basic example
   build10:
-    name: "Nixpkgs-unstable channel, default GHC (8.8.3)"
+    name: "NixOS-unstable channel, Strict build, default GHC (8.8.3)"
     runs-on: ubuntu-latest
-    continue-on-error: true
-    env:
-      rev: "nixpkgs-unstable"
     steps:
     - name: Git checkout
       uses: actions/checkout@v2
@@ -66,12 +67,10 @@ jobs:
     - name: Determined nix-build
       run: ./build.sh
 
-
-  # Example of customization using Nixpkgs Haskell Lib API
+  # NOTE: Example of customization using Nixpkgs Haskell Lib API
   build20:
     name: "Release-quality test, SDist, Optimization, Benchmark, Haddock, GHC 8.10.1, Nix shell"
     runs-on: ubuntu-latest
-    continue-on-error: true
     env:
       compiler: "ghc8101"
       buildFromSdist: "true"
@@ -89,27 +88,11 @@ jobs:
       uses: cachix/install-nix-action@v10
     - name: Determined nix-build
       run: ./build.sh
-    - name: Test Nix-shell
-      run: nix-shell --command 'echo Succesfully evaluated, loaded and entered $IN_NIX_SHELL Nix shell env.'
 
-  # Other samples of tests used in the project
+  # NOTE: Build on latest stable NixOS release
   build30:
-    name: "NixOS-unstable channel, Strict build, default GHC (8.8.3)"
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    env:
-      buildStrictly: "true"
-    steps:
-    - name: Git checkout
-      uses: actions/checkout@v2
-    - name: Install Nix
-      uses: cachix/install-nix-action@v10
-    - name: Determined nix-build
-      run: ./build.sh
-  build40:
     name: "NixOS 20.03 stable channel, default GHC (8.8.3)"
     runs-on: ubuntu-latest
-    continue-on-error: true
     env:
       rev: "nixos-20.03"
     steps:
@@ -119,29 +102,19 @@ jobs:
       uses: cachix/install-nix-action@v10
     - name: Determined nix-build
       run: ./build.sh
-  build50:
-    name: "NixOS-unstable channel, GHC 8.6.5"
+
+  # NOTE: This would additionally test that the Nix shell customization of the project works.
+  # By default *this setup provides local hoogle and generates database of project documentation
+  build40:
+    name: "Test Nix-shell"
     runs-on: ubuntu-latest
-    continue-on-error: true
-    env:
-      compiler: "ghc865"
     steps:
     - name: Git checkout
       uses: actions/checkout@v2
     - name: Install Nix
       uses: cachix/install-nix-action@v10
-    - name: Determined nix-build
-      run: ./build.sh
-  build60:
-    name: "NixOS-unstable channel, GHC 8.4.4"
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    env:
-      compiler: "ghc844"
-    steps:
-    - name: Git checkout
-      uses: actions/checkout@v2
-    - name: Install Nix
-      uses: cachix/install-nix-action@v10
-    - name: Determined nix-build
-      run: ./build.sh
+    - name: Test Nix-shell
+      run: nix-shell --command 'echo "Evaluated, loaded and entered $IN_NIX_SHELL Nix shell env."\n\n"Testing local Hoogle DB:" && hoogle True'
+
+
+  # Other samples of tests used in the project see in the directory
