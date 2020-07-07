@@ -15,7 +15,8 @@ on:
 
 env:
   ###
-  ### NOTE: This configuration uses `build.sh` interface, which uses `default.nix` interface, which exposes the Nixpkgs Haskell Lib interface.
+  ### NOTE: Table example of the provided build configuration keys
+  ### Infrastructure uses `build.sh` API, which uses `default.nix` API, which exposes the almost literal Nixpkgs Haskell Lib API wich was abstracted for use outside of Nix language.
   ###
   ### Documentation of this settings is mosly in `default.nix`, since most settings it Nixpkgs related
   ### and the other part of keys explained in `build.sh`, since those address external procedures aound the builds.
@@ -67,54 +68,59 @@ jobs:
     - name: Determined nix-build
       run: ./build.sh
 
+
   # NOTE: Example of customization using Nixpkgs Haskell Lib API
   build20:
     name: "Release-quality test, SDist, Optimization, Benchmark, Haddock, GHC 8.10.1, Nix shell"
     runs-on: ubuntu-latest
-    env:
-      compiler: "ghc8101"
-      buildFromSdist: "true"
-      linkWithGold: "true"
-      doHaddock: "true"
-      doHyperlinkSource: "true"
-      doBenchmark: "true"
-      disableOptimization: "false"
-      enableDeadCodeElimination: "true"
-      generateOptparseApplicativeCompletions: "false"
     steps:
     - name: Git checkout
       uses: actions/checkout@v2
     - name: Install Nix
       uses: cachix/install-nix-action@v10
     - name: Determined nix-build
+      env:
+        compiler: "ghc8101"
+        buildFromSdist: "true"
+        linkWithGold: "true"
+        doHaddock: "true"
+        doHyperlinkSource: "true"
+        disableOptimization: "false"
+        enableDeadCodeElimination: "true"
+        doBenchmark: "true"
+        generateOptparseApplicativeCompletions: "false"
       run: ./build.sh
+
 
   # NOTE: Build on latest stable NixOS release
   build30:
     name: "NixOS 20.03 stable channel, default GHC (8.8.3)"
     runs-on: ubuntu-latest
-    env:
-      rev: "nixos-20.03"
     steps:
     - name: Git checkout
       uses: actions/checkout@v2
     - name: Install Nix
       uses: cachix/install-nix-action@v10
     - name: Determined nix-build
+      env:
+        rev: "nixos-20.03"
       run: ./build.sh
+
 
   # NOTE: This would additionally test that the Nix shell customization of the project works.
   # By default *this setup provides local hoogle and generates database of project documentation
   build40:
-    name: "Test Nix-shell"
+    name: "Nix-shell & supplied locall Hoogle DB"
     runs-on: ubuntu-latest
     steps:
     - name: Git checkout
       uses: actions/checkout@v2
     - name: Install Nix
       uses: cachix/install-nix-action@v10
-    - name: Test Nix-shell
-      run: nix-shell --command 'echo "Evaluated, loaded and entered $IN_NIX_SHELL Nix shell env."\n\n"Testing local Hoogle DB:" && hoogle True'
+    - name: Nix-shell
+      run: nix-shell --command 'echo "Evaluated, loaded and entered $IN_NIX_SHELL Nix shell env."'
+    - name: Project Hoogle DB by Nix-shell
+      run: nix-shell --command 'hoogle True'
 
 
   # Other samples of tests used in the project see in the directory
