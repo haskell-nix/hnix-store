@@ -58,14 +58,19 @@ jobs:
 
   # NOTE: Basic example
   build10:
-    name: "NixOS-unstable channel, Strict build, default GHC (8.8.3)"
+    name: "NixOS-unstable channel, default GHC (8.8.3)"
     runs-on: ubuntu-latest
     steps:
     - name: Git checkout
       uses: actions/checkout@v2
     - name: Install Nix
       uses: cachix/install-nix-action@v10
-    - name: Determined nix-build
+    - name: Determined Nix-build
+      env:
+        # nixos-unstable is a nixpkgs-upstable that passed a number of upstream CI and quality checks, it is essentially a current branch while also receives stable updates fitting for our CI checkups with current Nixpkgs.
+        # Note that Nix nature is purely functional lazy language, it is referentially transparent, reproducible (deterministic) builds, that means that just as in the type system - any the Nix build failures properly cascade through the Nixpkgs tree graph branch, so particular `master` broken checkouts would properly refuse/would not be able to build parts of Nixpkgs tree graph. So the Nix builds are pretty brittle, do not be ashamed to make Nixpkgs builds optional (`continue-on-error: true`), or set them to the latest stable NixOS Nixpkgs release.
+        useRev: "true"
+        rev: "nixos-unstable"
       run: ./build.sh
 
 
@@ -78,8 +83,10 @@ jobs:
       uses: actions/checkout@v2
     - name: Install Nix
       uses: cachix/install-nix-action@v10
-    - name: Determined nix-build
+    - name: Determined Nix-build
       env:
+        useRev: "true"
+        rev: "nixos-unstable"
         compiler: "ghc8101"
         buildFromSdist: "true"
         linkWithGold: "true"
@@ -101,16 +108,16 @@ jobs:
       uses: actions/checkout@v2
     - name: Install Nix
       uses: cachix/install-nix-action@v10
-    - name: Determined nix-build
+    - name: Determined Nix-build
       env:
         rev: "nixos-20.03"
       run: ./build.sh
 
 
   # NOTE: This would additionally test that the Nix shell customization of the project works.
-  # By default *this setup provides local hoogle and generates database of project documentation
+  # By default *this setup provides local hoogle and generates database of the documetation for the project and its dependencies
   build40:
-    name: "Nix-shell & supplied locall Hoogle DB"
+    name: "Nix-shell & supplied locall project Hoogle DB"
     runs-on: ubuntu-latest
     steps:
     - name: Git checkout
@@ -119,7 +126,7 @@ jobs:
       uses: cachix/install-nix-action@v10
     - name: Nix-shell
       run: nix-shell --command 'echo "Evaluated, loaded and entered $IN_NIX_SHELL Nix shell env."'
-    - name: Project Hoogle DB by Nix-shell
+    - name: Local Hoogle DB for the project development and tooling
       run: nix-shell --command 'hoogle True'
 
 
