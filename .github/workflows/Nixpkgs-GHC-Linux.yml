@@ -1,4 +1,4 @@
-name: "Nixpkgs, Linux"
+name: "Nixpkgs, GHC, Linux"
 on:
   # On Git changes in PR
   pull_request:
@@ -50,6 +50,8 @@ env:
   executableNamesToShellComplete: '[ "replaceWithExecutableName" ]'
 
 jobs:
+
+  # Basic example
   build10:
     name: "Nixpkgs-unstable channel, default GHC (8.8.3)"
     runs-on: ubuntu-latest
@@ -63,34 +65,11 @@ jobs:
       uses: cachix/install-nix-action@v10
     - name: Determined nix-build
       run: ./build.sh
+
+
+  # Example of customization using Nixpkgs Haskell Lib API
   build20:
-    name: "NixOS-unstable channel, Strict build, default GHC (8.8.3)"
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    env:
-      buildStrictly: "true"
-    steps:
-    - name: Git checkout
-      uses: actions/checkout@v2
-    - name: Install Nix
-      uses: cachix/install-nix-action@v10
-    - name: Determined nix-build
-      run: ./build.sh
-  build30:
-    name: "NixOS 20.03 stable channel, default GHC (8.8.3)"
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    env:
-      rev: "nixos-20.03"
-    steps:
-    - name: Git checkout
-      uses: actions/checkout@v2
-    - name: Install Nix
-      uses: cachix/install-nix-action@v10
-    - name: Determined nix-build
-      run: ./build.sh
-  build40:
-    name: "Quality test, SDist, Optimization, Benchmark, Haddock, GHC 8.10.1"
+    name: "Release-quality test, SDist, Optimization, Benchmark, Haddock, GHC 8.10.1, Nix shell"
     runs-on: ubuntu-latest
     continue-on-error: true
     env:
@@ -103,6 +82,36 @@ jobs:
       disableOptimization: "false"
       enableDeadCodeElimination: "true"
       generateOptparseApplicativeCompletions: "false"
+    steps:
+    - name: Git checkout
+      uses: actions/checkout@v2
+    - name: Install Nix
+      uses: cachix/install-nix-action@v10
+    - name: Determined nix-build
+      run: ./build.sh
+    - name: Test Nix-shell
+      run: nix-shell --command 'echo Succesfully evaluated, loaded and entered $IN_NIX_SHELL Nix shell env.'
+
+  # Other samples of tests used in the project
+  build30:
+    name: "NixOS-unstable channel, Strict build, default GHC (8.8.3)"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      buildStrictly: "true"
+    steps:
+    - name: Git checkout
+      uses: actions/checkout@v2
+    - name: Install Nix
+      uses: cachix/install-nix-action@v10
+    - name: Determined nix-build
+      run: ./build.sh
+  build40:
+    name: "NixOS 20.03 stable channel, default GHC (8.8.3)"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      rev: "nixos-20.03"
     steps:
     - name: Git checkout
       uses: actions/checkout@v2
