@@ -120,6 +120,7 @@ if [ "$compiler" = "ghcjs" ]
     # On build failure outputs the last 10000 lines of log (that should be more then enough), and terminates
     SILENT nix-build \
       --arg cabalName "$cabalName" \
+      --arg packageRoot "$packageRoot" \
       --arg allowInconsistentDependencies "$allowInconsistentDependencies" \
       --arg doJailbreak "$doJailbreak" \
       --arg doCheck "$doCheck" \
@@ -156,6 +157,7 @@ if [ "$compiler" = "ghcjs" ]
     nix-build \
       --quiet --quiet \
       --arg cabalName "$cabalName" \
+      --arg packageRoot "$packageRoot" \
       --argstr compiler "$compiler" \
       --arg allowInconsistentDependencies "$allowInconsistentDependencies" \
       --arg doJailbreak "$doJailbreak" \
