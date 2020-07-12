@@ -14,10 +14,10 @@ jobs:
     # Template to build matrix of builds for subprojects in monorepo
     strategy:
       matrix:
-        packageRoots: [ "./hnix-store-core", "./hnix-store-remote" ]
+        packageRoots: [ hnix-store-core, hnix-store-remote ]
     defaults:
       run:
-        working-directory: ${{ matrix.packageRoots }}
+        working-directory: ./${{ matrix.packageRoots }}
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-haskell@v1.1
