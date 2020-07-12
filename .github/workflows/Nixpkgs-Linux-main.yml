@@ -81,7 +81,7 @@ jobs:
     # Matrix of builds for multiple subprojects in a monorepo
     strategy:
       matrix:
-        packageRoots: [ ./ ]
+        packageRoots: [ "./hnix-store-core", "./hnix-store-remote" ]
     steps:
     - name: Git checkout
       uses: actions/checkout@v2
