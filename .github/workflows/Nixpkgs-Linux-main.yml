@@ -60,6 +60,9 @@ jobs:
   build10:
     name: "NixOS-unstable channel, default GHC (8.8.3)"
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        packageRoots: [ hnix-store-core, hnix-store-remote ]
     steps:
     - name: Git checkout
       uses: actions/checkout@v2
@@ -81,14 +84,7 @@ jobs:
     # Matrix of builds for multiple subprojects in a monorepo
     strategy:
       matrix:
-        packageRoots: [ "./hnix-store-core", "./hnix-store-remote" ]
-        include:
-          - packageRoots: "./hnix-store-core"
-            env:
-              cabalName: "hnix-store-core"
-          - packageRoots: "./hnix-store-remote"
-            env:
-              cabalName: "hnix-store-remote"
+        packageRoots: [ hnix-store-core, hnix-store-remote ]
     steps:
     - name: Git checkout
       uses: actions/checkout@v2
@@ -108,7 +104,8 @@ jobs:
         doBenchmark: "true"
         generateOptparseApplicativeCompletions: "false"
         # packageRoot for CI builds can be just a paths, since CI uses remote Git repo that is already filtered with local .gitignore's
-        packageRoot: ${{ matrix.packageRoots }}
+        packageRoot: ./${{ matrix.packageRoots }}
+        cabalName: ${{ matrix.packageRoots }}
       run: ./build.sh
 
 
@@ -116,14 +113,19 @@ jobs:
   build30:
     name: "NixOS 20.03 stable channel, default GHC (8.8.3)"
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        packageRoots: [ hnix-store-core, hnix-store-remote ]
+    env:
+      rev: "nixos-20.03"
+      packageRoot: ./${{ matrix.packageRoots }}
+      cabalName: ${{ matrix.packageRoots }}
     steps:
     - name: Git checkout
       uses: actions/checkout@v2
     - name: Install Nix
       uses: cachix/install-nix-action@v10
     - name: Determined Nix-build
-      env:
-        rev: "nixos-20.03"
       run: ./build.sh
 
 
@@ -132,6 +134,12 @@ jobs:
   build40:
     name: "Nix-shell & supplied locall project Hoogle DB"
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        packageRoots: [ hnix-store-core, hnix-store-remote ]
+    env:
+      packageRoot: ./${{ matrix.packageRoots }}
+      cabalName: ${{ matrix.packageRoots }}
     steps:
     - name: Git checkout
       uses: actions/checkout@v2

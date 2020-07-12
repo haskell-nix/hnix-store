@@ -15,9 +15,14 @@ jobs:
     name: NixOS-unstable, default GHC (8.8)
     runs-on: macos-latest
     continue-on-error: true
+    strategy:
+      matrix:
+        packageRoots: [ hnix-store-core, hnix-store-remote ]
     env:
       useRev: "true"
       rev: "nixos-unstable"
+      packageRoot: ./${{ matrix.packageRoots }}
+      cabalName: ${{ matrix.packageRoots }}
     steps:
     - name: Git checkout
       uses: actions/checkout@v2

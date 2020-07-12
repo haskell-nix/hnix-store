@@ -32,8 +32,13 @@ jobs:
     name: "Nixpkgs-unstable channel, default GHC (8.8.3)"
     runs-on: ubuntu-latest
     continue-on-error: true
+    strategy:
+      matrix:
+        packageRoots: [ hnix-store-core, hnix-store-remote ]
     env:
       rev: "nixpkgs-unstable"
+      packageRoot: ./${{ matrix.packageRoots }}
+      cabalName: ${{ matrix.packageRoots }}
     steps:
     - name: Git checkout
       uses: actions/checkout@v2
@@ -46,8 +51,13 @@ jobs:
     name: "NixOS-unstable channel, GHC 8.6.5"
     runs-on: ubuntu-latest
     continue-on-error: true
+    strategy:
+      matrix:
+        packageRoots: [ hnix-store-core, hnix-store-remote ]
     env:
       compiler: "ghc865"
+      packageRoot: ./${{ matrix.packageRoots }}
+      cabalName: ${{ matrix.packageRoots }}
     steps:
     - name: Git checkout
       uses: actions/checkout@v2
@@ -60,8 +70,13 @@ jobs:
     name: "NixOS-unstable channel, GHC 8.4.4"
     runs-on: ubuntu-latest
     continue-on-error: true
+    strategy:
+      matrix:
+        packageRoots: [ hnix-store-core, hnix-store-remote ]
     env:
       compiler: "ghc844"
+      packageRoot: ./${{ matrix.packageRoots }}
+      cabalName: ${{ matrix.packageRoots }}
     steps:
     - name: Git checkout
       uses: actions/checkout@v2

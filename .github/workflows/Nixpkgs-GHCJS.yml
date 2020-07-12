@@ -22,6 +22,12 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     continue-on-error: true
+    strategy:
+      matrix:
+        packageRoots: [ hnix-store-core, hnix-store-remote ]
+    env:
+      packageRoot: ./${{ matrix.packageRoots }}
+      cabalName: ${{ matrix.packageRoots }}
     steps:
     - name: Git checkout
       uses: actions/checkout@v2
