@@ -137,9 +137,9 @@ jobs:
     strategy:
       matrix:
         packageRoots: [ hnix-store-core, hnix-store-remote ]
-    env:
-      packageRoot: ./${{ matrix.packageRoots }}
-      cabalName: ${{ matrix.packageRoots }}
+    defaults:
+      run:
+        working-directory: ./${{ matrix.packageRoots }}
     steps:
     - name: Git checkout
       uses: actions/checkout@v2
