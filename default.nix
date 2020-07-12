@@ -120,7 +120,7 @@ let
   # };
 
   overlay = pkgs.lib.foldr pkgs.lib.composeExtensions (_: _: {}) [
-    # (import "${side-overlay}/overlay.nix")
+    (import ./overlay.nix)
     (self: super:
       pkgs.lib.optionalAttrs withHoogle {
       ghc = super.ghc // { withPackages = super.ghc.withHoogle; };
