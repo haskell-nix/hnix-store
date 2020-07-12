@@ -119,6 +119,7 @@ if [ "$compiler" = "ghcjs" ]
     # so HACK: SILENT wrapper allows to surpress the huge log, while still preserves the Cachix caching ability in any case of the build
     # On build failure outputs the last 10000 lines of log (that should be more then enough), and terminates
     SILENT nix-build \
+      --arg cabalName "$cabalName" \
       --arg allowInconsistentDependencies "$allowInconsistentDependencies" \
       --arg doJailbreak "$doJailbreak" \
       --arg doCheck "$doCheck" \
@@ -154,6 +155,7 @@ if [ "$compiler" = "ghcjs" ]
     # GHC sometimes produces logs so big - that Travis terminates builds, so multiple --quiet
     nix-build \
       --quiet --quiet \
+      --arg cabalName "$cabalName" \
       --argstr compiler "$compiler" \
       --arg allowInconsistentDependencies "$allowInconsistentDependencies" \
       --arg doJailbreak "$doJailbreak" \
