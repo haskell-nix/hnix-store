@@ -13,6 +13,13 @@ build-type:          Simple
 extra-source-files:  ChangeLog.md, README.md
 cabal-version:       >=1.10
 
+flag io-testsuite
+  default:
+    False
+  description:
+    Enable testsuite, which requires external
+    binaries and Linux namespace support.
+
 library
   exposed-modules:     System.Nix.Store.Remote
                      , System.Nix.Store.Remote.Binary
@@ -45,6 +52,11 @@ library
   ghc-options:         -Wall
 
 test-suite hnix-store-remote-tests
+   if !flag(io-testsuite)
+     buildable: False
+
+   build-tool-depends: nix:nix-daemon
+
    ghc-options:       -rtsopts -fprof-auto
    type:              exitcode-stdio-1.0
    main-is:           Driver.hs
