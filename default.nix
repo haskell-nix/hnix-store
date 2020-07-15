@@ -6,6 +6,7 @@
 # Deafult.nix is a unit package abstraciton that allows to abstract over packages even in monorepos:
 # Example: pass --arg cabalName --arg packageRoot "./subprojectDir", or map default.nix over a list of tiples for subprojects.
 # cabalName is package resulting name: by default and on error resolves in haskellPackages.developPackage to project root directory name by default, but outside the haskellPackages.developPackage as you see below packageRoot can be different
+, useCabalName ? false
 , cabalName ? "replace"
 , packageRoot ? pkgs.nix-gitignore.gitignoreSource [ ] ./.
 
@@ -204,9 +205,9 @@ let
 
   # General description of package
   package = haskellPackages.developPackage {
-    name = cabalName;
     # Do not include into closure the files listed in .gitignore
-    root = packageRoot;
+    # TODO: packageRoot should be used here
+    root = "./${cabalName}";
 
     modifier = drv: pkgs.haskell.lib.overrideCabal drv (attrs: {
       buildTools = (attrs.buildTools or []) ++ [
@@ -241,7 +242,9 @@ let
     });
 
     returnShellEnv = false;
-  };
+  } // (if useCabalName
+          then {name = cabalName;}
+          else {});
 
   # One part of Haskell.lib options are argument switches, those are in `inherit`ed list.
   # Other part - are function wrappers over pkg. Fold allows to compose those.

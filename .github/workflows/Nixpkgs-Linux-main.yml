@@ -140,6 +140,8 @@ jobs:
     defaults:
       run:
         working-directory: ./${{ matrix.packageRoots }}
+    env:
+      cabalName: ${{ matrix.packageRoots }}
     steps:
     - name: Git checkout
       uses: actions/checkout@v2
