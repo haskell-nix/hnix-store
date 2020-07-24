@@ -264,8 +264,7 @@ querySubstitutablePaths ps = do
     putPaths ps
   sockGetPaths
 
-queryPathInfoUncached :: forall a . NamedAlgo a
-                      => StorePath
+queryPathInfoUncached :: StorePath
                       -> MonadStore StorePathMetadata
 queryPathInfoUncached path = do
   runOpArgs QueryPathInfo $ do
@@ -277,9 +276,9 @@ queryPathInfoUncached path = do
   deriverPath <- sockGetPathMay
 
   narHashText <- Data.Text.Encoding.decodeUtf8 <$> sockGetStr
-  let narHash = case System.Nix.Hash.decodeBase32 narHashText of
+  let narHash = case System.Nix.Hash.decodeBase32 @'System.Nix.Hash.SHA256 narHashText of
         Left e -> error e
-        Right x -> SomeDigest @a x
+        Right x -> SomeDigest x
 
   references <- sockGetPaths
   registrationTime <- sockGet getTime
@@ -294,7 +293,7 @@ queryPathInfoUncached path = do
       sigs = Data.Set.empty
 
       contentAddressableAddress =
-        case System.Nix.Store.Remote.Parsers.parseContentAddressableAddress @a caString of
+        case System.Nix.Store.Remote.Parsers.parseContentAddressableAddress caString of
           Left e -> error e
           Right x -> Just x
 
