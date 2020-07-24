@@ -64,7 +64,7 @@ class ValidAlgo (a :: HashAlgorithm) where
 
 -- | A 'HashAlgorithm' with a canonical name, for serialization
 -- purposes (e.g. SRI hashes)
-class NamedAlgo (a :: HashAlgorithm) where
+class ValidAlgo a => NamedAlgo (a :: HashAlgorithm) where
   algoName :: Text
   hashSize :: Int
 
@@ -87,7 +87,7 @@ instance NamedAlgo 'SHA512 where
 -}
 
 -- | A digest whose 'NamedAlgo' is not known at compile time.
-data SomeNamedDigest = forall a . (NamedAlgo a, ValidAlgo a) => SomeDigest (Digest a)
+data SomeNamedDigest = forall a . NamedAlgo a => SomeDigest (Digest a)
 
 instance Show SomeNamedDigest where
   show sd = case sd of
