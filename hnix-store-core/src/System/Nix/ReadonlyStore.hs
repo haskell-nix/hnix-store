@@ -6,36 +6,37 @@ module System.Nix.ReadonlyStore where
 
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
+import qualified Data.Text as T
 import qualified Data.HashSet as HS
 import           Data.Text.Encoding
 import           System.Nix.Hash
 import           System.Nix.StorePath
 
-makeStorePath :: forall storeDir hashAlgo . (KnownStoreDir storeDir, NamedAlgo hashAlgo) => ByteString -> Digest hashAlgo -> StorePathName -> StorePath storeDir
-makeStorePath ty h nm = StorePath storeHash nm
+makeStorePath :: forall hashAlgo . (NamedAlgo hashAlgo) => FilePath -> ByteString -> Digest hashAlgo -> StorePathName -> StorePath
+makeStorePath fp ty h nm = StorePath storeHash nm fp
   where
     s = BS.intercalate ":"
       [ ty
       , encodeUtf8 $ algoName @hashAlgo
       , encodeUtf8 $ encodeBase16 h
-      , storeDirVal @storeDir
+      , encodeUtf8 $ T.pack fp
       , encodeUtf8 $ unStorePathName nm
       ]
     storeHash = hash s
 
-makeTextPath :: (KnownStoreDir storeDir) => StorePathName -> Digest 'SHA256 -> StorePathSet storeDir -> StorePath storeDir
-makeTextPath nm h refs = makeStorePath ty h nm
+makeTextPath :: FilePath -> StorePathName -> Digest 'SHA256 -> StorePathSet -> StorePath
+makeTextPath fp nm h refs = makeStorePath fp ty h nm
   where
     ty = BS.intercalate ":" ("text" : map storePathToRawFilePath (HS.toList refs))
 
-makeFixedOutputPath :: forall storeDir hashAlgo. (KnownStoreDir storeDir, ValidAlgo hashAlgo, NamedAlgo hashAlgo) => Bool -> Digest hashAlgo -> StorePathName -> StorePath storeDir
-makeFixedOutputPath recursive h nm =
-  makeStorePath ty h' nm
+makeFixedOutputPath :: forall hashAlgo. (ValidAlgo hashAlgo, NamedAlgo hashAlgo) => FilePath -> Bool -> Digest hashAlgo -> StorePathName -> StorePath
+makeFixedOutputPath fp recursive h nm =
+  makeStorePath fp ty h' nm
   where
     (ty, h') =
       if recursive && algoName @hashAlgo == algoName @'SHA256
       then ("source", h)
       else ("output:out", hash ("fixed:out:" <> encodeUtf8 (encodeBase16 h) <> ":"))
 
-computeStorePathForText :: (KnownStoreDir storeDir) => StorePathName -> ByteString -> StorePathSet storeDir -> StorePath storeDir
-computeStorePathForText nm s refs = makeTextPath nm (hash s) refs
+computeStorePathForText :: FilePath -> StorePathName -> ByteString -> StorePathSet -> StorePath
+computeStorePathForText fp nm s refs = makeTextPath fp nm (hash s) refs
