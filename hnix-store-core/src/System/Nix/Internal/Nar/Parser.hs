@@ -372,8 +372,8 @@ createLinks = do
             return (fileAbsPath, targetAbsPath)
           let linkGraph = Graph.edges canonicalLinks
           case Graph.topSort linkGraph of
-            Nothing          -> error "Symlinks form a loop"
-            Just sortedNodes ->
+            Left _            -> error "Symlinks form a loop"
+            Right sortedNodes ->
               let
                 sortedLinks = flip Map.lookup linkLocations <$> sortedNodes
               in
