@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE FlexibleContexts #-}
 module System.Nix.Store.Remote.Protocol (
     WorkerOp(..)
   , simpleOp
@@ -15,6 +16,7 @@ import           Control.Exception         (bracket)
 import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.State
+import           Control.Monad.Trans.Control (MonadBaseControl, liftBaseOp)
 
 import           Data.Binary.Get
 import           Data.Binary.Put
@@ -114,25 +116,27 @@ opNum AddToStoreNar               = 39
 opNum QueryMissing                = 40
 
 
-simpleOp :: WorkerOp -> MonadStore Bool
+simpleOp :: (MonadIO m) => WorkerOp -> MonadStoreT m Bool
 simpleOp op = do
   simpleOpArgs op $ return ()
 
-simpleOpArgs :: WorkerOp -> Put -> MonadStore Bool
+simpleOpArgs :: (MonadIO m) => WorkerOp -> Put -> MonadStoreT m Bool
 simpleOpArgs op args = do
   runOpArgs op args
   err <- gotError
   case err of
     True -> do
-      Error _num msg <- head <$> getError
-      throwError $ Data.ByteString.Char8.unpack msg
+      err  <- head <$> getError
+      case err of
+        Error _num msg -> throwError $ Data.ByteString.Char8.unpack msg
+        _ -> throwError $ "Well, it should really be an error by now"
     False -> do
       sockGetBool
 
-runOp :: WorkerOp -> MonadStore ()
+runOp :: (MonadIO m) => WorkerOp -> MonadStoreT m ()
 runOp op = runOpArgs op $ return ()
 
-runOpArgs :: WorkerOp -> Put -> MonadStore ()
+runOpArgs :: (MonadIO m) => WorkerOp -> Put -> MonadStoreT m ()
 runOpArgs op args = runOpArgsIO op (\encode -> encode $ Data.ByteString.Lazy.toStrict $ runPut args)
 
 runOpArgsIO :: WorkerOp -> ((Data.ByteString.ByteString -> MonadStore ()) -> MonadStore ()) -> MonadStore ()
@@ -145,18 +149,21 @@ runOpArgsIO op encoder = do
   encoder (liftIO . sendAll soc)
 
   out <- processOutput
-  modify (\(a, b) -> (a, b++out))
+  NixStore $ modify (\(a, b) -> (a, b++out))
   err <- gotError
   when err $ do
-    Error _num msg <- head <$> getError
-    throwError $ Data.ByteString.Char8.unpack msg
+    err  <- head <$> getError
+    case err of
+      Error _num msg -> throwError $ Data.ByteString.Char8.unpack msg
+      _ -> throwError $ "Well, it should really be an error by now"
 
-runStore :: MonadStore a -> IO (Either String a, [Logger])
+
+runStore :: (MonadIO m, MonadBaseControl IO m) => MonadStoreT m a -> m (Either String a, [Logger])
 runStore = runStoreOpts defaultSockPath "/nix/store"
 
-runStoreOpts :: FilePath -> FilePath -> MonadStore a -> IO (Either String a, [Logger])
+runStoreOpts :: (MonadIO m, MonadBaseControl IO m) => FilePath -> FilePath -> MonadStoreT m a -> m (Either String a, [Logger])
 runStoreOpts sockPath storeRootDir code = do
-  bracket (open sockPath) (Network.Socket.close . storeSocket) run
+  liftBaseOp (bracket (open sockPath) (Network.Socket.close . storeSocket)) run
   where
     open path = do
       soc <-
@@ -169,9 +176,10 @@ runStoreOpts sockPath storeRootDir code = do
       return $ StoreConfig { storeSocket = soc
                            , storeDir    = storeRootDir }
 
+    greet :: MonadIO m => MonadStoreT m [Logger]
     greet = do
       sockPut $ putInt workerMagic1
-      soc <- storeSocket <$> ask
+      soc <- storeSocket <$> NixStore ask
       vermagic <- liftIO $ recv soc 16
       let (magic2, _daemonProtoVersion) =
             flip runGet (Data.ByteString.Lazy.fromStrict vermagic)
@@ -189,4 +197,5 @@ runStoreOpts sockPath storeRootDir code = do
       fmap (\(res, (_data, logs)) -> (res, logs))
         $ flip runReaderT sock
         $ flip runStateT (Nothing, [])
-        $ runExceptT (greet >> code)
+        $ runExceptT
+        $ unStore (greet >> code)

@@ -44,35 +44,35 @@ genericIncremental getsome parser = go decoder
     go (Fail _leftover _consumed msg) = do
       error msg
 
-getSocketIncremental :: Get a -> MonadStore a
+getSocketIncremental :: (MonadIO m) => Get a -> MonadStoreT m a
 getSocketIncremental = genericIncremental sockGet8
   where
-    sockGet8 :: MonadStore (Maybe BSC.ByteString)
+    sockGet8 :: (MonadIO m) => MonadStoreT m (Maybe BSC.ByteString)
     sockGet8 = do
-      soc <- storeSocket <$> ask
+      soc <- storeSocket <$> NixStore ask
       liftIO $ Just <$> recv soc 8
 
-sockPut :: Put -> MonadStore ()
+sockPut :: (MonadIO m) => Put -> MonadStoreT m ()
 sockPut p = do
-  soc <- storeSocket <$> ask
+  soc <- storeSocket <$> NixStore ask
   liftIO $ sendAll soc $ BSL.toStrict $ runPut p
 
-sockGet :: Get a -> MonadStore a
+sockGet :: (MonadIO m) => Get a -> MonadStoreT m a
 sockGet = getSocketIncremental
 
-sockGetInt :: Integral a => MonadStore a
+sockGetInt :: (MonadIO m) => Integral a => MonadStoreT m a
 sockGetInt = getSocketIncremental getInt
 
-sockGetBool :: MonadStore Bool
+sockGetBool :: (MonadIO m) => MonadStoreT m Bool
 sockGetBool = (== (1 :: Int)) <$> sockGetInt
 
-sockGetStr :: MonadStore ByteString
+sockGetStr :: (MonadIO m) => MonadStoreT m ByteString
 sockGetStr = getSocketIncremental getByteStringLen
 
-sockGetStrings :: MonadStore [ByteString]
+sockGetStrings :: (MonadIO m) => MonadStoreT m [ByteString]
 sockGetStrings = getSocketIncremental getByteStrings
 
-sockGetPath :: MonadStore StorePath
+sockGetPath :: (MonadIO m) => MonadStoreT m StorePath
 sockGetPath = do
   sd <- getStoreDir
   pth <- getSocketIncremental (getPath sd)
@@ -80,7 +80,7 @@ sockGetPath = do
     Left e -> throwError e
     Right x -> return x
 
-sockGetPathMay :: MonadStore (Maybe StorePath)
+sockGetPathMay :: (MonadIO m) => MonadStoreT m (Maybe StorePath)
 sockGetPathMay = do
   sd <- getStoreDir
   pth <- getSocketIncremental (getPath sd)
@@ -88,7 +88,7 @@ sockGetPathMay = do
     Left _e -> Nothing
     Right x -> Just x
 
-sockGetPaths :: MonadStore StorePathSet
+sockGetPaths :: (MonadIO m) => MonadStoreT m StorePathSet
 sockGetPaths = do
   sd <- getStoreDir
   getSocketIncremental (getPaths sd)

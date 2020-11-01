@@ -30,22 +30,22 @@ library
                      , System.Nix.Store.Remote.Types
                      , System.Nix.Store.Remote.Util
 
-  build-depends:       base >=4.10 && <5
-                     , attoparsec
-                     , bytestring
+  build-depends:       attoparsec
+                     , base >=4.10 && <5
                      , binary
                      , bytestring
                      , containers
                      , filepath
-                     , text
-                     , unix
+                     , hnix-store-core
+                     , lifted-base
+                     , monad-control
+                     , mtl
                      , network
                      , nix-derivation >= 1.1.1 && <2
-                     , mtl
-                     , unordered-containers
-                     , filepath
+                     , text
                      , time
-                     , hnix-store-core
+                     , unix
+                     , unordered-containers
                      , vector
   hs-source-dirs:      src
   default-language:    Haskell2010

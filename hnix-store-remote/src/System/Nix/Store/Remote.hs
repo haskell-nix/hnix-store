@@ -9,7 +9,9 @@
 {-# LANGUAGE RecordWildCards     #-}
 module System.Nix.Store.Remote
   (
-    addToStore
+    MonadStoreT
+  , MonadStore
+  , addToStore
   , addTextToStore
   , addSignatures
   , addIndirectRoot
@@ -37,6 +39,7 @@ module System.Nix.Store.Remote
   where
 
 import Control.Monad (void, unless, when)
+import Control.Monad.IO.Class (MonadIO)
 import Data.ByteString.Lazy (ByteString)
 import Data.Map.Strict (Map)
 import Data.Text (Text)
@@ -72,13 +75,13 @@ type CheckSigsFlag = Bool
 type SubstituteFlag = Bool
 
 -- | Pack `FilePath` as `Nar` and add it to the store.
-addToStore :: forall a. (ValidAlgo a, NamedAlgo a)
+addToStore :: forall a m. (ValidAlgo a, NamedAlgo a, MonadIO m)
            => StorePathName        -- ^ Name part of the newly created `StorePath`
            -> FilePath             -- ^ Local `FilePath` to add
            -> Bool                 -- ^ Add target directory recursively
            -> (FilePath -> Bool)   -- ^ Path filter function
            -> RepairFlag           -- ^ Only used by local store backend
-           -> MonadStore StorePath
+           -> MonadStoreT m StorePath
 addToStore name pth recursive _pathFilter _repair = do
 
   runOpArgsIO AddToStore $ \yield -> do
@@ -101,11 +104,12 @@ addToStore name pth recursive _pathFilter _repair = do
 --
 -- Reference accepts repair but only uses it
 -- to throw error in case of remote talking to nix-daemon.
-addTextToStore :: Text         -- ^ Name of the text
+addTextToStore :: (MonadIO m)
+               => Text         -- ^ Name of the text
                -> Text         -- ^ Actual text to add
                -> StorePathSet -- ^ Set of `StorePath`s that the added text references
                -> RepairFlag   -- ^ Repair flag, must be `False` in case of remote backend
-               -> MonadStore StorePath
+               -> MonadStoreT m StorePath
 addTextToStore name text references' repair = do
   when repair $ error "repairing is not supported when building through the Nix daemon"
   runOpArgs AddTextToStore $ do
@@ -156,7 +160,7 @@ buildDerivation p drv buildMode = do
     -- XXX: reason for this is unknown
     -- but without it protocol just hangs waiting for
     -- more data. Needs investigation
-    putInt 0
+    putInt (0 :: Int)
 
   res <- getSocketIncremental $ getBuildResult
   return res
@@ -172,7 +176,7 @@ findRoots = do
   sd <- getStoreDir
   res <- getSocketIncremental
     $ getMany
-    $ (,) <$> (Data.ByteString.Lazy.fromStrict <$> getByteStringLen) 
+    $ (,) <$> (Data.ByteString.Lazy.fromStrict <$> getByteStringLen)
           <*> getPath sd
 
   r <- catRights res

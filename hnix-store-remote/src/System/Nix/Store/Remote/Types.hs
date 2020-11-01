@@ -2,8 +2,11 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module System.Nix.Store.Remote.Types (
     MonadStore
+  , MonadStoreT(..)
   , StoreConfig(..)
   , Logger(..)
   , Field(..)
@@ -20,16 +23,33 @@ module System.Nix.Store.Remote.Types (
 import           Data.ByteString           (ByteString)
 import qualified Data.ByteString.Lazy      as BSL
 import           Network.Socket            (Socket)
+import           Control.Applicative       (Alternative)
 import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.State
+import           Control.Monad.Fail             ( MonadFail )
 
 data StoreConfig = StoreConfig {
     storeDir        :: FilePath
   , storeSocket     :: Socket
   }
 
-type MonadStore a = ExceptT String (StateT (Maybe BSL.ByteString, [Logger]) (ReaderT StoreConfig IO)) a
+newtype MonadStoreT m a = NixStore {
+    unStore :: ExceptT String (StateT (Maybe BSL.ByteString, [Logger]) (ReaderT StoreConfig m)) a
+  } deriving
+    ( Functor
+    , Applicative
+    , Alternative
+    , Monad
+    , MonadFail
+    , MonadError String
+    , MonadIO
+    )
+
+instance MonadTrans MonadStoreT where
+  lift = NixStore . lift . lift . lift
+
+type MonadStore a = MonadStoreT IO a
 
 type ActivityID = Int
 type ActivityParentID = Int
@@ -55,23 +75,23 @@ isError :: Logger -> Bool
 isError (Error _ _) = True
 isError _           = False
 
-gotError :: MonadStore Bool
-gotError = any isError . snd <$> get
+gotError :: (MonadIO m) => MonadStoreT m Bool
+gotError = any isError . snd <$> NixStore get
 
-getError :: MonadStore [Logger]
-getError = filter isError . snd <$> get
+getError :: (MonadIO m) => MonadStoreT m [Logger]
+getError = filter isError . snd <$> NixStore get
 
-getLog :: MonadStore [Logger]
-getLog = snd <$> get
+getLog :: (MonadIO m) => MonadStoreT m [Logger]
+getLog = snd <$> NixStore get
 
-flushLog :: MonadStore ()
-flushLog = modify (\(a, _b) -> (a, []))
+flushLog :: (MonadIO m) => MonadStoreT m ()
+flushLog = NixStore $ modify (\(a, _b) -> (a, []))
 
-setData :: BSL.ByteString -> MonadStore ()
-setData x = modify (\(_, b) -> (Just x, b))
+setData :: (MonadIO m) => BSL.ByteString -> MonadStoreT m ()
+setData x = NixStore $ modify (\(_, b) -> (Just x, b))
 
-clearData :: MonadStore ()
-clearData = modify (\(_, b) -> (Nothing, b))
+clearData :: (MonadIO m) => MonadStoreT m ()
+clearData = NixStore $ modify (\(_, b) -> (Nothing, b))
 
-getStoreDir :: MonadStore FilePath
-getStoreDir = storeDir <$> ask
+getStoreDir :: (MonadIO m) => MonadStoreT m FilePath
+getStoreDir = storeDir <$> NixStore ask
