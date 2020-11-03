@@ -33,6 +33,7 @@ library
   build-depends:       base >=4.10 && <5
                      , attoparsec
                      , base16-bytestring
+                     , base64-bytestring
                      , bytestring
                      , binary
                      , bytestring
@@ -40,6 +41,7 @@ library
                      , cryptohash-md5
                      , cryptohash-sha1
                      , cryptohash-sha256
+                     , cryptohash-sha512
                      , directory
                      , filepath
                      , hashable

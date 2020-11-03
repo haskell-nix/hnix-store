@@ -16,8 +16,10 @@ module System.Nix.Internal.Hash where
 import qualified Crypto.Hash.MD5        as MD5
 import qualified Crypto.Hash.SHA1       as SHA1
 import qualified Crypto.Hash.SHA256     as SHA256
+import qualified Crypto.Hash.SHA512     as SHA512
 import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Base16 as Base16
+import qualified Data.ByteString.Base64 as Base64
 import           Data.Bits              (xor)
 import qualified Data.ByteString.Lazy   as BSL
 import qualified Data.Hashable          as DataHashable
@@ -37,6 +39,7 @@ data HashAlgorithm
   = MD5
   | SHA1
   | SHA256
+  | SHA512
   | Truncated Nat HashAlgorithm
     -- ^ The hash algorithm obtained by truncating the result of the
     -- input 'HashAlgorithm' to the given number of bytes. See
@@ -80,11 +83,9 @@ instance NamedAlgo 'SHA256 where
   algoName = "sha256"
   hashSize = 32
 
-{-
 instance NamedAlgo 'SHA512 where
   algoName = "sha512"
   hashSize = 64
--}
 
 -- | A digest whose 'NamedAlgo' is not known at compile time.
 data SomeNamedDigest = forall a . NamedAlgo a => SomeDigest (Digest a)
@@ -94,24 +95,31 @@ instance Show SomeNamedDigest where
     SomeDigest (digest :: Digest hashType) -> T.unpack $ "SomeDigest " <> algoName @hashType <> ":" <> encodeBase32 digest
 
 mkNamedDigest :: Text -> Text -> Either String SomeNamedDigest
-mkNamedDigest name hash = case name of
-  "md5"    -> SomeDigest <$> decode @'MD5
-  "sha1"   -> SomeDigest <$> decode @'SHA1
-  "sha256" -> SomeDigest <$> decode @'SHA256
-  _        -> Left $ "Unknown hash name: " ++ T.unpack name
+mkNamedDigest name sriHash =
+  let (sriName, hash) = T.breakOnEnd "-" sriHash in
+    if sriName == "" || sriName == (name <> "-")
+    then mkDigest name hash
+    else Left $ T.unpack $ "Sri hash method " <> sriName <> " does not match the required hash type " <> name
  where
-  size = T.length hash
-  decode :: forall a . (NamedAlgo a, ValidAlgo a) => Either String (Digest a)
-  decode
+  mkDigest name hash = case name of
+    "md5"    -> SomeDigest <$> decode @'MD5    hash
+    "sha1"   -> SomeDigest <$> decode @'SHA1   hash
+    "sha256" -> SomeDigest <$> decode @'SHA256 hash
+    "sha512" -> SomeDigest <$> decode @'SHA512 hash
+    _        -> Left $ "Unknown hash name: " ++ T.unpack name
+  decode :: forall a . (NamedAlgo a, ValidAlgo a) => Text -> Either String (Digest a)
+  decode hash
     | size == base16Len = decodeBase16 hash
     | size == base32Len = decodeBase32 hash
-    -- | size == base64Len = decodeBase64 s -- TODO
-    | otherwise = Left $ T.unpack hash ++ " is not a valid " ++ T.unpack name ++ " hash."
+    | size == base64Len = decodeBase64 hash
+    | otherwise = Left $ T.unpack sriHash ++ " is not a valid " ++ T.unpack name ++ " hash. Its length (" ++ show size ++ ") does not match any of " ++ show [base16Len, base32Len, base64Len]
    where
+    size = T.length hash
     hsize = hashSize @a
     base16Len = hsize * 2
     base32Len = ((hsize * 8 - 1) `div` 5) + 1;
-    -- base64Len = ((4 * hsize / 3) + 3) & ~3;
+    base64Len = ((4 * hsize `div` 3) + 3) `div` 4 * 4;
+
 
 -- | Hash an entire (strict) 'BS.ByteString' as a single call.
 --
@@ -150,6 +158,16 @@ decodeBase16 t = case Base16.decode (T.encodeUtf8 t) of
   (x, "") -> Right $ Digest x
   _       -> Left $ "Unable to decode base16 string " ++ T.unpack t
 
+-- | Encode a 'Digest' in hex.
+encodeBase64 :: Digest a -> T.Text
+encodeBase64 (Digest bs) = T.decodeUtf8 (Base64.encode bs)
+
+-- | Decode a 'Digest' in hex
+decodeBase64 :: T.Text -> Either String (Digest a)
+decodeBase64 t = case Base64.decode (T.encodeUtf8 t) of
+  Right x -> Right $ Digest x
+  Left  e -> Left $ "Unable to decode base64 string " ++ T.unpack t ++ ": " ++ e
+
 -- | Uses "Crypto.Hash.MD5" from cryptohash-md5.
 instance ValidAlgo 'MD5 where
   type AlgoCtx 'MD5 = MD5.Ctx
@@ -170,6 +188,13 @@ instance ValidAlgo 'SHA256 where
   initialize = SHA256.init
   update = SHA256.update
   finalize = Digest . SHA256.finalize
+
+-- | Uses "Crypto.Hash.SHA512" from cryptohash-sha512.
+instance ValidAlgo 'SHA512 where
+  type AlgoCtx 'SHA512 = SHA512.Ctx
+  initialize = SHA512.init
+  update = SHA512.update
+  finalize = Digest . SHA512.finalize
 
 -- | Reuses the underlying 'ValidAlgo' instance, but does a
 -- 'truncateDigest' at the end.

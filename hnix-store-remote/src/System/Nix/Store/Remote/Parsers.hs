@@ -49,7 +49,7 @@ parseTypedDigest :: Parser (Either String SomeNamedDigest)
 parseTypedDigest = mkNamedDigest <$> parseHashType <*> parseHash
 
 parseHashType :: Parser Data.Text.Text
-parseHashType = decodeUtf8 <$> ("sha256" <|> "sha1" <|> "md5") <* ":"
+parseHashType = decodeUtf8 <$> ("sha256" <|> "sha512" <|> "sha1" <|> "md5") <* (":" <|> "-")
 
 parseHash :: Parser Data.Text.Text
 parseHash = decodeUtf8 <$> takeWhile1 (/= ':')
