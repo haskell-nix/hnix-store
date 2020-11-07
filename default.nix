@@ -1,5 +1,5 @@
 { pkgs ? import <nixpkgs> {} }: let
-  overlay = import ./overlay.nix;
+  overlay = import ./overlay.nix pkgs.haskell.lib;
   overrideHaskellPackages = orig: {
     buildHaskellPackages =
       orig.buildHaskellPackages.override overrideHaskellPackages;

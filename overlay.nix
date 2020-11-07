@@ -1,4 +1,4 @@
-huper: helf: {
+hlib: helf: huper: {
   hnix-store-core =
     helf.callCabal2nix "hnix-store-core" ./hnix-store-core {};
   hnix-store-remote =
