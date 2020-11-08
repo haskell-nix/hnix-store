@@ -163,39 +163,6 @@ invalidPath =
   let Right n = makeStorePathName "invalid"
   in  StorePath (hash "invalid") n "no_such_root"
 
-withNar act = do
-  nar <- liftIO $ localPackNar narEffectsIO "dummy"
-  now <- liftIO $ getCurrentTime
-
-  let narContents = runPut $ putNar nar
-      narHash = hashLazy @SHA256 narContents
-      -- narSize vs narBytes
-      narBytes = BSL.length narContents
-
-  deriver <- addTextToStore "some-deriver" "" (HS.fromList [])  False
-
-  sd <- getStoreDir
-  let Right n = makeStorePathName "nar-path"
-      path = makeFixedOutputPath sd False narHash n
-
-  addTempRoot path
-
-  let vp = VP.StorePathMetadata
-            { VP.path =  path
-            , VP.deriverPath = Just deriver
-            , VP.narHash = SomeDigest narHash
-            , VP.references = HS.empty
-            , VP.registrationTime = now
-            , VP.narBytes = Just $ fromIntegral narBytes
-            , VP.trust = VP.BuiltLocally
-            , VP.sigs = S.empty -- []
-            , VP.contentAddressableAddress = Nothing
-            }
-
-  addToStoreNar vp nar False False
-
-  act path
-
 withBuilder action = do
   path <- addTextToStore "builder" builderSh (HS.fromList []) False
   action path
@@ -274,12 +241,6 @@ spec_protocol = Hspec.around withNixDaemon $ do
       itRights "queries" $ withPath $ \path -> do
         let pathSet = HS.fromList [path]
         queryMissing pathSet `shouldReturn` (HS.empty, HS.empty, HS.empty, 0, 0)
-
-    context "addToStoreNar" $ do
-      itRights "simple" $ withNar $ const return ()
-      itRights "valid" $ withNar $ \narPath -> do
-        liftIO $ print narPath
-        (isValidPathUncached narPath) `shouldReturn` True
 
     context "addToStore" $ do
       itRights "adds file to store" $ do
