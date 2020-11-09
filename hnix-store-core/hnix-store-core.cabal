@@ -37,6 +37,7 @@ library
                      , attoparsec
                      , algebraic-graphs >= 0.5 && < 0.6
                      , base16-bytestring
+                     , base64-bytestring
                      , bytestring
                      , binary
                      , bytestring
@@ -45,6 +46,7 @@ library
                      , cryptohash-md5
                      , cryptohash-sha1
                      , cryptohash-sha256
+                     , cryptohash-sha512
                      , directory
                      , filepath
                      , hashable
