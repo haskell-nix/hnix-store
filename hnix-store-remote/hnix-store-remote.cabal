@@ -62,6 +62,8 @@ test-suite hnix-store-remote-tests
    main-is:           Driver.hs
    other-modules:     Derivation
                     , NixDaemon
+                    , Spec
+                    , Util
    hs-source-dirs:    tests
    build-depends:
                        attoparsec
@@ -76,6 +78,7 @@ test-suite hnix-store-remote-tests
                      , process
                      , filepath
                      , hspec-expectations-lifted
+                     , quickcheck-text
                      , tasty
                      , tasty-discover
                      , tasty-hspec
