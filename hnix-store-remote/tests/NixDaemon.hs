@@ -202,7 +202,7 @@ spec_protocol = Hspec.around withNixDaemon $ do
       itRights "non-empty query" $ withPath $ \path -> queryAllValidPaths `shouldReturn` (HS.fromList [path])
 
     context "queryPathInfoUncached" $ do
-      itRights "queries path info" $ withPath $ queryPathInfoUncached @SHA256
+      itRights "queries path info" $ withPath $ queryPathInfoUncached
 
     context "ensurePath" $ do
       itRights "simple ensure" $ withPath $ ensurePath
