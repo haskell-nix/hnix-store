@@ -116,11 +116,11 @@ opNum AddToStoreNar               = 39
 opNum QueryMissing                = 40
 
 
-simpleOp :: (MonadIO m) => WorkerOp -> MonadStoreT m Bool
+simpleOp :: (MonadIO m) => WorkerOp -> RemoteStoreT m Bool
 simpleOp op = do
   simpleOpArgs op $ return ()
 
-simpleOpArgs :: (MonadIO m) => WorkerOp -> Put -> MonadStoreT m Bool
+simpleOpArgs :: (MonadIO m) => WorkerOp -> Put -> RemoteStoreT m Bool
 simpleOpArgs op args = do
   runOpArgs op args
   err <- gotError
@@ -133,23 +133,27 @@ simpleOpArgs op args = do
     False -> do
       sockGetBool
 
-runOp :: (MonadIO m) => WorkerOp -> MonadStoreT m ()
+runOp :: (MonadIO m) => WorkerOp -> RemoteStoreT m ()
 runOp op = runOpArgs op $ return ()
 
-runOpArgs :: (MonadIO m) => WorkerOp -> Put -> MonadStoreT m ()
+runOpArgs :: (MonadIO m, MonadRemoteStore m) => WorkerOp -> Put -> m ()
 runOpArgs op args = runOpArgsIO op (\encode -> encode $ Data.ByteString.Lazy.toStrict $ runPut args)
 
-runOpArgsIO :: WorkerOp -> ((Data.ByteString.ByteString -> MonadStore ()) -> MonadStore ()) -> MonadStore ()
+runOpArgsIO
+    :: forall m. (MonadIO m, MonadRemoteStore m)
+    => WorkerOp
+    -> ((Data.ByteString.ByteString -> m ()) -> m ())
+    -> m ()
 runOpArgsIO op encoder = do
 
   sockPut $ do
     putInt $ opNum op
 
-  soc <- storeSocket <$> ask
+  soc <- getSocket
   encoder (liftIO . sendAll soc)
 
   out <- processOutput
-  NixStore $ modify (\(a, b) -> (a, b++out))
+  setLog . (++out) =<< getLog
   err <- gotError
   when err $ do
     err  <- head <$> getError
@@ -158,10 +162,10 @@ runOpArgsIO op encoder = do
       _ -> throwError $ "Well, it should really be an error by now"
 
 
-runStore :: (MonadIO m, MonadBaseControl IO m) => MonadStoreT m a -> m (Either String a, [Logger])
+runStore :: (MonadIO m, MonadBaseControl IO m) => RemoteStoreT m a -> m (Either String a, [Logger])
 runStore = runStoreOpts defaultSockPath "/nix/store"
 
-runStoreOpts :: (MonadIO m, MonadBaseControl IO m) => FilePath -> FilePath -> MonadStoreT m a -> m (Either String a, [Logger])
+runStoreOpts :: (MonadIO m, MonadBaseControl IO m) => FilePath -> FilePath -> RemoteStoreT m a -> m (Either String a, [Logger])
 runStoreOpts sockPath storeRootDir code = do
   liftBaseOp (bracket (open sockPath) (Network.Socket.close . storeSocket)) run
   where
@@ -176,10 +180,10 @@ runStoreOpts sockPath storeRootDir code = do
       return $ StoreConfig { storeSocket = soc
                            , storeDir    = storeRootDir }
 
-    greet :: MonadIO m => MonadStoreT m [Logger]
+    greet :: MonadIO m => RemoteStoreT m [Logger]
     greet = do
       sockPut $ putInt workerMagic1
-      soc <- storeSocket <$> NixStore ask
+      soc <- storeSocket <$> RemoteStore ask
       vermagic <- liftIO $ recv soc 16
       let (magic2, _daemonProtoVersion) =
             flip runGet (Data.ByteString.Lazy.fromStrict vermagic)
@@ -193,9 +197,9 @@ runStoreOpts sockPath storeRootDir code = do
 
       processOutput
 
-    run sock =
-      fmap (\(res, (_data, logs)) -> (res, logs))
-        $ flip runReaderT sock
-        $ flip runStateT (Nothing, [])
+    run config =
+      fmap (\(res, state) -> (res, logs state))
+        $ flip runReaderT config
+        $ flip runStateT (StoreState [] Nothing)
         $ runExceptT
         $ unStore (greet >> code)

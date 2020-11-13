@@ -18,6 +18,7 @@ module System.Nix.Nar (
   -- * Encoding and Decoding NAR archives
     buildNarIO
   , unpackNarIO
+  , Nar.PathType (..)
 
   -- * Experimental
   , Nar.parseNar
@@ -67,7 +68,7 @@ buildNarIO
   -> IO.Handle
   -> IO ()
 buildNarIO effs basePath outHandle = do
-  Nar.streamNarIO (\chunk -> BS.hPut outHandle chunk >> Concurrent.threadDelay 10) effs basePath
+  Nar.streamNarIO (\chunk -> BS.hPut outHandle chunk >> Concurrent.threadDelay 10) (\p pt -> pure True) effs basePath
 
 
 -- | Read NAR formatted bytes from the @IO.Handle@ and unpack them into

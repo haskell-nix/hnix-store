@@ -54,7 +54,7 @@ import qualified Text.Printf                      as Printf
 import           Text.Read                        (readMaybe)
 
 import qualified System.Nix.Internal.Nar.Streamer as Nar
-import           System.Nix.Nar
+import           System.Nix.Nar                   hiding (PathType(..))
 
 
 

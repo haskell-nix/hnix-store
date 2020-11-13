@@ -4,6 +4,7 @@
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE LambdaCase          #-}
 
 module System.Nix.Internal.Nar.Streamer where
 
@@ -28,26 +29,24 @@ import qualified System.Nix.Internal.Nar.Effects as Nar
 streamNarIO
   :: forall m.(IO.MonadIO m)
   => (BS.ByteString -> m ())
+  -> (FilePath -> Nar.PathType -> m Bool)
   -> Nar.NarEffects IO
   -> FilePath
   -> m ()
-streamNarIO yield effs basePath = do
+streamNarIO yield filter effs basePath = do
   yield (str "nix-archive-1")
-  parens (go basePath)
+  basePathType <- IO.liftIO $ Nar.narPathType effs basePath
+  parens (go basePath basePathType)
   where
 
-    go :: FilePath -> m ()
-    go path = do
-      isDir     <- IO.liftIO $ Nar.narIsDir effs path
-      isSymLink <- IO.liftIO $ Nar.narIsSymLink effs path
-      let isRegular = not (isDir || isSymLink)
-
-      when isSymLink $ do
+    go :: FilePath -> Nar.PathType -> m ()
+    go path = \case
+      Nar.Symlink -> do
         target <- IO.liftIO $ Nar.narReadLink effs path
         yield $
           strs ["type", "symlink", "target", BSC.pack target]
 
-      when isRegular $ do
+      Nar.Regular -> do
         isExec <- IO.liftIO $ isExecutable effs path
         yield $ strs ["type","regular"]
         when (isExec == Executable) (yield $ strs ["executable", ""])
@@ -56,15 +55,21 @@ streamNarIO yield effs basePath = do
         yield $ int fSize
         yieldFile path fSize
 
-      when isDir $ do
+      Nar.Directory -> do
         fs <- IO.liftIO (Nar.narListDir effs path)
         yield $ strs ["type", "directory"]
         forM_ (List.sort fs) $ \f -> do
-          yield $ str "entry"
-          parens $ do
-            let fullName = path </> f
-            yield (strs ["name", BSC.pack f, "node"])
-            parens (go fullName)
+          let fullName = path </> f
+          pathType <- IO.liftIO $ Nar.narPathType effs fullName
+          keep <- filter fullName pathType
+          when keep $ do
+            yield $ str "entry"
+            parens $ do
+              yield (strs ["name", BSC.pack f, "node"])
+              parens (go fullName pathType)
+
+      Nar.Unknown -> do
+        IO.liftIO $ fail $ "Cannot serialise path " ++ path
 
     str :: BS.ByteString -> BS.ByteString
     str t = let len =  BS.length t

@@ -31,16 +31,16 @@ controlParser = do
     0x52534c54 -> Result        <$> getInt <*> getInt <*> getFields
     x          -> fail           $ "Invalid control message received:" ++ show x
 
-processOutput :: MonadIO m => MonadStoreT m [Logger]
+processOutput :: forall m. (MonadRemoteStore m, MonadIO m) => m [Logger]
 processOutput = go decoder
   where decoder = runGetIncremental controlParser
-        go :: MonadIO m => Decoder Logger -> MonadStoreT m [Logger]
+        go :: Decoder Logger -> m [Logger]
         go (Done _leftover _consumed ctrl) = do
           case ctrl of
             e@(Error _ _) -> return [e]
             Last -> return [Last]
             Read _n -> do
-              (mdata, _) <- NixStore get
+              mdata <- getData
               case mdata of
                 Nothing -> throwError "No data to read provided"
                 Just part -> do
@@ -56,7 +56,7 @@ processOutput = go decoder
               next <- go decoder
               return $ x:next
         go (Partial k) = do
-          soc <- storeSocket <$> NixStore ask
+          soc <- getSocket
           chunk <- liftIO (Just <$> recv soc 8)
           go (k chunk)
 

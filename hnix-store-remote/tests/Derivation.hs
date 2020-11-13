@@ -41,7 +41,7 @@ withBash action = do
     Nothing -> error "No bash executable found"
     Just fp -> do
       let Right n = System.Nix.StorePath.makeStorePathName "bash"
-      path <- addToStore @SHA256 n fp False (pure True) False
+      path <- addToStore @SHA256 n fp False (\p pt -> pure True) False
       action path
 
 withBuildScript action = do
