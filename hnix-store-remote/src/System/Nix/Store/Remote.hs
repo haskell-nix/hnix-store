@@ -10,7 +10,6 @@
 module System.Nix.Store.Remote
   (
     addToStore
-  , addToStoreNar
   , addTextToStore
   , addSignatures
   , addIndirectRoot
@@ -45,7 +44,6 @@ import Data.Text (Text)
 import Nix.Derivation (Derivation)
 import System.Nix.Build (BuildMode, BuildResult)
 import System.Nix.Hash (Digest, NamedAlgo, ValidAlgo, SomeNamedDigest(..))
-import System.Nix.Nar (Nar)
 import System.Nix.StorePath (StorePath, StorePathName, StorePathSet, StorePathHashAlgo)
 import System.Nix.StorePathMetadata (StorePathMetadata(..), StorePathTrust(..))
 
@@ -83,73 +81,21 @@ addToStore :: forall a. (ValidAlgo a, NamedAlgo a)
            -> MonadStore StorePath
 addToStore name pth recursive _pathFilter _repair = do
 
-  nar :: ByteString <- Control.Monad.IO.Class.liftIO
-    $ Data.Binary.Put.runPut . System.Nix.Nar.putNar
-      <$> System.Nix.Nar.localPackNar System.Nix.Nar.narEffectsIO pth
+  runOpArgsIO AddToStore $ \yield -> do
+    yield $ Data.ByteString.Lazy.toStrict $ Data.Binary.Put.runPut $ do
+      putText $ System.Nix.StorePath.unStorePathName name
 
-  runOpArgs AddToStore $ do
-    putText $ System.Nix.StorePath.unStorePathName name
+      putBool
+        $ not
+        $ System.Nix.Hash.algoName @a == "sha256" && recursive
 
-    putBool
-      $ not
-      $ System.Nix.Hash.algoName @a == "sha256" && recursive
+      putBool recursive
 
-    putBool recursive
+      putText $ System.Nix.Hash.algoName @a
 
-    putText $ System.Nix.Hash.algoName @a
-
-    Data.Binary.Put.putLazyByteString nar
+    System.Nix.Nar.streamNarIO yield System.Nix.Nar.narEffectsIO pth
 
   sockGetPath
-
--- | Add `Nar` to the store.
---
-addToStoreNar :: StorePathMetadata
-              -> Nar
-              -> RepairFlag
-              -> CheckSigsFlag
-              -> MonadStore ()
-addToStoreNar StorePathMetadata{..} nar repair checkSigs = do
-  -- after the command, protocol asks for data via Read message
-  -- so we provide it here
-  let n = Data.Binary.Put.runPut $ System.Nix.Nar.putNar nar
-  setData n
-
-  void $ runOpArgs AddToStoreNar $ do
-    putPath path
-    maybe (putText "") (putPath) deriverPath
-    let putNarHash :: SomeNamedDigest -> Data.Binary.Put.PutM ()
-        putNarHash (SomeDigest hash) = putByteStringLen
-          $ Data.ByteString.Lazy.fromStrict
-          $ Data.Text.Encoding.encodeUtf8
-          $ System.Nix.Hash.encodeBase32 hash
-
-    putNarHash narHash
-    putPaths references
-    putTime registrationTime
-
-    -- XXX: StorePathMetadata defines this as Maybe
-    -- `putInt 0` instead of error?
-    maybe (error "NO NAR BYTES") putInt narBytes
-
-    putBool (trust == BuiltLocally)
-
-    -- XXX: signatures need pubkey from config
-    putTexts [""]
-
-    maybe
-      (putText "")
-      (putText
-        . Data.Text.Lazy.toStrict
-        . System.Nix.Store.Remote.Builders.buildContentAddressableAddress
-            -- this calls for changing the type of addToStoreNar
-            -- to forall a . (Valid/Named)Algo and a type app
-            @'System.Nix.Hash.SHA256
-      )
-      contentAddressableAddress
-
-    putBool repair
-    putBool (not checkSigs)
 
 -- | Add text to store.
 --

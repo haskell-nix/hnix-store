@@ -7,6 +7,7 @@ module System.Nix.Store.Remote.Protocol (
   , simpleOpArgs
   , runOp
   , runOpArgs
+  , runOpArgsIO
   , runStore
   , runStoreOpts) where
 
@@ -17,12 +18,13 @@ import           Control.Monad.State
 
 import           Data.Binary.Get
 import           Data.Binary.Put
+import qualified Data.ByteString
 import qualified Data.ByteString.Char8
 import qualified Data.ByteString.Lazy
 
 import           Network.Socket            (SockAddr(SockAddrUnix))
 import qualified Network.Socket
-import           Network.Socket.ByteString (recv)
+import           Network.Socket.ByteString (recv, sendAll)
 
 import           System.Nix.Store.Remote.Binary
 import           System.Nix.Store.Remote.Logger
@@ -131,17 +133,16 @@ runOp :: WorkerOp -> MonadStore ()
 runOp op = runOpArgs op $ return ()
 
 runOpArgs :: WorkerOp -> Put -> MonadStore ()
-runOpArgs op args = do
+runOpArgs op args = runOpArgsIO op (\encode -> encode $ Data.ByteString.Lazy.toStrict $ runPut args)
 
-  -- Temporary hack for printing the messages destined for nix-daemon socket
-  when False $
-    liftIO $ Data.ByteString.Lazy.writeFile "mytestfile2" $ runPut $ do
-      putInt $ opNum op
-      args
+runOpArgsIO :: WorkerOp -> ((Data.ByteString.ByteString -> MonadStore ()) -> MonadStore ()) -> MonadStore ()
+runOpArgsIO op encoder = do
 
   sockPut $ do
     putInt $ opNum op
-    args
+
+  soc <- storeSocket <$> ask
+  encoder (liftIO . sendAll soc)
 
   out <- processOutput
   modify (\(a, b) -> (a, b++out))
