@@ -2,7 +2,7 @@
 
 ## (unreleased) 0.3.0.0 -- 2020-XY-ZV
 
-* Restored most store API functions
+* Restored most store API functions except `addToStoreNar`
 * Added `buildDerivation`
 
 ## 0.2.0.0 -- skipped
