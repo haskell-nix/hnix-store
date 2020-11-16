@@ -65,7 +65,7 @@ test-suite hnix-store-remote-tests
    hs-source-dirs:    tests
    build-depends:
                        attoparsec
-                     , hnix-store-core
+                     , hnix-store-core >= 0.3
                      , hnix-store-remote
                      , base
                      , base64-bytestring
