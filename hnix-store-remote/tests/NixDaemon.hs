@@ -106,7 +106,7 @@ accepted connection from pid 22959, user root (trusted)
 error: changing ownership of path '/run/user/1000/test-nix-store-06b0d249e5616122/store': Invalid argument
 -}
 
-startDaemon :: FilePath -> IO (P.ProcessHandle, MonadStore a -> IO (Either String a, [Logger]))
+startDaemon :: FilePath -> IO (P.ProcessHandle, RemoteStoreT IO a -> IO (Either String a, [Logger]))
 startDaemon fp = do
   writeConf (fp </> "etc" </> "nix.conf")
   p <- createProcessEnv fp "nix-daemon" []
@@ -155,7 +155,7 @@ withPath action = do
 -- | dummy path, adds <tmp>/dummpy with "Hello World" contents
 dummy = do
   let Right n = makeStorePathName "dummy"
-  res <- addToStore @SHA256 n "dummy" False (pure True) False
+  res <- addToStore @SHA256 n "dummy" False (\p pt -> pure True) False
   return res
 
 invalidPath :: StorePath
@@ -246,7 +246,7 @@ spec_protocol = Hspec.around withNixDaemon $ do
       itRights "adds file to store" $ do
         fp <- liftIO $ writeSystemTempFile "addition" "lal"
         let Right n = makeStorePathName "tmp-addition"
-        res <- addToStore @SHA256 n fp False (pure True) False
+        res <- addToStore @SHA256 n fp False (\p pt -> pure True) False
         liftIO $ print res
 
     context "with dummy" $ do

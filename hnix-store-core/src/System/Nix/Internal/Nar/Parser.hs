@@ -91,10 +91,10 @@ runParser effs (NarParser action) h target = do
 
     cleanup :: m ()
     cleanup = do
-      isDir <- Nar.narIsDir effs target
-      if isDir
-        then Nar.narDeleteDir  effs target
-        else Nar.narDeleteFile effs target
+      pathType <- Nar.narPathType effs target
+      case pathType of
+        Nar.Directory -> Nar.narDeleteDir  effs target
+        _             -> Nar.narDeleteFile effs target
 
 
 instance Trans.MonadTrans NarParser where

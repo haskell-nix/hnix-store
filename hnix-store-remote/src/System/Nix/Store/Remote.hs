@@ -9,7 +9,9 @@
 {-# LANGUAGE RecordWildCards     #-}
 module System.Nix.Store.Remote
   (
-    addToStore
+    RemoteStoreT
+  , System.Nix.Nar.PathType (..)
+  , addToStore
   , addTextToStore
   , addSignatures
   , addIndirectRoot
@@ -37,6 +39,7 @@ module System.Nix.Store.Remote
   where
 
 import Control.Monad (void, unless, when)
+import Control.Monad.IO.Class (MonadIO)
 import Data.ByteString.Lazy (ByteString)
 import Data.Map.Strict (Map)
 import Data.Text (Text)
@@ -72,14 +75,14 @@ type CheckSigsFlag = Bool
 type SubstituteFlag = Bool
 
 -- | Pack `FilePath` as `Nar` and add it to the store.
-addToStore :: forall a. (ValidAlgo a, NamedAlgo a)
+addToStore :: forall a m. (NamedAlgo a, MonadRemoteStore m, MonadIO m)
            => StorePathName        -- ^ Name part of the newly created `StorePath`
            -> FilePath             -- ^ Local `FilePath` to add
            -> Bool                 -- ^ Add target directory recursively
-           -> (FilePath -> Bool)   -- ^ Path filter function
+           -> (FilePath -> System.Nix.Nar.PathType -> m Bool)   -- ^ Path filter function
            -> RepairFlag           -- ^ Only used by local store backend
-           -> MonadStore StorePath
-addToStore name pth recursive _pathFilter _repair = do
+           -> m StorePath
+addToStore name pth recursive pathFilter _repair = do
 
   runOpArgsIO AddToStore $ \yield -> do
     yield $ Data.ByteString.Lazy.toStrict $ Data.Binary.Put.runPut $ do
@@ -93,7 +96,7 @@ addToStore name pth recursive _pathFilter _repair = do
 
       putText $ System.Nix.Hash.algoName @a
 
-    System.Nix.Nar.streamNarIO yield System.Nix.Nar.narEffectsIO pth
+    System.Nix.Nar.streamNarIO yield pathFilter System.Nix.Nar.narEffectsIO pth
 
   sockGetPath
 
@@ -101,11 +104,12 @@ addToStore name pth recursive _pathFilter _repair = do
 --
 -- Reference accepts repair but only uses it
 -- to throw error in case of remote talking to nix-daemon.
-addTextToStore :: Text         -- ^ Name of the text
+addTextToStore :: (MonadIO m, MonadRemoteStore m)
+               => Text         -- ^ Name of the text
                -> Text         -- ^ Actual text to add
                -> StorePathSet -- ^ Set of `StorePath`s that the added text references
                -> RepairFlag   -- ^ Repair flag, must be `False` in case of remote backend
-               -> MonadStore StorePath
+               -> m StorePath
 addTextToStore name text references' repair = do
   when repair $ error "repairing is not supported when building through the Nix daemon"
   runOpArgs AddTextToStore $ do
@@ -114,40 +118,43 @@ addTextToStore name text references' repair = do
     putPaths references'
   sockGetPath
 
-addSignatures :: StorePath
+addSignatures :: (MonadIO m)
+              => StorePath
               -> [ByteString]
-              -> MonadStore ()
+              -> RemoteStoreT m ()
 addSignatures p signatures = do
   void $ simpleOpArgs AddSignatures $ do
     putPath p
     putByteStrings signatures
 
-addIndirectRoot :: StorePath -> MonadStore ()
+addIndirectRoot :: (MonadIO m) => StorePath -> RemoteStoreT m ()
 addIndirectRoot pn = do
   void $ simpleOpArgs AddIndirectRoot $ putPath pn
 
 -- | Add temporary garbage collector root.
 --
 -- This root is removed as soon as the client exits.
-addTempRoot :: StorePath -> MonadStore ()
+addTempRoot :: (MonadIO m) => StorePath -> RemoteStoreT m ()
 addTempRoot pn = do
   void $ simpleOpArgs AddTempRoot $ putPath pn
 
 -- | Build paths if they are an actual derivations.
 --
 -- If derivation output paths are already valid, do nothing.
-buildPaths :: StorePathSet
+buildPaths :: (MonadIO m)
+           => StorePathSet
            -> BuildMode
-           -> MonadStore ()
+           -> RemoteStoreT m ()
 buildPaths ps bm = do
   void $ simpleOpArgs BuildPaths $ do
     putPaths ps
     putInt $ fromEnum bm
 
-buildDerivation :: StorePath
+buildDerivation :: (MonadIO m)
+                => StorePath
                 -> Derivation StorePath Text
                 -> BuildMode
-                -> MonadStore BuildResult
+                -> RemoteStoreT m BuildResult
 buildDerivation p drv buildMode = do
   runOpArgs BuildDerivation $ do
     putPath p
@@ -156,62 +163,64 @@ buildDerivation p drv buildMode = do
     -- XXX: reason for this is unknown
     -- but without it protocol just hangs waiting for
     -- more data. Needs investigation
-    putInt 0
+    putInt (0 :: Int)
 
   res <- getSocketIncremental $ getBuildResult
   return res
 
-ensurePath :: StorePath -> MonadStore ()
+ensurePath :: (MonadIO m) => StorePath -> RemoteStoreT m ()
 ensurePath pn = do
   void $ simpleOpArgs EnsurePath $ putPath pn
 
 -- | Find garbage collector roots.
-findRoots :: MonadStore (Map ByteString StorePath)
+findRoots :: (MonadIO m) => RemoteStoreT m (Map ByteString StorePath)
 findRoots = do
   runOp FindRoots
   sd <- getStoreDir
   res <- getSocketIncremental
     $ getMany
-    $ (,) <$> (Data.ByteString.Lazy.fromStrict <$> getByteStringLen) 
+    $ (,) <$> (Data.ByteString.Lazy.fromStrict <$> getByteStringLen)
           <*> getPath sd
 
   r <- catRights res
   return $ Data.Map.Strict.fromList r
   where
-    catRights :: [(a, Either String b)] -> MonadStore [(a, b)]
+    catRights :: (MonadIO m) => [(a, Either String b)] -> RemoteStoreT m [(a, b)]
     catRights = mapM ex
 
-    ex :: (a, Either [Char] b) -> MonadStore (a, b)
+    ex :: (MonadIO m) => (a, Either [Char] b) -> RemoteStoreT m (a, b)
     ex (x, Right y) = return (x, y)
     ex (_x , Left e) = error $ "Unable to decode root: "  ++ e
 
-isValidPathUncached :: StorePath -> MonadStore Bool
+isValidPathUncached :: (MonadIO m) => StorePath -> RemoteStoreT m Bool
 isValidPathUncached p = do
   simpleOpArgs IsValidPath $ putPath p
 
 -- | Query valid paths from set, optionally try to use substitutes.
-queryValidPaths :: StorePathSet   -- ^ Set of `StorePath`s to query
+queryValidPaths :: (MonadIO m)
+                => StorePathSet   -- ^ Set of `StorePath`s to query
                 -> SubstituteFlag -- ^ Try substituting missing paths when `True`
-                -> MonadStore StorePathSet
+                -> RemoteStoreT m StorePathSet
 queryValidPaths ps substitute = do
   runOpArgs QueryValidPaths $ do
     putPaths ps
     putBool substitute
   sockGetPaths
 
-queryAllValidPaths :: MonadStore StorePathSet
+queryAllValidPaths :: (MonadIO m) => RemoteStoreT m StorePathSet
 queryAllValidPaths = do
   runOp QueryAllValidPaths
   sockGetPaths
 
-querySubstitutablePaths :: StorePathSet -> MonadStore StorePathSet
+querySubstitutablePaths :: (MonadIO m) => StorePathSet -> RemoteStoreT m StorePathSet
 querySubstitutablePaths ps = do
   runOpArgs QuerySubstitutablePaths $ do
     putPaths ps
   sockGetPaths
 
-queryPathInfoUncached :: StorePath
-                      -> MonadStore StorePathMetadata
+queryPathInfoUncached :: (MonadIO m)
+                      => StorePath
+                      -> RemoteStoreT m StorePathMetadata
 queryPathInfoUncached path = do
   runOpArgs QueryPathInfo $ do
     putPath path
@@ -248,31 +257,31 @@ queryPathInfoUncached path = do
 
   return $ StorePathMetadata {..}
 
-queryReferrers :: StorePath -> MonadStore StorePathSet
+queryReferrers :: (MonadIO m) => StorePath -> RemoteStoreT m StorePathSet
 queryReferrers p = do
   runOpArgs QueryReferrers $ do
     putPath p
   sockGetPaths
 
-queryValidDerivers :: StorePath -> MonadStore StorePathSet
+queryValidDerivers :: (MonadIO m) => StorePath -> RemoteStoreT m StorePathSet
 queryValidDerivers p = do
   runOpArgs QueryValidDerivers $ do
     putPath p
   sockGetPaths
 
-queryDerivationOutputs :: StorePath -> MonadStore StorePathSet
+queryDerivationOutputs :: (MonadIO m) => StorePath -> RemoteStoreT m StorePathSet
 queryDerivationOutputs p = do
   runOpArgs QueryDerivationOutputs $
     putPath p
   sockGetPaths
 
-queryDerivationOutputNames :: StorePath -> MonadStore StorePathSet
+queryDerivationOutputNames :: (MonadIO m) => StorePath -> RemoteStoreT m StorePathSet
 queryDerivationOutputNames p = do
   runOpArgs QueryDerivationOutputNames $
     putPath p
   sockGetPaths
 
-queryPathFromHashPart :: Digest StorePathHashAlgo -> MonadStore StorePath
+queryPathFromHashPart :: (MonadIO m) => Digest StorePathHashAlgo -> RemoteStoreT m StorePath
 queryPathFromHashPart storePathHash = do
   runOpArgs QueryPathFromHashPart $
     putByteStringLen
@@ -281,12 +290,13 @@ queryPathFromHashPart storePathHash = do
       $ System.Nix.Hash.encodeBase32 storePathHash
   sockGetPath
 
-queryMissing :: StorePathSet
-             -> MonadStore ( StorePathSet -- Paths that will be built
-                           , StorePathSet -- Paths that have substitutes
-                           , StorePathSet -- Unknown paths
-                           , Integer      -- Download size
-                           , Integer)     -- Nar size?
+queryMissing :: (MonadIO m)
+             => StorePathSet
+             -> RemoteStoreT m ( StorePathSet -- Paths that will be built
+                              , StorePathSet -- Paths that have substitutes
+                              , StorePathSet -- Unknown paths
+                              , Integer      -- Download size
+                              , Integer)     -- Nar size?
 queryMissing ps = do
   runOpArgs QueryMissing $ do
     putPaths ps
@@ -298,14 +308,14 @@ queryMissing ps = do
   narSize'       <- sockGetInt
   return (willBuild, willSubstitute, unknown, downloadSize', narSize')
 
-optimiseStore :: MonadStore ()
+optimiseStore :: (MonadIO m) => RemoteStoreT m ()
 optimiseStore = void $ simpleOp OptimiseStore
 
-syncWithGC :: MonadStore ()
+syncWithGC :: (MonadIO m) => RemoteStoreT m ()
 syncWithGC = void $ simpleOp SyncWithGC
 
 -- returns True on errors
-verifyStore :: CheckFlag -> RepairFlag -> MonadStore Bool
+verifyStore :: (MonadIO m) => CheckFlag -> RepairFlag -> RemoteStoreT m Bool
 verifyStore check repair = simpleOpArgs VerifyStore $ do
   putBool check
   putBool repair

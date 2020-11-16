@@ -5,6 +5,7 @@
 
 module System.Nix.Internal.Nar.Effects
   ( NarEffects(..)
+  , PathType(..)
   , narEffectsIO
   ) where
 
@@ -18,9 +19,16 @@ import           Data.Int                    (Int64)
 import qualified System.Directory            as Directory
 import qualified System.Directory            as Directory
 import qualified System.IO                   as IO
-import           System.Posix.Files          (createSymbolicLink, fileSize,
-                                              getFileStatus, isDirectory,
-                                              readSymbolicLink)
+import           System.Posix.Files          (createSymbolicLink, fileSize, readSymbolicLink,
+                                              getSymbolicLinkStatus, isRegularFile, isDirectory, isSymbolicLink)
+
+data PathType = Regular | Directory | Symlink | Unknown deriving Show
+
+pathTypeFromPosix status
+  | isRegularFile  status = Regular
+  | isDirectory    status = Directory
+  | isSymbolicLink status = Symlink
+  | otherwise             = Unknown
 
 data NarEffects (m :: * -> *) = NarEffects {
     narReadFile   :: FilePath -> m BSL.ByteString
@@ -31,8 +39,7 @@ data NarEffects (m :: * -> *) = NarEffects {
   , narCreateLink :: FilePath -> FilePath -> m ()
   , narGetPerms   :: FilePath -> m Directory.Permissions
   , narSetPerms   :: FilePath -> Directory.Permissions ->  m ()
-  , narIsDir      :: FilePath -> m Bool
-  , narIsSymLink  :: FilePath -> m Bool
+  , narPathType   :: FilePath -> m PathType
   , narFileSize   :: FilePath -> m Int64
   , narReadLink   :: FilePath -> m FilePath
   , narDeleteDir  :: FilePath -> m ()
@@ -57,9 +64,8 @@ narEffectsIO = NarEffects {
   , narCreateLink = \f t -> IO.liftIO $ createSymbolicLink f t
   , narGetPerms   = IO.liftIO . Directory.getPermissions
   , narSetPerms   = \f p -> IO.liftIO $ Directory.setPermissions f p
-  , narIsDir      = \d -> fmap isDirectory $ IO.liftIO (getFileStatus d)
-  , narIsSymLink  = IO.liftIO . Directory.pathIsSymbolicLink
-  , narFileSize   = \n -> fmap (fromIntegral . fileSize) $ IO.liftIO (getFileStatus n)
+  , narPathType   = \f -> fmap pathTypeFromPosix $ IO.liftIO (getSymbolicLinkStatus f)
+  , narFileSize   = \n -> fmap (fromIntegral . fileSize) $ IO.liftIO (getSymbolicLinkStatus n)
   , narReadLink   = IO.liftIO . readSymbolicLink
   , narDeleteDir  = IO.liftIO . Directory.removeDirectoryRecursive
   , narDeleteFile = IO.liftIO . Directory.removeFile
