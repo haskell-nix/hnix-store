@@ -9,8 +9,8 @@ module System.Nix.Store.Remote.Builders (
   ) where
 
 import Data.Text.Lazy (Text)
-import System.Nix.Hash (Digest, NamedAlgo, SomeNamedDigest(SomeDigest))
-import System.Nix.StorePath (ContentAddressableAddress(..), NarHashMode(..))
+import System.Nix.Hash (Digest, SomeNamedDigest(SomeDigest))
+import System.Nix.StorePath (ContentAddressableAddress(..))
 
 import Data.Text.Lazy.Builder (Builder)
 import qualified Data.Text.Lazy.Builder
@@ -19,19 +19,19 @@ import qualified System.Nix.Hash
 
 -- | Marshall `ContentAddressableAddress` to `Text`
 -- in form suitable for remote protocol usage.
-buildContentAddressableAddress :: forall hashAlgo . NamedAlgo hashAlgo
-                               => ContentAddressableAddress
-                               -> Text
+buildContentAddressableAddress
+  :: ContentAddressableAddress
+  -> Text
 buildContentAddressableAddress =
-  Data.Text.Lazy.Builder.toLazyText . contentAddressableAddressBuilder @hashAlgo
+  Data.Text.Lazy.Builder.toLazyText . contentAddressableAddressBuilder
 
-contentAddressableAddressBuilder :: forall hashAlgo . NamedAlgo hashAlgo
-                               => ContentAddressableAddress
-                               -> Builder
+contentAddressableAddressBuilder
+  :: ContentAddressableAddress
+  -> Builder
 contentAddressableAddressBuilder (Text digest) =
      "text:"
   <> digestBuilder digest
-contentAddressableAddressBuilder (Fixed narHashMode (SomeDigest digest)) =
+contentAddressableAddressBuilder (Fixed _narHashMode (SomeDigest (digest :: Digest hashAlgo))) =
      "fixed:"
   <> (Data.Text.Lazy.Builder.fromText $ System.Nix.Hash.algoName @hashAlgo)
   <> digestBuilder digest
