@@ -1,6 +1,6 @@
 # Revision history for hnix-store-core
 
-## (unreleased) 0.3.0.0 -- 2020-XY-ZV
+## 0.3.0.0 -- 2020-11-29
 
 * `System.Nix.Nar` changes API to support NAR format streaming:
   * `buildNarIO :: FilePath -> Handle -> IO ()` - Create a NAR from a regular filesystem object, stream it out on the Handle
