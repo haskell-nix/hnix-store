@@ -1,5 +1,5 @@
 name:                hnix-store-remote
-version:             0.2.0.0
+version:             0.3.0.0
 synopsis:            Remote hnix store
 description:         Implementation of the nix store using the daemon protocol.
 homepage:            https://github.com/haskell-nix/hnix-store
@@ -55,8 +55,6 @@ test-suite hnix-store-remote-tests
    if !flag(io-testsuite)
      buildable: False
 
-   build-tool-depends: nix:nix-daemon
-
    ghc-options:       -rtsopts -fprof-auto
    type:              exitcode-stdio-1.0
    main-is:           Driver.hs
@@ -67,7 +65,7 @@ test-suite hnix-store-remote-tests
    hs-source-dirs:    tests
    build-depends:
                        attoparsec
-                     , hnix-store-core
+                     , hnix-store-core >= 0.3
                      , hnix-store-remote
                      , base
                      , base64-bytestring

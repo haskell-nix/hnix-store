@@ -2,6 +2,9 @@
 
 ## (unreleased) 0.3.0.0 -- 2020-XY-ZV
 
+* `System.Nix.Nar` changes API to support NAR format streaming:
+  * `buildNarIO :: FilePath -> Handle -> IO ()` - Create a NAR from a regular filesystem object, stream it out on the Handle
+  * `unpackNarIO :: Handle -> FilePath -> IO ()` - Recreate filesystem object from a NAR file accessed by the Handle
 * `StorePath` type changed to simple variant without type level
 symbolic store path root.
 * Added `makeFixedOutputPath` to `System.Nix.ReadonlyStore`
@@ -14,6 +17,7 @@ symbolic store path root.
 * Added `System.Nix.Build` module
 * Added `System.Nix.Derivation` module
 * Removed `System.Nix.Util` module, moved to `hnix-store-remote`
+* Added base64 and SHA512 hash support
 
 ## 0.2.0.0 -- 2020-03-12
 
