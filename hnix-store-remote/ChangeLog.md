@@ -1,6 +1,6 @@
 # Revision history for hnix-store-remote
 
-## (unreleased) 0.3.0.0 -- 2020-XY-ZV
+## 0.3.0.0 -- 2020-11-29
 
 * Restored most store API functions except `addToStoreNar`
 * Added `buildDerivation`
