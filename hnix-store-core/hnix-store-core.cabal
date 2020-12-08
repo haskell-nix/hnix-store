@@ -13,7 +13,10 @@ maintainer:          shea@shealevy.com
 copyright:           2018 Shea Levy
 category:            Nix
 build-type:          Simple
-extra-source-files:  ChangeLog.md, README.md
+extra-source-files:  ChangeLog.md
+                   , README.md
+                   , tests/samples/example0.drv
+                   , tests/samples/example1.drv
 cabal-version:       >=1.10
 
 library
