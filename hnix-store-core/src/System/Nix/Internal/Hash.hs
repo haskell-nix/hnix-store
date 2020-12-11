@@ -155,8 +155,8 @@ encodeBase16 (Digest bs) = T.decodeUtf8 (Base16.encode bs)
 -- | Decode a 'Digest' in hex
 decodeBase16 :: T.Text -> Either String (Digest a)
 decodeBase16 t = case Base16.decode (T.encodeUtf8 t) of
-  (x, "") -> Right $ Digest x
-  _       -> Left $ "Unable to decode base16 string " ++ T.unpack t
+  Right x -> Right $ Digest x
+  Left  e -> Left $ "Unable to decode base16 string " ++ T.unpack t <> ": " <> e
 
 -- | Encode a 'Digest' in hex.
 encodeBase64 :: Digest a -> T.Text
