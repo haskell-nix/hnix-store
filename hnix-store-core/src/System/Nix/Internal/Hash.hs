@@ -154,9 +154,7 @@ encodeBase16 (Digest bs) = T.decodeUtf8 (Base16.encode bs)
 
 -- | Decode a 'Digest' in hex
 decodeBase16 :: T.Text -> Either String (Digest a)
-decodeBase16 t = case Base16.decode (T.encodeUtf8 t) of
-  (x, "") -> Right $ Digest x
-  _       -> Left $ "Unable to decode base16 string " ++ T.unpack t
+decodeBase16 t = Digest <$> Base16.decode (T.encodeUtf8 t)
 
 -- | Encode a 'Digest' in hex.
 encodeBase64 :: Digest a -> T.Text
@@ -164,9 +162,7 @@ encodeBase64 (Digest bs) = T.decodeUtf8 (Base64.encode bs)
 
 -- | Decode a 'Digest' in hex
 decodeBase64 :: T.Text -> Either String (Digest a)
-decodeBase64 t = case Base64.decode (T.encodeUtf8 t) of
-  Right x -> Right $ Digest x
-  Left  e -> Left $ "Unable to decode base64 string " ++ T.unpack t ++ ": " ++ e
+decodeBase64 t = Digest <$> Base64.decode (T.encodeUtf8 t)
 
 -- | Uses "Crypto.Hash.MD5" from cryptohash-md5.
 instance ValidAlgo 'MD5 where
