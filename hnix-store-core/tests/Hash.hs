@@ -8,6 +8,7 @@ module Hash where
 import           Control.Monad               (forM_)
 import qualified Data.ByteString.Char8       as BSC
 import qualified Data.ByteString.Base16      as B16
+import qualified System.Nix.Base32           as B32
 import qualified Data.ByteString.Base64.Lazy as B64
 import qualified Data.ByteString.Lazy        as BSL
 import           Data.Text                   (Text(..))
@@ -15,7 +16,6 @@ import           Data.Text                   (Text(..))
 import           Test.Tasty.Hspec
 import           Test.Tasty.QuickCheck
 
-import           System.Nix.Base32
 import           System.Nix.Hash
 import           System.Nix.StorePath
 import           Arbitrary
@@ -49,7 +49,7 @@ spec_hash = do
 
 -- | Test that Nix-like base32 encoding roundtrips
 prop_nixBase32Roundtrip = forAllShrink nonEmptyString genericShrink $
-  \x -> Right (BSC.pack x) === (decode . encode . BSC.pack $ x)
+  \x -> Right (BSC.pack x) === (B32.decode . B32.encode . BSC.pack $ x)
 
 -- | API variants
 prop_nixBase16Roundtrip =
@@ -79,19 +79,19 @@ spec_nixhash = do
         ]
 
     it "b16 encoded . b32 decoded should equal original b16" $
-      forM_ samples $ \(b16, b32, b64) -> shouldBe (B16.encode <$> decode b32) (Right b16)
+      forM_ samples $ \(b16, b32, b64) -> shouldBe (B16.encode <$> B32.decode b32) (Right b16)
 
     it "b64 encoded . b32 decoded should equal original b64" $
-      forM_ samples $ \(b16, b32, b64) -> shouldBe (B64.encode . BSL.fromStrict <$> decode b32) (Right b64)
+      forM_ samples $ \(b16, b32, b64) -> shouldBe (B64.encode . BSL.fromStrict <$> B32.decode b32) (Right b64)
 
     it "b32 encoded . b64 decoded should equal original b32" $
-      forM_ samples $ \(b16, b32, b64) -> shouldBe (encode . BSL.toStrict <$> B64.decode b64 ) (Right b32)
+      forM_ samples $ \(b16, b32, b64) -> shouldBe (B32.encode . BSL.toStrict <$> B64.decode b64 ) (Right b32)
 
     it "b16 encoded . b64 decoded should equal original b16" $
       forM_ samples $ \(b16, b32, b64) -> shouldBe (B16.encode . BSL.toStrict <$> B64.decode b64 ) (Right b16)
 
     it "b32 encoded . b16 decoded should equal original b32" $
-      forM_ samples $ \(b16, b32, b64) -> shouldBe (encode <$> B16.decode b16) (Right b32)
+      forM_ samples $ \(b16, b32, b64) -> shouldBe (B32.encode <$> B16.decode b16) (Right b32)
 
     it "b64 encoded . b16 decoded should equal original b64" $
       forM_ samples $ \(b16, b32, b64) -> shouldBe (B64.encode . BSL.fromStrict <$> B16.decode b16 ) (Right b64)
