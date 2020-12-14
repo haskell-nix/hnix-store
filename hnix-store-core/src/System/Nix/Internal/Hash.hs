@@ -31,6 +31,13 @@ import qualified Data.Text.Encoding     as T
 import           Data.Word              (Word8)
 import           GHC.TypeLits           (Nat, KnownNat, natVal)
 import qualified System.Nix.Base32      as Base32
+import           Data.Coerce
+
+-- | Constructors to indicate the base encodings
+data BaseEncoding
+  = Base16
+  | Base32
+  | Base64
 
 -- | The universe of supported hash algorithms.
 --
@@ -140,17 +147,23 @@ hashLazy :: forall a.ValidAlgo a => BSL.ByteString -> Digest a
 hashLazy bsl =
   finalize $ foldl' (update @a) (initialize @a) (BSL.toChunks bsl)
 
+-- | Take BaseEncoding type of the output -> take the input -> encode
+encodeIn :: BaseEncoding -> Digest a -> T.Text
+encodeIn Base16 = T.decodeUtf8 . Base16.encode . coerce
+encodeIn Base32 = Base32.encode . coerce
+encodeIn Base64 = T.decodeUtf8 . Base64.encode . coerce
+
 -- | Encode a 'Digest' in hex.
 encodeBase16 :: Digest a -> T.Text
-encodeBase16 (Digest bs) = T.decodeUtf8 (Base16.encode bs)
+encodeBase16 = encodeIn Base16
 
 -- | Encode a 'Digest' in the special Nix base-32 encoding.
 encodeBase32 :: Digest a -> T.Text
-encodeBase32 (Digest bs) = Base32.encode bs
+encodeBase32 = encodeIn Base32
 
 -- | Encode a 'Digest' in hex.
 encodeBase64 :: Digest a -> T.Text
-encodeBase64 (Digest bs) = T.decodeUtf8 (Base64.encode bs)
+encodeBase64 = encodeIn Base64
 
 -- | Decode a 'Digest' in hex
 decodeBase16 :: T.Text -> Either String (Digest a)
