@@ -140,25 +140,25 @@ hashLazy :: forall a.ValidAlgo a => BSL.ByteString -> Digest a
 hashLazy bsl =
   finalize $ foldl' (update @a) (initialize @a) (BSL.toChunks bsl)
 
+-- | Encode a 'Digest' in hex.
+encodeBase16 :: Digest a -> T.Text
+encodeBase16 (Digest bs) = T.decodeUtf8 (Base16.encode bs)
+
 -- | Encode a 'Digest' in the special Nix base-32 encoding.
 encodeBase32 :: Digest a -> T.Text
 encodeBase32 (Digest bs) = Base32.encode bs
 
--- | Decode a 'Digest' in the special Nix base-32 encoding.
-decodeBase32 :: T.Text -> Either String (Digest a)
-decodeBase32 t = Digest <$> Base32.decode t
-
 -- | Encode a 'Digest' in hex.
-encodeBase16 :: Digest a -> T.Text
-encodeBase16 (Digest bs) = T.decodeUtf8 (Base16.encode bs)
+encodeBase64 :: Digest a -> T.Text
+encodeBase64 (Digest bs) = T.decodeUtf8 (Base64.encode bs)
 
 -- | Decode a 'Digest' in hex
 decodeBase16 :: T.Text -> Either String (Digest a)
 decodeBase16 t = Digest <$> Base16.decode (T.encodeUtf8 t)
 
--- | Encode a 'Digest' in hex.
-encodeBase64 :: Digest a -> T.Text
-encodeBase64 (Digest bs) = T.decodeUtf8 (Base64.encode bs)
+-- | Decode a 'Digest' in the special Nix base-32 encoding.
+decodeBase32 :: T.Text -> Either String (Digest a)
+decodeBase32 t = Digest <$> Base32.decode t
 
 -- | Decode a 'Digest' in hex
 decodeBase64 :: T.Text -> Either String (Digest a)
