@@ -109,16 +109,16 @@ mkNamedDigest name sriHash =
     else Left $ T.unpack $ "Sri hash method " <> sriName <> " does not match the required hash type " <> name
  where
   mkDigest name hash = case name of
-    "md5"    -> SomeDigest <$> decode @'MD5    hash
-    "sha1"   -> SomeDigest <$> decode @'SHA1   hash
-    "sha256" -> SomeDigest <$> decode @'SHA256 hash
-    "sha512" -> SomeDigest <$> decode @'SHA512 hash
+    "md5"    -> SomeDigest <$> decodeGo @'MD5    hash
+    "sha1"   -> SomeDigest <$> decodeGo @'SHA1   hash
+    "sha256" -> SomeDigest <$> decodeGo @'SHA256 hash
+    "sha512" -> SomeDigest <$> decodeGo @'SHA512 hash
     _        -> Left $ "Unknown hash name: " ++ T.unpack name
-  decode :: forall a . (NamedAlgo a, ValidAlgo a) => Text -> Either String (Digest a)
-  decode hash
-    | size == base16Len = decodeBase16 hash
-    | size == base32Len = decodeBase32 hash
-    | size == base64Len = decodeBase64 hash
+  decodeGo :: forall a . (NamedAlgo a, ValidAlgo a) => Text -> Either String (Digest a)
+  decodeGo hash
+    | size == base16Len = decode Base16 hash
+    | size == base32Len = decode Base32 hash
+    | size == base64Len = decode Base64 hash
     | otherwise = Left $ T.unpack sriHash ++ " is not a valid " ++ T.unpack name ++ " hash. Its length (" ++ show size ++ ") does not match any of " ++ show [base16Len, base32Len, base64Len]
    where
     size = T.length hash
@@ -165,17 +165,24 @@ encodeBase32 = encodeIn Base32
 encodeBase64 :: Digest a -> T.Text
 encodeBase64 = encodeIn Base64
 
+
+-- | Take BaseEncoding type of the input -> take the input itself -> decode
+decode :: BaseEncoding -> T.Text -> Either String (Digest a)
+decode Base16 = fmap Digest . Base16.decode . T.encodeUtf8
+decode Base32 = fmap Digest . Base32.decode
+decode Base64 = fmap Digest . Base64.decode . T.encodeUtf8
+
 -- | Decode a 'Digest' in hex
 decodeBase16 :: T.Text -> Either String (Digest a)
-decodeBase16 t = Digest <$> Base16.decode (T.encodeUtf8 t)
+decodeBase16 = decode Base16
 
 -- | Decode a 'Digest' in the special Nix base-32 encoding.
 decodeBase32 :: T.Text -> Either String (Digest a)
-decodeBase32 t = Digest <$> Base32.decode t
+decodeBase32 = decode Base32
 
 -- | Decode a 'Digest' in hex
 decodeBase64 :: T.Text -> Either String (Digest a)
-decodeBase64 t = Digest <$> Base64.decode (T.encodeUtf8 t)
+decodeBase64 = decode Base64
 
 -- | Uses "Crypto.Hash.MD5" from cryptohash-md5.
 instance ValidAlgo 'MD5 where
