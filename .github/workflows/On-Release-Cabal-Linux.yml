@@ -37,6 +37,10 @@ jobs:
       - name: "Install additional system packages"
         run: sudo apt install libsodium-dev
       - run: cabal v2-install tasty-discover
+      - name: "Install Nix"
+        # Still required for Store-remote test suite run
+        uses: cachix/install-nix-action@v12
+        if: matrix.packageRoot == 'hnix-store-remote'
       - run: cabal v2-configure --disable-optimization --enable-tests --enable-deterministic
         if: matrix.packageRoot == 'hnix-store-core'
       - run: |
