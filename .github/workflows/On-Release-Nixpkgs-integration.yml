@@ -1,6 +1,10 @@
 name: "Direct import & build inside Nixpkgs"
 
 on:
+  pull_request:
+  push:
+    branches:
+      - master
   release:
     # created: a draft is saved, or a release or pre-release is published without previously being saved as a draft
     types: [ created ]
