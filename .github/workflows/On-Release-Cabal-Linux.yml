@@ -10,14 +10,15 @@ jobs:
   build10:
     name: "GHC"
     runs-on: ubuntu-latest
+    continue-on-error: true
     strategy:
       matrix:
-        packageRoots: [ ./hnix-store-core, ./hnix-store-remote ]
+        packageRoot: [ hnix-store-core, hnix-store-remote ]
         # Since CI by default tests boundary GHCs, test middle versions of GHCs
         ghc: [ "8.8", "8.6"]
     defaults:
       run:
-        working-directory: "${{ matrix.packageRoots }}"
+        working-directory: "./${{ matrix.packageRoot }}"
     steps:
       - uses: actions/checkout@v2
         with:
@@ -37,5 +38,10 @@ jobs:
         run: sudo apt install libsodium-dev
       - run: cabal v2-install tasty-discover
       - run: cabal v2-configure --disable-optimization --enable-tests --enable-deterministic
+        if: matrix.packageRoot == 'hnix-store-core'
+      - run: |
+          cabal v2-configure --disable-optimization --enable-tests --enable-deterministic \
+            -f io-testsuite  # Enable the Store-remote test suite
+        if: matrix.packageRoot == 'hnix-store-remote'
       - run: cabal v2-build
       - run: cabal v2-test
