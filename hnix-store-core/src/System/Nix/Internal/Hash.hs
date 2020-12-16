@@ -19,6 +19,7 @@ import qualified Crypto.Hash.SHA256     as SHA256
 import qualified Crypto.Hash.SHA512     as SHA512
 import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Base16 as Base16
+import qualified System.Nix.Base32      as Base32  -- Nix has own Base32 encoding
 import qualified Data.ByteString.Base64 as Base64
 import           Data.Bits              (xor)
 import qualified Data.ByteString.Lazy   as BSL
@@ -30,13 +31,13 @@ import qualified Data.Text              as T
 import qualified Data.Text.Encoding     as T
 import           Data.Word              (Word8)
 import           GHC.TypeLits           (Nat, KnownNat, natVal)
-import qualified System.Nix.Base32      as Base32
-import           Data.Coerce
+import           Data.Coerce            (coerce)
 
 -- | Constructors to indicate the base encodings
 data BaseEncoding
   = Base16
   | Base32
+  -- | ^ Nix has a special map of Base32 encoding
   | Base64
 
 -- | The universe of supported hash algorithms.
@@ -57,7 +58,7 @@ newtype Digest (a :: HashAlgorithm) =
   Digest BS.ByteString deriving (Eq, Ord, DataHashable.Hashable)
 
 instance Show (Digest a) where
-  show = ("Digest " ++) . show . encodeInBase Base32
+  show = ("Digest " <>) . show . encodeInBase Base32
 
 -- | The primitive interface for incremental hashing for a given
 -- 'HashAlgorithm'. Every 'HashAlgorithm' should have an instance.

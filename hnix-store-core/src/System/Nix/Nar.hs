@@ -4,12 +4,8 @@ Maintainer  : Shea Levy <shea@shealevy.com>
 -}
 
 {-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections       #-}
-{-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE TypeFamilies        #-}
 
 
@@ -34,19 +30,7 @@ module System.Nix.Nar (
   ) where
 
 import qualified Control.Concurrent     as Concurrent
-import           Control.Monad          (when)
-import qualified Control.Monad.IO.Class as IO
-import           Data.Bool              (bool)
 import qualified Data.ByteString        as BS
-import qualified Data.ByteString.Char8  as BSC
-import qualified Data.ByteString.Lazy   as BSL
-import           Data.Foldable          (forM_)
-import qualified Data.List              as List
-import           Data.Monoid            ((<>))
-import qualified Data.Serialize.Put     as Serial
-import           GHC.Int                (Int64)
-import qualified System.Directory       as Directory
-import           System.FilePath        as FilePath
 import qualified System.IO              as IO
 
 import qualified System.Nix.Internal.Nar.Effects  as Nar

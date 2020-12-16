@@ -1,16 +1,15 @@
 
 module System.Nix.Internal.Base32 where
 
-import Data.Bits (shiftR)
-import Data.Char (chr, ord)
-import Data.Word (Word8)
-import Data.List (unfoldr)
-import Data.Maybe (isJust, catMaybes)
+import           Data.Maybe             (fromMaybe)
+import           Data.Bits              (shiftR)
+import           Data.Word              (Word8)
+import           Data.List              (unfoldr)
 import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Char8  as BSC
 import qualified Data.Text              as T
 import qualified Data.Vector            as V
-import Numeric (readInt)
+import           Numeric                (readInt)
 
 -- omitted: E O U T
 digits32 = V.fromList "0123456789abcdfghijklmnpqrsvwxyz"
@@ -47,26 +46,29 @@ encode c = T.pack $ map char32 [nChar - 1, nChar - 2 .. 0]
 
 -- | Decode Nix's base32 encoded text
 decode :: T.Text -> Either String BS.ByteString
-decode what = case T.all (flip elem digits32) what of
-  True  -> unsafeDecode what
-  False -> Left "Invalid base32 string"
+decode what =
+  if T.all (`elem` digits32) what
+    then unsafeDecode what
+    else Left "Invalid base32 string"
 
 -- | Decode Nix's base32 encoded text
 -- Doesn't check if all elements match `digits32`
 unsafeDecode :: T.Text -> Either String BS.ByteString
 unsafeDecode what =
   case readInt 32
-         (flip elem digits32)
-         (\c -> maybe (error "character not in digits32") id $
+         (`elem` digits32)
+         (\c -> fromMaybe (error "character not in digits32") $
                   V.findIndex (==c) digits32)
          (T.unpack what)
     of
       [(i, _)] -> Right $ padded $ integerToBS i
       x        -> Left $ "Can't decode: readInt returned " ++ show x
   where
-    padded x | BS.length x < decLen = x `BS.append`
-      (BSC.pack $ take (decLen - BS.length x) (cycle "\NUL"))
-    padded x | otherwise = x
+    padded x
+      | BS.length x < decLen = x `BS.append` bstr
+      | otherwise = x
+     where
+      bstr = BSC.pack $ take (decLen - BS.length x) (cycle "\NUL")
 
     decLen = T.length what * 5 `div` 8
 

@@ -1,5 +1,4 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE RankNTypes          #-}
@@ -47,18 +46,15 @@ import System.Nix.Hash (Digest, NamedAlgo, ValidAlgo, SomeNamedDigest(..), BaseE
 import System.Nix.StorePath (StorePath, StorePathName, StorePathSet, StorePathHashAlgo)
 import System.Nix.StorePathMetadata (StorePathMetadata(..), StorePathTrust(..))
 
-import qualified Control.Monad.IO.Class
 import qualified Data.Binary.Put
 import qualified Data.ByteString.Lazy
 import qualified Data.Map.Strict
 import qualified Data.Set
 import qualified Data.Text.Encoding
-import qualified Data.Text.Lazy
 
 import qualified System.Nix.Nar
 import qualified System.Nix.Hash
 import qualified System.Nix.StorePath
-import qualified System.Nix.Store.Remote.Builders
 import qualified System.Nix.Store.Remote.Parsers
 
 import           System.Nix.Store.Remote.Binary

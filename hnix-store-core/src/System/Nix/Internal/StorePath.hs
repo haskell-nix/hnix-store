@@ -1,13 +1,10 @@
 {-|
 Description : Representation of Nix store paths.
 -}
-{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE TypeInType #-} -- Needed for GHC 8.4.4 for some reason
@@ -25,14 +22,12 @@ import System.Nix.Internal.Base32 (digits32)
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8)
 import qualified Data.Text as T
-import GHC.TypeLits (Symbol, KnownSymbol, symbolVal)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Char
 import Data.Hashable (Hashable(..))
 import Data.HashSet (HashSet)
-import Data.Proxy (Proxy(..))
 
 import Data.Attoparsec.Text.Lazy (Parser, (<?>))
 
@@ -197,7 +192,7 @@ parsePath expectedRoot x =
     rootDir' = init rootDir
     storeDir = if expectedRoot == rootDir'
       then Right rootDir'
-      else Left $ unwords $ [ "Root store dir mismatch, expected", expectedRoot, "got", rootDir']
+      else Left $ "Root store dir mismatch, expected" <> expectedRoot <> "got" <> rootDir'
   in
     StorePath <$> digest <*> name <*> storeDir
 
@@ -210,7 +205,7 @@ pathParser expectedRoot = do
     <?> "Expecting path separator"
 
   digest <- decodeBase Base32
-    <$> Data.Attoparsec.Text.Lazy.takeWhile1 (\c -> c `elem` digits32)
+    <$> Data.Attoparsec.Text.Lazy.takeWhile1 (`elem` digits32)
     <?> "Invalid Base32 part"
 
   Data.Attoparsec.Text.Lazy.char '-'

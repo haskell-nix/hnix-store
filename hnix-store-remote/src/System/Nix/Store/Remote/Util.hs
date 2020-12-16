@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE RecordWildCards     #-}
 module System.Nix.Store.Remote.Util where
 
@@ -10,7 +9,6 @@ import           Data.Either
 import           Data.Binary.Get
 import           Data.Binary.Put
 import           Data.Text                 (Text)
-import qualified Data.Text                 as T
 import qualified Data.Text.Encoding        as T
 import qualified Data.Text.Lazy            as TL
 import qualified Data.Text.Lazy.Encoding   as TL
@@ -49,12 +47,12 @@ getSocketIncremental = genericIncremental sockGet8
   where
     sockGet8 :: MonadStore (Maybe BSC.ByteString)
     sockGet8 = do
-      soc <- storeSocket <$> ask
+      soc <- asks storeSocket
       liftIO $ Just <$> recv soc 8
 
 sockPut :: Put -> MonadStore ()
 sockPut p = do
-  soc <- storeSocket <$> ask
+  soc <- asks storeSocket
   liftIO $ sendAll soc $ BSL.toStrict $ runPut p
 
 sockGet :: Get a -> MonadStore a
@@ -109,7 +107,7 @@ putText :: Text -> Put
 putText = putByteStringLen . textToBSL
 
 putTexts :: [Text] -> Put
-putTexts = putByteStrings . (map textToBSL)
+putTexts = putByteStrings . map textToBSL
 
 getPath :: FilePath -> Get (Either String StorePath)
 getPath sd = parsePath sd <$> getByteStringLen
