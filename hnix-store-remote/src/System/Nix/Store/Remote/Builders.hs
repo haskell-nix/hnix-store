@@ -9,7 +9,10 @@ module System.Nix.Store.Remote.Builders (
   ) where
 
 import Data.Text.Lazy (Text)
-import System.Nix.Hash (Digest, SomeNamedDigest(SomeDigest))
+import System.Nix.Hash ( Digest
+                       , SomeNamedDigest(SomeDigest)
+                       , BaseEncoding(Base32)
+                       )
 import System.Nix.StorePath (ContentAddressableAddress(..))
 
 import Data.Text.Lazy.Builder (Builder)
@@ -39,4 +42,4 @@ contentAddressableAddressBuilder (Fixed _narHashMode (SomeDigest (digest :: Dige
 digestBuilder :: Digest a -> Builder
 digestBuilder =
     Data.Text.Lazy.Builder.fromText
-  . System.Nix.Hash.encodeBase32
+  . System.Nix.Hash.encodeInBase Base32

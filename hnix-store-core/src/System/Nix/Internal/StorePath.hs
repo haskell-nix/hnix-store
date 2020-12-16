@@ -15,8 +15,9 @@ module System.Nix.Internal.StorePath where
 import System.Nix.Hash
   ( HashAlgorithm(Truncated, SHA256)
   , Digest
-  , encodeBase32
-  , decodeBase32
+  , BaseEncoding(..)
+  , encodeInBase
+  , decodeBase
   , SomeNamedDigest
   )
 import System.Nix.Internal.Base32 (digits32)
@@ -154,7 +155,7 @@ storePathToRawFilePath StorePath {..} = BS.concat
     ]
   where
     root = BC.pack storePathRoot
-    hashPart = encodeUtf8 $ encodeBase32 storePathHash
+    hashPart = encodeUtf8 $ encodeInBase Base32 storePathHash
     name = encodeUtf8 $ unStorePathName storePathName
 
 -- | Render a 'StorePath' as a 'FilePath'.
@@ -175,7 +176,7 @@ storePathToNarInfo
   :: StorePath
   -> BC.ByteString
 storePathToNarInfo StorePath {..} = BS.concat
-    [ encodeUtf8 $ encodeBase32 storePathHash
+    [ encodeUtf8 $ encodeInBase Base32 storePathHash
     , ".narinfo"
     ]
 
@@ -189,7 +190,7 @@ parsePath expectedRoot x =
   let
     (rootDir, fname) = System.FilePath.splitFileName . BC.unpack $ x
     (digestPart, namePart) = T.breakOn "-" $ T.pack fname
-    digest = decodeBase32 digestPart
+    digest = decodeBase Base32 digestPart
     name = makeStorePathName . T.drop 1 $ namePart
     --rootDir' = dropTrailingPathSeparator rootDir
     -- cannot use ^^ as it drops multiple slashes /a/b/// -> /a/b
@@ -208,7 +209,7 @@ pathParser expectedRoot = do
   Data.Attoparsec.Text.Lazy.char '/'
     <?> "Expecting path separator"
 
-  digest <- decodeBase32
+  digest <- decodeBase Base32
     <$> Data.Attoparsec.Text.Lazy.takeWhile1 (\c -> c `elem` digits32)
     <?> "Invalid Base32 part"
 

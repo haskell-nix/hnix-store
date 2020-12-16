@@ -43,7 +43,7 @@ import Data.Text (Text)
 
 import Nix.Derivation (Derivation)
 import System.Nix.Build (BuildMode, BuildResult)
-import System.Nix.Hash (Digest, NamedAlgo, ValidAlgo, SomeNamedDigest(..))
+import System.Nix.Hash (Digest, NamedAlgo, ValidAlgo, SomeNamedDigest(..), BaseEncoding(Base32))
 import System.Nix.StorePath (StorePath, StorePathName, StorePathSet, StorePathHashAlgo)
 import System.Nix.StorePathMetadata (StorePathMetadata(..), StorePathTrust(..))
 
@@ -222,7 +222,7 @@ queryPathInfoUncached path = do
   deriverPath <- sockGetPathMay
 
   narHashText <- Data.Text.Encoding.decodeUtf8 <$> sockGetStr
-  let narHash = case System.Nix.Hash.decodeBase32 @'System.Nix.Hash.SHA256 narHashText of
+  let narHash = case (System.Nix.Hash.decodeBase Base32 :: Text -> Either String (Digest a)) @'System.Nix.Hash.SHA256 narHashText of
         Left e -> error e
         Right x -> SomeDigest x
 
@@ -278,7 +278,7 @@ queryPathFromHashPart storePathHash = do
     putByteStringLen
       $ Data.ByteString.Lazy.fromStrict
       $ Data.Text.Encoding.encodeUtf8
-      $ System.Nix.Hash.encodeBase32 storePathHash
+      $ System.Nix.Hash.encodeInBase Base32 storePathHash
   sockGetPath
 
 queryMissing :: StorePathSet

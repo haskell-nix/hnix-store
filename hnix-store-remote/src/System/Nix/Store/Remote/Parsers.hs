@@ -36,6 +36,9 @@ caText = do
   _      <- "text:sha256:"
   digest <- decodeBase32 @'SHA256 <$> parseHash
   either fail return $ Text <$> digest
+   where
+    decodeBase32 :: Text -> Either String (Digest a)
+    decodeBase32 = decodeBase Base32
 
 -- | Parser for @fixed:<r?>:<ht>:<h>@
 caFixed :: Parser ContentAddressableAddress
