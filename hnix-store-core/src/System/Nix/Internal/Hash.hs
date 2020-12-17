@@ -100,8 +100,7 @@ instance NamedAlgo 'SHA512 where
 data SomeNamedDigest = forall a . NamedAlgo a => SomeDigest (Digest a)
 
 instance Show SomeNamedDigest where
-  show sd = case sd of
-    SomeDigest (digest :: Digest hashType) -> T.unpack $ "SomeDigest " <> algoName @hashType <> ":" <> encodeInBase Base32 digest
+  show (SomeDigest (digest :: Digest hashType)) = T.unpack $ "SomeDigest " <> algoName @hashType <> ":" <> encodeInBase Base32 digest
 
 mkNamedDigest :: Text -> Text -> Either String SomeNamedDigest
 mkNamedDigest name sriHash =
