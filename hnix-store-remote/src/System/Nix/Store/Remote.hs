@@ -218,7 +218,7 @@ queryPathInfoUncached path = do
   deriverPath <- sockGetPathMay
 
   narHashText <- Data.Text.Encoding.decodeUtf8 <$> sockGetStr
-  let narHash = case (System.Nix.Hash.decodeBase Base32 :: Text -> Either String (Digest a)) @'System.Nix.Hash.SHA256 narHashText of
+  let narHash = case System.Nix.Hash.decodeBase @'System.Nix.Hash.SHA256 Base32 narHashText of
         Left e -> error e
         Right x -> SomeDigest x
 
