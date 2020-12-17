@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP                 #-}
-{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections       #-}
@@ -8,13 +7,10 @@
 module NarFormat where
 
 import           Control.Applicative              (many, optional, (<|>))
-import           Control.Concurrent               (threadDelay)
 import qualified Control.Concurrent               as Concurrent
-import           Control.Exception                (SomeException, finally, try)
-import           Control.Monad                    (replicateM, replicateM_,
+import           Control.Exception                (SomeException, try)
+import           Control.Monad                    (replicateM,
                                                    when)
-import           Control.Monad.IO.Class           (liftIO)
-import           Data.Binary                      (put)
 import           Data.Binary.Get                  (Get (..), getByteString,
                                                    getInt64le,
                                                    getLazyByteString, runGet)
@@ -27,25 +23,19 @@ import qualified Data.ByteString.Lazy             as BSL
 import qualified Data.ByteString.Lazy.Char8       as BSLC
 import           Data.Int
 import qualified Data.Map                         as Map
-import           Data.Maybe                       (fromMaybe, isJust)
+import           Data.Maybe                       (fromMaybe)
 import qualified Data.Text                        as T
 import qualified Data.Text.Encoding               as E
-import           GHC.Stats                        (getRTSStats, max_live_bytes)
-import           System.Directory                 (doesDirectoryExist,
-                                                   doesFileExist, doesPathExist,
-                                                   listDirectory,
+import           System.Directory                 (doesDirectoryExist, doesPathExist,
                                                    removeDirectoryRecursive,
                                                    removeFile)
 import qualified System.Directory                 as Directory
 import           System.Environment               (getEnv)
 import           System.FilePath                  ((<.>), (</>))
 import qualified System.IO                        as IO
-import qualified System.IO.Streams.File           as IOStreamsFile
-import qualified System.IO.Streams.Process        as IOStreamsProcess
 import qualified System.IO.Temp                   as Temp
 import qualified System.Posix.Process             as Unix
 import qualified System.Process                   as P
-import qualified System.Process.ByteString.Lazy   as ProcessByteString
 import           Test.Tasty                       as T
 import           Test.Tasty.Hspec
 import qualified Test.Tasty.HUnit                 as HU

@@ -16,7 +16,6 @@ import qualified Data.ByteString             as BS
 import qualified Data.ByteString.Lazy        as BSL
 import           Data.Int                    (Int64)
 import qualified System.Directory            as Directory
-import qualified System.Directory            as Directory
 import qualified System.IO                   as IO
 import           System.Posix.Files          (createSymbolicLink, fileSize,
                                               getFileStatus, isDirectory,

@@ -19,6 +19,7 @@ import qualified Crypto.Hash.SHA256     as SHA256
 import qualified Crypto.Hash.SHA512     as SHA512
 import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Base16 as Base16
+import qualified System.Nix.Base32      as Base32  -- Nix has own Base32 encoding
 import qualified Data.ByteString.Base64 as Base64
 import           Data.Bits              (xor)
 import qualified Data.ByteString.Lazy   as BSL
@@ -30,7 +31,14 @@ import qualified Data.Text              as T
 import qualified Data.Text.Encoding     as T
 import           Data.Word              (Word8)
 import           GHC.TypeLits           (Nat, KnownNat, natVal)
-import qualified System.Nix.Base32      as Base32
+import           Data.Coerce            (coerce)
+
+-- | Constructors to indicate the base encodings
+data BaseEncoding
+  = Base16
+  | Base32
+  -- | ^ Nix has a special map of Base32 encoding
+  | Base64
 
 -- | The universe of supported hash algorithms.
 --
@@ -50,7 +58,7 @@ newtype Digest (a :: HashAlgorithm) =
   Digest BS.ByteString deriving (Eq, Ord, DataHashable.Hashable)
 
 instance Show (Digest a) where
-  show = ("Digest " ++) . show . encodeBase32
+  show = ("Digest " <>) . show . encodeInBase Base32
 
 -- | The primitive interface for incremental hashing for a given
 -- 'HashAlgorithm'. Every 'HashAlgorithm' should have an instance.
@@ -92,7 +100,7 @@ data SomeNamedDigest = forall a . NamedAlgo a => SomeDigest (Digest a)
 
 instance Show SomeNamedDigest where
   show sd = case sd of
-    SomeDigest (digest :: Digest hashType) -> T.unpack $ "SomeDigest " <> algoName @hashType <> ":" <> encodeBase32 digest
+    SomeDigest (digest :: Digest hashType) -> T.unpack $ "SomeDigest " <> algoName @hashType <> ":" <> encodeInBase Base32 digest
 
 mkNamedDigest :: Text -> Text -> Either String SomeNamedDigest
 mkNamedDigest name sriHash =
@@ -102,16 +110,16 @@ mkNamedDigest name sriHash =
     else Left $ T.unpack $ "Sri hash method " <> sriName <> " does not match the required hash type " <> name
  where
   mkDigest name hash = case name of
-    "md5"    -> SomeDigest <$> decode @'MD5    hash
-    "sha1"   -> SomeDigest <$> decode @'SHA1   hash
-    "sha256" -> SomeDigest <$> decode @'SHA256 hash
-    "sha512" -> SomeDigest <$> decode @'SHA512 hash
+    "md5"    -> SomeDigest <$> decodeGo @'MD5    hash
+    "sha1"   -> SomeDigest <$> decodeGo @'SHA1   hash
+    "sha256" -> SomeDigest <$> decodeGo @'SHA256 hash
+    "sha512" -> SomeDigest <$> decodeGo @'SHA512 hash
     _        -> Left $ "Unknown hash name: " ++ T.unpack name
-  decode :: forall a . (NamedAlgo a, ValidAlgo a) => Text -> Either String (Digest a)
-  decode hash
-    | size == base16Len = decodeBase16 hash
-    | size == base32Len = decodeBase32 hash
-    | size == base64Len = decodeBase64 hash
+  decodeGo :: forall a . (NamedAlgo a, ValidAlgo a) => Text -> Either String (Digest a)
+  decodeGo hash
+    | size == base16Len = decodeBase Base16 hash
+    | size == base32Len = decodeBase Base32 hash
+    | size == base64Len = decodeBase Base64 hash
     | otherwise = Left $ T.unpack sriHash ++ " is not a valid " ++ T.unpack name ++ " hash. Its length (" ++ show size ++ ") does not match any of " ++ show [base16Len, base32Len, base64Len]
    where
     size = T.length hash
@@ -140,29 +148,20 @@ hashLazy :: forall a.ValidAlgo a => BSL.ByteString -> Digest a
 hashLazy bsl =
   finalize $ foldl' (update @a) (initialize @a) (BSL.toChunks bsl)
 
--- | Encode a 'Digest' in the special Nix base-32 encoding.
-encodeBase32 :: Digest a -> T.Text
-encodeBase32 (Digest bs) = Base32.encode bs
 
--- | Decode a 'Digest' in the special Nix base-32 encoding.
-decodeBase32 :: T.Text -> Either String (Digest a)
-decodeBase32 t = Digest <$> Base32.decode t
+-- | Take BaseEncoding type of the output -> take the Digeest as input -> encode Digest
+encodeInBase :: BaseEncoding -> Digest a -> T.Text
+encodeInBase Base16 = T.decodeUtf8 . Base16.encode . coerce
+encodeInBase Base32 = Base32.encode . coerce
+encodeInBase Base64 = T.decodeUtf8 . Base64.encode . coerce
 
--- | Encode a 'Digest' in hex.
-encodeBase16 :: Digest a -> T.Text
-encodeBase16 (Digest bs) = T.decodeUtf8 (Base16.encode bs)
 
--- | Decode a 'Digest' in hex
-decodeBase16 :: T.Text -> Either String (Digest a)
-decodeBase16 t = Digest <$> Base16.decode (T.encodeUtf8 t)
+-- | Take BaseEncoding type of the input -> take the input itself -> decodeBase into Digest
+decodeBase :: BaseEncoding -> T.Text -> Either String (Digest a)
+decodeBase Base16 = fmap Digest . Base16.decode . T.encodeUtf8
+decodeBase Base32 = fmap Digest . Base32.decode
+decodeBase Base64 = fmap Digest . Base64.decode . T.encodeUtf8
 
--- | Encode a 'Digest' in hex.
-encodeBase64 :: Digest a -> T.Text
-encodeBase64 (Digest bs) = T.decodeUtf8 (Base64.encode bs)
-
--- | Decode a 'Digest' in hex
-decodeBase64 :: T.Text -> Either String (Digest a)
-decodeBase64 t = Digest <$> Base64.decode (T.encodeUtf8 t)
 
 -- | Uses "Crypto.Hash.MD5" from cryptohash-md5.
 instance ValidAlgo 'MD5 where

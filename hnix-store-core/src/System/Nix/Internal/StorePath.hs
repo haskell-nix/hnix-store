@@ -1,13 +1,10 @@
 {-|
 Description : Representation of Nix store paths.
 -}
-{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE TypeInType #-} -- Needed for GHC 8.4.4 for some reason
@@ -15,8 +12,9 @@ module System.Nix.Internal.StorePath where
 import System.Nix.Hash
   ( HashAlgorithm(Truncated, SHA256)
   , Digest
-  , encodeBase32
-  , decodeBase32
+  , BaseEncoding(..)
+  , encodeInBase
+  , decodeBase
   , SomeNamedDigest
   )
 import System.Nix.Internal.Base32 (digits32)
@@ -24,14 +22,12 @@ import System.Nix.Internal.Base32 (digits32)
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8)
 import qualified Data.Text as T
-import GHC.TypeLits (Symbol, KnownSymbol, symbolVal)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Char
 import Data.Hashable (Hashable(..))
 import Data.HashSet (HashSet)
-import Data.Proxy (Proxy(..))
 
 import Data.Attoparsec.Text.Lazy (Parser, (<?>))
 
@@ -154,7 +150,7 @@ storePathToRawFilePath StorePath {..} = BS.concat
     ]
   where
     root = BC.pack storePathRoot
-    hashPart = encodeUtf8 $ encodeBase32 storePathHash
+    hashPart = encodeUtf8 $ encodeInBase Base32 storePathHash
     name = encodeUtf8 $ unStorePathName storePathName
 
 -- | Render a 'StorePath' as a 'FilePath'.
@@ -175,7 +171,7 @@ storePathToNarInfo
   :: StorePath
   -> BC.ByteString
 storePathToNarInfo StorePath {..} = BS.concat
-    [ encodeUtf8 $ encodeBase32 storePathHash
+    [ encodeUtf8 $ encodeInBase Base32 storePathHash
     , ".narinfo"
     ]
 
@@ -189,14 +185,14 @@ parsePath expectedRoot x =
   let
     (rootDir, fname) = System.FilePath.splitFileName . BC.unpack $ x
     (digestPart, namePart) = T.breakOn "-" $ T.pack fname
-    digest = decodeBase32 digestPart
+    digest = decodeBase Base32 digestPart
     name = makeStorePathName . T.drop 1 $ namePart
     --rootDir' = dropTrailingPathSeparator rootDir
     -- cannot use ^^ as it drops multiple slashes /a/b/// -> /a/b
     rootDir' = init rootDir
     storeDir = if expectedRoot == rootDir'
       then Right rootDir'
-      else Left $ unwords $ [ "Root store dir mismatch, expected", expectedRoot, "got", rootDir']
+      else Left $ "Root store dir mismatch, expected" <> expectedRoot <> "got" <> rootDir'
   in
     StorePath <$> digest <*> name <*> storeDir
 
@@ -208,8 +204,8 @@ pathParser expectedRoot = do
   Data.Attoparsec.Text.Lazy.char '/'
     <?> "Expecting path separator"
 
-  digest <- decodeBase32
-    <$> Data.Attoparsec.Text.Lazy.takeWhile1 (\c -> c `elem` digits32)
+  digest <- decodeBase Base32
+    <$> Data.Attoparsec.Text.Lazy.takeWhile1 (`elem` digits32)
     <?> "Invalid Base32 part"
 
   Data.Attoparsec.Text.Lazy.char '-'
