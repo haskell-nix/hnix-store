@@ -38,7 +38,7 @@ jobs:
       with:
         nix_path: nixpkgs=channel:nixos-unstable
     - name: "Determined Nix-build"
-      run: nix-build ../ -A "pkgs.haskellPackages.${{ matrix.packageRoot }}"
+      run: nix-build ../ -A "haskellPackages.${{ matrix.packageRoot }}"
       env:
         #  2020-12-22: NOTE: allowBroken ideally should be temporary.
         NIXPKGS_ALLOW_BROKEN: "1"
