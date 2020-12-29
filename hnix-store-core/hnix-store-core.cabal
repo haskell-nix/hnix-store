@@ -39,7 +39,7 @@ library
   build-depends:       base >=4.10 && <5
                      , attoparsec
                      , algebraic-graphs >= 0.5 && < 0.6
-                     , base16-bytestring >= 1
+                     , base16-bytestring
                      , base64-bytestring
                      , bytestring
                      , binary
