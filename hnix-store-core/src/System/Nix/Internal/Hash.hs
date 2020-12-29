@@ -10,6 +10,7 @@ Description : Cryptographic hashing interface for hnix-store, on top
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE CPP #-}
 
 module System.Nix.Internal.Hash where
 
@@ -158,7 +159,15 @@ encodeInBase Base64 = T.decodeUtf8 . Base64.encode . coerce
 
 -- | Take BaseEncoding type of the input -> take the input itself -> decodeBase into Digest
 decodeBase :: BaseEncoding -> T.Text -> Either String (Digest a)
+#if MIN_VERSION_base16_bytestring(1,0,0)
 decodeBase Base16 = fmap Digest . Base16.decode . T.encodeUtf8
+#else
+decodeBase Base16 = lDecode  -- *this tacit sugar simply makes GHC pleased with number of args
+ where
+  lDecode t = case Base16.decode (T.encodeUtf8 t) of
+    (x, "") -> Right $ Digest x
+    _       -> Left $ "Unable to decode base16 string" <> T.unpack t
+#endif
 decodeBase Base32 = fmap Digest . Base32.decode
 decodeBase Base64 = fmap Digest . Base64.decode . T.encodeUtf8
 
