@@ -1,5 +1,5 @@
 name:                hnix-store-remote
-version:             0.3.0.0
+version:             0.4.0.0
 synopsis:            Remote hnix store
 description:         Implementation of the nix store using the daemon protocol.
 homepage:            https://github.com/haskell-nix/hnix-store
