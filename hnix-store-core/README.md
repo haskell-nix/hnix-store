@@ -1,5 +1,4 @@
-hnix-store-core
-=================
+# hnix-store-core
 
 Core effects for interacting with the Nix store.
 
@@ -10,7 +9,6 @@ on the store.
 [System.Nix.StorePath]: ./src/System/Nix/StorePath.hs
 
 
-Tests
-======
+# Tests
 
  - `ghcid --command "cabal repl test-suite:format-tests" --test="Main.main"`

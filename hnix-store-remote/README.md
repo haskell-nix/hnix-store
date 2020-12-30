@@ -1,8 +1,9 @@
-hnix-store-remote
-=================
+# hnix-store-remote
 
-Nix worker protocol implementation for interacting with remote Nix store
+[Nix] worker protocol implementation for interacting with remote Nix store
 via `nix-daemon`.
+
+[Nix]: https://nixos.org/nix
 
 ## API
 
