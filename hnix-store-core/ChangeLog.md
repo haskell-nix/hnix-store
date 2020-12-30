@@ -1,5 +1,16 @@
 # Revision history for hnix-store-core
 
+## [next](https://github.com/haskell-nix/hnix-store/compare/0.4.0.0...master) 2021-MM-DD
+
+* No changes yet
+
+## [0.4.0.0](https://github.com/haskell-nix/hnix-store/compare/0.3.0.0...0.4.0.0) 2020-12-30
+
+* `System.Nix.Hash` no longer exports `encodeBase16, decodeBase16` and their `Base32` counterparts.
+    These were replaced by `encodeInBase` and `decodeBase` functions
+    accepting `BaseEncoding` data type [#87](https://github.com/haskell-nix/hnix-store/pull/87)
+* Support `base16-bytestring >= 1` [#86](https://github.com/haskell-nix/hnix-store/pull/86) [#100](https://github.com/haskell-nix/hnix-store/pull/100)
+
 ## 0.3.0.0 -- 2020-11-29
 
 * `System.Nix.Nar` changes API to support NAR format streaming:

@@ -1,12 +1,10 @@
-hnix-store
-===========
+# hnix-store
 
 A Haskell interface to the [Nix] store.
 
 [Nix]: https://nixos.org/nix
 
-Rationale
------------
+## Rationale
 
 `Nix` can conceptually be broken up into two layers, both (perhaps
 unfortunately) named "Nix": The expression language and the store.
@@ -33,36 +31,33 @@ implementations planned:
   store, or reading a file) but performs mutating effects in-memory
   only (for example, computing the store path a given directory would
   live at if added to the store, without actually modifying anything).
-* A `daemon` store, which implements the client side of the `Nix`
+* A `remote` store, which implements the client side of the `Nix`
   daemon Unix domain socket protocol, allowing full interaction with
   the store on a system with the C++ daemon installed.
 
-While this project is in the early stages of development, the `daemon`
-store can be seen as something of a road map: We want to express and
-implement all of (and only) the useful functionality available to a
-client of the existing daemon protocol.
-
-Note that there are currently no plans for hnix-store to include an
-implementation which directly mutates the filesystem and database of
-the `Nix` store.
-
 [hnix]: https://github.com/haskell-nix/hnix
 
-Packages
-----------
+## Packages
 
 In the interest of separating concerns, this project is split into
-several Haskell packages. The current expectation is at least one
-package, [hnix-store-core], containing the core effect types and
+several Haskell packages.
+
+### [hnix-store-core]
+
+Contains the core effect types and
 fundamental operations combining them, agnostic to any particular
 effectful implementation (e.g. in-memory, talking to the Nix daemon in
 IO, etc.), with the actual implementations in a different package.
-Whether each implementation gets its own package or not remains to be
-seen.
 
 The intent is that core business logic for a project that needs to
 interact with the `Nix` store can simply depend on `hnix-store-core`,
 and only at the very edges of the system would it be necessary to
 bring in a specific implementation.
 
+### [hnix-store-remote]
+
+[Nix] worker protocol implementation for interacting with remote Nix store
+via `nix-daemon`.
+
 [hnix-store-core]: ./hnix-store-core
+[hnix-store-remote]: ./hnix-store-remote
