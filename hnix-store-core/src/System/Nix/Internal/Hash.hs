@@ -162,7 +162,7 @@ decodeBase :: BaseEncoding -> T.Text -> Either String (Digest a)
 #if MIN_VERSION_base16_bytestring(1,0,0)
 decodeBase Base16 = fmap Digest . Base16.decode . T.encodeUtf8
 #else
-decodeBase Base16 = lDecode  -- *this tacit sugar simply makes GHC pleased with number of args
+decodeBase Base16 = lDecode  -- this tacit sugar simply makes GHC pleased with number of args
  where
   lDecode t = case Base16.decode (T.encodeUtf8 t) of
     (x, "") -> Right $ Digest x

@@ -3,4 +3,7 @@ hlib: helf: huper: {
     helf.callCabal2nix "hnix-store-core" ./hnix-store-core {};
   hnix-store-remote =
     helf.callCabal2nixWithOptions "hnix-store-remote" ./hnix-store-remote "-fio-testsuite" {};
+  #  2020-12-30: NOTE: Remove after switch from cryptohash
+  cryptohash-sha512 =
+    hlib.unmarkBroken ( hlib.doJailbreak huper.cryptohash-sha512 );
 }
