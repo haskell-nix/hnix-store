@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE CPP #-}
 
 module Hash where
 
@@ -91,7 +92,19 @@ spec_nixhash = do
       forM_ samples $ \(b16, b32, b64) -> shouldBe (B16.encode . BSL.toStrict <$> B64.decode b64 ) (Right b16)
 
     it "b32 encoded . b16 decoded should equal original b32" $
-      forM_ samples $ \(b16, b32, b64) -> shouldBe (B32.encode <$> B16.decode b16) (Right b32)
+      forM_ samples $ \(b16, b32, b64) -> shouldBe (B32.encode
+#if MIN_VERSION_base16_bytestring(1,0,0)
+        <$> B16.decode b16) (Right b32)
+#else
+        $ fst $ B16.decode b16) (b32)
+
+#endif
 
     it "b64 encoded . b16 decoded should equal original b64" $
-      forM_ samples $ \(b16, b32, b64) -> shouldBe (B64.encode . BSL.fromStrict <$> B16.decode b16 ) (Right b64)
+      forM_ samples $ \(b16, b32, b64) -> shouldBe (B64.encode . BSL.fromStrict
+#if MIN_VERSION_base16_bytestring(1,0,0)
+        <$> B16.decode b16) (Right b64)
+#else
+        $ fst $ B16.decode b16 ) (b64)
+#endif
+
