@@ -52,44 +52,43 @@ library
   ghc-options:         -Wall
 
 test-suite hnix-store-remote-tests
-   if !flag(io-testsuite)
-     buildable: False
+  if !flag(io-testsuite)
+    buildable: False
 
-   ghc-options:       -rtsopts -fprof-auto
-   type:              exitcode-stdio-1.0
-   main-is:           Driver.hs
-   other-modules:     Derivation
-                    , NixDaemon
-                    , Spec
-                    , Util
-   hs-source-dirs:    tests
-   build-depends:
-                       attoparsec
-                     , hnix-store-core >= 0.3
-                     , hnix-store-remote
-                     , base
-                     , base64-bytestring
-                     , binary
-                     , bytestring
-                     , containers
-                     , directory
-                     , process
-                     , filepath
-                     , hspec-expectations-lifted
-                     , quickcheck-text
-                     , tasty
-                     , tasty-discover
-                     , tasty-hspec
-                     , tasty-hunit
-                     , tasty-quickcheck
-                     , linux-namespaces
-                     , mtl
-                     , nix-derivation
-                     , temporary
-                     , text
-                     , time
-                     , unix
-                     , unordered-containers
-                     , vector
-                     , which
-   default-language: Haskell2010
+  ghc-options:       -rtsopts -fprof-auto
+  type:              exitcode-stdio-1.0
+  main-is:           Driver.hs
+  other-modules:     Derivation
+                   , NixDaemon
+                   , Spec
+                   , Util
+  hs-source-dirs:    tests
+  build-depends:     base
+                   , hnix-store-core >= 0.3
+                   , hnix-store-remote
+                   , attoparsec
+                   , base64-bytestring
+                   , binary
+                   , bytestring
+                   , containers
+                   , directory
+                   , process
+                   , filepath
+                   , hspec-expectations-lifted
+                   , quickcheck-text
+                   , tasty
+                   , tasty-discover
+                   , tasty-hspec
+                   , tasty-hunit
+                   , tasty-quickcheck
+                   , linux-namespaces
+                   , mtl
+                   , nix-derivation
+                   , temporary
+                   , text
+                   , time
+                   , unix
+                   , unordered-containers
+                   , vector
+                   , which
+  default-language: Haskell2010
