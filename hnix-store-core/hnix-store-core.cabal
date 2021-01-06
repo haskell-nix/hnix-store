@@ -1,3 +1,4 @@
+cabal-version:       2.2
 name:                hnix-store-core
 version:             0.4.0.0
 synopsis:            Core effects for interacting with the Nix store.
@@ -17,9 +18,15 @@ extra-source-files:  ChangeLog.md
                    , README.md
                    , tests/samples/example0.drv
                    , tests/samples/example1.drv
-cabal-version:       >=1.10
+
+Common commons
+  if impl(ghc >= 8.10)
+    ghc-options:  -Wall -Wunused-packages
+  else
+    ghc-options:  -Wall
 
 library
+  import: commons
   exposed-modules:     System.Nix.Base32
                      , System.Nix.Build
                      , System.Nix.Derivation
@@ -71,6 +78,7 @@ Flag bounded_memory
   default: False
 
 test-suite format-tests
+  import: commons
   if flag(bounded_memory)
     cpp-options: -DBOUNDED_MEMORY
   ghc-options: -rtsopts -fprof-auto

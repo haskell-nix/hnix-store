@@ -1,3 +1,4 @@
+cabal-version:       2.2
 name:                hnix-store-remote
 version:             0.4.0.0
 synopsis:            Remote hnix store
@@ -11,7 +12,12 @@ copyright:           2018 Richard Marko
 category:            Nix
 build-type:          Simple
 extra-source-files:  ChangeLog.md, README.md
-cabal-version:       >=1.10
+
+Common commons
+  if impl(ghc >= 8.10)
+    ghc-options:  -Wall -Wunused-packages
+  else
+    ghc-options:  -Wall
 
 flag io-testsuite
   default:
@@ -21,6 +27,7 @@ flag io-testsuite
     binaries and Linux namespace support.
 
 library
+  import: commons
   exposed-modules:     System.Nix.Store.Remote
                      , System.Nix.Store.Remote.Binary
                      , System.Nix.Store.Remote.Builders
@@ -52,6 +59,8 @@ library
   ghc-options:         -Wall
 
 test-suite hnix-store-remote-tests
+  import: commons
+
   if !flag(io-testsuite)
     buildable: False
 
