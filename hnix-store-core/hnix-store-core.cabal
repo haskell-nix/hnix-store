@@ -104,9 +104,7 @@ test-suite format-tests
     , filepath
     , directory
     , filepath
-    , io-streams
     , process
-    , process-extras
     , tasty
     , tasty-discover
     , tasty-golden
