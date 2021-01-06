@@ -43,14 +43,11 @@ library
                      , binary
                      , bytestring
                      , containers
-                     , filepath
                      , text
-                     , unix
                      , network
                      , nix-derivation >= 1.1.1 && <2
                      , mtl
                      , unordered-containers
-                     , filepath
                      , time
                      , hnix-store-core >= 0.4 && <0.5
                      , vector
@@ -75,7 +72,6 @@ test-suite hnix-store-remote-tests
   build-depends:     base
                    , hnix-store-core >= 0.3
                    , hnix-store-remote
-                   , attoparsec
                    , base64-bytestring
                    , binary
                    , bytestring
@@ -91,7 +87,6 @@ test-suite hnix-store-remote-tests
                    , tasty-hunit
                    , tasty-quickcheck
                    , linux-namespaces
-                   , mtl
                    , nix-derivation
                    , temporary
                    , text
