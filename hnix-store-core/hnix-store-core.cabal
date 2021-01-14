@@ -49,8 +49,6 @@ library
                      , base16-bytestring
                      , base64-bytestring
                      , bytestring
-                     , binary
-                     , bytestring
                      , cereal
                      , containers
                      , cryptohash-md5
