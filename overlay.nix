@@ -12,7 +12,4 @@ pkgs: hlib: helf: huper: {
           pkgs.nix
         ];
     });
-  #  2020-12-30: NOTE: Remove after switch from cryptohash
-  cryptohash-sha512 =
-    hlib.unmarkBroken ( hlib.doJailbreak huper.cryptohash-sha512 );
 }
