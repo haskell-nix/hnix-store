@@ -39,18 +39,16 @@ library
 
   build-depends:       base >=4.10 && <5
                      , attoparsec
-                     , bytestring
                      , binary
                      , bytestring
                      , containers
                      , text
+                     , time
                      , network
                      , nix-derivation >= 1.1.1 && <2
                      , mtl
                      , unordered-containers
-                     , time
                      , hnix-store-core >= 0.4 && <0.5
-                     , vector
   hs-source-dirs:      src
   default-language:    Haskell2010
   ghc-options:         -Wall
@@ -72,9 +70,6 @@ test-suite hnix-store-remote-tests
   build-depends:     base
                    , hnix-store-core >= 0.3
                    , hnix-store-remote
-                   , base64-bytestring
-                   , binary
-                   , bytestring
                    , containers
                    , directory
                    , process
@@ -84,13 +79,11 @@ test-suite hnix-store-remote-tests
                    , tasty
                    , tasty-discover
                    , tasty-hspec
-                   , tasty-hunit
                    , tasty-quickcheck
                    , linux-namespaces
                    , nix-derivation
                    , temporary
                    , text
-                   , time
                    , unix
                    , unordered-containers
                    , vector
