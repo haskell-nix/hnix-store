@@ -12,7 +12,7 @@ import qualified Data.ByteString.Base16      as B16
 import qualified System.Nix.Base32           as B32
 import qualified Data.ByteString.Base64.Lazy as B64
 import qualified Data.ByteString.Lazy        as BSL
-import           Data.Text                   (Text(..))
+import           Data.Text                   (Text)
 
 import           Test.Tasty.Hspec
 import           Test.Tasty.QuickCheck
@@ -27,13 +27,13 @@ spec_hash = do
   describe "hashing parity with nix-store" $ do
 
     it "produces (base32 . sha256) of \"nix-output:foo\" the same as Nix does at the moment for placeholder \"foo\"" $
-      shouldBe (encodeInBase Base32 (hash @SHA256 "nix-output:foo"))
+      shouldBe (encodeInBase Base32 (hash @'SHA256 "nix-output:foo"))
                "1x0ymrsy7yr7i9wdsqy9khmzc1yy7nvxw6rdp72yzn50285s67j5"
     it "produces (base16 . md5) of \"Hello World\" the same as the thesis" $
-      shouldBe (encodeInBase Base16 (hash @MD5 "Hello World"))
+      shouldBe (encodeInBase Base16 (hash @'MD5 "Hello World"))
                "b10a8db164e0754105b7a99be72e3fe5"
     it "produces (base32 . sha1) of \"Hello World\" the same as the thesis" $
-      shouldBe (encodeInBase Base32 (hash @SHA1 "Hello World"))
+      shouldBe (encodeInBase Base32 (hash @'SHA1 "Hello World"))
                "s23c9fs0v32pf6bhmcph5rbqsyl5ak8a"
 
     -- The example in question:
@@ -49,10 +49,12 @@ spec_hash = do
     encodeInBase32 = encodeInBase Base32
 
 -- | Test that Nix-like base32 encoding roundtrips
+prop_nixBase32Roundtrip :: Property
 prop_nixBase32Roundtrip = forAllShrink nonEmptyString genericShrink $
   \x -> Right (BSC.pack x) === (B32.decode . B32.encode . BSC.pack $ x)
 
 -- | API variants
+prop_nixBase16Roundtrip :: Digest StorePathHashAlgo -> Property
 prop_nixBase16Roundtrip =
   \(x :: Digest StorePathHashAlgo) -> Right x === (decodeBase Base16 . encodeInBase Base16 $ x)
 
@@ -80,19 +82,19 @@ spec_nixhash = do
         ]
 
     it "b16 encoded . b32 decoded should equal original b16" $
-      forM_ samples $ \(b16, b32, b64) -> shouldBe (B16.encode <$> B32.decode b32) (Right b16)
+      forM_ samples $ \(b16, b32, _b64) -> shouldBe (B16.encode <$> B32.decode b32) (Right b16)
 
     it "b64 encoded . b32 decoded should equal original b64" $
-      forM_ samples $ \(b16, b32, b64) -> shouldBe (B64.encode . BSL.fromStrict <$> B32.decode b32) (Right b64)
+      forM_ samples $ \(_b16, b32, b64) -> shouldBe (B64.encode . BSL.fromStrict <$> B32.decode b32) (Right b64)
 
     it "b32 encoded . b64 decoded should equal original b32" $
-      forM_ samples $ \(b16, b32, b64) -> shouldBe (B32.encode . BSL.toStrict <$> B64.decode b64 ) (Right b32)
+      forM_ samples $ \(_b16, b32, b64) -> shouldBe (B32.encode . BSL.toStrict <$> B64.decode b64 ) (Right b32)
 
     it "b16 encoded . b64 decoded should equal original b16" $
-      forM_ samples $ \(b16, b32, b64) -> shouldBe (B16.encode . BSL.toStrict <$> B64.decode b64 ) (Right b16)
+      forM_ samples $ \(b16, _b32, b64) -> shouldBe (B16.encode . BSL.toStrict <$> B64.decode b64 ) (Right b16)
 
     it "b32 encoded . b16 decoded should equal original b32" $
-      forM_ samples $ \(b16, b32, b64) -> shouldBe (B32.encode
+      forM_ samples $ \(b16, b32, _b64) -> shouldBe (B32.encode
 #if MIN_VERSION_base16_bytestring(1,0,0)
         <$> B16.decode b16) (Right b32)
 #else
@@ -101,7 +103,7 @@ spec_nixhash = do
 #endif
 
     it "b64 encoded . b16 decoded should equal original b64" $
-      forM_ samples $ \(b16, b32, b64) -> shouldBe (B64.encode . BSL.fromStrict
+      forM_ samples $ \(b16, _b32, b64) -> shouldBe (B64.encode . BSL.fromStrict
 #if MIN_VERSION_base16_bytestring(1,0,0)
         <$> B16.decode b16) (Right b64)
 #else

@@ -7,7 +7,7 @@
 
 module System.Nix.Internal.Nar.Streamer where
 
-import           Control.Monad                   (forM, forM_, when)
+import           Control.Monad                   (forM_, when)
 import qualified Control.Monad.IO.Class          as IO
 import           Data.Bool                       (bool)
 import qualified Data.ByteString                 as BS

@@ -11,6 +11,7 @@ import qualified Data.Text.IO
 import qualified Data.Text.Lazy
 import qualified Data.Text.Lazy.Builder
 
+processDerivation :: FilePath -> FilePath -> IO ()
 processDerivation source dest = do
   contents <- Data.Text.IO.readFile source
   case Data.Attoparsec.Text.Lazy.parseOnly (parseDerivation "/nix/store") contents of
@@ -24,6 +25,7 @@ processDerivation source dest = do
 test_derivation :: TestTree
 test_derivation = testGroup "golden" $ map mk [0..1]
   where
+    mk :: Int -> TestTree
     mk n =
       let
         fp = "tests/samples/example"

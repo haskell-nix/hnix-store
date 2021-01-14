@@ -12,7 +12,6 @@ module System.Nix.Build (
 
 import           Data.Time                 (UTCTime)
 import           Data.Text                 (Text)
-import           Data.HashSet              (HashSet)
 
 -- keep the order of these Enums to match enums from reference implementations
 -- src/libstore/store-api.hh
@@ -52,4 +51,9 @@ data BuildResult = BuildResult
     stopTime           :: !UTCTime
   } deriving (Eq, Ord, Show)
 
-buildSuccess BuildResult{..} = status == Built || status == Substituted || status == AlreadyValid
+buildSuccess :: BuildResult -> Bool
+buildSuccess BuildResult{..} = elem status
+  [ Built
+  , Substituted
+  , AlreadyValid
+  ]
