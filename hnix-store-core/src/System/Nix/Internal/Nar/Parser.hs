@@ -21,9 +21,7 @@ import qualified Control.Monad.Reader            as Reader
 import qualified Control.Monad.State             as State
 import qualified Control.Monad.Trans             as Trans
 import qualified Control.Monad.Trans.Control     as Base
-import qualified Data.Binary.Put                 as B
 import qualified Data.ByteString                 as BS
-import qualified Data.ByteString.Lazy            as BSL
 import qualified Data.Either                     as Either
 import           Data.Int                        (Int64)
 import qualified Data.IORef                      as IORef
@@ -179,7 +177,7 @@ parseFile = do
   when (s `notElem` ["executable", "contents"])
        (Fail.fail $ "Parser found " ++ show s ++
                     " when expecting element from " ++
-                    show ["executable", "contents"])
+                    (show :: [String] -> String) ["executable", "contents"])
   when (s == "executable") $ do
     expectStr ""
     expectStr "contents"

@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE DataKinds            #-}
+{-# OPTIONS_GHC -Wno-orphans      #-}
 
 module Arbitrary where
 
@@ -20,6 +21,7 @@ genSafeChar = choose ('\1', '\127') -- ASCII without \NUL
 nonEmptyString :: Gen String
 nonEmptyString = listOf1 genSafeChar
 
+dir :: Gen String
 dir = ('/':) <$> (listOf1 $ elements $ ('/':['a'..'z']))
 
 instance Arbitrary StorePathName where
@@ -33,7 +35,7 @@ instance Arbitrary StorePathName where
 instance Arbitrary (Digest StorePathHashAlgo) where
   arbitrary = hash . BSC.pack <$> arbitrary
 
-instance Arbitrary (Digest SHA256) where
+instance Arbitrary (Digest 'SHA256) where
   arbitrary = hash . BSC.pack <$> arbitrary
 
 newtype NixLike = NixLike {getNixLike :: StorePath}

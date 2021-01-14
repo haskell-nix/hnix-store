@@ -9,12 +9,12 @@ module NarFormat where
 import           Control.Applicative              (many, optional, (<|>))
 import qualified Control.Concurrent               as Concurrent
 import           Control.Exception                (SomeException, try)
-import           Control.Monad                    (replicateM,
+import           Control.Monad                    (replicateM, void,
                                                    when)
-import           Data.Binary.Get                  (Get (..), getByteString,
+import           Data.Binary.Get                  (Get, getByteString,
                                                    getInt64le,
                                                    getLazyByteString, runGet)
-import           Data.Binary.Put                  (Put (..), putInt64le,
+import           Data.Binary.Put                  (Put, putInt64le,
                                                    putLazyByteString, runPut)
 import qualified Data.ByteString                  as BS
 import qualified Data.ByteString.Base64.Lazy      as B64
@@ -48,6 +48,7 @@ import           System.Nix.Nar
 
 
 
+withBytesAsHandle :: BSLC.ByteString -> (IO.Handle -> IO a) -> IO a
 withBytesAsHandle bytes act = do
   Temp.withSystemTempFile "nar-test-file-XXXXX" $ \tmpFile h -> do
     IO.hClose h
@@ -73,15 +74,15 @@ spec_narEncoding = do
           unpackNarIO narEffectsIO h packageFilePath
         res `shouldBe` Right ()
 
-        e <- doesPathExist packageFilePath
-        e `shouldBe` True
+        e' <- doesPathExist packageFilePath
+        e' `shouldBe` True
 
-        res <- Temp.withSystemTempFile "nar-test-file-hnix" $ \tmpFile h -> do
+        res' <- Temp.withSystemTempFile "nar-test-file-hnix" $ \tmpFile h -> do
           buildNarIO narEffectsIO packageFilePath h
           IO.hClose h
           BSL.readFile tmpFile
 
-        res `shouldBe` (runPut $ putNar n)
+        res' `shouldBe` (runPut $ putNar n)
 
   -- For a Haskell embedded Nar, check that encoding it gives
   -- the same bytestring as `nix-store --dump`
@@ -151,18 +152,18 @@ prop_narEncodingArbitrary n = runGet getNar (runPut $ putNar n) === n
 unit_packSelfSrcDir :: HU.Assertion
 unit_packSelfSrcDir = Temp.withSystemTempDirectory "nar-test" $ \tmpDir -> do
   ver <- try (P.readProcess "nix-store" ["--version"] "")
-  let narFile = tmpDir </> "src.nar"
+  let narFilePath = tmpDir </> "src.nar"
   case ver of
-    Left  (e :: SomeException) -> print "No nix-store on system"
+    Left  (_ :: SomeException) -> print ("No nix-store on system" :: String)
     Right _ -> do
       let go dir = do
             srcHere <- doesDirectoryExist dir
             case srcHere of
               False -> return ()
               True -> do
-                IO.withFile narFile IO.WriteMode $ \h ->
+                IO.withFile narFilePath IO.WriteMode $ \h ->
                   buildNarIO narEffectsIO "src" h
-                hnixNar <- BSL.readFile narFile
+                hnixNar <- BSL.readFile narFilePath
                 nixStoreNar <- getNixStoreDump "src"
                 HU.assertEqual
                   "src dir serializes the same between hnix-store and nix-store"
@@ -218,16 +219,17 @@ test_streamManyFilesToNar = HU.testCaseSteps "streamManyFilesToNar" $ \step ->
 
       packagePath = baseDir </> "package_with_many_files"
       packagePath' = baseDir </> "package_with_many_files2"
-      narFile = packagePath <.> "nar"
+      narFilePath = packagePath <.> "nar"
 
-      rmFiles = try @SomeException @() $ do
-        e <- doesPathExist narFile
-        when e $ removeDirectoryRecursive narFile
+      -- unused, see `step "check file exists"` bellow
+      _rmFiles = try @SomeException @() $ do
+        e <- doesPathExist narFilePath
+        when e $ removeDirectoryRecursive narFilePath
 
-      run =  do
+      _run =  do
         filesPrecount <- countProcessFiles
         IO.withFile "hnar" IO.WriteMode $ \h ->
-          buildNarIO narEffectsIO narFile h
+          buildNarIO narEffectsIO narFilePath h
         filesPostcount <- countProcessFiles
         return $ filesPostcount - filesPrecount
 
@@ -240,11 +242,11 @@ test_streamManyFilesToNar = HU.testCaseSteps "streamManyFilesToNar" $ \step ->
     filesPrecount <- countProcessFiles
 
     step "pack nar"
-    IO.withFile narFile IO.WriteMode $ \h ->
+    IO.withFile narFilePath IO.WriteMode $ \h ->
       buildNarIO narEffectsIO packagePath h
 
     step "unpack nar"
-    r <- IO.withFile narFile IO.ReadMode $ \h ->
+    r <- IO.withFile narFilePath IO.ReadMode $ \h ->
       unpackNarIO narEffectsIO h packagePath'
     r `shouldBe` Right ()
 
@@ -274,7 +276,7 @@ filesystemNixStore testErrorName n = do
   case ver of
     -- Left is not an error - testing machine simply doesn't have
     -- `nix-store` executable, so pass
-    Left  (e :: SomeException) -> print "No nix-store on system"
+    Left  (_ :: SomeException) -> print ("No nix-store on system" :: String)
     Right _ -> Temp.withSystemTempDirectory "hnix-store" $ \baseDir -> do
 
       let
@@ -287,7 +289,7 @@ filesystemNixStore testErrorName n = do
           e `shouldBe` True
 
       -- stream nar contents to unpacked file(s)
-      withBytesAsHandle (runPut $ putNar n) $ \h ->
+      void $ withBytesAsHandle (runPut $ putNar n) $ \h ->
         unpackNarIO narEffectsIO h testFile
 
       assertExists testFile
@@ -330,38 +332,33 @@ packThenExtract testName setup =
   Temp.withSystemTempDirectory "hnix-store" $ \baseDir -> do
     setup baseDir
 
-    let narFile = baseDir </> testName
+    let narFilePath = baseDir </> testName
 
     ver <- try (P.readProcess "nix-store" ["--version"] "")
     case ver of
-      Left (e :: SomeException) -> print "No nix-store on system"
+      Left (_ :: SomeException) -> print ("No nix-store on system" :: String)
       Right _ -> do
         let
-          nixNarFile  = narFile ++ ".nix"
-          hnixNarFile = narFile ++ ".hnix"
-          outputFile  = narFile ++ ".out"
+          nixNarFile  = narFilePath ++ ".nix"
+          hnixNarFile = narFilePath ++ ".hnix"
+          outputFile  = narFilePath ++ ".out"
 
         step $ "Produce nix-store nar to " ++ nixNarFile
-        (_,_,_,handle) <- P.createProcess (P.shell $ "nix-store --dump " ++ narFile ++ " > " ++ nixNarFile)
-        P.waitForProcess handle
+        (_,_,_,handle) <- P.createProcess (P.shell $ "nix-store --dump " ++ narFilePath ++ " > " ++ nixNarFile)
+        void $ P.waitForProcess handle
 
-        step $ "Build NAR from " ++ narFile ++ " to " ++ hnixNarFile
+        step $ "Build NAR from " ++ narFilePath ++ " to " ++ hnixNarFile
         -- narBS <- buildNarIO narEffectsIO narFile
         IO.withFile hnixNarFile IO.WriteMode $ \h ->
-          buildNarIO narEffectsIO narFile h
+          buildNarIO narEffectsIO narFilePath h
 
         -- BSL.writeFile hnixNarFile narBS
 
         step $ "Unpack NAR to " ++ outputFile
-        narHandle <- IO.withFile nixNarFile IO.ReadMode $ \h ->
+        _narHandle <- IO.withFile nixNarFile IO.ReadMode $ \h ->
           unpackNarIO narEffectsIO h outputFile
 
         return ()
-
-
-
-
-
 
 -- | Count file descriptors owned by the current process
 countProcessFiles :: IO Int
@@ -442,12 +439,12 @@ sampleLargeDir fSize = Directory $ Map.fromList $ [
   ]
   ++ [ (FilePathPart (BSC.pack $ 'f' : show n),
         Regular Nar.NonExecutable 10000 (BSL.take 10000 (BSL.cycle "hi ")))
-     | n <- [1..100]]
+     | n <- [1..100 :: Int]]
   ++ [
   (FilePathPart "d", Directory $ Map.fromList
       [ (FilePathPart (BSC.pack $ "df" ++ show n)
         , Regular Nar.NonExecutable 10000 (BSL.take 10000 (BSL.cycle "subhi ")))
-      | n <- [1..100]]
+      | n <- [1..100 :: Int]]
      )
   ]
 
@@ -675,32 +672,32 @@ getNar = fmap Nar $ header >> parens getFile
       getFile = getRegularFile <|> getDirectory <|> getSymLink
 
       getRegularFile = do
-          assertStr "type"
-          assertStr "regular"
+          assertStr_ "type"
+          assertStr_ "regular"
           mExecutable <- optional $ Nar.Executable <$ (assertStr "executable"
                                                        >> assertStr "")
-          assertStr "contents"
+          assertStr_ "contents"
           (fSize, contents) <- sizedStr
           return $ Regular (fromMaybe Nar.NonExecutable mExecutable) fSize contents
 
       getDirectory = do
-          assertStr "type"
-          assertStr "directory"
+          assertStr_ "type"
+          assertStr_ "directory"
           fs <- many getEntry
           return $ Directory (Map.fromList fs)
 
       getSymLink = do
-          assertStr "type"
-          assertStr "symlink"
-          assertStr "target"
+          assertStr_ "type"
+          assertStr_ "symlink"
+          assertStr_ "target"
           fmap (SymLink . E.decodeUtf8 . BSL.toStrict) str
 
       getEntry = do
-          assertStr "entry"
+          assertStr_ "entry"
           parens $ do
-              assertStr "name"
+              assertStr_ "name"
               name <- E.decodeUtf8 . BSL.toStrict <$> str
-              assertStr "node"
+              assertStr_ "node"
               file <- parens getFile
               maybe (fail $ "Bad FilePathPart: " ++ show name)
                     (return . (,file))
@@ -712,11 +709,12 @@ getNar = fmap Nar $ header >> parens getFile
       sizedStr = do
           n <- getInt64le
           s <- getLazyByteString n
-          p <- getByteString . fromIntegral $ padLen n
+          _ <- getByteString . fromIntegral $ padLen n
           return (n,s)
 
       parens m = assertStr "(" *> m <* assertStr ")"
 
+      assertStr_ = void . assertStr
       assertStr s = do
           s' <- str
           if s == s'

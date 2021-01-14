@@ -117,7 +117,7 @@ reasonInvalid :: Text -> String
 reasonInvalid n | n == ""            = "Empty name"
 reasonInvalid n | (T.length n > 211) = "Path too long"
 reasonInvalid n | (T.head n == '.')  = "Leading dot"
-reasonInvalid n | otherwise          = "Invalid character"
+reasonInvalid _ | otherwise          = "Invalid character"
 
 validStorePathName :: Text -> Bool
 validStorePathName "" = False
@@ -198,17 +198,17 @@ parsePath expectedRoot x =
 
 pathParser :: FilePath -> Parser StorePath
 pathParser expectedRoot = do
-  Data.Attoparsec.Text.Lazy.string (T.pack expectedRoot)
+  _ <- Data.Attoparsec.Text.Lazy.string (T.pack expectedRoot)
     <?> "Store root mismatch" -- e.g. /nix/store
 
-  Data.Attoparsec.Text.Lazy.char '/'
+  _ <- Data.Attoparsec.Text.Lazy.char '/'
     <?> "Expecting path separator"
 
   digest <- decodeBase Base32
     <$> Data.Attoparsec.Text.Lazy.takeWhile1 (`elem` digits32)
     <?> "Invalid Base32 part"
 
-  Data.Attoparsec.Text.Lazy.char '-'
+  _ <- Data.Attoparsec.Text.Lazy.char '-'
     <?> "Expecting dash (path name separator)"
 
   c0 <- Data.Attoparsec.Text.Lazy.satisfy (\c -> c /= '.' && validStorePathNameChar c)

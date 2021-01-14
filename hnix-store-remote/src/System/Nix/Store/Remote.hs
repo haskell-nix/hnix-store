@@ -32,6 +32,7 @@ module System.Nix.Store.Remote
   , runStore
   , syncWithGC
   , verifyStore
+  , module System.Nix.Store.Remote.Types
   )
   where
 
@@ -64,7 +65,6 @@ import           System.Nix.Store.Remote.Util
 
 type RepairFlag = Bool
 type CheckFlag = Bool
-type CheckSigsFlag = Bool
 type SubstituteFlag = Bool
 
 -- | Pack `FilePath` as `Nar` and add it to the store.
@@ -151,7 +151,8 @@ buildDerivation p drv buildMode = do
     putEnum buildMode
     -- XXX: reason for this is unknown
     -- but without it protocol just hangs waiting for
-    -- more data. Needs investigation
+    -- more data. Needs investigation.
+    -- Intentionally the only warning that should pop-up.
     putInt 0
 
   res <- getSocketIncremental $ getBuildResult

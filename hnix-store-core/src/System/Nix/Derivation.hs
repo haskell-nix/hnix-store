@@ -6,16 +6,13 @@ module System.Nix.Derivation (
   ) where
 
 import Data.Attoparsec.Text.Lazy (Parser)
-import Data.ByteString (ByteString)
 import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder)
 import Nix.Derivation (Derivation)
-import System.Nix.StorePath (StorePath, pathParser)
+import System.Nix.StorePath (StorePath)
 
-import qualified Data.ByteString.Char8
 import qualified Data.Text
 import qualified Data.Text.Lazy.Builder
-import qualified Data.Attoparsec.Text.Lazy
 
 import qualified Nix.Derivation
 import qualified System.Nix.StorePath
