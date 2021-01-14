@@ -32,6 +32,7 @@ module System.Nix.Store.Remote
   , runStore
   , syncWithGC
   , verifyStore
+  , module System.Nix.Store.Remote.Types
   )
   where
 
