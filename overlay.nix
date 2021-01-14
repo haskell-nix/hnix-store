@@ -8,7 +8,9 @@ pkgs: hlib: helf: huper: {
       "-fio-testsuite"
       {}
     ).overrideAttrs (attrs: {
-        buildInputs = attrs.buildInputs ++ [ pkgs.nix pkgs.which ];
+        buildInputs = attrs.buildInputs ++ [
+          pkgs.nix
+        ];
     });
   #  2020-12-30: NOTE: Remove after switch from cryptohash
   cryptohash-sha512 =
