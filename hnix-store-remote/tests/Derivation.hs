@@ -21,7 +21,7 @@ import qualified Data.Text.Lazy.Builder
 import qualified Data.Vector
 import qualified System.Nix.Derivation
 import qualified System.Nix.StorePath
-import qualified System.Which
+import qualified System.Directory
 
 drvSample :: StorePath -> StorePath -> StorePath -> Derivation StorePath Text
 drvSample builder' buildScript out = Derivation {
@@ -36,7 +36,7 @@ drvSample builder' buildScript out = Derivation {
 
 withBash :: (StorePath -> MonadStore a) -> MonadStore a
 withBash action = do
-  mfp <- liftIO $ System.Which.which "bash"
+  mfp <- liftIO $ System.Directory.findExecutable "bash"
   case mfp of
     Nothing -> error "No bash executable found"
     Just fp -> do
