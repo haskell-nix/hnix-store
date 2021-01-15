@@ -99,12 +99,10 @@ test-suite format-tests
     , binary
     , bytestring
     , containers
-    , filepath
     , directory
     , filepath
     , process
     , tasty
-    , tasty-discover
     , tasty-golden
     , tasty-hspec
     , tasty-hunit

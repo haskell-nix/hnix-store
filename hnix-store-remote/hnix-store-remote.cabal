@@ -77,7 +77,6 @@ test-suite hnix-store-remote-tests
                    , hspec-expectations-lifted
                    , quickcheck-text
                    , tasty
-                   , tasty-discover
                    , tasty-hspec
                    , tasty-quickcheck
                    , linux-namespaces
