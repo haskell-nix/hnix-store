@@ -36,12 +36,8 @@ jobs:
         with:
           ghc-version: ${{ matrix.ghc }}
 
-      # HACK: Until https://github.com/haskell-nix/hnix-store/issues/122
-      - name: "Hack: tmp dodge upstream"
-        run: cabal v2-update 'hackage.haskell.org,2021-01-14T23:03:55Z'
-
-      # - name: "Repository update"
-      #   run: cabal v2-update
+      - name: "Repository update"
+        run: cabal v2-update
 
       - name: "Install additional system packages"
         run: sudo apt install libsodium-dev && cabal v2-install tasty-discover
