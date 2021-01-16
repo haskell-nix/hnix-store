@@ -1,6 +1,6 @@
 # Revision history for hnix-store-core
 
-## [0.4.1.0](https://github.com/haskell-nix/hnix-store/compare/0.4.0.0...0.4.1.0) 2021-MM-DD
+## [0.4.1.0](https://github.com/haskell-nix/hnix-store/compare/0.4.0.0...0.4.1.0) 2021-01-16
 
 * Big clean-up of dependencies.
 
