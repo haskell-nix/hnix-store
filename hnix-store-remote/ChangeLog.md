@@ -1,8 +1,9 @@
 # Revision history for hnix-store-remote
 
-## [next](https://github.com/haskell-nix/hnix-store/compare/0.4.0.0...master) 2021-MM-DD
+## [0.4.1.0](https://github.com/haskell-nix/hnix-store/compare/0.4.0.0...0.4.1.0) 2021-MM-DD
 
-* No changes yet
+* `System.Nix.Store.Remote`: module API now exports `System.Nix.Store.Remote.Types` API also
+* Big clean-up of dependencies.
 
 ## [0.4.0.0](https://github.com/haskell-nix/hnix-store/compare/0.3.0.0...0.4.0.0) 2020-12-30
 
