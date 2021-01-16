@@ -2,7 +2,14 @@
 
 ## [next](https://github.com/haskell-nix/hnix-store/compare/0.4.0.0...master) 2021-MM-DD
 
-* No changes yet
+* Internal modules moved into the internal API. Please open reports to open what is needed in the public API:
+  * `System.Nix.Internal.Base32`
+  * `System.Nix.Internal.Hash`
+  * `System.Nix.Internal.Nar.Parser`
+  * `System.Nix.Internal.Nar.Streamer`
+  * `System.Nix.Internal.Nar.Effects`
+  * `System.Nix.Internal.Signature`
+  * `System.Nix.Internal.StorePath`
 
 ## [0.4.0.0](https://github.com/haskell-nix/hnix-store/compare/0.3.0.0...0.4.0.0) 2020-12-30
 

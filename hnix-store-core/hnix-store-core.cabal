@@ -31,18 +31,19 @@ library
                      , System.Nix.Build
                      , System.Nix.Derivation
                      , System.Nix.Hash
-                     , System.Nix.Internal.Base32
+
+                     , System.Nix.Nar
+                     , System.Nix.ReadonlyStore
+                     , System.Nix.Signature
+                     , System.Nix.StorePath
+                     , System.Nix.StorePathMetadata
+  other-modules:       System.Nix.Internal.Base32
                      , System.Nix.Internal.Hash
                      , System.Nix.Internal.Nar.Parser
                      , System.Nix.Internal.Nar.Streamer
                      , System.Nix.Internal.Nar.Effects
                      , System.Nix.Internal.Signature
                      , System.Nix.Internal.StorePath
-                     , System.Nix.Nar
-                     , System.Nix.ReadonlyStore
-                     , System.Nix.Signature
-                     , System.Nix.StorePath
-                     , System.Nix.StorePathMetadata
   build-depends:       base >=4.10 && <5
                      , attoparsec
                      , algebraic-graphs >= 0.5 && < 0.6
