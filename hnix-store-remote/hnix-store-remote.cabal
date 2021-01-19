@@ -67,6 +67,8 @@ test-suite hnix-store-remote-tests
                    , Spec
                    , Util
   hs-source-dirs:    tests
+  build-tool-depends:
+    tasty-discover:tasty-discover
   build-depends:     base
                    , hnix-store-core >= 0.3
                    , hnix-store-remote

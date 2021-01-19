@@ -40,7 +40,7 @@ jobs:
         run: cabal v2-update
 
       - name: "Install additional system packages"
-        run: sudo apt install libsodium-dev && cabal v2-install tasty-discover
+        run: sudo apt install libsodium-dev
 
       # Still required for Remote
       - name: "Install Nix"
