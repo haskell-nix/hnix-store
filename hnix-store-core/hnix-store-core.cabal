@@ -90,6 +90,8 @@ test-suite format-tests
       StorePath
   hs-source-dirs:
       tests
+  build-tool-depends:
+    tasty-discover:tasty-discover
   build-depends:
       hnix-store-core
     , attoparsec
