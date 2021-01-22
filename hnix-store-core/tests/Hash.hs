@@ -55,8 +55,7 @@ prop_nixBase32Roundtrip = forAllShrink nonEmptyString genericShrink $
 
 -- | API variants
 prop_nixBase16Roundtrip :: Digest StorePathHashAlgo -> Property
-prop_nixBase16Roundtrip =
-  \(x :: Digest StorePathHashAlgo) -> Right x === (decodeBase Base16 . encodeInBase Base16 $ x)
+prop_nixBase16Roundtrip x = (===) (Right x) $ decodeBase Base16 $ encodeInBase Base16 x
 
 -- | Hash encoding conversion ground-truth.
 -- Similiar to nix/tests/hash.sh
@@ -94,19 +93,19 @@ spec_nixhash = do
       forM_ samples $ \(b16, _b32, b64) -> shouldBe (B16.encode . BSL.toStrict <$> B64.decode b64 ) (Right b16)
 
     it "b32 encoded . b16 decoded should equal original b32" $
-      forM_ samples $ \(b16, b32, _b64) -> shouldBe (B32.encode
+      forM_ samples $ \(b16, b32, _b64) -> shouldBe
 #if MIN_VERSION_base16_bytestring(1,0,0)
-        <$> B16.decode b16) (Right b32)
+        (B32.encode <$> B16.decode b16) (Right b32)
 #else
-        $ fst $ B16.decode b16) (b32)
+        (B32.encode $ fst $ B16.decode b16) (b32)
 
 #endif
 
     it "b64 encoded . b16 decoded should equal original b64" $
-      forM_ samples $ \(b16, _b32, b64) -> shouldBe (B64.encode . BSL.fromStrict
+      forM_ samples $ \(b16, _b32, b64) -> shouldBe
 #if MIN_VERSION_base16_bytestring(1,0,0)
-        <$> B16.decode b16) (Right b64)
+        (B64.encode . BSL.fromStrict <$> B16.decode b16) (Right b64)
 #else
-        $ fst $ B16.decode b16 ) (b64)
+        (B64.encode . BSL.fromStrict $ fst $ B16.decode b16) (b64)
 #endif
 
