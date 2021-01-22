@@ -33,6 +33,7 @@ import qualified Data.Text.Encoding     as T
 import           Data.Word              (Word8)
 import           GHC.TypeLits           (Nat, KnownNat, natVal)
 import           Data.Coerce            (coerce)
+import           Data.List              (find)
 
 -- | Constructors to indicate the base encodings
 data BaseEncoding
@@ -110,23 +111,23 @@ mkNamedDigest name sriHash =
     else Left $ T.unpack $ "Sri hash method " <> sriName <> " does not match the required hash type " <> name
  where
   mkDigest h = case name of
-    "md5"    -> SomeDigest <$> decodeGo @'MD5    h
-    "sha1"   -> SomeDigest <$> decodeGo @'SHA1   h
-    "sha256" -> SomeDigest <$> decodeGo @'SHA256 h
-    "sha512" -> SomeDigest <$> decodeGo @'SHA512 h
-    _hashAlg -> Left $ "Unknown hash name: " ++ T.unpack name
-  decodeGo :: forall a . (NamedAlgo a, ValidAlgo a) => Text -> Either String (Digest a)
-  decodeGo h
-    | size == base16Len = decodeBase Base16 h
-    | size == base32Len = decodeBase Base32 h
-    | size == base64Len = decodeBase Base64 h
-    | otherwise = Left $ T.unpack sriHash ++ " is not a valid " ++ T.unpack name ++ " hash. Its length (" ++ show size ++ ") does not match any of " ++ show [base16Len, base32Len, base64Len]
+    "md5"    -> SomeDigest <$> goDecode @'MD5    h
+    "sha1"   -> SomeDigest <$> goDecode @'SHA1   h
+    "sha256" -> SomeDigest <$> goDecode @'SHA256 h
+    "sha512" -> SomeDigest <$> goDecode @'SHA512 h
+    _        -> Left $ "Unknown hash name: " <> T.unpack name
+  goDecode :: forall a . (NamedAlgo a, ValidAlgo a) => Text -> Either String (Digest a)
+  goDecode h =
+    -- Base encoding detected by comparing the lengths of the hash in Base to the canonical length of the demanded hash type
+    maybe left (`decodeBase` h) maybeFindBaseEncByLenMatch
    where
-    size = T.length h
-    hsize = hashSize @a
-    base16Len = hsize * 2
-    base32Len = ((hsize * 8 - 1) `div` 5) + 1;
-    base64Len = ((4 * hsize `div` 3) + 3) `div` 4 * 4;
+    left = Left $ T.unpack sriHash <> " is not a valid " <> T.unpack name <> " hash. Its length (" <> show (T.length hash) <> ") does not match any of " <> show (canonicalLenIf <$> bases)
+    maybeFindBaseEncByLenMatch = find (\ enc -> T.length h == canonicalLenIf enc) bases
+    expectedHashLen = hashSize @a
+    canonicalLenIf Base16 = 2 * expectedHashLen
+    canonicalLenIf Base32 = ((8 * expectedHashLen - 1) `div` 5) + 1
+    canonicalLenIf Base64 = ((4 * expectedHashLen `div` 3) + 3) `div` 4 * 4
+    bases = [Base32, Base16, Base64]  -- 32 is the most used in Nix - so the first match
 
 
 -- | Hash an entire (strict) 'BS.ByteString' as a single call.
