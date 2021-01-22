@@ -25,7 +25,7 @@ import qualified Data.ByteString.Base64 as Base64
 import           Data.Bits              (xor)
 import qualified Data.ByteString.Lazy   as BSL
 import qualified Data.Hashable          as DataHashable
-import           Data.List              (foldl')
+import           Data.List              (find, foldl')
 import           Data.Proxy             (Proxy(Proxy))
 import           Data.Text              (Text)
 import qualified Data.Text              as T
@@ -33,7 +33,6 @@ import qualified Data.Text.Encoding     as T
 import           Data.Word              (Word8)
 import           GHC.TypeLits           (Nat, KnownNat, natVal)
 import           Data.Coerce            (coerce)
-import           Data.List              (find)
 
 -- | Constructors to indicate the base encodings
 data BaseEncoding
@@ -121,9 +120,12 @@ mkNamedDigest name sriHash =
     -- Base encoding detected by comparing the lengths of the hash in Base to the canonical length of the demanded hash type
     maybe left (`decodeBase` h) maybeFindBaseEncByLenMatch
    where
-    left = Left $ T.unpack sriHash <> " is not a valid " <> T.unpack name <> " hash. Its length (" <> show (T.length hash) <> ") does not match any of " <> show (canonicalLenIf <$> bases)
+    left = Left $ T.unpack sriHash <> " is not a valid " <> T.unpack name <> " hash. Its length (" <> show (T.length h) <> ") does not match any of " <> show (canonicalLenIf <$> bases)
+
     maybeFindBaseEncByLenMatch = find (\ enc -> T.length h == canonicalLenIf enc) bases
+
     expectedHashLen = hashSize @a
+
     canonicalLenIf Base16 = 2 * expectedHashLen
     canonicalLenIf Base32 = ((8 * expectedHashLen - 1) `div` 5) + 1
     canonicalLenIf Base64 = ((4 * expectedHashLen `div` 3) + 3) `div` 4 * 4
