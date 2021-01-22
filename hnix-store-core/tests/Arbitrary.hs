@@ -22,15 +22,14 @@ nonEmptyString :: Gen String
 nonEmptyString = listOf1 genSafeChar
 
 dir :: Gen String
-dir = ('/':) <$> (listOf1 $ elements $ ('/':['a'..'z']))
+dir = ('/':) <$> listOf1 (elements ('/':['a'..'z']))
 
 instance Arbitrary StorePathName where
-  arbitrary = StorePathName . T.pack
-    <$> ((:) <$> s1 <*> listOf sn)
-    where
-      alphanum = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9']
-      s1 = elements $ alphanum ++ "+-_?="
-      sn = elements $ alphanum ++ "+-._?="
+  arbitrary = StorePathName . T.pack <$> ((:) <$> s1 <*> listOf sn)
+   where
+    alphanum = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9']
+    s1 = elements $ alphanum ++ "+-_?="
+    sn = elements $ alphanum ++ "+-._?="
 
 instance Arbitrary (Digest StorePathHashAlgo) where
   arbitrary = hash . BSC.pack <$> arbitrary
@@ -41,19 +40,11 @@ instance Arbitrary (Digest 'SHA256) where
 newtype NixLike = NixLike {getNixLike :: StorePath}
  deriving (Eq, Ord, Show)
 
-instance Arbitrary (NixLike) where
-  arbitrary = NixLike <$>
-    (StorePath
-    <$> arbitraryTruncatedDigest
-    <*> arbitrary
-    <*> pure "/nix/store")
-    where
-      -- 160-bit hash, 20 bytes, 32 chars in base32
-      arbitraryTruncatedDigest = Digest . BSC.pack
-        <$> replicateM 20 genSafeChar
+instance Arbitrary NixLike where
+  arbitrary = NixLike <$> (StorePath <$> arbitraryTruncatedDigest <*> arbitrary <*> pure "/nix/store")
+   where
+    -- 160-bit hash, 20 bytes, 32 chars in base32
+    arbitraryTruncatedDigest = Digest . BSC.pack <$> replicateM 20 genSafeChar
 
 instance Arbitrary StorePath where
-  arbitrary = StorePath
-           <$> arbitrary
-           <*> arbitrary
-           <*> dir
+  arbitrary = StorePath <$> arbitrary <*> arbitrary <*> dir
