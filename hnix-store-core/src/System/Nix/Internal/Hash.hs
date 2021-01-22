@@ -114,7 +114,7 @@ mkNamedDigest name sriHash =
     "sha1"   -> SomeDigest <$> decodeGo @'SHA1   h
     "sha256" -> SomeDigest <$> decodeGo @'SHA256 h
     "sha512" -> SomeDigest <$> decodeGo @'SHA512 h
-    _        -> Left $ "Unknown hash name: " ++ T.unpack name
+    _hashAlg -> Left $ "Unknown hash name: " ++ T.unpack name
   decodeGo :: forall a . (NamedAlgo a, ValidAlgo a) => Text -> Either String (Digest a)
   decodeGo h
     | size == base16Len = decodeBase Base16 h
