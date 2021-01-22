@@ -38,7 +38,7 @@ import           Data.Coerce            (coerce)
 data BaseEncoding
   = Base16
   | Base32
-  -- | ^ Nix has a special map of Base32 encoding
+  -- ^ Nix has a special map of Base32 encoding
   | Base64
 
 -- | The universe of supported hash algorithms.
@@ -53,6 +53,22 @@ data HashAlgorithm
     -- ^ The hash algorithm obtained by truncating the result of the
     -- input 'HashAlgorithm' to the given number of bytes. See
     -- 'truncateDigest' for a description of the truncation algorithm.
+
+class HashProperties a
+ where
+  canonicalHashName :: a -> Text
+  canonicalHashLen :: a -> Int
+
+instance HashProperties HashAlgorithm
+ where
+  canonicalHashName SHA256 = "sha256"  -- SHA256 is the most used in Nix - so it matches first
+  canonicalHashName MD5    = "md5"
+  canonicalHashName SHA1   = "sha1"
+  canonicalHashName SHA512 = "sha512"
+  canonicalHashLen  SHA256 = 32
+  canonicalHashLen  MD5    = 16
+  canonicalHashLen  SHA1   = 20
+  canonicalHashLen  SHA512 = 64
 
 -- | The result of running a 'HashAlgorithm'.
 newtype Digest (a :: HashAlgorithm) =
@@ -109,12 +125,19 @@ mkNamedDigest name sriHash =
     then mkDigest h
     else Left $ T.unpack $ "Sri hash method " <> sriName <> " does not match the required hash type " <> name
  where
-  mkDigest h = case name of
-    "md5"    -> SomeDigest <$> goDecode @'MD5    h
-    "sha1"   -> SomeDigest <$> goDecode @'SHA1   h
-    "sha256" -> SomeDigest <$> goDecode @'SHA256 h
-    "sha512" -> SomeDigest <$> goDecode @'SHA512 h
-    _        -> Left $ "Unknown hash name: " <> T.unpack name
+  mkDigest :: Text -> Either String SomeNamedDigest
+  mkDigest h =
+    maybe (Left $ "Unknown hash name: " <> T.unpack name) (`decodeToSomeDigest` h) maybeFindHashTypeByName
+
+  maybeFindHashTypeByName :: Maybe HashAlgorithm
+  maybeFindHashTypeByName = find (\ hashType -> canonicalHashName hashType == name ) [SHA256, MD5, SHA1, SHA512] -- SHA256 is the most used in Nix - so it matches first
+
+  decodeToSomeDigest :: HashAlgorithm -> Text -> Either String SomeNamedDigest
+  decodeToSomeDigest MD5 = fmap SomeDigest . goDecode @'MD5
+  decodeToSomeDigest SHA1 = fmap SomeDigest . goDecode @'SHA1
+  decodeToSomeDigest SHA256 = fmap SomeDigest . goDecode @'SHA256
+  decodeToSomeDigest SHA512 = fmap SomeDigest . goDecode @'SHA512
+
   goDecode :: forall a . (NamedAlgo a, ValidAlgo a) => Text -> Either String (Digest a)
   goDecode h =
     -- Base encoding detected by comparing the lengths of the hash in Base to the canonical length of the demanded hash type
