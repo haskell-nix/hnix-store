@@ -32,7 +32,7 @@ library
                      , System.Nix.Derivation
                      , System.Nix.Hash
                      , System.Nix.Internal.Base32
-                     , System.Nix.Internal.Hash
+                     , System.Nix.Internal.Old
                      , System.Nix.Internal.Nar.Parser
                      , System.Nix.Internal.Nar.Streamer
                      , System.Nix.Internal.Nar.Effects

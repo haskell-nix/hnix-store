@@ -17,4 +17,4 @@ module System.Nix.Hash (
   , HNix.decodeBase
   ) where
 
-import qualified System.Nix.Internal.Hash as HNix
+import qualified System.Nix.Internal.Old as HNix
