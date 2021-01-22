@@ -11,13 +11,14 @@ Description : Cryptographic hashing interface for hnix-store, on top
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE PackageImports #-}
 
 module System.Nix.Internal.Old where
 
-import qualified Crypto.Hash.MD5        as MD5
-import qualified Crypto.Hash.SHA1       as SHA1
-import qualified Crypto.Hash.SHA256     as SHA256
-import qualified Crypto.Hash.SHA512     as SHA512
+import qualified "cryptohash-md5" Crypto.Hash.MD5        as MD5
+import qualified "cryptohash-sha1" Crypto.Hash.SHA1       as SHA1
+import qualified "cryptohash-sha256" Crypto.Hash.SHA256     as SHA256
+import qualified "cryptohash-sha512" Crypto.Hash.SHA512     as SHA512
 import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Base16 as Base16
 import qualified System.Nix.Base32      as Base32  -- Nix has own Base32 encoding
