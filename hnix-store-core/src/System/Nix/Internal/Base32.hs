@@ -2,11 +2,11 @@
 module System.Nix.Internal.Base32 where
 
 import           Data.ByteString        (ByteString)
-import           Data.Vector            (Vector)
-import           Data.Text              (Text)
 import           Data.Bits              (shiftR)
-import           Data.Word              (Word8)
 import           Data.List              (unfoldr)
+import           Data.Text              (Text)
+import           Data.Vector            (Vector)
+import           Data.Word              (Word8)
 import           Numeric                (readInt)
 
 import qualified Data.Maybe
@@ -15,7 +15,7 @@ import qualified Data.ByteString.Char8
 import qualified Data.Text
 import qualified Data.Vector
 
--- omitted: E O U T
+-- Special Nix Base 32 dictinary with omitted: {E,O,U,T}
 digits32 :: Vector Char
 digits32 = Data.Vector.fromList "0123456789abcdfghijklmnpqrsvwxyz"
 
@@ -30,7 +30,7 @@ encode c = Data.Text.pack $ map char32 [nChar - 1, nChar - 2 .. 0]
     -- bytestring to cover for the case where the number of bits is
     -- already a factor of 5. Thus, the + 1 outside of the 'div' and
     -- the - 1 inside of it.
-    nChar = fromIntegral $ ((Data.ByteString.length c * 8 - 1) `div` 5) + 1
+    nChar = fromIntegral $ succ $ (Data.ByteString.length c * 8 - 1) `div` 5
 
     byte = Data.ByteString.index c . fromIntegral
 
