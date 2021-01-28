@@ -19,6 +19,7 @@ import System.Nix.Hash
   )
 import System.Nix.Internal.Base32 (dictNixBase32)
 
+import Data.Bool (bool)
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8)
 import qualified Data.Text as T
@@ -123,15 +124,18 @@ validStorePathName :: Text -> Bool
 validStorePathName "" = False
 validStorePathName n  = (T.length n <= 211)
                         && T.head n /= '.'
-                        && T.all validStorePathNameChar n
+                        && T.all validateStorePathNameChar n
 
-validStorePathNameChar :: Char -> Bool
-validStorePathNameChar c = any ($ c) $
-    [ Data.Char.isAsciiLower -- 'a'..'z'
-    , Data.Char.isAsciiUpper -- 'A'..'Z'
-    , Data.Char.isDigit
-    ] ++
-    map (==) "+-._?="
+validateStorePathNameChar :: Char -> Bool
+validateStorePathNameChar c =
+  bool
+  False
+  (any ($ c)
+   [ Data.Char.isLower
+   , Data.Char.isDigit
+   , Data.Char.isUpper
+   , (`elem` ("+-._?=" :: String))])
+  (Data.Char.isAscii c)
 
 -- | Copied from @RawFilePath@ in the @unix@ package, duplicated here
 -- to avoid the dependency.
@@ -211,10 +215,10 @@ pathParser expectedRoot = do
   _ <- Data.Attoparsec.Text.Lazy.char '-'
     <?> "Expecting dash (path name separator)"
 
-  c0 <- Data.Attoparsec.Text.Lazy.satisfy (\c -> c /= '.' && validStorePathNameChar c)
+  c0 <- Data.Attoparsec.Text.Lazy.satisfy (\c -> c /= '.' && validateStorePathNameChar c)
     <?> "Leading path name character is a dot or invalid character"
 
-  rest <- Data.Attoparsec.Text.Lazy.takeWhile validStorePathNameChar
+  rest <- Data.Attoparsec.Text.Lazy.takeWhile validateStorePathNameChar
     <?> "Path name contains invalid character"
 
   let name = makeStorePathName $ T.cons c0 rest
