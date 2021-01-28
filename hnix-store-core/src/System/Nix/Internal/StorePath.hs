@@ -17,7 +17,7 @@ import System.Nix.Hash
   , decodeBase
   , SomeNamedDigest
   )
-import System.Nix.Internal.Base32 (digits32)
+import System.Nix.Internal.Base32 (dictNixBase32)
 
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8)
@@ -205,7 +205,7 @@ pathParser expectedRoot = do
     <?> "Expecting path separator"
 
   digest <- decodeBase Base32
-    <$> Data.Attoparsec.Text.Lazy.takeWhile1 (`elem` digits32)
+    <$> Data.Attoparsec.Text.Lazy.takeWhile1 (`elem` dictNixBase32)
     <?> "Invalid Base32 part"
 
   _ <- Data.Attoparsec.Text.Lazy.char '-'

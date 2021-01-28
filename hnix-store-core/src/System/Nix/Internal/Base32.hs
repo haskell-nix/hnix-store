@@ -16,8 +16,8 @@ import qualified Data.Text
 import qualified Data.Vector
 
 -- Special Nix Base 32 dictinary with omitted: {E,O,U,T}
-digits32 :: Vector Char
-digits32 = Data.Vector.fromList "0123456789abcdfghijklmnpqrsvwxyz"
+dictNixBase32 :: Vector Char
+dictNixBase32 = Data.Vector.fromList "0123456789abcdfghijklmnpqrsvwxyz"
 
 -- | Encode a 'BS.ByteString' in Nix's base32 encoding
 encode :: ByteString -> Text
@@ -42,7 +42,7 @@ encode c = Data.Text.pack $ map char32 [nChar - 1, nChar - 2 .. 0]
                      ]
 
     char32 :: Integer -> Char
-    char32 i = digits32 Data.Vector.! digitInd
+    char32 i = dictNixBase32 Data.Vector.! digitInd
       where
         digitInd = fromIntegral $
                    bAsInteger
@@ -52,18 +52,18 @@ encode c = Data.Text.pack $ map char32 [nChar - 1, nChar - 2 .. 0]
 -- | Decode Nix's base32 encoded text
 decode :: Text -> Either String ByteString
 decode what =
-  if Data.Text.all (`elem` digits32) what
+  if Data.Text.all (`elem` dictNixBase32) what
     then unsafeDecode what
     else Left "Invalid base32 string"
 
 -- | Decode Nix's base32 encoded text
--- Doesn't check if all elements match `digits32`
+-- Doesn't check if all elements match `dictNixBase32`
 unsafeDecode :: Text -> Either String ByteString
 unsafeDecode what =
   case readInt 32
-         (`elem` digits32)
-         (\c -> Data.Maybe.fromMaybe (error "character not in digits32")
-                  $ Data.Vector.findIndex (==c) digits32)
+         (`elem` dictNixBase32)
+         (\c -> Data.Maybe.fromMaybe (error "character not in dictNixBase32")
+                  $ Data.Vector.findIndex (==c) dictNixBase32)
          (Data.Text.unpack what)
     of
       [(i, _)] -> Right $ padded $ integerToBS i
