@@ -57,7 +57,7 @@ data StorePath = StorePath
   } deriving (Eq, Ord)
 
 instance Hashable StorePath where
-  hashWithSalt s (StorePath {..}) =
+  hashWithSalt s StorePath{..} =
     s `hashWithSalt` storePathHash `hashWithSalt` storePathName
 
 instance Show StorePath where
@@ -66,8 +66,7 @@ instance Show StorePath where
 -- | The name portion of a Nix path.
 --
 -- 'unStorePathName' must only contain a-zA-Z0-9+._?=-, can't start
--- with a -, and must have at least one character (i.e. it must match
--- 'storePathNameRegex').
+-- with a -, and must have at least one character.
 newtype StorePathName = StorePathName
   { -- | Extract the contents of the name.
     unStorePathName :: Text
@@ -98,7 +97,7 @@ data ContentAddressableAddress
     -- applied to the nar serialization via some 'NarHashMode'.
     Fixed !NarHashMode !SomeNamedDigest
 
--- | Schemes for hashing a nix archive.
+-- | Schemes for hashing a Nix archive.
 --
 -- For backwards-compatibility reasons, there are two different modes
 -- here, even though 'Recursive' should be able to cover both.
@@ -145,13 +144,7 @@ type RawFilePath = ByteString
 storePathToRawFilePath
   :: StorePath
   -> RawFilePath
-storePathToRawFilePath StorePath {..} = BS.concat
-    [ root
-    , "/"
-    , hashPart
-    , "-"
-    , name
-    ]
+storePathToRawFilePath StorePath{..} = root <> "/" <> hashPart <> "-" <> name
   where
     root = BC.pack storePathRoot
     hashPart = encodeUtf8 $ encodeInBase Base32 storePathHash
@@ -174,10 +167,9 @@ storePathToText = T.pack . BC.unpack . storePathToRawFilePath
 storePathToNarInfo
   :: StorePath
   -> BC.ByteString
-storePathToNarInfo StorePath {..} = BS.concat
-    [ encodeUtf8 $ encodeInBase Base32 storePathHash
-    , ".narinfo"
-    ]
+storePathToNarInfo StorePath{..} = storePathHashInNixBase <> ".narinfo"
+ where
+  storePathHashInNixBase = encodeUtf8 $ encodeInBase Base32 storePathHash
 
 -- | Parse `StorePath` from `BC.ByteString`, checking
 -- that store directory matches `expectedRoot`.
@@ -196,7 +188,7 @@ parsePath expectedRoot x =
     rootDir' = init rootDir
     storeDir = if expectedRoot == rootDir'
       then Right rootDir'
-      else Left $ "Root store dir mismatch, expected" <> expectedRoot <> "got" <> rootDir'
+      else Left $ "Root store dir mismatch, expected '" <> expectedRoot <> "', got '" <> rootDir' <> "'."
   in
     StorePath <$> digest <*> name <*> storeDir
 
