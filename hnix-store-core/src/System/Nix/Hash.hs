@@ -12,9 +12,10 @@ module System.Nix.Hash (
   , HNix.hashLazy
   , HNix.mkNamedDigest
 
-  , HNix.BaseEncoding(..)
-  , HNix.encodeInBase
-  , HNix.decodeBase
+  , B.BaseEncoding(..)
+  , B.encodeInBase
+  , B.decodeBase
   ) where
 
 import qualified System.Nix.Internal.Old as HNix
+import qualified System.Nix.Internal.Base as B
