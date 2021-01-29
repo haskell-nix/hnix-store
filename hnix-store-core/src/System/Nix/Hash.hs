@@ -10,7 +10,7 @@ module System.Nix.Hash (
   , HNix.SomeNamedDigest(..)
   , HNix.hash
   , HNix.hashLazy
-  , HNix.mkNamedDigest
+  , SRI.mkNamedDigest
 
   , B.BaseEncoding(..)
   , B.encodeInBase
@@ -19,3 +19,4 @@ module System.Nix.Hash (
 
 import qualified System.Nix.Internal.Old as HNix
 import qualified System.Nix.Internal.Base as B
+import qualified System.Nix.Internal.SriHash as SRI
