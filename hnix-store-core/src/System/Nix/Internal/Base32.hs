@@ -22,32 +22,32 @@ digits32 = Vector.fromList "0123456789abcdfghijklmnpqrsvwxyz"
 -- | Encode a 'BS.ByteString' in Nix's base32 encoding
 encode :: ByteString -> Text
 encode c = Data.Text.pack $ map char32 [nChar - 1, nChar - 2 .. 0]
-  where
-    -- Each base32 character gives us 5 bits of information, while
-    -- each byte gives is 8. Because 'div' rounds down, we need to add
-    -- one extra character to the result, and because of that extra 1
-    -- we need to subtract one from the number of bits in the
-    -- bytestring to cover for the case where the number of bits is
-    -- already a factor of 5. Thus, the + 1 outside of the 'div' and
-    -- the - 1 inside of it.
-    nChar = fromIntegral $ ((Bytes.length c * 8 - 1) `div` 5) + 1
+ where
+  -- Each base32 character gives us 5 bits of information, while
+  -- each byte gives is 8. Because 'div' rounds down, we need to add
+  -- one extra character to the result, and because of that extra 1
+  -- we need to subtract one from the number of bits in the
+  -- bytestring to cover for the case where the number of bits is
+  -- already a factor of 5. Thus, the + 1 outside of the 'div' and
+  -- the - 1 inside of it.
+  nChar = fromIntegral $ ((Bytes.length c * 8 - 1) `div` 5) + 1
 
-    byte = Bytes.index c . fromIntegral
+  byte = Bytes.index c . fromIntegral
 
-    -- May need to switch to a more efficient calculation at some
-    -- point.
-    bAsInteger :: Integer
-    bAsInteger = sum [fromIntegral (byte j) * (256 ^ j)
-                     | j <- [0 .. Bytes.length c - 1]
-                     ]
+  -- May need to switch to a more efficient calculation at some
+  -- point.
+  bAsInteger :: Integer
+  bAsInteger =
+    sum
+      [ fromIntegral (byte j) * (256 ^ j)
+        | j <- [0 .. Bytes.length c - 1] ]
 
-    char32 :: Integer -> Char
-    char32 i = digits32 Vector.! digitInd
-      where
-        digitInd = fromIntegral $
-                   bAsInteger
-                   `div` (32^i)
-                   `mod` 32
+  char32 :: Integer -> Char
+  char32 i = digits32 Vector.! digitInd
+   where
+    digitInd =
+      fromIntegral $
+        bAsInteger `div` (32^i) `mod` 32
 
 -- | Decode Nix's base32 encoded text
 decode :: Text -> Either String ByteString
