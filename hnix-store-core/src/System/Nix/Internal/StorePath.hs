@@ -8,6 +8,7 @@ Description : Representation of Nix store paths.
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE TypeInType #-} -- Needed for GHC 8.4.4 for some reason
+
 module System.Nix.Internal.StorePath where
 import System.Nix.Hash
   ( HashAlgorithm(Truncated, SHA256)
@@ -17,21 +18,21 @@ import System.Nix.Hash
   , decodeBase
   , SomeNamedDigest
   )
+
+
 import qualified System.Nix.Internal.Base32 as Nix.Base32 (digits32)
 
-import Data.Text (Text)
-import qualified Data.Text.Encoding as Text (encodeUtf8)
-import qualified Data.Text as Text
-import Data.ByteString (ByteString)
+import           Data.ByteString       (ByteString)
 import qualified Data.ByteString.Char8 as Bytes.Char8
-import qualified Data.Char as Char
-import Data.Hashable (Hashable(..))
-import Data.HashSet (HashSet)
-
-import Data.Attoparsec.Text.Lazy (Parser, (<?>))
-
-import qualified Data.Attoparsec.Text.Lazy
-import qualified System.FilePath
+import qualified Data.Char             as Char
+import           Data.Text             (Text)
+import qualified Data.Text             as Text
+import qualified Data.Text.Encoding    as Text (encodeUtf8)
+import           Data.Attoparsec.Text.Lazy (Parser, (<?>))
+import qualified Data.Attoparsec.Text.Lazy as Parser.Text.Lazy
+import qualified System.FilePath       as FilePath
+import           Data.Hashable         (Hashable(..))
+import           Data.HashSet          (HashSet)
 
 -- | A path in a Nix store.
 --
@@ -179,7 +180,7 @@ parsePath
   -> Either String StorePath
 parsePath expectedRoot x =
   let
-    (rootDir, fname) = System.FilePath.splitFileName . Bytes.Char8.unpack $ x
+    (rootDir, fname) = FilePath.splitFileName . Bytes.Char8.unpack $ x
     (digestPart, namePart) = Text.breakOn "-" $ Text.pack fname
     digest = decodeBase Base32 digestPart
     name = makeStorePathName . Text.drop 1 $ namePart
@@ -195,23 +196,23 @@ parsePath expectedRoot x =
 
 pathParser :: FilePath -> Parser StorePath
 pathParser expectedRoot = do
-  _ <- Data.Attoparsec.Text.Lazy.string (Text.pack expectedRoot)
+  _ <- Parser.Text.Lazy.string (Text.pack expectedRoot)
     <?> "Store root mismatch" -- e.g. /nix/store
 
-  _ <- Data.Attoparsec.Text.Lazy.char '/'
+  _ <- Parser.Text.Lazy.char '/'
     <?> "Expecting path separator"
 
   digest <- decodeBase Base32
-    <$> Data.Attoparsec.Text.Lazy.takeWhile1 (`elem` Nix.Base32.digits32)
+    <$> Parser.Text.Lazy.takeWhile1 (`elem` Nix.Base32.digits32)
     <?> "Invalid Base32 part"
 
-  _ <- Data.Attoparsec.Text.Lazy.char '-'
+  _ <- Parser.Text.Lazy.char '-'
     <?> "Expecting dash (path name separator)"
 
-  c0 <- Data.Attoparsec.Text.Lazy.satisfy (\c -> c /= '.' && validStorePathNameChar c)
+  c0 <- Parser.Text.Lazy.satisfy (\c -> c /= '.' && validStorePathNameChar c)
     <?> "Leading path name character is a dot or invalid character"
 
-  rest <- Data.Attoparsec.Text.Lazy.takeWhile validStorePathNameChar
+  rest <- Parser.Text.Lazy.takeWhile validStorePathNameChar
     <?> "Path name contains invalid character"
 
   let name = makeStorePathName $ Text.cons c0 rest
