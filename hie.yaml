@@ -1,0 +1,13 @@
+cradle:
+  cabal:
+    - path: "./hnix-store-core/src"
+      component: "lib:hnix-store-core"
+
+    - path: "./hnix-store-core/tests"
+      component: "hnix-store-core:test:format-tests"
+
+    - path: "./hnix-store-remote/src"
+      component: "lib:hnix-store-remote"
+
+    - path: "./hnix-store-remote/tests"
+      component: "hnix-store-remote:test:hnix-store-remote-tests"
