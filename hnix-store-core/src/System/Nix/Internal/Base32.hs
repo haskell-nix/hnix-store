@@ -1,23 +1,23 @@
-
 module System.Nix.Internal.Base32 where
 
+
+import           Data.Maybe             (fromMaybe)
 import           Data.ByteString        (ByteString)
+import qualified Data.ByteString        as Bytes
+import qualified Data.ByteString.Char8  as Bytes.Char8
+import qualified Data.Text
 import           Data.Vector            (Vector)
+import qualified Data.Vector            as Vector
 import           Data.Text              (Text)
 import           Data.Bits              (shiftR)
 import           Data.Word              (Word8)
 import           Data.List              (unfoldr)
 import           Numeric                (readInt)
 
-import qualified Data.Maybe
-import qualified Data.ByteString
-import qualified Data.ByteString.Char8
-import qualified Data.Text
-import qualified Data.Vector
 
 -- omitted: E O U T
 digits32 :: Vector Char
-digits32 = Data.Vector.fromList "0123456789abcdfghijklmnpqrsvwxyz"
+digits32 = Vector.fromList "0123456789abcdfghijklmnpqrsvwxyz"
 
 -- | Encode a 'BS.ByteString' in Nix's base32 encoding
 encode :: ByteString -> Text
@@ -30,19 +30,19 @@ encode c = Data.Text.pack $ map char32 [nChar - 1, nChar - 2 .. 0]
     -- bytestring to cover for the case where the number of bits is
     -- already a factor of 5. Thus, the + 1 outside of the 'div' and
     -- the - 1 inside of it.
-    nChar = fromIntegral $ ((Data.ByteString.length c * 8 - 1) `div` 5) + 1
+    nChar = fromIntegral $ ((Bytes.length c * 8 - 1) `div` 5) + 1
 
-    byte = Data.ByteString.index c . fromIntegral
+    byte = Bytes.index c . fromIntegral
 
     -- May need to switch to a more efficient calculation at some
     -- point.
     bAsInteger :: Integer
     bAsInteger = sum [fromIntegral (byte j) * (256 ^ j)
-                     | j <- [0 .. Data.ByteString.length c - 1]
+                     | j <- [0 .. Bytes.length c - 1]
                      ]
 
     char32 :: Integer -> Char
-    char32 i = digits32 Data.Vector.! digitInd
+    char32 i = digits32 Vector.! digitInd
       where
         digitInd = fromIntegral $
                    bAsInteger
@@ -62,27 +62,27 @@ unsafeDecode :: Text -> Either String ByteString
 unsafeDecode what =
   case readInt 32
          (`elem` digits32)
-         (\c -> Data.Maybe.fromMaybe (error "character not in digits32")
-                  $ Data.Vector.findIndex (==c) digits32)
+         (\c -> fromMaybe (error "character not in digits32")
+                  $ Vector.findIndex (==c) digits32)
          (Data.Text.unpack what)
     of
       [(i, _)] -> Right $ padded $ integerToBS i
       x        -> Left $ "Can't decode: readInt returned " ++ show x
   where
     padded x
-      | Data.ByteString.length x < decLen = x `Data.ByteString.append` bstr
+      | Bytes.length x < decLen = x `Bytes.append` bstr
       | otherwise = x
      where
-      bstr = Data.ByteString.Char8.pack $ take (decLen - Data.ByteString.length x) (cycle "\NUL")
+      bstr = Bytes.Char8.pack $ take (decLen - Bytes.length x) (cycle "\NUL")
 
     decLen = Data.Text.length what * 5 `div` 8
 
 -- | Encode an Integer to a bytestring
 -- Similar to Data.Base32String (integerToBS) without `reverse`
 integerToBS :: Integer -> ByteString
-integerToBS 0 = Data.ByteString.pack [0]
+integerToBS 0 = Bytes.pack [0]
 integerToBS i
-    | i > 0     = Data.ByteString.pack $ unfoldr f i
+    | i > 0     = Bytes.pack $ unfoldr f i
     | otherwise = error "integerToBS not defined for negative values"
   where
     f 0 = Nothing
