@@ -29,9 +29,9 @@ module System.Nix.Nar (
   , Nar.runParser
   ) where
 
-import qualified Control.Concurrent     as Concurrent
-import qualified Data.ByteString        as BS
-import qualified System.IO              as IO
+import qualified Control.Concurrent               as Concurrent
+import qualified Data.ByteString                  as BS
+import qualified System.IO                        as IO
 
 import qualified System.Nix.Internal.Nar.Effects  as Nar
 import qualified System.Nix.Internal.Nar.Parser   as Nar
@@ -50,8 +50,11 @@ buildNarIO
   -> FilePath
   -> IO.Handle
   -> IO ()
-buildNarIO effs basePath outHandle = do
-  Nar.streamNarIO (\chunk -> BS.hPut outHandle chunk >> Concurrent.threadDelay 10) effs basePath
+buildNarIO effs basePath outHandle =
+  Nar.streamNarIO
+    (\chunk -> BS.hPut outHandle chunk >> Concurrent.threadDelay 10)
+    effs
+    basePath
 
 
 -- | Read NAR formatted bytes from the @IO.Handle@ and unpack them into
@@ -61,5 +64,7 @@ unpackNarIO
   -> IO.Handle
   -> FilePath
   -> IO (Either String ())
-unpackNarIO effs narHandle outputFile = do
-  Nar.runParser effs Nar.parseNar narHandle outputFile
+unpackNarIO effs =
+  Nar.runParser
+    effs
+    Nar.parseNar
