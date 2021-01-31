@@ -8,32 +8,40 @@ Description : Representation of Nix store paths.
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE TypeInType #-} -- Needed for GHC 8.4.4 for some reason
+
+
 module System.Nix.Internal.StorePath where
+
+
 import System.Nix.Hash
-  ( HashAlgorithm(Truncated, SHA256)
+  ( HashAlgorithm (SHA256)
   , Digest
   , BaseEncoding(..)
   , encodeInBase
   , decodeBase
-  , SomeNamedDigest
   )
+import System.Nix.Internal.Old as Old
+import System.Nix.Internal.TruncatedHash as TruncatedHash
 import System.Nix.Internal.Base32 (dictNixBase32)
 
 import Data.Bool (bool)
 import Data.Text (Text)
-import Data.Text.Encoding (encodeUtf8)
-import qualified Data.Text as T
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text (encodeUtf8)
 import Data.ByteString (ByteString)
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as BC
-import qualified Data.Char
+import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Char8 as ByteString.Char8
+import qualified Data.Char as Char
 import Data.Hashable (Hashable(..))
 import Data.HashSet (HashSet)
 
-import Data.Attoparsec.Text.Lazy (Parser, (<?>))
+-- import Data.Attoparsec.Text.Lazy (Parser, (<?>))
+import Data.Attoparsec.ByteString.Lazy (Parser, (<?>))
 
-import qualified Data.Attoparsec.Text.Lazy
-import qualified System.FilePath
+import qualified Data.Attoparsec.Text.Lazy as Parse.Text
+import qualified Data.Attoparsec.ByteString.Lazy as Parse.ByteString
+import qualified Data.Attoparsec.ByteString.Char8 as Parse.ByteString (char)
+import qualified System.FilePath as FilePath
 
 -- | A path in a Nix store.
 --
@@ -61,7 +69,7 @@ instance Hashable StorePath where
     s `hashWithSalt` storePathHash `hashWithSalt` storePathName
 
 instance Show StorePath where
-  show p = BC.unpack $ storePathToRawFilePath p
+  show p = ByteString.Char8.unpack $ storePathToRawFilePath p
 
 -- | The name portion of a Nix path.
 --
@@ -73,7 +81,7 @@ newtype StorePathName = StorePathName
   } deriving (Eq, Hashable, Ord)
 
 -- | The hash algorithm used for store path hashes.
-type StorePathHashAlgo = 'Truncated 20 'SHA256
+type StorePathHashAlgo = 'Old.Truncated 20 'SHA256
 
 -- | A set of 'StorePath's.
 type StorePathSet = HashSet StorePath
@@ -92,10 +100,10 @@ data ContentAddressableAddress
     -- addTextToStore. It is addressed according to a sha256sum of the
     -- file contents.
     Text !(Digest 'SHA256)
-  | -- | The path was added to the store via makeFixedOutputPath or
-    -- addToStore. It is addressed according to some hash algorithm
-    -- applied to the nar serialization via some 'NarHashMode'.
-    Fixed !NarHashMode !SomeNamedDigest
+  -- | -- | The path was added to the store via makeFixedOutputPath or
+  --   -- addToStore. It is addressed according to some hash algorithm
+  --   -- applied to the nar serialization via some 'NarHashMode'.
+  --   Fixed !NarHashMode !(Digest 'HashAlgorithm)
 
 -- | Schemes for hashing a Nix archive.
 --
@@ -115,26 +123,26 @@ makeStorePathName n = case validStorePathName n of
 
 reasonInvalid :: Text -> String
 reasonInvalid n | n == ""            = "Empty name"
-reasonInvalid n | (T.length n > 211) = "Path too long"
-reasonInvalid n | (T.head n == '.')  = "Leading dot"
+reasonInvalid n | (Text.length n > 211) = "Path too long"
+reasonInvalid n | (Text.head n == '.')  = "Leading dot"
 reasonInvalid _ | otherwise          = "Invalid character"
 
 validStorePathName :: Text -> Bool
 validStorePathName "" = False
-validStorePathName n  = (T.length n <= 211)
-                        && T.head n /= '.'
-                        && T.all validateStorePathNameChar n
+validStorePathName n  = (Text.length n <= 211)
+                        && Text.head n /= '.'
+                        && Text.all validateStorePathNameChar n
 
 validateStorePathNameChar :: Char -> Bool
 validateStorePathNameChar c =
   bool
   False
   (any ($ c)
-   [ Data.Char.isLower
-   , Data.Char.isDigit
-   , Data.Char.isUpper
+   [ Char.isLower
+   , Char.isDigit
+   , Char.isUpper
    , (`elem` ("+-._?=" :: String))])
-  (Data.Char.isAscii c)
+  (Char.isAscii c)
 
 -- | Copied from @RawFilePath@ in the @unix@ package, duplicated here
 -- to avoid the dependency.
@@ -146,7 +154,7 @@ storePathToRawFilePath
   -> RawFilePath
 storePathToRawFilePath StorePath{..} = root <> "/" <> hashPart <> "-" <> name
   where
-    root = BC.pack storePathRoot
+    root = ByteString.Char8.pack storePathRoot
     hashPart = encodeUtf8 $ encodeInBase Base32 storePathHash
     name = encodeUtf8 $ unStorePathName storePathName
 
@@ -154,35 +162,35 @@ storePathToRawFilePath StorePath{..} = root <> "/" <> hashPart <> "-" <> name
 storePathToFilePath
   :: StorePath
   -> FilePath
-storePathToFilePath = BC.unpack . storePathToRawFilePath
+storePathToFilePath = ByteString.Char8.unpack . storePathToRawFilePath
 
 -- | Render a 'StorePath' as a 'Text'.
 storePathToText
   :: StorePath
   -> Text
-storePathToText = T.pack . BC.unpack . storePathToRawFilePath
+storePathToText = Text.pack . ByteString.Char8.unpack . storePathToRawFilePath
 
 -- | Build `narinfo` suffix from `StorePath` which
 -- can be used to query binary caches.
 storePathToNarInfo
   :: StorePath
-  -> BC.ByteString
+  -> ByteString.Char8.ByteString
 storePathToNarInfo StorePath{..} = storePathHashInNixBase <> ".narinfo"
  where
   storePathHashInNixBase = encodeUtf8 $ encodeInBase Base32 storePathHash
 
--- | Parse `StorePath` from `BC.ByteString`, checking
+-- | Parse `StorePath` from `ByteString.Char8.ByteString`, checking
 -- that store directory matches `expectedRoot`.
 parsePath
   :: FilePath
-  -> BC.ByteString
+  -> ByteString.Char8.ByteString
   -> Either String StorePath
 parsePath expectedRoot x =
   let
-    (rootDir, fname) = System.FilePath.splitFileName . BC.unpack $ x
-    (digestPart, namePart) = T.breakOn "-" $ T.pack fname
+    (rootDir, fname) = FilePath.splitFileName . ByteString.Char8.unpack $ x
+    (digestPart, namePart) = Text.breakOn "-" $ Text.pack fname
     digest = decodeBase Base32 digestPart
-    name = makeStorePathName . T.drop 1 $ namePart
+    name = makeStorePathName . Text.drop 1 $ namePart
     --rootDir' = dropTrailingPathSeparator rootDir
     -- cannot use ^^ as it drops multiple slashes /a/b/// -> /a/b
     rootDir' = init rootDir
@@ -192,28 +200,29 @@ parsePath expectedRoot x =
   in
     StorePath <$> digest <*> name <*> storeDir
 
+--  2021-01-30: NOTE: Converted Text parser to ByteString. This currently uses Char8
 pathParser :: FilePath -> Parser StorePath
 pathParser expectedRoot = do
-  _ <- Data.Attoparsec.Text.Lazy.string (T.pack expectedRoot)
+  _ <- Parse.ByteString.string (Text.pack expectedRoot)
     <?> "Store root mismatch" -- e.g. /nix/store
 
-  _ <- Data.Attoparsec.Text.Lazy.char '/'
+  _ <- Parse.ByteString.char '/'
     <?> "Expecting path separator"
 
   digest <- decodeBase Base32
-    <$> Data.Attoparsec.Text.Lazy.takeWhile1 (`elem` dictNixBase32)
+    <$> Parse.ByteString.takeWhile1 (`elem` dictNixBase32)
     <?> "Invalid Base32 part"
 
-  _ <- Data.Attoparsec.Text.Lazy.char '-'
+  _ <- Parse.ByteString.char '-'
     <?> "Expecting dash (path name separator)"
 
-  c0 <- Data.Attoparsec.Text.Lazy.satisfy (\c -> c /= '.' && validateStorePathNameChar c)
+  c0 <- Parse.ByteString.satisfy (\c -> c /= '.' && validateStorePathNameChar c)
     <?> "Leading path name character is a dot or invalid character"
 
-  rest <- Data.Attoparsec.Text.Lazy.takeWhile validateStorePathNameChar
+  rest <- Parse.ByteString.takeWhile validateStorePathNameChar
     <?> "Path name contains invalid character"
 
-  let name = makeStorePathName $ T.cons c0 rest
+  let name = makeStorePathName $ Text.cons c0 rest
 
   either fail return
     $ StorePath <$> digest <*> name <*> pure expectedRoot

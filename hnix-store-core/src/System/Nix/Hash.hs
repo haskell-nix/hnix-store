@@ -7,7 +7,6 @@ module System.Nix.Hash (
   , HNix.HashAlgorithm(..)
   , HNix.ValidAlgo(..)
   , HNix.NamedAlgo(..)
-  , HNix.SomeNamedDigest(..)
   , HNix.hash
   , HNix.hashLazy
   , SRI.mkNamedDigest
@@ -18,5 +17,6 @@ module System.Nix.Hash (
   ) where
 
 import qualified System.Nix.Internal.Old as HNix
+import qualified System.Nix.Internal.Hash as H
 import qualified System.Nix.Internal.Base as B
 import qualified System.Nix.Internal.SriHash as SRI

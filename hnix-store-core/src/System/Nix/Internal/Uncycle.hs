@@ -13,19 +13,25 @@ Description : Cryptographic hashing interface for hnix-store, on top
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE PackageImports #-}
 
-module System.Nix.Internal.Old where
+module System.Nix.Internal.Uncycle where
 
 
 import qualified "cryptohash-md5" Crypto.Hash.MD5        as MD5
 import qualified "cryptohash-sha1" Crypto.Hash.SHA1       as SHA1
 import qualified "cryptohash-sha256" Crypto.Hash.SHA256     as SHA256
 import qualified "cryptohash-sha512" Crypto.Hash.SHA512     as SHA512
-import qualified Data.ByteString        as Bytes
-import qualified Data.ByteString.Lazy   as LazyBytes
+import qualified Data.ByteString        as BS
+import           Data.Bits              (xor)
+import qualified Data.ByteString.Lazy   as BSL
 import qualified Data.Hashable          as DataHashable
 import           Data.List              (foldl')
+import           Data.Proxy             (Proxy(Proxy))
 import           Data.Text              (Text)
-import           GHC.TypeLits           (Nat)
+import qualified Data.Text              as T
+import           Data.Word              (Word8)
+import           GHC.TypeLits           (Nat, KnownNat, natVal)
+import qualified System.Nix.Internal.Base as B
+import qualified System.Nix.Internal.Old as O
 
 
 -- | The universe of supported hash algorithms.
@@ -59,8 +65,10 @@ instance HashProperties HashAlgorithm
 
 -- | The result of running a 'HashAlgorithm'.
 newtype Digest (a :: HashAlgorithm) =
-  Digest Bytes.ByteString deriving (Eq, Ord, DataHashable.Hashable)
+  Digest BS.ByteString deriving (Eq, Ord, DataHashable.Hashable)
 
+instance Show (Digest a) where
+  show = ("Digest " <>) . show . encodeInBase Base32
 
 -- | The primitive interface for incremental hashing for a given
 -- 'HashAlgorithm'. Every 'HashAlgorithm' should have an instance.
@@ -71,7 +79,7 @@ class ValidAlgo (a :: HashAlgorithm) where
   -- | Start building a new hash.
   initialize        :: AlgoCtx a
   -- | Append a 'BS.ByteString' to the overall contents to be hashed.
-  update            :: AlgoCtx a -> Bytes.ByteString -> AlgoCtx a
+  update            :: AlgoCtx a -> BS.ByteString -> AlgoCtx a
   -- | Finish hashing and generate the output.
   finalize          :: AlgoCtx a -> Digest a
 
@@ -97,25 +105,31 @@ instance NamedAlgo 'SHA512 where
   algoName = "sha512"
   hashSize = 64
 
+-- | A digest whose 'NamedAlgo' is not known at compile time.
+data SomeNamedDigest = forall a . NamedAlgo a => SomeDigest (Digest a)
 
--- | Hash an entire (strict) 'ByteString' as a single call.
+instance Show SomeNamedDigest where
+  show (SomeDigest (digest :: Digest hashType)) = T.unpack $ "SomeDigest " <> algoName @hashType <> ":" <> encodeInBase Base32 digest
+
+
+-- | Hash an entire (strict) 'BS.ByteString' as a single call.
 --
 --   For example:
 --   > let d = hash "Hello, sha-256!" :: Digest SHA256
 --   or
 --   > :set -XTypeApplications
 --   > let d = hash @SHA256 "Hello, sha-256!"
-hash :: forall a.ValidAlgo a => Bytes.ByteString -> Digest a
+hash :: forall a.ValidAlgo a => BS.ByteString -> Digest a
 hash bs =
   finalize $ update @a (initialize @a) bs
 
--- | Hash an entire (lazy) 'ByteString' as a single call.
+-- | Hash an entire (lazy) 'BSL.ByteString' as a single call.
 --
 -- Use is the same as for 'hash'.  This runs in constant space, but
 -- forces the entire bytestring.
-hashLazy :: forall a.ValidAlgo a => LazyBytes.ByteString -> Digest a
+hashLazy :: forall a.ValidAlgo a => BSL.ByteString -> Digest a
 hashLazy bsl =
-  finalize $ foldl' (update @a) (initialize @a) (LazyBytes.toChunks bsl)
+  finalize $ foldl' (update @a) (initialize @a) (BSL.toChunks bsl)
 
 
 -- | Uses "Crypto.Hash.MD5" from cryptohash-md5.
@@ -145,3 +159,36 @@ instance ValidAlgo 'SHA512 where
   initialize = SHA512.init
   update = SHA512.update
   finalize = Digest . SHA512.finalize
+
+-- | Reuses the underlying 'ValidAlgo' instance, but does a
+-- 'truncateDigest' at the end.
+instance (ValidAlgo a, KnownNat n) => ValidAlgo ('Truncated n a) where
+  type AlgoCtx ('Truncated n a) = AlgoCtx a
+  initialize = initialize @a
+  update = update @a
+  finalize = truncateDigest @n . finalize @a
+
+-- | Bytewise truncation of a 'Digest'.
+--
+-- When truncation length is greater than the length of the bytestring
+-- but less than twice the bytestring length, truncation splits the
+-- bytestring into a head part (truncation length) and tail part
+-- (leftover part), right-pads the leftovers with 0 to the truncation
+-- length, and combines the two strings bytewise with 'xor'.
+truncateDigest
+  :: forall n a.(KnownNat n) => Digest a -> Digest ('Truncated n a)
+truncateDigest (Digest c) =
+    Digest $ BS.pack $ map truncOutputByte [0.. n-1]
+  where
+    n = fromIntegral $ natVal (Proxy @n)
+
+    truncOutputByte :: Int -> Word8
+    truncOutputByte i = foldl' (aux i) 0 [0 .. BS.length c - 1]
+
+    inputByte :: Int -> Word8
+    inputByte j = BS.index c (fromIntegral j)
+
+    aux :: Int -> Word8 -> Int -> Word8
+    aux i x j = if j `mod` fromIntegral n == fromIntegral i
+                then xor x (inputByte $ fromIntegral j)
+                else x
