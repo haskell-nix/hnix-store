@@ -2,19 +2,20 @@
 Description : Cryptographic hashes for hnix-store.
 -}
 module System.Nix.Hash (
-    HNix.Digest
+    Hash.Digest
 
-  , HNix.HashAlgorithm(..)
-  , HNix.ValidAlgo(..)
-  , HNix.NamedAlgo(..)
-  , HNix.SomeNamedDigest(..)
-  , HNix.hash
-  , HNix.hashLazy
-  , HNix.mkNamedDigest
+  , Hash.HashAlgorithm(..)
+  , Hash.ValidAlgo(..)
+  , Hash.NamedAlgo(..)
+  , Hash.SomeNamedDigest(..)
 
-  , HNix.BaseEncoding(..)
-  , HNix.encodeInBase
-  , HNix.decodeBase
+  , Hash.hash
+  , Hash.hashLazy
+  , Hash.mkNamedDigest
+
+  , Hash.BaseEncoding(..)
+  , Hash.encodeInBase
+  , Hash.decodeBase
   ) where
 
-import qualified System.Nix.Internal.Hash as HNix
+import qualified System.Nix.Internal.Hash as Hash
