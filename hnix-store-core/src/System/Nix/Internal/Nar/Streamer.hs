@@ -1,24 +1,24 @@
 -- | Stream out a NAR file from a regular file
 
 {-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies        #-}
 
 module System.Nix.Internal.Nar.Streamer where
 
-import           Control.Monad                   (forM_, when)
+import           Control.Monad                    ( forM_
+                                                  , when
+                                                  )
 import qualified Control.Monad.IO.Class          as IO
-import           Data.Bool                       (bool)
-import           Data.ByteString                 (ByteString)
+import           Data.Bool                        ( bool )
+import           Data.ByteString                  ( ByteString )
 import qualified Data.ByteString                 as Bytes
 import qualified Data.ByteString.Char8           as Bytes.Char8
 import qualified Data.ByteString.Lazy            as Bytes.Lazy
 import qualified Data.List                       as List
 import qualified Data.Serialize                  as Serial
-import           GHC.Int                         (Int64)
+import           GHC.Int                          ( Int64 )
 import qualified System.Directory                as Directory
-import           System.FilePath                 ((</>))
+import           System.FilePath                  ( (</>) )
 
 import qualified System.Nix.Internal.Nar.Effects as Nar
 
@@ -27,7 +27,8 @@ import qualified System.Nix.Internal.Nar.Effects as Nar
 --   function from any streaming library, and repeatedly calls
 --   it while traversing the filesystem object to Nar encode
 streamNarIO
-  :: forall m.(IO.MonadIO m)
+  :: forall m
+   . (IO.MonadIO m)
   => (ByteString -> m ())
   -> Nar.NarEffects IO
   -> FilePath
@@ -51,7 +52,7 @@ streamNarIO yield effs basePath = do
 
     when isRegular $ do
       isExec <- IO.liftIO $ isExecutable effs path
-      yield $ strs ["type","regular"]
+      yield $ strs ["type", "regular"]
       when (isExec == Executable) $ yield $ strs ["executable", ""]
       fSize <- IO.liftIO $ Nar.narFileSize effs path
       yield $ str "contents"
@@ -69,8 +70,11 @@ streamNarIO yield effs basePath = do
           parens $ go fullName
 
   str :: ByteString -> ByteString
-  str t = let len =  Bytes.length t
-          in  int len <> padBS len t
+  str t =
+    let
+      len = Bytes.length t
+    in
+      int len <> padBS len t
 
   padBS :: Int -> ByteString -> ByteString
   padBS strSize bs = bs <> Bytes.replicate (padLen strSize) 0
@@ -95,12 +99,15 @@ streamNarIO yield effs basePath = do
 
 
 data IsExecutable = NonExecutable | Executable
-    deriving (Eq, Show)
+  deriving (Eq, Show)
 
 isExecutable :: Functor m => Nar.NarEffects m -> FilePath -> m IsExecutable
 isExecutable effs fp =
-  bool NonExecutable Executable . Directory.executable <$> Nar.narGetPerms effs fp
+  bool
+    NonExecutable
+    Executable
+    . Directory.executable <$> Nar.narGetPerms effs fp
 
 -- | Distance to the next multiple of 8
-padLen:: Int -> Int
+padLen :: Int -> Int
 padLen n = (8 - n) `mod` 8

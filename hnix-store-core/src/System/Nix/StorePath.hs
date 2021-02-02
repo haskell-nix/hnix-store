@@ -21,6 +21,7 @@ module System.Nix.StorePath
   , -- * Parsing 'StorePath's
     parsePath
   , pathParser
-  ) where
+  )
+where
 
-import System.Nix.Internal.StorePath
+import           System.Nix.Internal.StorePath

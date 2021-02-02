@@ -7,8 +7,8 @@ module System.Nix.Store.Remote.Binary where
 import           Control.Monad
 import           Data.Binary.Get
 import           Data.Binary.Put
-import           Data.ByteString      (ByteString)
-import qualified Data.ByteString.Lazy as BSL
+import           Data.ByteString                ( ByteString )
+import qualified Data.ByteString.Lazy          as BSL
 
 putInt :: Integral a => a -> Put
 putInt = putWord64le . fromIntegral
@@ -31,12 +31,11 @@ putByteStringLen :: BSL.ByteString -> Put
 putByteStringLen x = do
   putInt len
   putLazyByteString x
-  when (len `mod` 8 /= 0) $
-    pad $ 8 - (len `mod` 8)
-  where
-    len :: Int
-    len = fromIntegral $ BSL.length x
-    pad count = sequence_ $ replicate count (putWord8 0)
+  when (len `mod` 8 /= 0) $ pad $ 8 - (len `mod` 8)
+ where
+  len :: Int
+  len = fromIntegral $ BSL.length x
+  pad count = sequence_ $ replicate count (putWord8 0)
 
 putByteStrings :: Foldable t => t BSL.ByteString -> Put
 putByteStrings = putMany putByteStringLen
@@ -44,10 +43,10 @@ putByteStrings = putMany putByteStringLen
 getByteStringLen :: Get ByteString
 getByteStringLen = do
   len <- getInt
-  st <- getLazyByteString len
+  st  <- getLazyByteString len
   when (len `mod` 8 /= 0) $ do
     pads <- unpad $ fromIntegral $ 8 - (len `mod` 8)
-    unless (all (==0) pads) $ fail $ "No zeroes" ++ show (st, len, pads)
+    unless (all (== 0) pads) $ fail $ "No zeroes" ++ show (st, len, pads)
   return $ BSL.toStrict st
   where unpad x = sequence $ replicate x getWord8
 

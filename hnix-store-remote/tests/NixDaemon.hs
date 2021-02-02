@@ -5,23 +5,28 @@
 
 module NixDaemon where
 
-import           Control.Monad               (void)
-import           Control.Monad.IO.Class      (liftIO)
-import           Control.Exception           (bracket)
-import           Control.Concurrent          (threadDelay)
-import           Data.Either                 (isRight, isLeft)
-import           Data.Text                   (Text)
-import qualified Data.Text                   as T
-import qualified Data.HashSet                as HS
-import qualified Data.Map.Strict             as M
+import           Data.Bool                      ( bool )
+import           Control.Monad                  ( void )
+import           Control.Monad.IO.Class         ( liftIO )
+import           Control.Exception              ( bracket )
+import           Control.Concurrent             ( threadDelay )
+import           Data.Either                    ( isRight
+                                                , isLeft
+                                                )
+import           Data.Text                      ( Text )
+import qualified Data.HashSet                  as HS
+import qualified Data.Map.Strict               as M
 import           System.Directory
 import qualified System.Environment
 import           System.IO.Temp
-import qualified System.Process              as P
-import           System.Posix.User           as U
-import           System.Linux.Namespaces     as NS
-import           Test.Tasty.Hspec            (Spec, describe, context)
-import qualified Test.Tasty.Hspec            as Hspec
+import qualified System.Process                as P
+import           System.Posix.User             as U
+import           System.Linux.Namespaces       as NS
+import           Test.Tasty.Hspec               ( Spec
+                                                , describe
+                                                , context
+                                                )
+import qualified Test.Tasty.Hspec              as Hspec
 import           Test.Hspec.Expectations.Lifted
 
 import           System.FilePath
@@ -34,39 +39,40 @@ import           System.Nix.Store.Remote.Protocol
 
 import           Derivation
 
-createProcessEnv :: FilePath
-                 -> String
-                 -> [String]
-                 -> IO P.ProcessHandle
+createProcessEnv :: FilePath -> String -> [String] -> IO P.ProcessHandle
 createProcessEnv fp proc args = do
-  mPath <- System.Environment.lookupEnv "PATH"
+  mPath         <- System.Environment.lookupEnv "PATH"
 
-  (_, _, _, ph) <- P.createProcess (P.proc proc args) { P.cwd = Just $ fp
-                                                      , P.env = Just $ mockedEnv mPath fp }
+  (_, _, _, ph) <-
+    P.createProcess (P.proc proc args)
+      { P.cwd = Just $ fp
+      , P.env = Just $ mockedEnv mPath fp
+      }
   return ph
 
 mockedEnv :: Maybe String -> FilePath -> [(String, FilePath)]
-mockedEnv mEnvPath fp = map (\(a, b) -> (a, b)) [
-    ("NIX_STORE_DIR", fp </> "store")
+mockedEnv mEnvPath fp =
+  [ ("NIX_STORE_DIR"     , fp </> "store")
   , ("NIX_LOCALSTATE_DIR", fp </> "var")
-  , ("NIX_LOG_DIR", fp </> "var" </> "log")
-  , ("NIX_STATE_DIR", fp </> "var" </> "nix")
-  , ("NIX_CONF_DIR", fp </> "etc")
+  , ("NIX_LOG_DIR"       , fp </> "var" </> "log")
+  , ("NIX_STATE_DIR"     , fp </> "var" </> "nix")
+  , ("NIX_CONF_DIR"      , fp </> "etc")
 --  , ("NIX_REMOTE", "daemon")
-  ] ++ (maybe [] (\x -> [("PATH", x)]) mEnvPath)
+    ] <> (maybe [] (\x -> [("PATH", x)]) mEnvPath)
 
 waitSocket :: FilePath -> Int -> IO ()
 waitSocket _  0 = fail "No socket"
 waitSocket fp x = do
   ex <- doesFileExist fp
-  case ex of
-    True -> return ()
-    False -> threadDelay 100000 >> waitSocket fp (x - 1)
+  bool
+    (threadDelay 100000 >> waitSocket fp (x - 1))
+    (return ())
+    ex
 
 writeConf :: FilePath -> IO ()
-writeConf fp = do
-  writeFile fp $ unlines [
-      "build-users-group = "
+writeConf fp =
+  writeFile fp $ unlines
+    [ "build-users-group = "
     , "trusted-users = root"
     , "allowed-users = *"
     , "fsync-metadata = false"
@@ -85,14 +91,16 @@ accepted connection from pid 22959, user root (trusted)
 error: changing ownership of path '/run/user/1000/test-nix-store-06b0d249e5616122/store': Invalid argument
 -}
 
-startDaemon :: FilePath -> IO (P.ProcessHandle, MonadStore a -> IO (Either String a, [Logger]))
+startDaemon
+  :: FilePath
+  -> IO (P.ProcessHandle, MonadStore a -> IO (Either String a, [Logger]))
 startDaemon fp = do
   writeConf (fp </> "etc" </> "nix.conf")
   p <- createProcessEnv fp "nix-daemon" []
   waitSocket sockFp 30
   return (p, runStoreOpts sockFp (fp </> "store"))
-  where
-    sockFp = fp </> "var/nix/daemon-socket/socket"
+ where
+  sockFp = fp </> "var/nix/daemon-socket/socket"
 
 enterNamespaces :: IO ()
 enterNamespaces = do
@@ -107,14 +115,13 @@ enterNamespaces = do
 
 withNixDaemon
   :: ((MonadStore a -> IO (Either String a, [Logger])) -> IO a) -> IO a
-withNixDaemon action = do
+withNixDaemon action =
   withSystemTempDirectory "test-nix-store" $ \path -> do
 
     mapM_ (createDirectory . snd)
-      (filter ((/= "NIX_REMOTE") . fst) $ mockedEnv Nothing path)
+          (filter ((/= "NIX_REMOTE") . fst) $ mockedEnv Nothing path)
 
-    ini <- createProcessEnv path
-      "nix-store" ["--init"]
+    ini <- createProcessEnv path "nix-store" ["--init"]
     void $ P.waitForProcess ini
 
     writeFile (path </> "dummy") "Hello World"
@@ -134,7 +141,8 @@ it
   -> m c
   -> (a -> Bool)
   -> Hspec.SpecWith (m () -> IO (a, b))
-it name action check = Hspec.it name $ \run -> (run (action >> return ())) `checks` check
+it name action check =
+  Hspec.it name $ \run -> (run (action >> return ())) `checks` check
 
 itRights
   :: (Show a, Show b, Show c, Monad m)
@@ -173,28 +181,28 @@ withBuilder action = do
   action path
 
 builderSh :: Text
-builderSh = T.concat [ "declare -xp", "export > $out" ]
+builderSh = "declare -xpexport > $out"
 
 spec_protocol :: Spec
-spec_protocol = Hspec.around withNixDaemon $ do
+spec_protocol = Hspec.around withNixDaemon $
 
   describe "store" $ do
 
-    context "syncWithGC" $ do
+    context "syncWithGC" $
       itRights "syncs with garbage collector" syncWithGC
 
     context "verifyStore" $ do
-      itRights "check=False repair=False" $ do
+      itRights "check=False repair=False" $
         verifyStore False False `shouldReturn` False
 
-      itRights "check=True repair=False" $ do
+      itRights "check=True repair=False" $
         verifyStore True False `shouldReturn` False
 
       --privileged
-      itRights "check=True repair=True" $ do
+      itRights "check=True repair=True" $
         verifyStore True True `shouldReturn` False
 
-    context "addTextToStore" $ do
+    context "addTextToStore" $
       itRights "adds text to store" $ withPath $ const return ()
 
     context "isValidPathUncached" $ do
@@ -205,18 +213,19 @@ spec_protocol = Hspec.around withNixDaemon $ do
 
     context "queryAllValidPaths" $ do
       itRights "empty query" $ queryAllValidPaths
-      itRights "non-empty query" $ withPath $ \path -> queryAllValidPaths `shouldReturn` (HS.fromList [path])
+      itRights "non-empty query" $ withPath $ \path ->
+        queryAllValidPaths `shouldReturn` (HS.fromList [path])
 
-    context "queryPathInfoUncached" $ do
+    context "queryPathInfoUncached" $
       itRights "queries path info" $ withPath $ queryPathInfoUncached
 
-    context "ensurePath" $ do
+    context "ensurePath" $
       itRights "simple ensure" $ withPath $ ensurePath
 
-    context "addTempRoot" $ do
+    context "addTempRoot" $
       itRights "simple addition" $ withPath $ addTempRoot
 
-    context "addIndirectRoot" $ do
+    context "addIndirectRoot" $
       itRights "simple addition" $ withPath $ addIndirectRoot
 
     context "buildPaths" $ do
@@ -232,27 +241,25 @@ spec_protocol = Hspec.around withNixDaemon $ do
         let pathSet = HS.fromList [path]
         buildPaths pathSet Repair
 
-    context "roots" $ do
-      context "findRoots" $ do
+    context "roots" $ context "findRoots" $ do
         itRights "empty roots" $ (findRoots `shouldReturn` M.empty)
 
         itRights "path added as a temp root" $ withPath $ \_ -> do
           roots <- findRoots
-          roots `shouldSatisfy` ((==1) . M.size)
+          roots `shouldSatisfy` ((== 1) . M.size)
 
-    context "optimiseStore" $ do
-      itRights "optimises" $ optimiseStore
+    context "optimiseStore" $ itRights "optimises" $ optimiseStore
 
-    context "queryMissing" $ do
+    context "queryMissing" $
       itRights "queries" $ withPath $ \path -> do
         let pathSet = HS.fromList [path]
         queryMissing pathSet `shouldReturn` (HS.empty, HS.empty, HS.empty, 0, 0)
 
-    context "addToStore" $ do
+    context "addToStore" $
       itRights "adds file to store" $ do
         fp <- liftIO $ writeSystemTempFile "addition" "lal"
         let Right n = makeStorePathName "tmp-addition"
-        res <- addToStore @'SHA256 n fp False (pure True) False
+        res <- addToStore @ 'SHA256 n fp False (pure True) False
         liftIO $ print res
 
     context "with dummy" $ do
@@ -263,8 +270,8 @@ spec_protocol = Hspec.around withNixDaemon $ do
         liftIO $ putStrLn $ show path
         (isValidPathUncached path) `shouldReturn` True
 
-    context "derivation" $ do
-      itRights "build derivation" $ do
+    context "derivation" $
+      itRights "build derivation" $
         withDerivation $ \path drv -> do
           result <- buildDerivation path drv Normal
-          result `shouldSatisfy` ((==AlreadyValid) . status)
+          result `shouldSatisfy` ((== AlreadyValid) . status)

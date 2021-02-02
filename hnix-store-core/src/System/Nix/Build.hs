@@ -3,15 +3,16 @@
 Description : Build related types
 Maintainer  : srk <srk@48.io>
 |-}
-module System.Nix.Build (
-    BuildMode(..)
+module System.Nix.Build
+  ( BuildMode(..)
   , BuildStatus(..)
   , BuildResult(..)
   , buildSuccess
-  ) where
+  )
+where
 
-import           Data.Time                 (UTCTime)
-import           Data.Text                 (Text)
+import           Data.Time                      ( UTCTime )
+import           Data.Text                      ( Text )
 
 -- keep the order of these Enums to match enums from reference implementations
 -- src/libstore/store-api.hh
@@ -49,12 +50,9 @@ data BuildResult = BuildResult
     startTime          :: !UTCTime
   ,  -- Stop time of this build
     stopTime           :: !UTCTime
-  } deriving (Eq, Ord, Show)
+  }
+  deriving (Eq, Ord, Show)
 
 buildSuccess :: BuildResult -> Bool
-buildSuccess BuildResult{..} =
-  status `elem`
-    [ Built
-    , Substituted
-    , AlreadyValid
-    ]
+buildSuccess BuildResult {..} =
+  status `elem` [Built, Substituted, AlreadyValid]

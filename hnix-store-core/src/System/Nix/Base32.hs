@@ -1,9 +1,10 @@
 {-|
 Description: Implementation of Nix's base32 encoding.
 -}
-module System.Nix.Base32 (
-    encode
+module System.Nix.Base32
+  ( encode
   , decode
-  ) where
+  )
+where
 
-import System.Nix.Internal.Base32
+import           System.Nix.Internal.Base32

@@ -7,8 +7,7 @@
 {-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE RecordWildCards     #-}
 module System.Nix.Store.Remote
-  (
-    addToStore
+  ( addToStore
   , addTextToStore
   , addSignatures
   , addIndirectRoot
@@ -34,18 +33,34 @@ module System.Nix.Store.Remote
   , verifyStore
   , module System.Nix.Store.Remote.Types
   )
-  where
+where
 
-import Control.Monad (void, unless, when)
-import Data.ByteString.Lazy (ByteString)
-import Data.Map.Strict (Map)
-import Data.Text (Text)
+import           Control.Monad                  ( void
+                                                , unless
+                                                , when
+                                                )
+import           Data.ByteString.Lazy           ( ByteString )
+import           Data.Map.Strict                ( Map )
+import           Data.Text                      ( Text )
 
-import Nix.Derivation (Derivation)
-import System.Nix.Build (BuildMode, BuildResult)
-import System.Nix.Hash (Digest, NamedAlgo, ValidAlgo, SomeNamedDigest(..), BaseEncoding(Base32))
-import System.Nix.StorePath (StorePath, StorePathName, StorePathSet, StorePathHashAlgo)
-import System.Nix.StorePathMetadata (StorePathMetadata(..), StorePathTrust(..))
+import           Nix.Derivation                 ( Derivation )
+import           System.Nix.Build               ( BuildMode
+                                                , BuildResult
+                                                )
+import           System.Nix.Hash                ( Digest
+                                                , NamedAlgo
+                                                , ValidAlgo
+                                                , SomeNamedDigest(..)
+                                                , BaseEncoding(Base32)
+                                                )
+import           System.Nix.StorePath           ( StorePath
+                                                , StorePathName
+                                                , StorePathSet
+                                                , StorePathHashAlgo
+                                                )
+import           System.Nix.StorePathMetadata   ( StorePathMetadata(..)
+                                                , StorePathTrust(..)
+                                                )
 
 import qualified Data.Binary.Put
 import qualified Data.ByteString.Lazy
@@ -68,22 +83,22 @@ type CheckFlag = Bool
 type SubstituteFlag = Bool
 
 -- | Pack `FilePath` as `Nar` and add it to the store.
-addToStore :: forall a. (ValidAlgo a, NamedAlgo a)
-           => StorePathName        -- ^ Name part of the newly created `StorePath`
-           -> FilePath             -- ^ Local `FilePath` to add
-           -> Bool                 -- ^ Add target directory recursively
-           -> (FilePath -> Bool)   -- ^ Path filter function
-           -> RepairFlag           -- ^ Only used by local store backend
-           -> MonadStore StorePath
+addToStore
+  :: forall a
+   . (ValidAlgo a, NamedAlgo a)
+  => StorePathName        -- ^ Name part of the newly created `StorePath`
+  -> FilePath             -- ^ Local `FilePath` to add
+  -> Bool                 -- ^ Add target directory recursively
+  -> (FilePath -> Bool)   -- ^ Path filter function
+  -> RepairFlag           -- ^ Only used by local store backend
+  -> MonadStore StorePath
 addToStore name pth recursive _pathFilter _repair = do
 
   runOpArgsIO AddToStore $ \yield -> do
     yield $ Data.ByteString.Lazy.toStrict $ Data.Binary.Put.runPut $ do
       putText $ System.Nix.StorePath.unStorePathName name
 
-      putBool
-        $ not
-        $ System.Nix.Hash.algoName @a == "sha256" && recursive
+      putBool $ not $ System.Nix.Hash.algoName @a == "sha256" && recursive
 
       putBool recursive
 
@@ -97,22 +112,22 @@ addToStore name pth recursive _pathFilter _repair = do
 --
 -- Reference accepts repair but only uses it
 -- to throw error in case of remote talking to nix-daemon.
-addTextToStore :: Text         -- ^ Name of the text
-               -> Text         -- ^ Actual text to add
-               -> StorePathSet -- ^ Set of `StorePath`s that the added text references
-               -> RepairFlag   -- ^ Repair flag, must be `False` in case of remote backend
-               -> MonadStore StorePath
+addTextToStore
+  :: Text         -- ^ Name of the text
+  -> Text         -- ^ Actual text to add
+  -> StorePathSet -- ^ Set of `StorePath`s that the added text references
+  -> RepairFlag   -- ^ Repair flag, must be `False` in case of remote backend
+  -> MonadStore StorePath
 addTextToStore name text references' repair = do
-  when repair $ error "repairing is not supported when building through the Nix daemon"
+  when repair
+    $ error "repairing is not supported when building through the Nix daemon"
   runOpArgs AddTextToStore $ do
     putText name
     putText text
     putPaths references'
   sockGetPath
 
-addSignatures :: StorePath
-              -> [ByteString]
-              -> MonadStore ()
+addSignatures :: StorePath -> [ByteString] -> MonadStore ()
 addSignatures p signatures = do
   void $ simpleOpArgs AddSignatures $ do
     putPath p
@@ -132,18 +147,17 @@ addTempRoot pn = do
 -- | Build paths if they are an actual derivations.
 --
 -- If derivation output paths are already valid, do nothing.
-buildPaths :: StorePathSet
-           -> BuildMode
-           -> MonadStore ()
+buildPaths :: StorePathSet -> BuildMode -> MonadStore ()
 buildPaths ps bm = do
   void $ simpleOpArgs BuildPaths $ do
     putPaths ps
     putInt $ fromEnum bm
 
-buildDerivation :: StorePath
-                -> Derivation StorePath Text
-                -> BuildMode
-                -> MonadStore BuildResult
+buildDerivation
+  :: StorePath
+  -> Derivation StorePath Text
+  -> BuildMode
+  -> MonadStore BuildResult
 buildDerivation p drv buildMode = do
   runOpArgs BuildDerivation $ do
     putPath p
@@ -166,30 +180,33 @@ ensurePath pn = do
 findRoots :: MonadStore (Map ByteString StorePath)
 findRoots = do
   runOp FindRoots
-  sd <- getStoreDir
-  res <- getSocketIncremental
+  sd  <- getStoreDir
+  res <-
+    getSocketIncremental
     $ getMany
-    $ (,) <$> (Data.ByteString.Lazy.fromStrict <$> getByteStringLen) 
-          <*> getPath sd
+    $ (,)
+      <$> (Data.ByteString.Lazy.fromStrict <$> getByteStringLen)
+      <*> getPath sd
 
   r <- catRights res
   return $ Data.Map.Strict.fromList r
-  where
-    catRights :: [(a, Either String b)] -> MonadStore [(a, b)]
-    catRights = mapM ex
+ where
+  catRights :: [(a, Either String b)] -> MonadStore [(a, b)]
+  catRights = mapM ex
 
-    ex :: (a, Either [Char] b) -> MonadStore (a, b)
-    ex (x, Right y) = return (x, y)
-    ex (_x , Left e) = error $ "Unable to decode root: "  ++ e
+  ex :: (a, Either [Char] b) -> MonadStore (a, b)
+  ex (x , Right y) = return (x, y)
+  ex (_x, Left e ) = error $ "Unable to decode root: " ++ e
 
 isValidPathUncached :: StorePath -> MonadStore Bool
 isValidPathUncached p = do
   simpleOpArgs IsValidPath $ putPath p
 
 -- | Query valid paths from set, optionally try to use substitutes.
-queryValidPaths :: StorePathSet   -- ^ Set of `StorePath`s to query
-                -> SubstituteFlag -- ^ Try substituting missing paths when `True`
-                -> MonadStore StorePathSet
+queryValidPaths
+  :: StorePathSet   -- ^ Set of `StorePath`s to query
+  -> SubstituteFlag -- ^ Try substituting missing paths when `True`
+  -> MonadStore StorePathSet
 queryValidPaths ps substitute = do
   runOpArgs QueryValidPaths $ do
     putPaths ps
@@ -203,12 +220,10 @@ queryAllValidPaths = do
 
 querySubstitutablePaths :: StorePathSet -> MonadStore StorePathSet
 querySubstitutablePaths ps = do
-  runOpArgs QuerySubstitutablePaths $ do
-    putPaths ps
+  runOpArgs QuerySubstitutablePaths $ putPaths ps
   sockGetPaths
 
-queryPathInfoUncached :: StorePath
-                      -> MonadStore StorePathMetadata
+queryPathInfoUncached :: StorePath -> MonadStore StorePathMetadata
 queryPathInfoUncached path = do
   runOpArgs QueryPathInfo $ do
     putPath path
@@ -219,74 +234,77 @@ queryPathInfoUncached path = do
   deriverPath <- sockGetPathMay
 
   narHashText <- Data.Text.Encoding.decodeUtf8 <$> sockGetStr
-  let narHash = case System.Nix.Hash.decodeBase @'System.Nix.Hash.SHA256 Base32 narHashText of
-        Left e -> error e
+  let
+    narHash =
+      case
+        System.Nix.Hash.decodeBase @'System.Nix.Hash.SHA256 Base32 narHashText
+        of
+        Left  e -> error e
         Right x -> SomeDigest x
 
-  references <- sockGetPaths
+  references       <- sockGetPaths
   registrationTime <- sockGet getTime
-  narBytes <- Just <$> sockGetInt
-  ultimate <- sockGetBool
+  narBytes         <- Just <$> sockGetInt
+  ultimate         <- sockGetBool
 
-  _sigStrings <- map bsToText <$> sockGetStrings
-  caString <- sockGetStr
+  _sigStrings      <- fmap bsToText <$> sockGetStrings
+  caString         <- sockGetStr
 
   let
       -- XXX: signatures need pubkey from config
       sigs = Data.Set.empty
 
       contentAddressableAddress =
-        case System.Nix.Store.Remote.Parsers.parseContentAddressableAddress caString of
-          Left e -> error e
+        case
+          System.Nix.Store.Remote.Parsers.parseContentAddressableAddress caString
+          of
+          Left  e -> error e
           Right x -> Just x
 
-      trust = if ultimate then BuiltLocally
-                          else BuiltElsewhere
+      trust = if ultimate then BuiltLocally else BuiltElsewhere
 
-  return $ StorePathMetadata {..}
+  return $ StorePathMetadata{..}
 
 queryReferrers :: StorePath -> MonadStore StorePathSet
 queryReferrers p = do
-  runOpArgs QueryReferrers $ do
-    putPath p
+  runOpArgs QueryReferrers $ putPath p
   sockGetPaths
 
 queryValidDerivers :: StorePath -> MonadStore StorePathSet
 queryValidDerivers p = do
-  runOpArgs QueryValidDerivers $ do
-    putPath p
+  runOpArgs QueryValidDerivers $ putPath p
   sockGetPaths
 
 queryDerivationOutputs :: StorePath -> MonadStore StorePathSet
 queryDerivationOutputs p = do
-  runOpArgs QueryDerivationOutputs $
-    putPath p
+  runOpArgs QueryDerivationOutputs $ putPath p
   sockGetPaths
 
 queryDerivationOutputNames :: StorePath -> MonadStore StorePathSet
 queryDerivationOutputNames p = do
-  runOpArgs QueryDerivationOutputNames $
-    putPath p
+  runOpArgs QueryDerivationOutputNames $ putPath p
   sockGetPaths
 
 queryPathFromHashPart :: Digest StorePathHashAlgo -> MonadStore StorePath
 queryPathFromHashPart storePathHash = do
-  runOpArgs QueryPathFromHashPart $
-    putByteStringLen
-      $ Data.ByteString.Lazy.fromStrict
-      $ Data.Text.Encoding.encodeUtf8
-      $ System.Nix.Hash.encodeInBase Base32 storePathHash
+  runOpArgs QueryPathFromHashPart
+    $ putByteStringLen
+    $ Data.ByteString.Lazy.fromStrict
+    $ Data.Text.Encoding.encodeUtf8
+    $ System.Nix.Hash.encodeInBase Base32 storePathHash
   sockGetPath
 
-queryMissing :: StorePathSet
-             -> MonadStore ( StorePathSet -- Paths that will be built
-                           , StorePathSet -- Paths that have substitutes
-                           , StorePathSet -- Unknown paths
-                           , Integer      -- Download size
-                           , Integer)     -- Nar size?
+queryMissing
+  :: StorePathSet
+  -> MonadStore
+      ( StorePathSet-- Paths that will be built
+      , StorePathSet -- Paths that have substitutes
+      , StorePathSet -- Unknown paths
+      , Integer            -- Download size
+      , Integer            -- Nar size?
+      )
 queryMissing ps = do
-  runOpArgs QueryMissing $ do
-    putPaths ps
+  runOpArgs QueryMissing $ putPaths ps
 
   willBuild      <- sockGetPaths
   willSubstitute <- sockGetPaths

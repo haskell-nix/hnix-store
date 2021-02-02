@@ -1,4 +1,4 @@
-import NixDaemon
+import           NixDaemon
 import qualified Spec
 
 -- we run remote tests in

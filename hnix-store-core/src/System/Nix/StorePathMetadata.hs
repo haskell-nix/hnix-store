@@ -3,12 +3,15 @@ Description : Metadata about Nix store paths.
 -}
 module System.Nix.StorePathMetadata where
 
-import System.Nix.StorePath (StorePath, StorePathSet, ContentAddressableAddress)
-import System.Nix.Hash (SomeNamedDigest)
-import Data.Set (Set)
-import Data.Time (UTCTime)
-import Data.Word (Word64)
-import System.Nix.Signature (NarSignature)
+import           System.Nix.StorePath           ( StorePath
+                                                , StorePathSet
+                                                , ContentAddressableAddress
+                                                )
+import           System.Nix.Hash                ( SomeNamedDigest )
+import           Data.Set                       ( Set )
+import           Data.Time                      ( UTCTime )
+import           Data.Word                      ( Word64 )
+import           System.Nix.Signature           ( NarSignature )
 
 -- | Metadata about a 'StorePath'
 data StorePathMetadata = StorePathMetadata

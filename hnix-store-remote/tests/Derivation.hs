@@ -4,14 +4,21 @@
 
 module Derivation where
 
-import           Control.Monad.IO.Class (liftIO)
+import           Control.Monad.IO.Class         ( liftIO )
 
-import           Data.Text (Text)
-import           Nix.Derivation (Derivation(..), DerivationOutput(..))
-import           System.Nix.StorePath (StorePath, storePathToText)
+import           Data.Text                      ( Text )
+import           Nix.Derivation                 ( Derivation(..)
+                                                , DerivationOutput(..)
+                                                )
+import           System.Nix.StorePath           ( StorePath
+                                                , storePathToText
+                                                )
 
-import           System.Nix.Store.Remote (MonadStore, addToStore, addTextToStore)
-import           System.Nix.Hash (HashAlgorithm(SHA256))
+import           System.Nix.Store.Remote        ( MonadStore
+                                                , addToStore
+                                                , addTextToStore
+                                                )
+import           System.Nix.Hash                ( HashAlgorithm(SHA256) )
 
 import qualified Data.Map
 import qualified Data.Set
@@ -24,13 +31,13 @@ import qualified System.Nix.StorePath
 import qualified System.Directory
 
 drvSample :: StorePath -> StorePath -> StorePath -> Derivation StorePath Text
-drvSample builder' buildScript out = Derivation {
-    outputs   = Data.Map.fromList [ ("out", DerivationOutput out "sha256" "test") ]
-  , inputDrvs = Data.Map.fromList [ (builder', Data.Set.fromList [ "out" ]) ]
-  , inputSrcs = Data.Set.fromList [ buildScript ]
+drvSample builder' buildScript out = Derivation
+  { outputs = Data.Map.fromList [("out", DerivationOutput out "sha256" "test")]
+  , inputDrvs = Data.Map.fromList [(builder', Data.Set.fromList ["out"])]
+  , inputSrcs = Data.Set.fromList [buildScript]
   , platform  = "x86_64-linux"
   , builder   = storePathToText builder'
-  , args      = Data.Vector.fromList ["-e", storePathToText buildScript ]
+  , args      = Data.Vector.fromList ["-e", storePathToText buildScript]
   , env       = Data.Map.fromList [("testEnv", "true")]
   }
 
@@ -41,34 +48,35 @@ withBash action = do
     Nothing -> error "No bash executable found"
     Just fp -> do
       let Right n = System.Nix.StorePath.makeStorePathName "bash"
-      pth <- addToStore @'SHA256 n fp False (pure True) False
+      pth <- addToStore @ 'SHA256 n fp False (pure True) False
       action pth
 
 withBuildScript :: (StorePath -> MonadStore a) -> MonadStore a
 withBuildScript action = do
-  pth <- addTextToStore
-    "buildScript"
-    (Data.Text.concat [ "declare -xp", "export > $out" ])
-    mempty
-    False
+  pth <- addTextToStore "buildScript"
+                        (Data.Text.concat ["declare -xp", "export > $out"])
+                        mempty
+                        False
 
   action pth
 
-withDerivation :: (StorePath -> Derivation StorePath Text -> MonadStore a) -> MonadStore a
-withDerivation action = withBuildScript $ \buildScript -> withBash $ \bash -> do
-  outputPath <- addTextToStore "wannabe-output" "" mempty False
+withDerivation
+  :: (StorePath -> Derivation StorePath Text -> MonadStore a) -> MonadStore a
+withDerivation action = withBuildScript $ \buildScript -> withBash $ \bash ->
+  do
+    outputPath <- addTextToStore "wannabe-output" "" mempty False
 
-  let d = drvSample bash buildScript outputPath
+    let d = drvSample bash buildScript outputPath
 
-  pth <- addTextToStore
-    "hnix-store-derivation"
-    (Data.Text.Lazy.toStrict
+    pth <- addTextToStore
+      "hnix-store-derivation"
+      ( Data.Text.Lazy.toStrict
       $ Data.Text.Lazy.Builder.toLazyText
       $ System.Nix.Derivation.buildDerivation d
-    )
-    mempty
-    False
+      )
+      mempty
+      False
 
-  liftIO $ print d
-  action pth d
+    liftIO $ print d
+    action pth d
 

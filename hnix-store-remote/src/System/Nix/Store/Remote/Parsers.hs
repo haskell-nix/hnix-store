@@ -13,7 +13,7 @@ where
 import           Control.Applicative            ( (<|>) )
 import           Data.Attoparsec.ByteString.Char8
 import           Data.ByteString.Char8
-import           Data.Text                      (Text)
+import           Data.Text                      ( Text )
 import           Data.Text.Encoding             ( decodeUtf8 )
 import           System.Nix.Hash
 import           System.Nix.StorePath           ( ContentAddressableAddress(..)
@@ -49,7 +49,8 @@ parseTypedDigest :: Parser (Either String SomeNamedDigest)
 parseTypedDigest = mkNamedDigest <$> parseHashType <*> parseHash
 
 parseHashType :: Parser Text
-parseHashType = decodeUtf8 <$> ("sha256" <|> "sha512" <|> "sha1" <|> "md5") <* (":" <|> "-")
+parseHashType =
+  decodeUtf8 <$> ("sha256" <|> "sha512" <|> "sha1" <|> "md5") <* (":" <|> "-")
 
 parseHash :: Parser Text
 parseHash = decodeUtf8 <$> takeWhile1 (/= ':')
