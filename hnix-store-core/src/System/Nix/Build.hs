@@ -52,8 +52,9 @@ data BuildResult = BuildResult
   } deriving (Eq, Ord, Show)
 
 buildSuccess :: BuildResult -> Bool
-buildSuccess BuildResult{..} = elem status
-  [ Built
-  , Substituted
-  , AlreadyValid
-  ]
+buildSuccess BuildResult{..} =
+  status `elem`
+    [ Built
+    , Substituted
+    , AlreadyValid
+    ]

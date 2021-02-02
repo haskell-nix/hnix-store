@@ -5,29 +5,28 @@ module System.Nix.Derivation (
   , buildDerivation
   ) where
 
-import Data.Attoparsec.Text.Lazy (Parser)
-import Data.Text (Text)
-import Data.Text.Lazy.Builder (Builder)
-import Nix.Derivation (Derivation)
-import System.Nix.StorePath (StorePath)
+import           Data.Text                 (Text)
+import qualified Data.Text                 as Text
+import qualified Data.Text.Lazy.Builder    as Text.Lazy (Builder)
+import qualified Data.Text.Lazy.Builder    as Text.Lazy.Builder
+import qualified Data.Attoparsec.Text.Lazy as Text.Lazy (Parser)
+import           Nix.Derivation            (Derivation)
+import qualified Nix.Derivation            as Derivation
+import           System.Nix.StorePath      (StorePath)
+import qualified System.Nix.StorePath      as StorePath
 
-import qualified Data.Text
-import qualified Data.Text.Lazy.Builder
 
-import qualified Nix.Derivation
-import qualified System.Nix.StorePath
 
-parseDerivation :: FilePath -> Parser (Derivation StorePath Text)
+parseDerivation :: FilePath -> Text.Lazy.Parser (Derivation StorePath Text)
 parseDerivation expectedRoot =
-  Nix.Derivation.parseDerivationWith
-    ("\"" *> System.Nix.StorePath.pathParser expectedRoot <* "\"")
-    Nix.Derivation.textParser
+  Derivation.parseDerivationWith
+    ("\"" *> StorePath.pathParser expectedRoot <* "\"")
+    Derivation.textParser
 
-buildDerivation :: Derivation StorePath Text -> Builder
-buildDerivation derivation =
-  Nix.Derivation.buildDerivationWith
-    (string . Data.Text.pack . show)
+buildDerivation :: Derivation StorePath Text -> Text.Lazy.Builder
+buildDerivation =
+  Derivation.buildDerivationWith
+    (string . Text.pack . show)
     string
-    derivation
   where
-    string = Data.Text.Lazy.Builder.fromText . Data.Text.pack . show
+    string = Text.Lazy.Builder.fromText . Text.pack . show
