@@ -72,7 +72,7 @@ unsafeDecode what =
         (Data.Text.unpack what)
     of
       [(i, _)] -> Right $ padded $ integerToBS i
-      x        -> Left $ "Can't decode: readInt returned " ++ show x
+      x        -> Left $ "Can't decode: readInt returned " <> show x
  where
   padded x
     | Bytes.length x < decLen = x `Bytes.append` bstr

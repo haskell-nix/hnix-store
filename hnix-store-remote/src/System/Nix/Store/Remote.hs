@@ -196,7 +196,7 @@ findRoots = do
 
   ex :: (a, Either [Char] b) -> MonadStore (a, b)
   ex (x , Right y) = pure (x, y)
-  ex (_x, Left e ) = error $ "Unable to decode root: " ++ e
+  ex (_x, Left e ) = error $ "Unable to decode root: " <> e
 
 isValidPathUncached :: StorePath -> MonadStore Bool
 isValidPathUncached p = do

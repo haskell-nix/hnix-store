@@ -339,22 +339,22 @@ packThenExtract testName setup =
       Left (_ :: SomeException) -> print ("No nix-store on system" :: String)
       Right _ -> do
         let
-          nixNarFile  = narFilePath ++ ".nix"
-          hnixNarFile = narFilePath ++ ".hnix"
-          outputFile  = narFilePath ++ ".out"
+          nixNarFile  = narFilePath <> ".nix"
+          hnixNarFile = narFilePath <> ".hnix"
+          outputFile  = narFilePath <> ".out"
 
-        step $ "Produce nix-store nar to " ++ nixNarFile
-        (_,_,_,handle) <- P.createProcess (P.shell $ "nix-store --dump " ++ narFilePath ++ " > " ++ nixNarFile)
+        step $ "Produce nix-store nar to " <> nixNarFile
+        (_,_,_,handle) <- P.createProcess (P.shell $ "nix-store --dump " <> narFilePath <> " > " <> nixNarFile)
         void $ P.waitForProcess handle
 
-        step $ "Build NAR from " ++ narFilePath ++ " to " ++ hnixNarFile
+        step $ "Build NAR from " <> narFilePath <> " to " <> hnixNarFile
         -- narBS <- buildNarIO narEffectsIO narFile
         IO.withFile hnixNarFile IO.WriteMode $ \h ->
           buildNarIO narEffectsIO narFilePath h
 
         -- BSL.writeFile hnixNarFile narBS
 
-        step $ "Unpack NAR to " ++ outputFile
+        step $ "Unpack NAR to " <> outputFile
         _narHandle <- IO.withFile nixNarFile IO.ReadMode $ \h ->
           unpackNarIO narEffectsIO h outputFile
 
@@ -364,7 +364,7 @@ packThenExtract testName setup =
 countProcessFiles :: IO Int
 countProcessFiles = do
   pid <- Unix.getProcessID
-  let fdDir = "/proc/" ++ show pid ++ "/fd"
+  let fdDir = "/proc/" <> show pid <> "/fd"
   fds  <- P.readProcess "ls" [fdDir] ""
   pure $ length $ words fds
 
@@ -437,12 +437,12 @@ sampleLargeDir fSize = Directory $ Map.fromList $ [
     (FilePathPart "bf1", sampleLargeFile  fSize)
   , (FilePathPart "bf2", sampleLargeFile' fSize)
   ]
-  ++ [ (FilePathPart (BSC.pack $ 'f' : show n),
+  <> [ (FilePathPart (BSC.pack $ 'f' : show n),
         Regular Nar.NonExecutable 10000 (BSL.take 10000 (BSL.cycle "hi ")))
      | n <- [1..100 :: Int]]
-  ++ [
+  <> [
   (FilePathPart "d", Directory $ Map.fromList
-      [ (FilePathPart (BSC.pack $ "df" ++ show n)
+      [ (FilePathPart (BSC.pack $ "df" <> show n)
         , Regular Nar.NonExecutable 10000 (BSL.take 10000 (BSL.cycle "subhi ")))
       | n <- [1..100 :: Int]]
      )
@@ -595,7 +595,7 @@ instance Arbitrary FileSystemObject where
         arbName :: Gen FilePathPart
         arbName = fmap (FilePathPart . BS.pack . fmap (fromIntegral . fromEnum)) $ do
           Positive n <- arbitrary
-          replicateM n (elements $ ['a'..'z'] ++ ['0'..'9'])
+          replicateM n (elements $ ['a'..'z'] <> ['0'..'9'])
 
         arbDirectory :: Int -> Gen FileSystemObject
         arbDirectory n = fmap (Directory . Map.fromList) $ replicateM n $ do
@@ -699,7 +699,7 @@ getNar = fmap Nar $ header >> parens getFile
               name <- E.decodeUtf8 . BSL.toStrict <$> str
               assertStr_ "node"
               file <- parens getFile
-              maybe (fail $ "Bad FilePathPart: " ++ show name)
+              maybe (fail $ "Bad FilePathPart: " <> show name)
                     (pure . (,file))
                     (filePathPart $ E.encodeUtf8 name)
 
