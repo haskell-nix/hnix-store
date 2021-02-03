@@ -36,7 +36,7 @@ genericIncremental :: (MonadIO m) => m (Maybe ByteString) -> Get a -> m a
 genericIncremental getsome parser = go decoder
  where
   decoder = runGetIncremental parser
-  go (Done _leftover _consumed x  ) = return x
+  go (Done _leftover _consumed x  ) = pure x
   go (Partial k                   ) = do
     chunk <- getsome
     go (k chunk)
@@ -76,14 +76,14 @@ sockGetPath = do
   pth <- getSocketIncremental (getPath sd)
   either
     throwError
-    return
+    pure
     pth
 
 sockGetPathMay :: MonadStore (Maybe StorePath)
 sockGetPathMay = do
   sd  <- getStoreDir
   pth <- getSocketIncremental (getPath sd)
-  return $
+  pure $
     either
       (const Nothing)
       Just
@@ -110,14 +110,14 @@ putText :: Text -> Put
 putText = putByteStringLen . textToBSL
 
 putTexts :: [Text] -> Put
-putTexts = putByteStrings . map textToBSL
+putTexts = putByteStrings . fmap textToBSL
 
 getPath :: FilePath -> Get (Either String StorePath)
 getPath sd = parsePath sd <$> getByteStringLen
 
 getPaths :: FilePath -> Get StorePathSet
 getPaths sd =
-  Data.HashSet.fromList . rights . map (parsePath sd) <$> getByteStrings
+  Data.HashSet.fromList . rights . fmap (parsePath sd) <$> getByteStrings
 
 putPath :: StorePath -> Put
 putPath = putByteStringLen . BSL.fromStrict . storePathToRawFilePath

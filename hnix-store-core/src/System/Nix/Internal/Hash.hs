@@ -115,13 +115,13 @@ mkNamedDigest name sriHash =
     "sha1"   -> SomeDigest <$> decodeGo @'SHA1   h
     "sha256" -> SomeDigest <$> decodeGo @'SHA256 h
     "sha512" -> SomeDigest <$> decodeGo @'SHA512 h
-    _        -> Left $ "Unknown hash name: " ++ T.unpack name
+    _        -> Left $ "Unknown hash name: " <> T.unpack name
   decodeGo :: forall a . (NamedAlgo a, ValidAlgo a) => Text -> Either String (Digest a)
   decodeGo h
     | size == base16Len = decodeBase Base16 h
     | size == base32Len = decodeBase Base32 h
     | size == base64Len = decodeBase Base64 h
-    | otherwise = Left $ T.unpack sriHash ++ " is not a valid " ++ T.unpack name ++ " hash. Its length (" ++ show size ++ ") does not match any of " ++ show [base16Len, base32Len, base64Len]
+    | otherwise = Left $ T.unpack sriHash <> " is not a valid " <> T.unpack name <> " hash. Its length (" <> show size <> ") does not match any of " <> show [base16Len, base32Len, base64Len]
    where
     size = T.length h
     hsize = hashSize @a
@@ -218,7 +218,7 @@ instance (ValidAlgo a, KnownNat n) => ValidAlgo ('Truncated n a) where
 truncateDigest
   :: forall n a.(KnownNat n) => Digest a -> Digest ('Truncated n a)
 truncateDigest (Digest c) =
-    Digest $ BS.pack $ map truncOutputByte [0.. n-1]
+    Digest $ BS.pack $ fmap truncOutputByte [0.. n-1]
   where
     n = fromIntegral $ natVal (Proxy @n)
 

@@ -41,7 +41,7 @@ makeTextPath
 makeTextPath fp nm h refs = makeStorePath fp ty h nm
  where
   ty =
-    BS.intercalate ":" ("text" : map storePathToRawFilePath (HS.toList refs))
+    BS.intercalate ":" ("text" : fmap storePathToRawFilePath (HS.toList refs))
 
 makeFixedOutputPath
   :: forall hashAlgo

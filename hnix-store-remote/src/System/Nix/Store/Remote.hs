@@ -170,7 +170,7 @@ buildDerivation p drv buildMode = do
     putInt 0
 
   res <- getSocketIncremental $ getBuildResult
-  return res
+  pure res
 
 ensurePath :: StorePath -> MonadStore ()
 ensurePath pn = do
@@ -189,14 +189,14 @@ findRoots = do
       <*> getPath sd
 
   r <- catRights res
-  return $ Data.Map.Strict.fromList r
+  pure $ Data.Map.Strict.fromList r
  where
   catRights :: [(a, Either String b)] -> MonadStore [(a, b)]
   catRights = mapM ex
 
   ex :: (a, Either [Char] b) -> MonadStore (a, b)
-  ex (x , Right y) = return (x, y)
-  ex (_x, Left e ) = error $ "Unable to decode root: " ++ e
+  ex (x , Right y) = pure (x, y)
+  ex (_x, Left e ) = error $ "Unable to decode root: " <> e
 
 isValidPathUncached :: StorePath -> MonadStore Bool
 isValidPathUncached p = do
@@ -263,7 +263,7 @@ queryPathInfoUncached path = do
 
       trust = if ultimate then BuiltLocally else BuiltElsewhere
 
-  return $ StorePathMetadata{..}
+  pure $ StorePathMetadata{..}
 
 queryReferrers :: StorePath -> MonadStore StorePathSet
 queryReferrers p = do
@@ -311,7 +311,7 @@ queryMissing ps = do
   unknown        <- sockGetPaths
   downloadSize'  <- sockGetInt
   narSize'       <- sockGetInt
-  return (willBuild, willSubstitute, unknown, downloadSize', narSize')
+  pure (willBuild, willSubstitute, unknown, downloadSize', narSize')
 
 optimiseStore :: MonadStore ()
 optimiseStore = void $ simpleOp OptimiseStore

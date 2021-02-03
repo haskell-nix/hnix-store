@@ -83,7 +83,7 @@ streamNarIO yield effs basePath = do
     yield $ str "("
     r <- act
     yield $ str ")"
-    return r
+    pure r
 
   -- Read, yield, and pad the file
   yieldFile :: FilePath -> Int64 -> m ()

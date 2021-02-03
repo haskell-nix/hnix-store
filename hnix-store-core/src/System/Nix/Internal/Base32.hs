@@ -22,7 +22,7 @@ digits32 = Vector.fromList "0123456789abcdfghijklmnpqrsvwxyz"
 
 -- | Encode a 'BS.ByteString' in Nix's base32 encoding
 encode :: ByteString -> Text
-encode c = Data.Text.pack $ map char32 [nChar - 1, nChar - 2 .. 0]
+encode c = Data.Text.pack $ fmap char32 [nChar - 1, nChar - 2 .. 0]
  where
   -- Each base32 character gives us 5 bits of information, while
   -- each byte gives is 8. Because 'div' rounds down, we need to add
@@ -72,7 +72,7 @@ unsafeDecode what =
         (Data.Text.unpack what)
     of
       [(i, _)] -> Right $ padded $ integerToBS i
-      x        -> Left $ "Can't decode: readInt returned " ++ show x
+      x        -> Left $ "Can't decode: readInt returned " <> show x
  where
   padded x
     | Bytes.length x < decLen = x `Bytes.append` bstr

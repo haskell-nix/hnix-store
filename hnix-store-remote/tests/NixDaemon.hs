@@ -48,7 +48,7 @@ createProcessEnv fp proc args = do
       { P.cwd = Just $ fp
       , P.env = Just $ mockedEnv mPath fp
       }
-  return ph
+  pure ph
 
 mockedEnv :: Maybe String -> FilePath -> [(String, FilePath)]
 mockedEnv mEnvPath fp =
@@ -66,7 +66,7 @@ waitSocket fp x = do
   ex <- doesFileExist fp
   bool
     (threadDelay 100000 >> waitSocket fp (x - 1))
-    (return ())
+    (pure ())
     ex
 
 writeConf :: FilePath -> IO ()
@@ -98,7 +98,7 @@ startDaemon fp = do
   writeConf (fp </> "etc" </> "nix.conf")
   p <- createProcessEnv fp "nix-daemon" []
   waitSocket sockFp 30
-  return (p, runStoreOpts sockFp (fp </> "store"))
+  pure (p, runStoreOpts sockFp (fp </> "store"))
  where
   sockFp = fp </> "var/nix/daemon-socket/socket"
 
@@ -108,9 +108,9 @@ enterNamespaces = do
   gid <- getEffectiveGroupID
 
   unshare [User, Network, Mount]
-  -- map our (parent) uid to root
+  -- fmap our (parent) uid to root
   writeUserMappings Nothing [UserMapping 0 uid 1]
-  -- map our (parent) gid to root group
+  -- fmap our (parent) gid to root group
   writeGroupMappings Nothing [GroupMapping 0 gid 1] True
 
 withNixDaemon
@@ -142,7 +142,7 @@ it
   -> (a -> Bool)
   -> Hspec.SpecWith (m () -> IO (a, b))
 it name action check =
-  Hspec.it name $ \run -> (run (action >> return ())) `checks` check
+  Hspec.it name $ \run -> (run (action >> pure ())) `checks` check
 
 itRights
   :: (Show a, Show b, Show c, Monad m)
@@ -168,7 +168,7 @@ dummy :: MonadStore StorePath
 dummy = do
   let Right n = makeStorePathName "dummy"
   res <- addToStore @'SHA256 n "dummy" False (pure True) False
-  return res
+  pure res
 
 invalidPath :: StorePath
 invalidPath =
@@ -203,7 +203,7 @@ spec_protocol = Hspec.around withNixDaemon $
         verifyStore True True `shouldReturn` False
 
     context "addTextToStore" $
-      itRights "adds text to store" $ withPath $ const return ()
+      itRights "adds text to store" $ withPath $ const pure ()
 
     context "isValidPathUncached" $ do
       itRights "validates path" $ withPath $ \path -> do

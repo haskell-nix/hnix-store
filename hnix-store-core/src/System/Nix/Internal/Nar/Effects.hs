@@ -89,7 +89,7 @@ streamStringOutIO f getChunk =
   go handle = do
     chunk <- getChunk
     case chunk of
-      Nothing -> return ()
+      Nothing -> pure ()
       Just c  -> do
         IO.liftIO $ Bytes.hPut handle c
         go handle
