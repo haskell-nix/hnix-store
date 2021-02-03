@@ -89,7 +89,7 @@ runParser effs (NarParser action) h target = do
     Reader.runReaderT (Except.runExceptT $ State.evalStateT action state0) effs
       `Exception.Lifted.catch` exceptionHandler
   when (Either.isLeft unpackResult) cleanup
-  return unpackResult
+  pure unpackResult
 
  where
   state0 :: ParserState
@@ -103,7 +103,7 @@ runParser effs (NarParser action) h target = do
 
   exceptionHandler :: Exception.Lifted.SomeException -> m (Either String a)
   exceptionHandler e =
-    return $ Left $ "Exception while unpacking NAR file: " <> show e
+    pure $ Left $ "Exception while unpacking NAR file: " <> show e
 
   cleanup :: m ()
   cleanup =
@@ -141,7 +141,7 @@ data ParserState = ParserState
 
 -- | Parse a NAR byte string, producing @()@.
 --   Parsing a NAR is mostly used for its side-effect: producing
---   the file system objects packed in the NAR. That's why we return @()@
+--   the file system objects packed in the NAR. That's why we pure @()@
 parseNar :: (IO.MonadIO m, Fail.MonadFail m) => NarParser m ()
 parseNar = do
   expectStr "nix-archive-1"
@@ -179,7 +179,7 @@ parseSymlink = do
   currentDirectoryAndFile :: Monad m => NarParser m (FilePath, FilePath)
   currentDirectoryAndFile = do
     dirStack <- State.gets directoryStack
-    return (List.foldr1 (</>) (List.reverse $ drop 1 dirStack), head dirStack)
+    pure (List.foldr1 (</>) (List.reverse $ drop 1 dirStack), head dirStack)
 
 
 -- | Internal data type representing symlinks encountered in the NAR
@@ -224,7 +224,7 @@ parseFile = do
     getChunk = do
       bytesLeft <- IO.liftIO $ IORef.readIORef bytesLeftVar
       if bytesLeft == 0
-        then return Nothing
+        then pure Nothing
         else do
           chunk <- IO.liftIO $ Bytes.hGetSome narHandle $ fromIntegral $ min 10000 bytesLeft
           when (Bytes.null chunk) (Fail.fail "ZERO BYTES")
@@ -234,7 +234,7 @@ parseFile = do
           -- clean up chunks from previous runs. Without it, heap memory usage can
           -- quickly spike
           IO.liftIO $ Concurrent.threadDelay 10
-          return $ Just chunk
+          pure $ Just chunk
 
   target     <- currentFile
   streamFile <- Reader.asks Nar.narStreamFile
@@ -373,7 +373,7 @@ parens act = do
   expectStr "("
   r <- act
   expectStr ")"
-  return r
+  pure r
 
 
 -- | Sort links in the symlink stack according to their connectivity
@@ -406,7 +406,7 @@ createLinks = do
                         (linkPWD l </> linkTarget l)
       fileAbsPath   <- Directory.canonicalizePath
                         (linkFile l)
-      return (fileAbsPath, targetAbsPath)
+      pure (fileAbsPath, targetAbsPath)
     let linkGraph = Graph.edges canonicalLinks
     case Graph.topSort linkGraph of
       Left _            -> error "Symlinks form a loop"
@@ -414,7 +414,7 @@ createLinks = do
         let
           sortedLinks = flip Map.lookup linkLocations <$> sortedNodes
         in
-          return $ catMaybes sortedLinks
+          pure $ catMaybes sortedLinks
 
 
 ------------------------------------------------------------------------------
@@ -426,7 +426,7 @@ consume
   :: (IO.MonadIO m, Fail.MonadFail m)
   => Int
   -> NarParser m ByteString
-consume 0 = return ""
+consume 0 = pure ""
 consume n = do
   state0   <- State.get
   newBytes <- IO.liftIO $ Bytes.hGetSome (handle state0) (max 0 n)
@@ -434,7 +434,7 @@ consume n = do
     Fail.fail $
     "consume: Not enough bytes in handle. Wanted "
     <> show n <> " got " <> show (Bytes.length newBytes)
-  return newBytes
+  pure newBytes
 
 
 -- | Pop a string off the token stack
@@ -442,10 +442,10 @@ popStr :: Monad m => NarParser m (Maybe Text)
 popStr = do
   s <- State.get
   case List.uncons (tokenStack s) of
-    Nothing      -> return Nothing
+    Nothing      -> pure Nothing
     Just (x, xs) -> do
       State.put $ s { tokenStack = xs }
-      return $ Just x
+      pure $ Just x
 
 
 -- | Push a string onto the token stack
@@ -472,7 +472,7 @@ popFileName =
 currentFile :: Monad m => NarParser m FilePath
 currentFile = do
   dirStack <- State.gets directoryStack
-  return $ List.foldr1 (</>) $ List.reverse dirStack
+  pure $ List.foldr1 (</>) $ List.reverse dirStack
 
 
 -- | Add a link to the collection of encountered symlinks

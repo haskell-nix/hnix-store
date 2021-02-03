@@ -159,7 +159,7 @@ unit_packSelfSrcDir = Temp.withSystemTempDirectory "nar-test" $ \tmpDir -> do
       let go dir = do
             srcHere <- doesDirectoryExist dir
             case srcHere of
-              False -> return ()
+              False -> pure ()
               True -> do
                 IO.withFile narFilePath IO.WriteMode $ \h ->
                   buildNarIO narEffectsIO "src" h
@@ -231,7 +231,7 @@ test_streamManyFilesToNar = HU.testCaseSteps "streamManyFilesToNar" $ \step ->
         IO.withFile "hnar" IO.WriteMode $ \h ->
           buildNarIO narEffectsIO narFilePath h
         filesPostcount <- countProcessFiles
-        return $ filesPostcount - filesPrecount
+        pure $ filesPostcount - filesPrecount
 
     step "create test files"
     Directory.createDirectory packagePath
@@ -316,7 +316,7 @@ assertBoundedMemory = do
       bytes <- max_live_bytes <$> getRTSStats
       bytes < 100 * 1000 * 1000 `shouldBe` True
 #else
-      return ()
+      pure ()
 #endif
 
 
@@ -358,7 +358,7 @@ packThenExtract testName setup =
         _narHandle <- IO.withFile nixNarFile IO.ReadMode $ \h ->
           unpackNarIO narEffectsIO h outputFile
 
-        return ()
+        pure ()
 
 -- | Count file descriptors owned by the current process
 countProcessFiles :: IO Int
@@ -366,7 +366,7 @@ countProcessFiles = do
   pid <- Unix.getProcessID
   let fdDir = "/proc/" ++ show pid ++ "/fd"
   fds  <- P.readProcess "ls" [fdDir] ""
-  return $ length $ words fds
+  pure $ length $ words fds
 
 
 -- | Read the binary output of `nix-store --dump` for a filepath
@@ -601,7 +601,7 @@ instance Arbitrary FileSystemObject where
         arbDirectory n = fmap (Directory . Map.fromList) $ replicateM n $ do
           nm <- arbName
           f <- oneof [arbFile, arbDirectory (n `div` 2)]
-          return (nm,f)
+          pure (nm,f)
 
 ------------------------------------------------------------------------------
 -- | Serialize Nar to lazy ByteString
@@ -615,7 +615,7 @@ putNar (Nar file) = header <> parens (putFile file)
                strs ["type", "regular"]
             >> (if isExec == Nar.Executable
                then strs ["executable", ""]
-               else return ())
+               else pure ())
             >> putContents fSize contents
 
         putFile (SymLink target) =
@@ -678,13 +678,13 @@ getNar = fmap Nar $ header >> parens getFile
                                                        >> assertStr "")
           assertStr_ "contents"
           (fSize, contents) <- sizedStr
-          return $ Regular (fromMaybe Nar.NonExecutable mExecutable) fSize contents
+          pure $ Regular (fromMaybe Nar.NonExecutable mExecutable) fSize contents
 
       getDirectory = do
           assertStr_ "type"
           assertStr_ "directory"
           fs <- many getEntry
-          return $ Directory (Map.fromList fs)
+          pure $ Directory (Map.fromList fs)
 
       getSymLink = do
           assertStr_ "type"
@@ -700,7 +700,7 @@ getNar = fmap Nar $ header >> parens getFile
               assertStr_ "node"
               file <- parens getFile
               maybe (fail $ "Bad FilePathPart: " ++ show name)
-                    (return . (,file))
+                    (pure . (,file))
                     (filePathPart $ E.encodeUtf8 name)
 
       -- Fetch a length-prefixed, null-padded string
@@ -710,7 +710,7 @@ getNar = fmap Nar $ header >> parens getFile
           n <- getInt64le
           s <- getLazyByteString n
           _ <- getByteString . fromIntegral $ padLen n
-          return (n,s)
+          pure (n,s)
 
       parens m = assertStr "(" *> m <* assertStr ")"
 
@@ -718,5 +718,5 @@ getNar = fmap Nar $ header >> parens getFile
       assertStr s = do
           s' <- str
           if s == s'
-              then return s
+              then pure s
               else fail "No"

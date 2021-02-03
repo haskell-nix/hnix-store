@@ -122,7 +122,7 @@ opNum QueryMissing                = 40
 
 
 simpleOp :: WorkerOp -> MonadStore Bool
-simpleOp op = simpleOpArgs op $ return ()
+simpleOp op = simpleOpArgs op $ pure ()
 
 simpleOpArgs :: WorkerOp -> Put -> MonadStore Bool
 simpleOpArgs op args = do
@@ -137,7 +137,7 @@ simpleOpArgs op args = do
     err
 
 runOp :: WorkerOp -> MonadStore ()
-runOp op = runOpArgs op $ return ()
+runOp op = runOpArgs op $ pure ()
 
 runOpArgs :: WorkerOp -> Put -> MonadStore ()
 runOpArgs op args =
@@ -179,7 +179,7 @@ runStoreOpts sockPath storeRootDir code = do
         0
 
     Network.Socket.connect soc (SockAddrUnix path)
-    return StoreConfig
+    pure StoreConfig
         { storeSocket = soc
         , storeDir = storeRootDir
         }

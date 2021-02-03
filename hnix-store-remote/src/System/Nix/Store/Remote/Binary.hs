@@ -47,7 +47,7 @@ getByteStringLen = do
   when (len `mod` 8 /= 0) $ do
     pads <- unpad $ fromIntegral $ 8 - (len `mod` 8)
     unless (all (== 0) pads) $ fail $ "No zeroes" ++ show (st, len, pads)
-  return $ BSL.toStrict st
+  pure $ BSL.toStrict st
   where unpad x = sequence $ replicate x getWord8
 
 getByteStrings :: Get [ByteString]

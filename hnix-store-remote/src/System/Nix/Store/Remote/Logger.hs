@@ -49,8 +49,8 @@ processOutput = go decoder
   go :: Decoder Logger -> MonadStore [Logger]
   go (Done _leftover _consumed ctrl) = do
     case ctrl of
-      e@(Error _ _) -> return [e]
-      Last          -> return [Last]
+      e@(Error _ _) -> pure [e]
+      Last          -> pure [Last]
       Read _n       -> do
         (mdata, _) <- get
         case mdata of
@@ -61,12 +61,12 @@ processOutput = go decoder
             clearData
 
         next <- go decoder
-        return next
+        pure next
 
       -- we should probably handle Read here as well
       x -> do
         next <- go decoder
-        return $ x : next
+        pure $ x : next
   go (Partial k) = do
     soc   <- asks storeSocket
     chunk <- liftIO (Just <$> recv soc 8)

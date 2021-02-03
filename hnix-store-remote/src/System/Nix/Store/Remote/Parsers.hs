@@ -35,7 +35,7 @@ caText :: Parser ContentAddressableAddress
 caText = do
   _      <- "text:sha256:"
   digest <- decodeBase @'SHA256 Base32 <$> parseHash
-  either fail return $ Text <$> digest
+  either fail pure $ Text <$> digest
 
 -- | Parser for @fixed:<r?>:<ht>:<h>@
 caFixed :: Parser ContentAddressableAddress
@@ -43,7 +43,7 @@ caFixed = do
   _           <- "fixed:"
   narHashMode <- (pure Recursive <$> "r:") <|> (pure RegularFile <$> "")
   digest      <- parseTypedDigest
-  either fail return $ Fixed narHashMode <$> digest
+  either fail pure $ Fixed narHashMode <$> digest
 
 parseTypedDigest :: Parser (Either String SomeNamedDigest)
 parseTypedDigest = mkNamedDigest <$> parseHashType <*> parseHash
