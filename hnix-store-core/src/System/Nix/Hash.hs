@@ -1,8 +1,8 @@
 {-|
 Description : Cryptographic hashes for hnix-store.
 -}
-module System.Nix.Hash (
-    Hash.Digest
+module System.Nix.Hash
+  ( Hash.Digest
 
   , Hash.HashAlgorithm(..)
   , Hash.ValidAlgo(..)
@@ -16,6 +16,7 @@ module System.Nix.Hash (
   , Hash.BaseEncoding(..)
   , Hash.encodeInBase
   , Hash.decodeBase
-  ) where
+  )
+where
 
-import qualified System.Nix.Internal.Hash as Hash
+import qualified System.Nix.Internal.Hash      as Hash

@@ -24,10 +24,8 @@ prop_storePathRoundtrip' x =
 
 prop_storePathRoundtripParser :: NixLike -> NixLike -> Property
 prop_storePathRoundtripParser (_ :: NixLike) = \(NixLike x) ->
-  (Data.Attoparsec.Text.Lazy.parseOnly (pathParser (storePathRoot x))
-    $ storePathToText x) === Right x
+  (Data.Attoparsec.Text.Lazy.parseOnly (pathParser $ storePathRoot x) $ storePathToText x) === Right x
 
 prop_storePathRoundtripParser' :: StorePath -> Property
 prop_storePathRoundtripParser' x =
-  (Data.Attoparsec.Text.Lazy.parseOnly (pathParser (storePathRoot x))
-    $ storePathToText x) === Right x
+  (Data.Attoparsec.Text.Lazy.parseOnly (pathParser $ storePathRoot x) $ storePathToText x) === Right x

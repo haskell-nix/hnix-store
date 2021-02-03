@@ -1,19 +1,22 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module System.Nix.Derivation (
-    parseDerivation
+module System.Nix.Derivation
+  ( parseDerivation
   , buildDerivation
-  ) where
+  )
+where
 
-import           Data.Text                 (Text)
-import qualified Data.Text                 as Text
-import qualified Data.Text.Lazy.Builder    as Text.Lazy (Builder)
-import qualified Data.Text.Lazy.Builder    as Text.Lazy.Builder
-import qualified Data.Attoparsec.Text.Lazy as Text.Lazy (Parser)
-import           Nix.Derivation            (Derivation)
-import qualified Nix.Derivation            as Derivation
-import           System.Nix.StorePath      (StorePath)
-import qualified System.Nix.StorePath      as StorePath
+import           Data.Text                      ( Text )
+import qualified Data.Text                     as Text
+import qualified Data.Text.Lazy.Builder        as Text.Lazy
+                                                ( Builder )
+import qualified Data.Text.Lazy.Builder        as Text.Lazy.Builder
+import qualified Data.Attoparsec.Text.Lazy     as Text.Lazy
+                                                ( Parser )
+import           Nix.Derivation                 ( Derivation )
+import qualified Nix.Derivation                as Derivation
+import           System.Nix.StorePath           ( StorePath )
+import qualified System.Nix.StorePath          as StorePath
 
 
 

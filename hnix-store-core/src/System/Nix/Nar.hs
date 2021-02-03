@@ -9,7 +9,8 @@ Maintainer  : Shea Levy <shea@shealevy.com>
 {-# LANGUAGE TypeFamilies        #-}
 
 
-module System.Nix.Nar (
+module System.Nix.Nar
+  (
 
   -- * Encoding and Decoding NAR archives
     buildNarIO
@@ -27,15 +28,16 @@ module System.Nix.Nar (
   -- * Internal
   , Nar.streamNarIO
   , Nar.runParser
-  ) where
+  )
+where
 
-import qualified Control.Concurrent               as Concurrent
-import qualified Data.ByteString                  as BS
-import qualified System.IO                        as IO
+import qualified Control.Concurrent                as Concurrent
+import qualified Data.ByteString                   as BS
+import qualified System.IO                         as IO
 
-import qualified System.Nix.Internal.Nar.Effects  as Nar
-import qualified System.Nix.Internal.Nar.Parser   as Nar
-import qualified System.Nix.Internal.Nar.Streamer as Nar
+import qualified System.Nix.Internal.Nar.Effects   as Nar
+import qualified System.Nix.Internal.Nar.Parser    as Nar
+import qualified System.Nix.Internal.Nar.Streamer  as Nar
 
 
 -- For a description of the NAR format, see Eelco's thesis
@@ -64,7 +66,4 @@ unpackNarIO
   -> IO.Handle
   -> FilePath
   -> IO (Either String ())
-unpackNarIO effs =
-  Nar.runParser
-    effs
-    Nar.parseNar
+unpackNarIO effs = Nar.runParser effs Nar.parseNar

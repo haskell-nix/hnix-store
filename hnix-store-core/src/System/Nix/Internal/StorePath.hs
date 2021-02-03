@@ -10,29 +10,35 @@ Description : Representation of Nix store paths.
 {-# LANGUAGE TypeInType #-} -- Needed for GHC 8.4.4 for some reason
 
 module System.Nix.Internal.StorePath where
-import System.Nix.Hash
-  ( HashAlgorithm(Truncated, SHA256)
-  , Digest
-  , BaseEncoding(..)
-  , encodeInBase
-  , decodeBase
-  , SomeNamedDigest
-  )
+import           System.Nix.Hash                ( HashAlgorithm
+                                                  ( Truncated
+                                                  , SHA256
+                                                  )
+                                                , Digest
+                                                , BaseEncoding(..)
+                                                , encodeInBase
+                                                , decodeBase
+                                                , SomeNamedDigest
+                                                )
 
 
-import qualified System.Nix.Internal.Base32 as Nix.Base32 (digits32)
+import qualified System.Nix.Internal.Base32    as Nix.Base32
+                                                ( digits32 )
 
-import           Data.ByteString       (ByteString)
-import qualified Data.ByteString.Char8 as Bytes.Char8
-import qualified Data.Char             as Char
-import           Data.Text             (Text)
-import qualified Data.Text             as Text
-import qualified Data.Text.Encoding    as Text (encodeUtf8)
-import           Data.Attoparsec.Text.Lazy (Parser, (<?>))
-import qualified Data.Attoparsec.Text.Lazy as Parser.Text.Lazy
-import qualified System.FilePath       as FilePath
-import           Data.Hashable         (Hashable(..))
-import           Data.HashSet          (HashSet)
+import           Data.ByteString                ( ByteString )
+import qualified Data.ByteString.Char8         as Bytes.Char8
+import qualified Data.Char                     as Char
+import           Data.Text                      ( Text )
+import qualified Data.Text                     as Text
+import qualified Data.Text.Encoding            as Text
+                                                ( encodeUtf8 )
+import           Data.Attoparsec.Text.Lazy      ( Parser
+                                                , (<?>)
+                                                )
+import qualified Data.Attoparsec.Text.Lazy     as Parser.Text.Lazy
+import qualified System.FilePath               as FilePath
+import           Data.Hashable                  ( Hashable(..) )
+import           Data.HashSet                   ( HashSet )
 
 -- | A path in a Nix store.
 --
@@ -53,7 +59,8 @@ data StorePath = StorePath
     storePathName :: !StorePathName
   , -- | Root of the store
     storePathRoot :: !FilePath
-  } deriving (Eq, Ord)
+  }
+  deriving (Eq, Ord)
 
 instance Hashable StorePath where
   hashWithSalt s StorePath{..} =
@@ -142,42 +149,31 @@ validStorePathNameChar c =
 type RawFilePath = ByteString
 
 -- | Render a 'StorePath' as a 'RawFilePath'.
-storePathToRawFilePath
-  :: StorePath
-  -> RawFilePath
+storePathToRawFilePath :: StorePath -> RawFilePath
 storePathToRawFilePath StorePath{..} =
   root <> "/" <> hashPart <> "-" <> name
  where
-  root = Bytes.Char8.pack storePathRoot
+  root     = Bytes.Char8.pack storePathRoot
   hashPart = Text.encodeUtf8 $ encodeInBase Base32 storePathHash
-  name = Text.encodeUtf8 $ unStorePathName storePathName
+  name     = Text.encodeUtf8 $ unStorePathName storePathName
 
 -- | Render a 'StorePath' as a 'FilePath'.
-storePathToFilePath
-  :: StorePath
-  -> FilePath
+storePathToFilePath :: StorePath -> FilePath
 storePathToFilePath = Bytes.Char8.unpack . storePathToRawFilePath
 
 -- | Render a 'StorePath' as a 'Text'.
-storePathToText
-  :: StorePath
-  -> Text
+storePathToText :: StorePath -> Text
 storePathToText = Text.pack . Bytes.Char8.unpack . storePathToRawFilePath
 
 -- | Build `narinfo` suffix from `StorePath` which
 -- can be used to query binary caches.
-storePathToNarInfo
-  :: StorePath
-  -> Bytes.Char8.ByteString
+storePathToNarInfo :: StorePath -> Bytes.Char8.ByteString
 storePathToNarInfo StorePath{..} =
   Text.encodeUtf8 $ encodeInBase Base32 storePathHash <> ".narinfo"
 
 -- | Parse `StorePath` from `Bytes.Char8.ByteString`, checking
 -- that store directory matches `expectedRoot`.
-parsePath
-  :: FilePath
-  -> Bytes.Char8.ByteString
-  -> Either String StorePath
+parsePath :: FilePath -> Bytes.Char8.ByteString -> Either String StorePath
 parsePath expectedRoot x =
   let
     (rootDir, fname) = FilePath.splitFileName . Bytes.Char8.unpack $ x
@@ -196,26 +192,31 @@ parsePath expectedRoot x =
 
 pathParser :: FilePath -> Parser StorePath
 pathParser expectedRoot = do
-  _ <- Parser.Text.Lazy.string (Text.pack expectedRoot)
-    <?> "Store root mismatch" -- e.g. /nix/store
+  _ <-
+    Parser.Text.Lazy.string (Text.pack expectedRoot)
+      <?> "Store root mismatch" -- e.g. /nix/store
 
   _ <- Parser.Text.Lazy.char '/'
-    <?> "Expecting path separator"
+      <?> "Expecting path separator"
 
-  digest <- decodeBase Base32
+  digest <-
+    decodeBase Base32
     <$> Parser.Text.Lazy.takeWhile1 (`elem` Nix.Base32.digits32)
-    <?> "Invalid Base32 part"
+      <?> "Invalid Base32 part"
 
-  _ <- Parser.Text.Lazy.char '-'
-    <?> "Expecting dash (path name separator)"
+  _  <- Parser.Text.Lazy.char '-' <?> "Expecting dash (path name separator)"
 
-  c0 <- Parser.Text.Lazy.satisfy (\c -> c /= '.' && validStorePathNameChar c)
-    <?> "Leading path name character is a dot or invalid character"
+  c0 <-
+    Parser.Text.Lazy.satisfy (\c -> c /= '.' && validStorePathNameChar c)
+      <?> "Leading path name character is a dot or invalid character"
 
-  rest <- Parser.Text.Lazy.takeWhile validStorePathNameChar
-    <?> "Path name contains invalid character"
+  rest <-
+    Parser.Text.Lazy.takeWhile validStorePathNameChar
+      <?> "Path name contains invalid character"
 
   let name = makeStorePathName $ Text.cons c0 rest
 
-  either fail return
-    $ StorePath <$> digest <*> name <*> pure expectedRoot
+  either
+    fail
+    pure
+    (StorePath <$> digest <*> name <*> pure expectedRoot)

@@ -8,17 +8,19 @@ import           Control.Monad.Reader
 import           Data.Either
 import           Data.Binary.Get
 import           Data.Binary.Put
-import           Data.Text                 (Text)
-import qualified Data.Text.Encoding        as T
-import qualified Data.Text.Lazy            as TL
-import qualified Data.Text.Lazy.Encoding   as TL
+import           Data.Text                      ( Text )
+import qualified Data.Text.Encoding            as T
+import qualified Data.Text.Lazy                as TL
+import qualified Data.Text.Lazy.Encoding       as TL
 import           Data.Time
 import           Data.Time.Clock.POSIX
-import           Data.ByteString           (ByteString)
-import qualified Data.ByteString.Char8     as BSC
-import qualified Data.ByteString.Lazy      as BSL
+import           Data.ByteString                ( ByteString )
+import qualified Data.ByteString.Char8         as BSC
+import qualified Data.ByteString.Lazy          as BSL
 
-import           Network.Socket.ByteString (recv, sendAll)
+import           Network.Socket.ByteString      ( recv
+                                                , sendAll
+                                                )
 
 import           Nix.Derivation
 
@@ -32,23 +34,21 @@ import qualified Data.Map
 
 genericIncremental :: (MonadIO m) => m (Maybe ByteString) -> Get a -> m a
 genericIncremental getsome parser = go decoder
-  where
-    decoder = runGetIncremental parser
-    go (Done _leftover _consumed x) = do
-      return x
-    go (Partial k) = do
-      chunk <- getsome
-      go (k chunk)
-    go (Fail _leftover _consumed msg) = do
-      error msg
+ where
+  decoder = runGetIncremental parser
+  go (Done _leftover _consumed x  ) = return x
+  go (Partial k                   ) = do
+    chunk <- getsome
+    go (k chunk)
+  go (Fail _leftover _consumed msg) = error msg
 
 getSocketIncremental :: Get a -> MonadStore a
 getSocketIncremental = genericIncremental sockGet8
-  where
-    sockGet8 :: MonadStore (Maybe BSC.ByteString)
-    sockGet8 = do
-      soc <- asks storeSocket
-      liftIO $ Just <$> recv soc 8
+ where
+  sockGet8 :: MonadStore (Maybe BSC.ByteString)
+  sockGet8 = do
+    soc <- asks storeSocket
+    liftIO $ Just <$> recv soc 8
 
 sockPut :: Put -> MonadStore ()
 sockPut p = do
@@ -72,19 +72,22 @@ sockGetStrings = getSocketIncremental getByteStrings
 
 sockGetPath :: MonadStore StorePath
 sockGetPath = do
-  sd <- getStoreDir
+  sd  <- getStoreDir
   pth <- getSocketIncremental (getPath sd)
-  case pth of
-    Left e -> throwError e
-    Right x -> return x
+  either
+    throwError
+    return
+    pth
 
 sockGetPathMay :: MonadStore (Maybe StorePath)
 sockGetPathMay = do
-  sd <- getStoreDir
+  sd  <- getStoreDir
   pth <- getSocketIncremental (getPath sd)
-  return $ case pth of
-    Left _e -> Nothing
-    Right x -> Just x
+  return $
+    either
+      (const Nothing)
+      Just
+      pth
 
 sockGetPaths :: MonadStore StorePathSet
 sockGetPaths = do
@@ -113,20 +116,22 @@ getPath :: FilePath -> Get (Either String StorePath)
 getPath sd = parsePath sd <$> getByteStringLen
 
 getPaths :: FilePath -> Get StorePathSet
-getPaths sd = Data.HashSet.fromList . rights . map (parsePath sd) <$> getByteStrings
+getPaths sd =
+  Data.HashSet.fromList . rights . map (parsePath sd) <$> getByteStrings
 
 putPath :: StorePath -> Put
-putPath  = putByteStringLen . BSL.fromStrict . storePathToRawFilePath
+putPath = putByteStringLen . BSL.fromStrict . storePathToRawFilePath
 
 putPaths :: StorePathSet -> Put
-putPaths = putByteStrings . Data.HashSet.toList . Data.HashSet.map (BSL.fromStrict . storePathToRawFilePath)
+putPaths = putByteStrings . Data.HashSet.toList . Data.HashSet.map
+  (BSL.fromStrict . storePathToRawFilePath)
 
 putBool :: Bool -> Put
 putBool True  = putInt (1 :: Int)
 putBool False = putInt (0 :: Int)
 
 getBool :: Get Bool
-getBool = (==1) <$> (getInt :: Get Int)
+getBool = (== 1) <$> (getInt :: Get Int)
 
 putEnum :: (Enum a) => a -> Put
 putEnum = putInt . fromEnum
@@ -141,22 +146,23 @@ getTime :: Get UTCTime
 getTime = posixSecondsToUTCTime <$> getEnum
 
 getBuildResult :: Get BuildResult
-getBuildResult = BuildResult
-  <$> getEnum
-  <*> (Just . bsToText <$> getByteStringLen)
-  <*> getInt
-  <*> getBool
-  <*> getTime
-  <*> getTime
+getBuildResult =
+  BuildResult
+    <$> getEnum
+    <*> (Just . bsToText <$> getByteStringLen)
+    <*> getInt
+    <*> getBool
+    <*> getTime
+    <*> getTime
 
 putDerivation :: Derivation StorePath Text -> Put
 putDerivation Derivation{..} = do
   flip putMany (Data.Map.toList outputs)
     $ \(outputName, DerivationOutput{..}) -> do
-      putText outputName
-      putPath path
-      putText hashAlgo
-      putText hash
+        putText outputName
+        putPath path
+        putText hashAlgo
+        putText hash
 
   putMany putPath inputSrcs
   putText platform

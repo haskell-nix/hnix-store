@@ -2,8 +2,8 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module System.Nix.Store.Remote.Types (
-    MonadStore
+module System.Nix.Store.Remote.Types
+  ( MonadStore
   , StoreConfig(..)
   , Logger(..)
   , Field(..)
@@ -14,22 +14,27 @@ module System.Nix.Store.Remote.Types (
   , getError
   , setData
   , clearData
-  ) where
+  )
+where
 
 
-import           Data.ByteString           (ByteString)
-import qualified Data.ByteString.Lazy      as BSL
-import           Network.Socket            (Socket)
+import           Data.ByteString                ( ByteString )
+import qualified Data.ByteString.Lazy          as BSL
+import           Network.Socket                 ( Socket )
 import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.State
 
-data StoreConfig = StoreConfig {
-    storeDir        :: FilePath
-  , storeSocket     :: Socket
+data StoreConfig = StoreConfig
+  { storeDir    :: FilePath
+  , storeSocket :: Socket
   }
 
-type MonadStore a = ExceptT String (StateT (Maybe BSL.ByteString, [Logger]) (ReaderT StoreConfig IO)) a
+type MonadStore a
+  = ExceptT
+      String
+      (StateT (Maybe BSL.ByteString, [Logger]) (ReaderT StoreConfig IO))
+      a
 
 type ActivityID = Int
 type ActivityParentID = Int

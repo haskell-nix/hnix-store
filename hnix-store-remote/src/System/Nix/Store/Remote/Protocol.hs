@@ -1,17 +1,21 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-module System.Nix.Store.Remote.Protocol (
-    WorkerOp(..)
+module System.Nix.Store.Remote.Protocol
+  ( WorkerOp(..)
   , simpleOp
   , simpleOpArgs
   , runOp
   , runOpArgs
   , runOpArgsIO
   , runStore
-  , runStoreOpts) where
+  , runStoreOpts
+  )
+where
 
-import           Control.Exception         (bracket)
+
+import           Data.Bool                      ( bool )
+import           Control.Exception              ( bracket )
 import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.State
@@ -22,14 +26,17 @@ import qualified Data.ByteString
 import qualified Data.ByteString.Char8
 import qualified Data.ByteString.Lazy
 
-import           Network.Socket            (SockAddr(SockAddrUnix))
+import           Network.Socket                 ( SockAddr(SockAddrUnix) )
 import qualified Network.Socket
-import           Network.Socket.ByteString (recv, sendAll)
+import           Network.Socket.ByteString      ( recv
+                                                , sendAll
+                                                )
 
 import           System.Nix.Store.Remote.Binary
 import           System.Nix.Store.Remote.Logger
 import           System.Nix.Store.Remote.Types
 import           System.Nix.Store.Remote.Util
+
 
 protoVersion :: Int
 protoVersion = 0x115
@@ -115,37 +122,42 @@ opNum QueryMissing                = 40
 
 
 simpleOp :: WorkerOp -> MonadStore Bool
-simpleOp op = do
-  simpleOpArgs op $ return ()
+simpleOp op = simpleOpArgs op $ return ()
 
 simpleOpArgs :: WorkerOp -> Put -> MonadStore Bool
 simpleOpArgs op args = do
   runOpArgs op args
   err <- gotError
-  case err of
-    True -> do
+  bool
+    sockGetBool
+    (do
       Error _num msg <- head <$> getError
       throwError $ Data.ByteString.Char8.unpack msg
-    False -> do
-      sockGetBool
+    )
+    err
 
 runOp :: WorkerOp -> MonadStore ()
 runOp op = runOpArgs op $ return ()
 
 runOpArgs :: WorkerOp -> Put -> MonadStore ()
-runOpArgs op args = runOpArgsIO op (\encode -> encode $ Data.ByteString.Lazy.toStrict $ runPut args)
+runOpArgs op args =
+  runOpArgsIO
+    op
+    (\encode -> encode $ Data.ByteString.Lazy.toStrict $ runPut args)
 
-runOpArgsIO :: WorkerOp -> ((Data.ByteString.ByteString -> MonadStore ()) -> MonadStore ()) -> MonadStore ()
+runOpArgsIO
+  :: WorkerOp
+  -> ((Data.ByteString.ByteString -> MonadStore ()) -> MonadStore ())
+  -> MonadStore ()
 runOpArgsIO op encoder = do
 
-  sockPut $ do
-    putInt $ opNum op
+  sockPut $ putInt $ opNum op
 
-  soc <- storeSocket <$> ask
+  soc <- asks storeSocket
   encoder (liftIO . sendAll soc)
 
   out <- processOutput
-  modify (\(a, b) -> (a, b++out))
+  modify (\(a, b) -> (a, b <> out))
   err <- gotError
   when err $ do
     Error _num msg <- head <$> getError
@@ -154,39 +166,44 @@ runOpArgsIO op encoder = do
 runStore :: MonadStore a -> IO (Either String a, [Logger])
 runStore = runStoreOpts defaultSockPath "/nix/store"
 
-runStoreOpts :: FilePath -> FilePath -> MonadStore a -> IO (Either String a, [Logger])
+runStoreOpts
+  :: FilePath -> FilePath -> MonadStore a -> IO (Either String a, [Logger])
 runStoreOpts sockPath storeRootDir code = do
   bracket (open sockPath) (Network.Socket.close . storeSocket) run
-  where
-    open path = do
-      soc <-
-        Network.Socket.socket
-          Network.Socket.AF_UNIX
-          Network.Socket.Stream
-          0
+ where
+  open path = do
+    soc <-
+      Network.Socket.socket
+        Network.Socket.AF_UNIX
+        Network.Socket.Stream
+        0
 
-      Network.Socket.connect soc (SockAddrUnix path)
-      return $ StoreConfig { storeSocket = soc
-                           , storeDir    = storeRootDir }
+    Network.Socket.connect soc (SockAddrUnix path)
+    return StoreConfig
+        { storeSocket = soc
+        , storeDir = storeRootDir
+        }
 
-    greet = do
-      sockPut $ putInt workerMagic1
-      soc <- storeSocket <$> ask
-      vermagic <- liftIO $ recv soc 16
-      let (magic2, _daemonProtoVersion) =
-            flip runGet (Data.ByteString.Lazy.fromStrict vermagic)
-            $ (,) <$> (getInt :: Get Int)
-                  <*> (getInt :: Get Int)
-      unless (magic2 == workerMagic2) $ error "Worker magic 2 mismatch"
+  greet = do
+    sockPut $ putInt workerMagic1
+    soc      <- asks storeSocket
+    vermagic <- liftIO $ recv soc 16
+    let
+      (magic2, _daemonProtoVersion) =
+        flip runGet (Data.ByteString.Lazy.fromStrict vermagic)
+          $ (,)
+            <$> (getInt :: Get Int)
+            <*> (getInt :: Get Int)
+    unless (magic2 == workerMagic2) $ error "Worker magic 2 mismatch"
 
-      sockPut $ putInt protoVersion -- clientVersion
-      sockPut $ putInt (0 :: Int)   -- affinity
-      sockPut $ putInt (0 :: Int)   -- obsolete reserveSpace
+    sockPut $ putInt protoVersion -- clientVersion
+    sockPut $ putInt (0 :: Int)   -- affinity
+    sockPut $ putInt (0 :: Int)   -- obsolete reserveSpace
 
-      processOutput
+    processOutput
 
-    run sock =
-      fmap (\(res, (_data, logs)) -> (res, logs))
-        $ flip runReaderT sock
-        $ flip runStateT (Nothing, [])
-        $ runExceptT (greet >> code)
+  run sock =
+    fmap (\(res, (_data, logs)) -> (res, logs))
+      $ (`runReaderT` sock)
+      $ (`runStateT` (Nothing, []))
+      $ runExceptT (greet >> code)
