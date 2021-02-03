@@ -110,14 +110,14 @@ putText :: Text -> Put
 putText = putByteStringLen . textToBSL
 
 putTexts :: [Text] -> Put
-putTexts = putByteStrings . map textToBSL
+putTexts = putByteStrings . fmap textToBSL
 
 getPath :: FilePath -> Get (Either String StorePath)
 getPath sd = parsePath sd <$> getByteStringLen
 
 getPaths :: FilePath -> Get StorePathSet
 getPaths sd =
-  Data.HashSet.fromList . rights . map (parsePath sd) <$> getByteStrings
+  Data.HashSet.fromList . rights . fmap (parsePath sd) <$> getByteStrings
 
 putPath :: StorePath -> Put
 putPath = putByteStringLen . BSL.fromStrict . storePathToRawFilePath

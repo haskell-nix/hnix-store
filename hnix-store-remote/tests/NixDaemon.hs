@@ -108,9 +108,9 @@ enterNamespaces = do
   gid <- getEffectiveGroupID
 
   unshare [User, Network, Mount]
-  -- map our (parent) uid to root
+  -- fmap our (parent) uid to root
   writeUserMappings Nothing [UserMapping 0 uid 1]
-  -- map our (parent) gid to root group
+  -- fmap our (parent) gid to root group
   writeGroupMappings Nothing [GroupMapping 0 gid 1] True
 
 withNixDaemon

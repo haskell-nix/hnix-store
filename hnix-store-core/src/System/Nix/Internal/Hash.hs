@@ -218,7 +218,7 @@ instance (ValidAlgo a, KnownNat n) => ValidAlgo ('Truncated n a) where
 truncateDigest
   :: forall n a.(KnownNat n) => Digest a -> Digest ('Truncated n a)
 truncateDigest (Digest c) =
-    Digest $ BS.pack $ map truncOutputByte [0.. n-1]
+    Digest $ BS.pack $ fmap truncOutputByte [0.. n-1]
   where
     n = fromIntegral $ natVal (Proxy @n)
 
