@@ -231,7 +231,7 @@ test_streamManyFilesToNar = HU.testCaseSteps "streamManyFilesToNar" $ \step ->
         IO.withFile "hnar" IO.WriteMode $ \h ->
           buildNarIO narEffectsIO narFilePath h
         filesPostcount <- countProcessFiles
-        pure $ filesPostcount - filesPrecount
+        pure $ (-) <$> filesPostcount <*> filesPrecount
 
     step "create test files"
     Directory.createDirectory packagePath
@@ -252,7 +252,9 @@ test_streamManyFilesToNar = HU.testCaseSteps "streamManyFilesToNar" $ \step ->
 
     step "check constant file usage"
     filesPostcount <- countProcessFiles
-    (filesPostcount - filesPrecount) `shouldSatisfy` (< 50)
+    case ((-) <$> filesPostcount <*> filesPrecount) of
+      Nothing -> pure ()
+      Just c -> c `shouldSatisfy` (< 50)
 
     -- step "check file exists"
     -- e <- doesPathExist packagePath'
@@ -361,12 +363,16 @@ packThenExtract testName setup =
         pure ()
 
 -- | Count file descriptors owned by the current process
-countProcessFiles :: IO Int
+countProcessFiles :: IO (Maybe Int)
 countProcessFiles = do
   pid <- Unix.getProcessID
-  let fdDir = "/proc/" <> show pid <> "/fd"
-  fds  <- P.readProcess "ls" [fdDir] ""
-  pure $ length $ words fds
+  hasProc <- doesDirectoryExist "/proc"
+  if not hasProc
+    then pure Nothing
+    else do
+      let fdDir = "/proc/" <> show pid <> "/fd"
+      fds  <- P.readProcess "ls" [fdDir] ""
+      pure $ pure $ length $ words fds
 
 
 -- | Read the binary output of `nix-store --dump` for a filepath
