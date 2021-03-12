@@ -1,6 +1,6 @@
 # Revision history for hnix-store-core
 
-## [next](https://github.com/haskell-nix/hnix-store/compare/0.4.1.0...0.4.2.0) 2021-03-12
+## [0.4.2.0](https://github.com/haskell-nix/hnix-store/compare/0.4.1.0...0.4.2.0) 2021-03-12
 
 * Additional:
 
