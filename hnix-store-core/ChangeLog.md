@@ -2,7 +2,18 @@
 
 ## [next](https://github.com/haskell-nix/hnix-store/compare/0.4.1.0...master) 2021-MM-DD
 
-* No changes yet
+* Additional:
+
+  * [(link)](https://github.com/haskell-nix/hnix-store/commit/5d03ffc43cde9448df05e84838ece70cc83b1b6c) Cabal now properly states `tasty-discover` as `build-tool-depends`.
+
+  * [(link)](https://github.com/haskell-nix/hnix-store/commit/b5ad38573d27e0732d0fadfebd98de1f753b4f07) added explicit `hie.yml` cradle description for `cabal` to help Haskell Language Server to work with monorepo.
+
+  * [(link)](https://github.com/haskell-nix/hnix-store/commit/a5b7a614c0e0e11147a93b9a197c2a443afa3244) rm vacuous `Setup.hs`, it was throwing-off HLS, and anyway file is vacuous and gets deprecated by Cabal itself.
+
+  * [(link)](https://github.com/haskell-nix/hnix-store/commit/cf04083aba98ad40d183d1e26251101816cc07ae) Nix dev env: removed GHC 8.6.5 support, afaik it is not even in Nixpkgs anymore.
+
+  * [(link)](https://github.com/haskell-nix/hnix-store/commit/2a897ab581c0501587ce04da6d6e3a6f543b1d72) Test suite: fixed nar test for the envs without `/proc` (test suite now works on `macOS`).
+
 
 ## [0.4.1.0](https://github.com/haskell-nix/hnix-store/compare/0.4.0.0...0.4.1.0) 2021-01-16
 
