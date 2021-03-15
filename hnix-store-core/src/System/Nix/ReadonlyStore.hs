@@ -45,7 +45,9 @@ makeTextPath fp nm h refs = makeStorePath fp ty h nm
 
 makeFixedOutputPath
   :: forall hashAlgo
-   . (ValidAlgo hashAlgo, NamedAlgo hashAlgo)
+  . ( ValidAlgo hashAlgo
+    , NamedAlgo hashAlgo
+    )
   => FilePath
   -> Bool
   -> Digest hashAlgo
@@ -57,7 +59,7 @@ makeFixedOutputPath fp recursive h =
     else makeStorePath fp "output:out" h'
  where
   h' =
-    hash @ 'SHA256
+    hash @'SHA256
       $  "fixed:out:"
       <> encodeUtf8 (algoName @hashAlgo)
       <> (if recursive then ":r:" else ":")
