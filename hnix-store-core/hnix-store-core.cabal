@@ -79,7 +79,7 @@ test-suite format-tests
   import: commons
   if flag(bounded_memory)
     cpp-options: -DBOUNDED_MEMORY
-  ghc-options: -rtsopts -fprof-auto
+    ghc-options: -rtsopts -fprof-auto
   type: exitcode-stdio-1.0
   main-is: Driver.hs
   other-modules:
