@@ -60,8 +60,8 @@ test-suite hnix-store-remote-tests
 
   if !flag(io-testsuite)
     buildable: False
+    ghc-options:       -rtsopts -fprof-auto
 
-  ghc-options:       -rtsopts -fprof-auto
   type:              exitcode-stdio-1.0
   main-is:           Driver.hs
   other-modules:
