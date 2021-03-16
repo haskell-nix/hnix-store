@@ -3,9 +3,9 @@ name:                hnix-store-core
 version:             0.4.2.0
 synopsis:            Core effects for interacting with the Nix store.
 description:
-        This package contains types and functions needed to describe
-        interactions with the Nix store abstracted away from
-        specific effectful context.
+  This package contains types and functions needed to describe
+  interactions with the Nix store abstracted away from
+  specific effectful context.
 homepage:            https://github.com/haskell-nix/hnix-store
 license:             Apache-2.0
 license-file:        LICENSE
@@ -14,10 +14,11 @@ maintainer:          shea@shealevy.com
 copyright:           2018 Shea Levy
 category:            Nix
 build-type:          Simple
-extra-source-files:  ChangeLog.md
-                   , README.md
-                   , tests/samples/example0.drv
-                   , tests/samples/example1.drv
+extra-source-files:
+    ChangeLog.md
+  , README.md
+  , tests/samples/example0.drv
+  , tests/samples/example1.drv
 
 Common commons
   if impl(ghc >= 8.10)
@@ -27,47 +28,49 @@ Common commons
 
 library
   import: commons
-  exposed-modules:     System.Nix.Base32
-                     , System.Nix.Build
-                     , System.Nix.Derivation
-                     , System.Nix.Hash
-                     , System.Nix.Internal.Base32
-                     , System.Nix.Internal.Hash
-                     , System.Nix.Internal.Nar.Parser
-                     , System.Nix.Internal.Nar.Streamer
-                     , System.Nix.Internal.Nar.Effects
-                     , System.Nix.Internal.Signature
-                     , System.Nix.Internal.StorePath
-                     , System.Nix.Nar
-                     , System.Nix.ReadonlyStore
-                     , System.Nix.Signature
-                     , System.Nix.StorePath
-                     , System.Nix.StorePathMetadata
-  build-depends:       base >=4.10 && <5
-                     , attoparsec
-                     , algebraic-graphs >= 0.5 && < 0.6
-                     , base16-bytestring
-                     , base64-bytestring
-                     , bytestring
-                     , cereal
-                     , containers
-                     , cryptohash-md5
-                     , cryptohash-sha1
-                     , cryptohash-sha256
-                     , cryptohash-sha512
-                     , directory
-                     , filepath
-                     , hashable
-                     , lifted-base
-                     , monad-control
-                     , mtl
-                     , nix-derivation >= 1.1.1 && <2
-                     , saltine
-                     , time
-                     , text
-                     , unix
-                     , unordered-containers
-                     , vector
+  exposed-modules:
+      System.Nix.Base32
+    , System.Nix.Build
+    , System.Nix.Derivation
+    , System.Nix.Hash
+    , System.Nix.Internal.Base32
+    , System.Nix.Internal.Hash
+    , System.Nix.Internal.Nar.Parser
+    , System.Nix.Internal.Nar.Streamer
+    , System.Nix.Internal.Nar.Effects
+    , System.Nix.Internal.Signature
+    , System.Nix.Internal.StorePath
+    , System.Nix.Nar
+    , System.Nix.ReadonlyStore
+    , System.Nix.Signature
+    , System.Nix.StorePath
+    , System.Nix.StorePathMetadata
+  build-depends:
+      base >=4.10 && <5
+    , attoparsec
+    , algebraic-graphs >= 0.5 && < 0.6
+    , base16-bytestring
+    , base64-bytestring
+    , bytestring
+    , cereal
+    , containers
+    , cryptohash-md5
+    , cryptohash-sha1
+    , cryptohash-sha256
+    , cryptohash-sha512
+    , directory
+    , filepath
+    , hashable
+    , lifted-base
+    , monad-control
+    , mtl
+    , nix-derivation >= 1.1.1 && <2
+    , saltine
+    , time
+    , text
+    , unix
+    , unordered-containers
+    , vector
   hs-source-dirs:      src
   default-language:    Haskell2010
 
@@ -79,17 +82,17 @@ test-suite format-tests
   import: commons
   if flag(bounded_memory)
     cpp-options: -DBOUNDED_MEMORY
-  ghc-options: -rtsopts -fprof-auto
+    ghc-options: -rtsopts -fprof-auto
   type: exitcode-stdio-1.0
   main-is: Driver.hs
   other-modules:
-      Arbitrary
-      Derivation
-      NarFormat
-      Hash
-      StorePath
+    Arbitrary
+    Derivation
+    NarFormat
+    Hash
+    StorePath
   hs-source-dirs:
-      tests
+    tests
   build-tool-depends:
     tasty-discover:tasty-discover
   build-depends:

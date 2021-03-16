@@ -259,7 +259,7 @@ spec_protocol = Hspec.around withNixDaemon $
       itRights "adds file to store" $ do
         fp <- liftIO $ writeSystemTempFile "addition" "lal"
         let Right n = makeStorePathName "tmp-addition"
-        res <- addToStore @ 'SHA256 n fp False (pure True) False
+        res <- addToStore @'SHA256 n fp False (pure True) False
         liftIO $ print res
 
     context "with dummy" $ do
