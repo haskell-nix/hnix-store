@@ -19,11 +19,11 @@ import Data.Text (Text)
 import Data.Vector (Vector)
 import Nix.Derivation.Types (Derivation(..), DerivationOutput(..))
 
+import qualified Data.Attoparsec.Text
 import qualified Data.Attoparsec.Text.Lazy
 import qualified Data.Map
 import qualified Data.Set
 import qualified Data.Text
-import qualified Data.Text.Lazy
 import qualified Data.Vector
 import qualified System.FilePath
 
@@ -102,24 +102,34 @@ parseDerivationWith filepath string = do
 textParser :: Parser Text
 textParser = do
     "\""
+
     let predicate c = not (c == '"' || c == '\\')
+
     let loop = do
-            text0 <- Data.Attoparsec.Text.Lazy.takeWhile predicate
-            char0 <- Data.Attoparsec.Text.Lazy.anyChar
-            text2 <- case char0 of
-                '"'  -> return ""
+            text0 <- Data.Attoparsec.Text.takeWhile predicate
+
+            char0 <- Data.Attoparsec.Text.anyChar
+
+            case char0 of
+                '"'  -> do
+                    return [ text0 ]
+
                 _    -> do
-                    char1 <- Data.Attoparsec.Text.Lazy.anyChar
+                    char1 <- Data.Attoparsec.Text.anyChar
+
                     char2 <- case char1 of
                         'n' -> return '\n'
                         'r' -> return '\r'
                         't' -> return '\t'
                         _   -> return char1
-                    text1 <- loop
-                    return (Data.Text.Lazy.cons char2 text1)
-            return (Data.Text.Lazy.fromStrict text0 <> text2)
-    text <- loop
-    return (Data.Text.Lazy.toStrict text)
+
+                    textChunks <- loop
+
+                    return (text0 : Data.Text.singleton char2 : textChunks)
+
+    textChunks <- loop
+
+    return (Data.Text.concat textChunks)
 
 filepathParser :: Parser FilePath
 filepathParser = do
