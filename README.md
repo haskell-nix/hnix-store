@@ -173,6 +173,14 @@ Derivation
   }
 ```
 
+## Installation
+
+With Nix:
+
+```
+$ nix-env -iA nixpkgs.haskellPackages.nix-derivation
+```
+
 ## Development status
 
 [![Build Status](https://travis-ci.org/Gabriel439/Haskell-Nix-Derivation-Library.png)](https://travis-ci.org/Gabriel439/Haskell-Nix-Derivation-Library)
