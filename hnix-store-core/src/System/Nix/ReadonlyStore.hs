@@ -8,6 +8,7 @@ module System.Nix.ReadonlyStore where
 
 import           Data.ByteString                ( ByteString )
 import qualified Data.ByteString               as BS
+import           Data.List                      ( sort )
 import qualified Data.Text                     as T
 import qualified Data.HashSet                  as HS
 import           Data.Text.Encoding
@@ -41,7 +42,7 @@ makeTextPath
 makeTextPath fp nm h refs = makeStorePath fp ty h nm
  where
   ty =
-    BS.intercalate ":" ("text" : fmap storePathToRawFilePath (HS.toList refs))
+    BS.intercalate ":" ("text" : sort (fmap storePathToRawFilePath (HS.toList refs)))
 
 makeFixedOutputPath
   :: forall hashAlgo
