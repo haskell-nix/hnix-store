@@ -2,8 +2,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE TypeFamilies #-}
 
 module System.Nix.ReadonlyStore where
 
@@ -49,9 +47,7 @@ makeTextPath fp nm h refs = makeStorePath fp ty h nm
 
 makeFixedOutputPath
   :: forall hashAlgo
-  . ( ValidAlgo hashAlgo
-    , NamedAlgo hashAlgo
-    )
+  . (NamedAlgo hashAlgo)
   => FilePath
   -> Bool
   -> Digest hashAlgo
@@ -74,21 +70,21 @@ computeStorePathForText
   :: FilePath -> StorePathName -> ByteString -> (StorePathSet -> StorePath)
 computeStorePathForText fp nm = makeTextPath fp nm . hash
 
-computeStorePathForPath :: forall a. (ValidAlgo a, NamedAlgo a)
-           => StorePathName        -- ^ Name part of the newly created `StorePath`
-           -> FilePath             -- ^ Local `FilePath` to add
-           -> Bool                 -- ^ Add target directory recursively
-           -> (FilePath -> Bool)   -- ^ Path filter function
-           -> Bool                 -- ^ Only used by local store backend
-           -> IO StorePath
+computeStorePathForPath
+  :: StorePathName        -- ^ Name part of the newly created `StorePath`
+  -> FilePath             -- ^ Local `FilePath` to add
+  -> Bool                 -- ^ Add target directory recursively
+  -> (FilePath -> Bool)   -- ^ Path filter function
+  -> Bool                 -- ^ Only used by local store backend
+  -> IO StorePath
 computeStorePathForPath name pth recursive _pathFilter _repair = do
   selectedHash <- if recursive then recursiveContentHash else flatContentHash
   pure $ makeFixedOutputPath "/nix/store" recursive selectedHash name
  where
-  recursiveContentHash :: IO (Digest a)
-  recursiveContentHash = finalize @a <$> execStateT streamNarUpdate (initialize @a)
-  streamNarUpdate :: StateT (AlgoCtx a) IO ()
-  streamNarUpdate = streamNarIO (modify . flip (update @a)) narEffectsIO pth
+  recursiveContentHash :: IO (Digest 'SHA256)
+  recursiveContentHash = finalize <$> execStateT streamNarUpdate (initialize @'SHA256)
+  streamNarUpdate :: StateT (AlgoCtx 'SHA256) IO ()
+  streamNarUpdate = streamNarIO (modify . flip (update @'SHA256)) narEffectsIO pth
 
-  flatContentHash :: IO (Digest a)
+  flatContentHash :: IO (Digest 'SHA256)
   flatContentHash = hashLazy <$> narReadFile narEffectsIO pth
