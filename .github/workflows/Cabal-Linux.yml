@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         packageRoot: [ hnix-store-core, hnix-store-remote ]
-        ghc: [ "8.10", "8.4" ]
+        ghc: [ "9.0", "8.10", "8.4" ]
     defaults:
       run:
         working-directory: "./${{ matrix.packageRoot }}"
