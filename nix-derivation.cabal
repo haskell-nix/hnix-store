@@ -1,5 +1,5 @@
 Name: nix-derivation
-Version: 1.1.1
+Version: 1.1.2
 Cabal-Version: >=1.10
 Build-Type: Simple
 Tested-With: GHC == 7.8.4, GHC == 7.10.3, GHC == 8.0.2, GHC == 8.8.3
