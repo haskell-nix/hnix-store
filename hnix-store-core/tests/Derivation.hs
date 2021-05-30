@@ -10,7 +10,7 @@ import           System.Nix.Derivation          ( parseDerivation
                                                 , buildDerivation
                                                 )
 
-import qualified Data.Attoparsec.Text.Lazy
+import qualified Data.Attoparsec.Text
 import qualified Data.Text.IO
 import qualified Data.Text.Lazy
 import qualified Data.Text.Lazy.Builder
@@ -18,17 +18,18 @@ import qualified Data.Text.Lazy.Builder
 processDerivation :: FilePath -> FilePath -> IO ()
 processDerivation source dest = do
   contents <- Data.Text.IO.readFile source
-  case
-    Data.Attoparsec.Text.Lazy.parseOnly
-      (parseDerivation "/nix/store")
-      contents
-    of
-    Left e -> error e
-    Right drv ->
+  either
+    fail
+    (\ drv ->
       Data.Text.IO.writeFile dest
         . Data.Text.Lazy.toStrict
         . Data.Text.Lazy.Builder.toLazyText
         $ buildDerivation drv
+    )
+    (Data.Attoparsec.Text.parseOnly
+      (parseDerivation "/nix/store")
+      contents
+    )
 
 test_derivation :: TestTree
 test_derivation =
