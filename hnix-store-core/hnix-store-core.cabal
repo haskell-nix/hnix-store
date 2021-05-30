@@ -109,6 +109,7 @@ test-suite format-tests
     , process
     , tasty
     , tasty-golden
+    , hspec
     , tasty-hspec
     , tasty-hunit
     , tasty-quickcheck

@@ -14,7 +14,7 @@ import qualified Data.ByteString.Base64.Lazy as B64
 import qualified Data.ByteString.Lazy        as BSL
 import           Data.Text                   (Text)
 
-import           Test.Tasty.Hspec
+import           Test.Hspec
 import           Test.Tasty.QuickCheck
 
 import           System.Nix.Hash
