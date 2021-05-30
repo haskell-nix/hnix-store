@@ -1,5 +1,9 @@
 # Revision history for hnix-store-remote
 
+## [0.4.3.0](https://github.com/haskell-nix/hnix-store/compare/0.4.2.0...0.4.3.0) 2021-05-30
+
+Nothing (it is tandem `hnix-store-core` fix release)
+
 ## [0.4.2.0](https://github.com/haskell-nix/hnix-store/compare/0.4.1.0...0.4.2.0) 2021-03-12
 
 * Additional:
