@@ -2,6 +2,7 @@
 Description : Nix-relevant interfaces to NaCl signatures.
 -}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE CPP #-}
 
 module System.Nix.Internal.Signature where
 
@@ -11,8 +12,13 @@ import qualified Data.ByteString                   as Bytes
 import           Data.Coerce                        ( coerce )
 import           Crypto.Saltine.Core.Sign           ( PublicKey )
 import           Crypto.Saltine.Class               ( IsEncoding(..) )
-import qualified Crypto.Saltine.Internal.ByteSizes as NaClSizes
 
+--  2021-05-30: NOTE: Please, clean-up these overloads in ~2022
+#if MIN_VERSION_saltine(0,2,0)
+import qualified Crypto.Saltine.Internal.Sign as NaClSizes
+#else
+import qualified Crypto.Saltine.Internal.ByteSizes as NaClSizes
+#endif
 
 -- | A NaCl signature.
 newtype Signature = Signature ByteString
@@ -20,7 +26,11 @@ newtype Signature = Signature ByteString
 
 instance IsEncoding Signature where
   decode s
+#if MIN_VERSION_saltine(0,2,0)
+    | Bytes.length s == NaClSizes.sign_bytes = Just $ Signature s
+#else
     | Bytes.length s == NaClSizes.sign = Just $ Signature s
+#endif
     | otherwise = Nothing
   encode = coerce
 

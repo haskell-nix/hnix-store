@@ -37,7 +37,7 @@ import qualified System.IO.Temp                   as Temp
 import qualified System.Posix.Process             as Unix
 import qualified System.Process                   as P
 import           Test.Tasty                       as T
-import           Test.Tasty.Hspec
+import           Test.Hspec
 import qualified Test.Tasty.HUnit                 as HU
 import           Test.Tasty.QuickCheck
 import qualified Text.Printf                      as Printf
