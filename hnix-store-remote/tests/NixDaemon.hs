@@ -22,11 +22,11 @@ import           System.IO.Temp
 import qualified System.Process                as P
 import           System.Posix.User             as U
 import           System.Linux.Namespaces       as NS
-import           Test.Tasty.Hspec               ( Spec
+import           Test.Hspec                     ( Spec
                                                 , describe
                                                 , context
                                                 )
-import qualified Test.Tasty.Hspec              as Hspec
+import qualified Test.Hspec                    as Hspec
 import           Test.Hspec.Expectations.Lifted
 
 import           System.FilePath
