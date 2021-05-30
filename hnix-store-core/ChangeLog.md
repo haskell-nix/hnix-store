@@ -1,5 +1,13 @@
 # Revision history for hnix-store-core
 
+## [0.4.3.0](https://github.com/haskell-nix/hnix-store/compare/0.4.2.0...0.4.3.0) 2021-05-30
+
+* Additional:
+
+  * [(link)](https://github.com/haskell-nix/hnix-store/commit/b85f7c875fe6b0bca939ffbcd8b9bd0ab1598aa0) `System.Nix.ReadonlyStore`: add a readonly `computeStorePathForPath`
+  * [(link)](https://github.com/haskell-nix/hnix-store/commit/db71ecea3109c0ba270fa98a9041a8556e35217f) `System.Nix.ReadonlyStore`: `computeStorePathForPath`: force SHA256 as it's the only valid choice
+  * [(link)](https://github.com/haskell-nix/hnix-store/commit/5fddf3c66ba1bcabb72c4d6b6e09fb41a7acd62c): `makeTextPath`: order the references
+
 ## [0.4.2.0](https://github.com/haskell-nix/hnix-store/compare/0.4.1.0...0.4.2.0) 2021-03-12
 
 * Additional:
