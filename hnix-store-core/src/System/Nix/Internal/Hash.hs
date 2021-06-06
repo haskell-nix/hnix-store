@@ -31,7 +31,8 @@ import           Data.Text              (Text)
 import qualified Data.Text              as T
 import qualified Data.Text.Encoding     as T
 import           Data.Word              (Word8)
-import           GHC.TypeLits           (Nat, KnownNat, natVal)
+import qualified GHC.TypeLits           as Kind
+                                        (Nat, KnownNat, natVal)
 import           Data.Coerce            (coerce)
 
 -- | Constructors to indicate the base encodings
@@ -49,7 +50,7 @@ data HashAlgorithm
   | SHA1
   | SHA256
   | SHA512
-  | Truncated Nat HashAlgorithm
+  | Truncated Kind.Nat HashAlgorithm
     -- ^ The hash algorithm obtained by truncating the result of the
     -- input 'HashAlgorithm' to the given number of bytes. See
     -- 'truncateDigest' for a description of the truncation algorithm.
@@ -202,7 +203,7 @@ instance ValidAlgo 'SHA512 where
 
 -- | Reuses the underlying 'ValidAlgo' instance, but does a
 -- 'truncateDigest' at the end.
-instance (ValidAlgo a, KnownNat n) => ValidAlgo ('Truncated n a) where
+instance (ValidAlgo a, Kind.KnownNat n) => ValidAlgo ('Truncated n a) where
   type AlgoCtx ('Truncated n a) = AlgoCtx a
   initialize = initialize @a
   update = update @a
@@ -216,11 +217,11 @@ instance (ValidAlgo a, KnownNat n) => ValidAlgo ('Truncated n a) where
 -- (leftover part), right-pads the leftovers with 0 to the truncation
 -- length, and combines the two strings bytewise with 'xor'.
 truncateDigest
-  :: forall n a.(KnownNat n) => Digest a -> Digest ('Truncated n a)
+  :: forall n a.(Kind.KnownNat n) => Digest a -> Digest ('Truncated n a)
 truncateDigest (Digest c) =
     Digest $ BS.pack $ fmap truncOutputByte [0.. n-1]
   where
-    n = fromIntegral $ natVal (Proxy @n)
+    n = fromIntegral $ Kind.natVal (Proxy @n)
 
     truncOutputByte :: Int -> Word8
     truncOutputByte i = foldl' (aux i) 0 [0 .. BS.length c - 1]
