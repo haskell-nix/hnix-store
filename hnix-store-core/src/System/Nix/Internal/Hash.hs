@@ -34,13 +34,8 @@ import           Data.Word              (Word8)
 import qualified GHC.TypeLits           as Kind
                                         (Nat, KnownNat, natVal)
 import           Data.Coerce            (coerce)
-
--- | Constructors to indicate the base encodings
-data BaseEncoding
-  = Base16
-  | Base32
-  -- | ^ Nix has a special map of Base32 encoding
-  | Base64
+import           System.Nix.Internal.Base
+                                        (BaseEncoding(Base16,Base32,Base64))
 
 -- | The universe of supported hash algorithms.
 --
