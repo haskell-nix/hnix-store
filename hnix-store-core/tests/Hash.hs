@@ -27,13 +27,13 @@ spec_hash = do
   describe "hashing parity with nix-store" $ do
 
     it "produces (base32 . sha256) of \"nix-output:foo\" the same as Nix does at the moment for placeholder \"foo\"" $
-      shouldBe (encodeInBase Base32 (hash @'SHA256 "nix-output:foo"))
+      shouldBe (encodeInBase NixBase32 (hash @'SHA256 "nix-output:foo"))
                "1x0ymrsy7yr7i9wdsqy9khmzc1yy7nvxw6rdp72yzn50285s67j5"
     it "produces (base16 . md5) of \"Hello World\" the same as the thesis" $
       shouldBe (encodeInBase Base16 (hash @'MD5 "Hello World"))
                "b10a8db164e0754105b7a99be72e3fe5"
     it "produces (base32 . sha1) of \"Hello World\" the same as the thesis" $
-      shouldBe (encodeInBase Base32 (hash @'SHA1 "Hello World"))
+      shouldBe (encodeInBase NixBase32 (hash @'SHA1 "Hello World"))
                "s23c9fs0v32pf6bhmcph5rbqsyl5ak8a"
 
     -- The example in question:
@@ -46,7 +46,7 @@ spec_hash = do
         "xv2iccirbrvklck36f1g7vldn5v58vck"
    where
     encodeInBase32 :: Digest a -> Text
-    encodeInBase32 = encodeInBase Base32
+    encodeInBase32 = encodeInBase NixBase32
 
 -- | Test that Nix-like base32 encoding roundtrips
 prop_nixBase32Roundtrip :: Property

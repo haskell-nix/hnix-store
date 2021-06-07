@@ -35,7 +35,7 @@ import qualified GHC.TypeLits           as Kind
                                         (Nat, KnownNat, natVal)
 import           Data.Coerce            (coerce)
 import           System.Nix.Internal.Base
-                                        (BaseEncoding(Base16,Base32,Base64))
+                                        (BaseEncoding(Base16,NixBase32,Base64))
 
 -- | The universe of supported hash algorithms.
 --
@@ -55,7 +55,7 @@ newtype Digest (a :: HashAlgorithm) =
   Digest BS.ByteString deriving (Eq, Ord, DataHashable.Hashable)
 
 instance Show (Digest a) where
-  show = ("Digest " <>) . show . encodeInBase Base32
+  show = ("Digest " <>) . show . encodeInBase NixBase32
 
 -- | The primitive interface for incremental hashing for a given
 -- 'HashAlgorithm'. Every 'HashAlgorithm' should have an instance.
@@ -97,7 +97,7 @@ data SomeNamedDigest = forall a . NamedAlgo a => SomeDigest (Digest a)
 
 instance Show SomeNamedDigest where
   show sd = case sd of
-    SomeDigest (digest :: Digest hashType) -> T.unpack $ "SomeDigest " <> algoName @hashType <> ":" <> encodeInBase Base32 digest
+    SomeDigest (digest :: Digest hashType) -> T.unpack $ "SomeDigest " <> algoName @hashType <> ":" <> encodeInBase NixBase32 digest
 
 mkNamedDigest :: Text -> Text -> Either String SomeNamedDigest
 mkNamedDigest name sriHash =
@@ -115,7 +115,7 @@ mkNamedDigest name sriHash =
   decodeGo :: forall a . (NamedAlgo a, ValidAlgo a) => Text -> Either String (Digest a)
   decodeGo h
     | size == base16Len = decodeBase Base16 h
-    | size == base32Len = decodeBase Base32 h
+    | size == base32Len = decodeBase NixBase32 h
     | size == base64Len = decodeBase Base64 h
     | otherwise = Left $ T.unpack sriHash <> " is not a valid " <> T.unpack name <> " hash. Its length (" <> show size <> ") does not match any of " <> show [base16Len, base32Len, base64Len]
    where
@@ -149,7 +149,7 @@ hashLazy bsl =
 -- | Take BaseEncoding type of the output -> take the Digeest as input -> encode Digest
 encodeInBase :: BaseEncoding -> Digest a -> T.Text
 encodeInBase Base16 = T.decodeUtf8 . Base16.encode . coerce
-encodeInBase Base32 = Base32.encode . coerce
+encodeInBase NixBase32 = Base32.encode . coerce
 encodeInBase Base64 = T.decodeUtf8 . Base64.encode . coerce
 
 
@@ -164,7 +164,7 @@ decodeBase Base16 = lDecode  -- this tacit sugar simply makes GHC pleased with n
     (x, "") -> Right $ Digest x
     _       -> Left $ "Unable to decode base16 string" <> T.unpack t
 #endif
-decodeBase Base32 = fmap Digest . Base32.decode
+decodeBase NixBase32 = fmap Digest . Base32.decode
 decodeBase Base64 = fmap Digest . Base64.decode . T.encodeUtf8
 
 

@@ -154,7 +154,7 @@ storePathToRawFilePath StorePath{..} =
   root <> "/" <> hashPart <> "-" <> name
  where
   root     = Bytes.Char8.pack storePathRoot
-  hashPart = Text.encodeUtf8 $ encodeInBase Base32 storePathHash
+  hashPart = Text.encodeUtf8 $ encodeInBase NixBase32 storePathHash
   name     = Text.encodeUtf8 $ unStorePathName storePathName
 
 -- | Render a 'StorePath' as a 'FilePath'.
@@ -169,7 +169,7 @@ storePathToText = Text.pack . Bytes.Char8.unpack . storePathToRawFilePath
 -- can be used to query binary caches.
 storePathToNarInfo :: StorePath -> Bytes.Char8.ByteString
 storePathToNarInfo StorePath{..} =
-  Text.encodeUtf8 $ encodeInBase Base32 storePathHash <> ".narinfo"
+  Text.encodeUtf8 $ encodeInBase NixBase32 storePathHash <> ".narinfo"
 
 -- | Parse `StorePath` from `Bytes.Char8.ByteString`, checking
 -- that store directory matches `expectedRoot`.
@@ -178,7 +178,7 @@ parsePath expectedRoot x =
   let
     (rootDir, fname) = FilePath.splitFileName . Bytes.Char8.unpack $ x
     (digestPart, namePart) = Text.breakOn "-" $ Text.pack fname
-    digest = decodeBase Base32 digestPart
+    digest = decodeBase NixBase32 digestPart
     name = makeStorePathName . Text.drop 1 $ namePart
     --rootDir' = dropTrailingPathSeparator rootDir
     -- cannot use ^^ as it drops multiple slashes /a/b/// -> /a/b
@@ -200,7 +200,7 @@ pathParser expectedRoot = do
       <?> "Expecting path separator"
 
   digest <-
-    decodeBase Base32
+    decodeBase NixBase32
     <$> Parser.Text.Lazy.takeWhile1 (`elem` Nix.Base32.digits32)
       <?> "Invalid Base32 part"
 
