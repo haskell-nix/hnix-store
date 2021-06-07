@@ -34,7 +34,7 @@ makeStorePath fp ty h nm = StorePath storeHash nm fp
     BS.intercalate ":" $
       ty:fmap encodeUtf8
         [ algoName @hashAlgo
-        , encodeInBase Base16 h
+        , encodeDigestWith Base16 h
         , T.pack fp
         , unStorePathName nm
         ]
@@ -64,7 +64,7 @@ makeFixedOutputPath fp recursive h =
       $  "fixed:out:"
       <> encodeUtf8 (algoName @hashAlgo)
       <> (if recursive then ":r:" else ":")
-      <> encodeUtf8 (encodeInBase Base16 h)
+      <> encodeUtf8 (encodeDigestWith Base16 h)
       <> ":"
 
 computeStorePathForText

@@ -35,7 +35,9 @@ import qualified GHC.TypeLits           as Kind
                                         (Nat, KnownNat, natVal)
 import           Data.Coerce            (coerce)
 import           System.Nix.Internal.Base
-                                        (BaseEncoding(Base16,NixBase32,Base64))
+                                        ( BaseEncoding(Base16,NixBase32,Base64)
+                                        , encodeWith
+                                        )
 
 -- | The universe of supported hash algorithms.
 --
@@ -55,7 +57,7 @@ newtype Digest (a :: HashAlgorithm) =
   Digest BS.ByteString deriving (Eq, Ord, DataHashable.Hashable)
 
 instance Show (Digest a) where
-  show = ("Digest " <>) . show . encodeInBase NixBase32
+  show = ("Digest " <>) . show . encodeDigestWith NixBase32
 
 -- | The primitive interface for incremental hashing for a given
 -- 'HashAlgorithm'. Every 'HashAlgorithm' should have an instance.
@@ -97,7 +99,7 @@ data SomeNamedDigest = forall a . NamedAlgo a => SomeDigest (Digest a)
 
 instance Show SomeNamedDigest where
   show sd = case sd of
-    SomeDigest (digest :: Digest hashType) -> T.unpack $ "SomeDigest " <> algoName @hashType <> ":" <> encodeInBase NixBase32 digest
+    SomeDigest (digest :: Digest hashType) -> T.unpack $ "SomeDigest " <> algoName @hashType <> ":" <> encodeDigestWith NixBase32 digest
 
 mkNamedDigest :: Text -> Text -> Either String SomeNamedDigest
 mkNamedDigest name sriHash =
@@ -147,10 +149,8 @@ hashLazy bsl =
 
 
 -- | Take BaseEncoding type of the output -> take the Digeest as input -> encode Digest
-encodeInBase :: BaseEncoding -> Digest a -> T.Text
-encodeInBase Base16 = T.decodeUtf8 . Base16.encode . coerce
-encodeInBase NixBase32 = Base32.encode . coerce
-encodeInBase Base64 = T.decodeUtf8 . Base64.encode . coerce
+encodeDigestWith :: BaseEncoding -> Digest a -> T.Text
+encodeDigestWith b = encodeWith b . coerce
 
 
 -- | Take BaseEncoding type of the input -> take the input itself -> decodeBase into Digest

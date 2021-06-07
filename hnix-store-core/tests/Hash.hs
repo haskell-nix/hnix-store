@@ -27,13 +27,13 @@ spec_hash = do
   describe "hashing parity with nix-store" $ do
 
     it "produces (base32 . sha256) of \"nix-output:foo\" the same as Nix does at the moment for placeholder \"foo\"" $
-      shouldBe (encodeInBase NixBase32 (hash @'SHA256 "nix-output:foo"))
+      shouldBe (encodeDigestWith NixBase32 (hash @'SHA256 "nix-output:foo"))
                "1x0ymrsy7yr7i9wdsqy9khmzc1yy7nvxw6rdp72yzn50285s67j5"
     it "produces (base16 . md5) of \"Hello World\" the same as the thesis" $
-      shouldBe (encodeInBase Base16 (hash @'MD5 "Hello World"))
+      shouldBe (encodeDigestWith Base16 (hash @'MD5 "Hello World"))
                "b10a8db164e0754105b7a99be72e3fe5"
     it "produces (base32 . sha1) of \"Hello World\" the same as the thesis" $
-      shouldBe (encodeInBase NixBase32 (hash @'SHA1 "Hello World"))
+      shouldBe (encodeDigestWith NixBase32 (hash @'SHA1 "Hello World"))
                "s23c9fs0v32pf6bhmcph5rbqsyl5ak8a"
 
     -- The example in question:
@@ -42,11 +42,11 @@ spec_hash = do
       let exampleStr =
             "source:sha256:2bfef67de873c54551d884fdab3055d84d573e654efa79db3"
             <> "c0d7b98883f9ee3:/nix/store:myfile"
-      shouldBe (encodeInBase32 @StorePathHashAlgo (hash exampleStr))
+      shouldBe (encodeDigestWith32 @StorePathHashAlgo (hash exampleStr))
         "xv2iccirbrvklck36f1g7vldn5v58vck"
    where
-    encodeInBase32 :: Digest a -> Text
-    encodeInBase32 = encodeInBase NixBase32
+    encodeDigestWith32 :: Digest a -> Text
+    encodeDigestWith32 = encodeDigestWith NixBase32
 
 -- | Test that Nix-like base32 encoding roundtrips
 prop_nixBase32Roundtrip :: Property
@@ -55,7 +55,7 @@ prop_nixBase32Roundtrip = forAllShrink nonEmptyString genericShrink $
 
 -- | API variants
 prop_nixBase16Roundtrip :: Digest StorePathHashAlgo -> Property
-prop_nixBase16Roundtrip x = pure x === (decodeBase Base16 . encodeInBase Base16 $ x)
+prop_nixBase16Roundtrip x = pure x === (decodeBase Base16 . encodeDigestWith Base16 $ x)
 
 -- | Hash encoding conversion ground-truth.
 -- Similiar to nix/tests/hash.sh

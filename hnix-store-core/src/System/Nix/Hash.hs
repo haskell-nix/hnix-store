@@ -14,7 +14,7 @@ module System.Nix.Hash
   , Hash.mkNamedDigest
 
   , Base.BaseEncoding(..)
-  , Hash.encodeInBase
+  , Hash.encodeDigestWith
   , Hash.decodeBase
   )
 where
