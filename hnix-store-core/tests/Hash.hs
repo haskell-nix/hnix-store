@@ -55,7 +55,7 @@ prop_nixBase32Roundtrip = forAllShrink nonEmptyString genericShrink $
 
 -- | API variants
 prop_nixBase16Roundtrip :: Digest StorePathHashAlgo -> Property
-prop_nixBase16Roundtrip x = pure x === (decodeBase Base16 . encodeDigestWith Base16 $ x)
+prop_nixBase16Roundtrip x = pure x === (decodeDigestWith Base16 . encodeDigestWith Base16 $ x)
 
 -- | Hash encoding conversion ground-truth.
 -- Similiar to nix/tests/hash.sh

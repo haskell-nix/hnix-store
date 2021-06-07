@@ -19,9 +19,6 @@ import qualified Crypto.Hash.SHA1       as SHA1
 import qualified Crypto.Hash.SHA256     as SHA256
 import qualified Crypto.Hash.SHA512     as SHA512
 import qualified Data.ByteString        as BS
-import qualified Data.ByteString.Base16 as Base16
-import qualified System.Nix.Base32      as Base32  -- Nix has own Base32 encoding
-import qualified Data.ByteString.Base64 as Base64
 import           Data.Bits              (xor)
 import qualified Data.ByteString.Lazy   as BSL
 import qualified Data.Hashable          as DataHashable
@@ -29,7 +26,6 @@ import           Data.List              (foldl')
 import           Data.Proxy             (Proxy(Proxy))
 import           Data.Text              (Text)
 import qualified Data.Text              as T
-import qualified Data.Text.Encoding     as T
 import           Data.Word              (Word8)
 import qualified GHC.TypeLits           as Kind
                                         (Nat, KnownNat, natVal)
@@ -37,6 +33,7 @@ import           Data.Coerce            (coerce)
 import           System.Nix.Internal.Base
                                         ( BaseEncoding(Base16,NixBase32,Base64)
                                         , encodeWith
+                                        , decodeWith
                                         )
 
 -- | The universe of supported hash algorithms.
@@ -116,9 +113,9 @@ mkNamedDigest name sriHash =
     _        -> Left $ "Unknown hash name: " <> T.unpack name
   decodeGo :: forall a . (NamedAlgo a, ValidAlgo a) => Text -> Either String (Digest a)
   decodeGo h
-    | size == base16Len = decodeBase Base16 h
-    | size == base32Len = decodeBase NixBase32 h
-    | size == base64Len = decodeBase Base64 h
+    | size == base16Len = decodeDigestWith Base16 h
+    | size == base32Len = decodeDigestWith NixBase32 h
+    | size == base64Len = decodeDigestWith Base64 h
     | otherwise = Left $ T.unpack sriHash <> " is not a valid " <> T.unpack name <> " hash. Its length (" <> show size <> ") does not match any of " <> show [base16Len, base32Len, base64Len]
    where
     size = T.length h
@@ -154,18 +151,8 @@ encodeDigestWith b = encodeWith b . coerce
 
 
 -- | Take BaseEncoding type of the input -> take the input itself -> decodeBase into Digest
-decodeBase :: BaseEncoding -> T.Text -> Either String (Digest a)
-#if MIN_VERSION_base16_bytestring(1,0,0)
-decodeBase Base16 = fmap Digest . Base16.decode . T.encodeUtf8
-#else
-decodeBase Base16 = lDecode  -- this tacit sugar simply makes GHC pleased with number of args
- where
-  lDecode t = case Base16.decode (T.encodeUtf8 t) of
-    (x, "") -> Right $ Digest x
-    _       -> Left $ "Unable to decode base16 string" <> T.unpack t
-#endif
-decodeBase NixBase32 = fmap Digest . Base32.decode
-decodeBase Base64 = fmap Digest . Base64.decode . T.encodeUtf8
+decodeDigestWith :: BaseEncoding -> T.Text -> Either String (Digest a)
+decodeDigestWith b x = Digest <$> decodeWith b x
 
 
 -- | Uses "Crypto.Hash.MD5" from cryptohash-md5.

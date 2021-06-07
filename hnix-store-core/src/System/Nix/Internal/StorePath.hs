@@ -17,7 +17,7 @@ import           System.Nix.Hash                ( HashAlgorithm
                                                 , Digest
                                                 , BaseEncoding(..)
                                                 , encodeDigestWith
-                                                , decodeBase
+                                                , decodeDigestWith
                                                 , SomeNamedDigest
                                                 )
 
@@ -178,7 +178,7 @@ parsePath expectedRoot x =
   let
     (rootDir, fname) = FilePath.splitFileName . Bytes.Char8.unpack $ x
     (digestPart, namePart) = Text.breakOn "-" $ Text.pack fname
-    digest = decodeBase NixBase32 digestPart
+    digest = decodeDigestWith NixBase32 digestPart
     name = makeStorePathName . Text.drop 1 $ namePart
     --rootDir' = dropTrailingPathSeparator rootDir
     -- cannot use ^^ as it drops multiple slashes /a/b/// -> /a/b
@@ -200,7 +200,7 @@ pathParser expectedRoot = do
       <?> "Expecting path separator"
 
   digest <-
-    decodeBase NixBase32
+    decodeDigestWith NixBase32
     <$> Parser.Text.Lazy.takeWhile1 (`elem` Nix.Base32.digits32)
       <?> "Invalid Base32 part"
 

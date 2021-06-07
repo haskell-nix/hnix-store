@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 module System.Nix.Internal.Base
   ( module System.Nix.Internal.Base
   , Base32.encode
@@ -26,3 +28,18 @@ encodeWith :: BaseEncoding -> Bytes.ByteString -> T.Text
 encodeWith Base16 = T.decodeUtf8 . Base16.encode
 encodeWith NixBase32 = Base32.encode
 encodeWith Base64 = T.decodeUtf8 . Base64.encode
+
+-- | Take the input & @Base@ encoding witness -> decode into @Text@.
+decodeWith :: BaseEncoding -> T.Text -> Either String Bytes.ByteString
+#if MIN_VERSION_base16_bytestring(1,0,0)
+decodeWith Base16 = Base16.decode . T.encodeUtf8
+#else
+decodeWith Base16 = lDecode  -- this tacit sugar simply makes GHC pleased with number of args
+ where
+  lDecode t =
+    case Base16.decode (T.encodeUtf8 t) of
+      (x, "") -> pure $ x
+      _       -> Left $ "Unable to decode base16 string" <> T.unpack t
+#endif
+decodeWith NixBase32 = Base32.decode
+decodeWith Base64 = Base64.decode . T.encodeUtf8
