@@ -54,7 +54,7 @@ encode c = Data.Text.pack $ takeCharPosFromDict <$> [nChar - 1, nChar - 2 .. 0]
 decode :: Text -> Either String ByteString
 decode what =
   bool
-    (Left "Invalid Base32 string")
+    (Left "Invalid NixBase32 string")
     (unsafeDecode what)
     (Data.Text.all (`elem` digits32) what)
 
