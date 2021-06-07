@@ -29,12 +29,13 @@ import qualified Data.Text              as T
 import           Data.Word              (Word8)
 import qualified GHC.TypeLits           as Kind
                                         (Nat, KnownNat, natVal)
-import           Data.Coerce            (coerce)
 import           System.Nix.Internal.Base
                                         ( BaseEncoding(Base16,NixBase32,Base64)
                                         , encodeWith
                                         , decodeWith
                                         )
+import           Data.Bool              (bool)
+import           Data.Coerce            (coerce)
 
 -- | The universe of supported hash algorithms.
 --
@@ -203,15 +204,18 @@ truncateDigest
 truncateDigest (Digest c) =
     Digest $ BS.pack $ fmap truncOutputByte [0.. n-1]
   where
-    n = fromIntegral $ Kind.natVal (Proxy @n)
+    n = fromIntegral $ Kind.natVal $ Proxy @n
 
     truncOutputByte :: Int -> Word8
     truncOutputByte i = foldl' (aux i) 0 [0 .. BS.length c - 1]
 
     inputByte :: Int -> Word8
-    inputByte j = BS.index c (fromIntegral j)
+    inputByte j = BS.index c j
 
     aux :: Int -> Word8 -> Int -> Word8
-    aux i x j = if j `mod` fromIntegral n == fromIntegral i
-                then xor x (inputByte $ fromIntegral j)
-                else x
+    aux i x j =
+      bool
+        id
+        (`xor` inputByte j)
+        (j `mod` n == i)
+        x
