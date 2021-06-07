@@ -190,7 +190,7 @@ instance (ValidAlgo a, Kind.KnownNat n) => ValidAlgo ('Truncated n a) where
   type AlgoCtx ('Truncated n a) = AlgoCtx a
   initialize = initialize @a
   update = update @a
-  finalize = truncateDigest @n . finalize @a
+  finalize = truncateDigestInNixWay @n . finalize @a
 
 -- | Bytewise truncation of a 'Digest'.
 --
@@ -199,9 +199,11 @@ instance (ValidAlgo a, Kind.KnownNat n) => ValidAlgo ('Truncated n a) where
 -- bytestring into a head part (truncation length) and tail part
 -- (leftover part), right-pads the leftovers with 0 to the truncation
 -- length, and combines the two strings bytewise with 'xor'.
-truncateDigest
+truncateDigestInNixWay
   :: forall n a .(Kind.KnownNat n) => Digest a -> Digest ('Truncated n a)
-truncateDigest (Digest c) =
+--  2021-06-07: NOTE: ^ This is why all the cookery with DataKinds, trunkation length (if allowed arbitrary) needs to be represented in type.
+--  2021-06-07: NOTE: Renamed function, since truncation can be done in a lot of ways, there is no practice of truncting hashes this way, moreover: <https://crypto.stackexchange.com/questions/56337/strength-of-hash-obtained-by-xor-of-parts-of-sha3>
+truncateDigestInNixWay (Digest c) =
     Digest $ BS.pack $ fmap truncOutputByte [0.. n-1]
   where
     n = fromIntegral $ Kind.natVal $ Proxy @n
