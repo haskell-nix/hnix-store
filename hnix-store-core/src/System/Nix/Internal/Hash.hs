@@ -212,7 +212,7 @@ instance (ValidAlgo a, Kind.KnownNat n) => ValidAlgo ('Truncated n a) where
 -- (leftover part), right-pads the leftovers with 0 to the truncation
 -- length, and combines the two strings bytewise with 'xor'.
 truncateDigest
-  :: forall n a.(Kind.KnownNat n) => Digest a -> Digest ('Truncated n a)
+  :: forall n a .(Kind.KnownNat n) => Digest a -> Digest ('Truncated n a)
 truncateDigest (Digest c) =
     Digest $ BS.pack $ fmap truncOutputByte [0.. n-1]
   where

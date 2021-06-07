@@ -51,12 +51,11 @@ spec_hash = do
 -- | Test that Nix-like base32 encoding roundtrips
 prop_nixBase32Roundtrip :: Property
 prop_nixBase32Roundtrip = forAllShrink nonEmptyString genericShrink $
-  \x -> Right (BSC.pack x) === (B32.decode . B32.encode . BSC.pack $ x)
+  \x -> pure (BSC.pack x) === (B32.decode . B32.encode . BSC.pack $ x)
 
 -- | API variants
 prop_nixBase16Roundtrip :: Digest StorePathHashAlgo -> Property
-prop_nixBase16Roundtrip =
-  \(x :: Digest StorePathHashAlgo) -> Right x === (decodeBase Base16 . encodeInBase Base16 $ x)
+prop_nixBase16Roundtrip x = pure x === (decodeBase Base16 . encodeInBase Base16 $ x)
 
 -- | Hash encoding conversion ground-truth.
 -- Similiar to nix/tests/hash.sh
