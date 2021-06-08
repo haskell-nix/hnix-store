@@ -33,9 +33,10 @@ library
     , System.Nix.Build
     , System.Nix.Derivation
     , System.Nix.Hash
-    , System.Nix.Internal.Base32
-    , System.Nix.Internal.Hash
     , System.Nix.Internal.Base
+    , System.Nix.Internal.Base32
+    , System.Nix.Internal.Truncation
+    , System.Nix.Internal.Hash
     , System.Nix.Internal.Nar.Parser
     , System.Nix.Internal.Nar.Streamer
     , System.Nix.Internal.Nar.Effects

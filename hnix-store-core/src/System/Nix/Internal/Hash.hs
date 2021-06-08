@@ -19,14 +19,12 @@ import qualified Crypto.Hash.SHA1       as SHA1
 import qualified Crypto.Hash.SHA256     as SHA256
 import qualified Crypto.Hash.SHA512     as SHA512
 import qualified Data.ByteString        as BS
-import           Data.Bits              (xor)
 import qualified Data.ByteString.Lazy   as BSL
 import qualified Data.Hashable          as DataHashable
 import           Data.List              (foldl')
 import           Data.Proxy             (Proxy(Proxy))
 import           Data.Text              (Text)
 import qualified Data.Text              as T
-import           Data.Word              (Word8)
 import qualified GHC.TypeLits           as Kind
                                         (Nat, KnownNat, natVal)
 import           System.Nix.Internal.Base
@@ -34,8 +32,8 @@ import           System.Nix.Internal.Base
                                         , encodeWith
                                         , decodeWith
                                         )
-import           Data.Bool              (bool)
 import           Data.Coerce            (coerce)
+import System.Nix.Internal.Truncation   (truncateInNixWay)
 
 -- | The universe of supported hash algorithms.
 --
@@ -202,22 +200,7 @@ instance (ValidAlgo a, Kind.KnownNat n) => ValidAlgo ('Truncated n a) where
 truncateDigestInNixWay
   :: forall n a .(Kind.KnownNat n) => Digest a -> Digest ('Truncated n a)
 --  2021-06-07: NOTE: ^ This is why all the cookery with DataKinds, trunkation length (if allowed arbitrary) needs to be represented in type.
---  2021-06-07: NOTE: Renamed function, since truncation can be done in a lot of ways, there is no practice of truncting hashes this way, moreover: <https://crypto.stackexchange.com/questions/56337/strength-of-hash-obtained-by-xor-of-parts-of-sha3>
 truncateDigestInNixWay (Digest c) =
-    Digest $ BS.pack $ fmap truncOutputByte [0.. n-1]
+    Digest $ truncateInNixWay n c
   where
     n = fromIntegral $ Kind.natVal $ Proxy @n
-
-    truncOutputByte :: Int -> Word8
-    truncOutputByte i = foldl' (aux i) 0 [0 .. BS.length c - 1]
-
-    inputByte :: Int -> Word8
-    inputByte j = BS.index c j
-
-    aux :: Int -> Word8 -> Int -> Word8
-    aux i x j =
-      bool
-        id
-        (`xor` inputByte j)
-        (j `mod` n == i)
-        x
