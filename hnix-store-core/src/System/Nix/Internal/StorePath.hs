@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeApplications #-}
 {-|
 Description : Representation of Nix store paths.
 -}
@@ -10,15 +11,10 @@ Description : Representation of Nix store paths.
 {-# LANGUAGE TypeInType #-} -- Needed for GHC 8.4.4 for some reason
 
 module System.Nix.Internal.StorePath where
-import           System.Nix.Hash                ( HashAlgorithm
-                                                  ( Truncated
-                                                  , SHA256
-                                                  )
+import           System.Nix.Internal.Hash       ( HashAlgorithm(SHA256)
                                                 , Digest
-                                                , BaseEncoding(..)
-                                                , encodeDigestWith
-                                                , decodeDigestWith
                                                 , SomeNamedDigest
+                                                , mkStorePathHash
                                                 )
 
 
@@ -39,6 +35,11 @@ import qualified Data.Attoparsec.Text.Lazy     as Parser.Text.Lazy
 import qualified System.FilePath               as FilePath
 import           Data.Hashable                  ( Hashable(..) )
 import           Data.HashSet                   ( HashSet )
+import           System.Nix.Internal.Base       ( BaseEncoding(..)
+                                                , encodeWith
+                                                , decodeWith
+                                                )
+import           Data.Coerce                    ( coerce )
 
 -- | A path in a Nix store.
 --
@@ -52,7 +53,7 @@ import           Data.HashSet                   ( HashSet )
 data StorePath = StorePath
   { -- | The 160-bit hash digest reflecting the "address" of the name.
     -- Currently, this is a truncated SHA256 hash.
-    storePathHash :: !(Digest StorePathHashAlgo)
+    storePathHash :: !StorePathHashPart
   , -- | The (typically human readable) name of the path. For packages
     -- this is typically the package name and version (e.g.
     -- hello-1.2.3).
@@ -80,7 +81,11 @@ newtype StorePathName = StorePathName
   } deriving (Eq, Hashable, Ord)
 
 -- | The hash algorithm used for store path hashes.
-type StorePathHashAlgo = 'Truncated 20 'SHA256
+newtype StorePathHashPart = StorePathHashPart ByteString
+  deriving (Eq, Hashable, Ord, Show)
+
+mkStorePathHashPart :: ByteString -> StorePathHashPart
+mkStorePathHashPart = coerce . mkStorePathHash @'SHA256
 
 -- | A set of 'StorePath's.
 type StorePathSet = HashSet StorePath
@@ -154,7 +159,7 @@ storePathToRawFilePath StorePath{..} =
   root <> "/" <> hashPart <> "-" <> name
  where
   root     = Bytes.Char8.pack storePathRoot
-  hashPart = Text.encodeUtf8 $ encodeDigestWith NixBase32 storePathHash
+  hashPart = Text.encodeUtf8 $ encodeWith NixBase32 $ coerce storePathHash
   name     = Text.encodeUtf8 $ unStorePathName storePathName
 
 -- | Render a 'StorePath' as a 'FilePath'.
@@ -169,7 +174,7 @@ storePathToText = Text.pack . Bytes.Char8.unpack . storePathToRawFilePath
 -- can be used to query binary caches.
 storePathToNarInfo :: StorePath -> Bytes.Char8.ByteString
 storePathToNarInfo StorePath{..} =
-  Text.encodeUtf8 $ encodeDigestWith NixBase32 storePathHash <> ".narinfo"
+  Text.encodeUtf8 $ encodeWith NixBase32 (coerce storePathHash) <> ".narinfo"
 
 -- | Parse `StorePath` from `Bytes.Char8.ByteString`, checking
 -- that store directory matches `expectedRoot`.
@@ -177,8 +182,8 @@ parsePath :: FilePath -> Bytes.Char8.ByteString -> Either String StorePath
 parsePath expectedRoot x =
   let
     (rootDir, fname) = FilePath.splitFileName . Bytes.Char8.unpack $ x
-    (digestPart, namePart) = Text.breakOn "-" $ Text.pack fname
-    digest = decodeDigestWith NixBase32 digestPart
+    (storeBasedHashPart, namePart) = Text.breakOn "-" $ Text.pack fname
+    storeHash = decodeWith NixBase32 storeBasedHashPart
     name = makeStorePathName . Text.drop 1 $ namePart
     --rootDir' = dropTrailingPathSeparator rootDir
     -- cannot use ^^ as it drops multiple slashes /a/b/// -> /a/b
@@ -188,7 +193,7 @@ parsePath expectedRoot x =
         then Right rootDir'
         else Left $ "Root store dir mismatch, expected" <> expectedRoot <> "got" <> rootDir'
   in
-    StorePath <$> digest <*> name <*> storeDir
+    StorePath <$> coerce storeHash <*> name <*> storeDir
 
 pathParser :: FilePath -> Parser StorePath
 pathParser expectedRoot = do
@@ -200,7 +205,7 @@ pathParser expectedRoot = do
       <?> "Expecting path separator"
 
   digest <-
-    decodeDigestWith NixBase32
+    decodeWith NixBase32
     <$> Parser.Text.Lazy.takeWhile1 (`elem` Nix.Base32.digits32)
       <?> "Invalid Base32 part"
 
@@ -219,4 +224,4 @@ pathParser expectedRoot = do
   either
     fail
     pure
-    (StorePath <$> digest <*> name <*> pure expectedRoot)
+    (StorePath <$> coerce digest <*> name <*> pure expectedRoot)

@@ -5,6 +5,7 @@ module System.Nix.Hash
   ( Hash.Digest
 
   , Hash.HashAlgorithm(..)
+  , Hash.mkStorePathHash
   , Hash.ValidAlgo(..)
   , Hash.NamedAlgo(..)
   , Hash.SomeNamedDigest(..)

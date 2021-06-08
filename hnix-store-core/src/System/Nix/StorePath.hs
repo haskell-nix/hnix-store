@@ -6,7 +6,8 @@ module System.Nix.StorePath
     StorePath(..)
   , StorePathName
   , StorePathSet
-  , StorePathHashAlgo
+  , mkStorePathHashPart
+  , StorePathHashPart(..)
   , ContentAddressableAddress(..)
   , NarHashMode(..)
   , -- * Manipulating 'StorePathName'

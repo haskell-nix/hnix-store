@@ -22,18 +22,16 @@ import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Lazy   as BSL
 import qualified Data.Hashable          as DataHashable
 import           Data.List              (foldl')
-import           Data.Proxy             (Proxy(Proxy))
 import           Data.Text              (Text)
 import qualified Data.Text              as T
-import qualified GHC.TypeLits           as Kind
-                                        (Nat, KnownNat, natVal)
 import           System.Nix.Internal.Base
                                         ( BaseEncoding(Base16,NixBase32,Base64)
                                         , encodeWith
                                         , decodeWith
                                         )
 import           Data.Coerce            (coerce)
-import System.Nix.Internal.Truncation   (truncateInNixWay)
+import           System.Nix.Internal.Truncation
+                                        (truncateInNixWay)
 
 -- | The universe of supported hash algorithms.
 --
@@ -43,10 +41,6 @@ data HashAlgorithm
   | SHA1
   | SHA256
   | SHA512
-  | Truncated Kind.Nat HashAlgorithm
-    -- ^ The hash algorithm obtained by truncating the result of the
-    -- input 'HashAlgorithm' to the given number of bytes. See
-    -- 'truncateDigest' for a description of the truncation algorithm.
 
 -- | The result of running a 'HashAlgorithm'.
 newtype Digest (a :: HashAlgorithm) =
@@ -131,9 +125,13 @@ mkNamedDigest name sriHash =
 --   or
 --   > :set -XTypeApplications
 --   > let d = hash @SHA256 "Hello, sha-256!"
-hash :: forall a.ValidAlgo a => BS.ByteString -> Digest a
+hash :: forall a . ValidAlgo a => BS.ByteString -> Digest a
 hash bs =
   finalize $ update @a (initialize @a) bs
+
+mkStorePathHash :: forall a . ValidAlgo a => BS.ByteString -> BS.ByteString
+mkStorePathHash bs =
+  truncateInNixWay 20 $ coerce $ hash @a bs
 
 -- | Hash an entire (lazy) 'BSL.ByteString' as a single call.
 --
@@ -181,26 +179,3 @@ instance ValidAlgo 'SHA512 where
   initialize = SHA512.init
   update = SHA512.update
   finalize = Digest . SHA512.finalize
-
--- | Reuses the underlying 'ValidAlgo' instance, but does a
--- 'truncateDigest' at the end.
-instance (ValidAlgo a, Kind.KnownNat n) => ValidAlgo ('Truncated n a) where
-  type AlgoCtx ('Truncated n a) = AlgoCtx a
-  initialize = initialize @a
-  update = update @a
-  finalize = truncateDigestInNixWay @n . finalize @a
-
--- | Bytewise truncation of a 'Digest'.
---
--- When truncation length is greater than the length of the bytestring
--- but less than twice the bytestring length, truncation splits the
--- bytestring into a head part (truncation length) and tail part
--- (leftover part), right-pads the leftovers with 0 to the truncation
--- length, and combines the two strings bytewise with 'xor'.
-truncateDigestInNixWay
-  :: forall n a .(Kind.KnownNat n) => Digest a -> Digest ('Truncated n a)
---  2021-06-07: NOTE: ^ This is why all the cookery with DataKinds, trunkation length (if allowed arbitrary) needs to be represented in type.
-truncateDigestInNixWay (Digest c) =
-    Digest $ truncateInNixWay n c
-  where
-    n = fromIntegral $ Kind.natVal $ Proxy @n

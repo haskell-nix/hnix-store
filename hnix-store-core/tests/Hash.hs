@@ -6,13 +6,12 @@
 
 module Hash where
 
-import           Control.Monad               (forM_)
+import           Control.Monad               ( forM_ )
 import qualified Data.ByteString.Char8       as BSC
 import qualified Data.ByteString.Base16      as B16
 import qualified System.Nix.Base32           as B32
 import qualified Data.ByteString.Base64.Lazy as B64
 import qualified Data.ByteString.Lazy        as BSL
-import           Data.Text                   (Text)
 
 import           Test.Hspec
 import           Test.Tasty.QuickCheck
@@ -20,6 +19,10 @@ import           Test.Tasty.QuickCheck
 import           System.Nix.Hash
 import           System.Nix.StorePath
 import           Arbitrary
+import           System.Nix.Internal.Base   ( decodeWith
+                                            , encodeWith
+                                            )
+import           Data.Coerce                ( coerce )
 
 spec_hash :: Spec
 spec_hash = do
@@ -42,11 +45,8 @@ spec_hash = do
       let exampleStr =
             "source:sha256:2bfef67de873c54551d884fdab3055d84d573e654efa79db3"
             <> "c0d7b98883f9ee3:/nix/store:myfile"
-      shouldBe (encodeDigestWith32 @StorePathHashAlgo (hash exampleStr))
+      shouldBe (encodeWith NixBase32 $ coerce $ mkStorePathHashPart exampleStr)
         "xv2iccirbrvklck36f1g7vldn5v58vck"
-   where
-    encodeDigestWith32 :: Digest a -> Text
-    encodeDigestWith32 = encodeDigestWith NixBase32
 
 -- | Test that Nix-like base32 encoding roundtrips
 prop_nixBase32Roundtrip :: Property
@@ -54,8 +54,8 @@ prop_nixBase32Roundtrip = forAllShrink nonEmptyString genericShrink $
   \x -> pure (BSC.pack x) === (B32.decode . B32.encode . BSC.pack $ x)
 
 -- | API variants
-prop_nixBase16Roundtrip :: Digest StorePathHashAlgo -> Property
-prop_nixBase16Roundtrip x = pure x === (decodeDigestWith Base16 . encodeDigestWith Base16 $ x)
+prop_nixBase16Roundtrip :: StorePathHashPart -> Property
+prop_nixBase16Roundtrip x = pure (coerce x) === decodeWith Base16 (encodeWith Base16 $ coerce x)
 
 -- | Hash encoding conversion ground-truth.
 -- Similiar to nix/tests/hash.sh

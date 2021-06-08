@@ -16,24 +16,25 @@ import           System.Nix.Hash
 import           System.Nix.Nar
 import           System.Nix.StorePath
 import           Control.Monad.State.Strict
+import           Data.Coerce                    ( coerce )
 
 
 makeStorePath
-  :: forall hashAlgo
-   . (NamedAlgo hashAlgo)
+  :: forall h
+   . (NamedAlgo h)
   => FilePath
   -> ByteString
-  -> Digest hashAlgo
+  -> Digest h
   -> StorePathName
   -> StorePath
-makeStorePath fp ty h nm = StorePath storeHash nm fp
+makeStorePath fp ty h nm = StorePath (coerce storeHash) nm fp
  where
-  storeHash = hash s
+  storeHash = mkStorePathHash @h s
 
   s =
     BS.intercalate ":" $
       ty:fmap encodeUtf8
-        [ algoName @hashAlgo
+        [ algoName @h
         , encodeDigestWith Base16 h
         , T.pack fp
         , unStorePathName nm
@@ -44,7 +45,7 @@ makeTextPath
 makeTextPath fp nm h refs = makeStorePath fp ty h nm
  where
   ty =
-    BS.intercalate ":" ("text" : sort (fmap storePathToRawFilePath (HS.toList refs)))
+    BS.intercalate ":" $ "text" : sort (storePathToRawFilePath <$> HS.toList refs)
 
 makeFixedOutputPath
   :: forall hashAlgo
