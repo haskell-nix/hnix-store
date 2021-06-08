@@ -11,13 +11,8 @@ Description : Representation of Nix store paths.
 {-# LANGUAGE DataKinds #-}
 
 module System.Nix.Internal.StorePath where
-import           System.Nix.Internal.Hash       ( HashAlgorithm(SHA256)
-                                                , Digest
-                                                , SomeNamedDigest
-                                                , mkStorePathHash
-                                                )
-
-
+import           System.Nix.Internal.Hash
+import           System.Nix.Internal.Base
 import qualified System.Nix.Internal.Base32    as Nix.Base32
 
 import           Data.ByteString                ( ByteString )
@@ -34,7 +29,6 @@ import qualified Data.Attoparsec.Text.Lazy     as Parser.Text.Lazy
 import qualified System.FilePath               as FilePath
 import           Data.Hashable                  ( Hashable(..) )
 import           Data.HashSet                   ( HashSet )
-import           System.Nix.Internal.Base
 import           Data.Coerce                    ( coerce )
 
 -- | A path in a Nix store.

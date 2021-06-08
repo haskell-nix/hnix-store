@@ -12,7 +12,20 @@ Description : Cryptographic hashing interface for hnix-store, on top
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE CPP #-}
 
-module System.Nix.Internal.Hash where
+module System.Nix.Internal.Hash
+  ( HashAlgorithm(..)
+  , ValidAlgo(..)
+  , NamedAlgo(..)
+  , hash
+  , hashLazy
+  , Digest
+  , SomeNamedDigest(..)
+  , mkNamedDigest
+  , encodeDigestWith
+  , decodeDigestWith
+  , mkStorePathHash
+  )
+where
 
 import qualified Crypto.Hash.MD5        as MD5
 import qualified Crypto.Hash.SHA1       as SHA1
