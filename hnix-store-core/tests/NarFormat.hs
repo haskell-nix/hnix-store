@@ -26,9 +26,11 @@ import qualified Data.Map                         as Map
 import           Data.Maybe                       (fromMaybe)
 import qualified Data.Text                        as T
 import qualified Data.Text.Encoding               as E
-import           System.Directory                 (doesDirectoryExist, doesPathExist,
-                                                   removeDirectoryRecursive,
-                                                   removeFile)
+import           System.Directory                 ( doesDirectoryExist
+                                                  , doesPathExist
+                                                  , removeDirectoryRecursive
+                                                  , removeFile
+                                                  )
 import qualified System.Directory                 as Directory
 import           System.Environment               (getEnv)
 import           System.FilePath                  ((<.>), (</>))
