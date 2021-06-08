@@ -1,6 +1,10 @@
 {-# LANGUAGE CPP #-}
 
 module System.Nix.Internal.Base
+  ( BaseEncoding(Base16,NixBase32,Base64)
+  , encodeWith
+  , decodeWith
+  )
 where
 
 import qualified Data.Text              as T

@@ -1,14 +1,14 @@
-{-# LANGUAGE TypeApplications #-}
 {-|
 Description : Representation of Nix store paths.
 -}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE TypeInType #-} -- Needed for GHC 8.4.4 for some reason
+{-# LANGUAGE DataKinds #-}
 
 module System.Nix.Internal.StorePath where
 import           System.Nix.Internal.Hash       ( HashAlgorithm(SHA256)
@@ -35,10 +35,7 @@ import qualified Data.Attoparsec.Text.Lazy     as Parser.Text.Lazy
 import qualified System.FilePath               as FilePath
 import           Data.Hashable                  ( Hashable(..) )
 import           Data.HashSet                   ( HashSet )
-import           System.Nix.Internal.Base       ( BaseEncoding(..)
-                                                , encodeWith
-                                                , decodeWith
-                                                )
+import           System.Nix.Internal.Base
 import           Data.Coerce                    ( coerce )
 
 -- | A path in a Nix store.

@@ -25,10 +25,6 @@ import           Data.List              (foldl')
 import           Data.Text              (Text)
 import qualified Data.Text              as T
 import           System.Nix.Internal.Base
-                                        ( BaseEncoding(Base16,NixBase32,Base64)
-                                        , encodeWith
-                                        , decodeWith
-                                        )
 import           Data.Coerce            (coerce)
 import           System.Nix.Internal.Truncation
                                         (truncateInNixWay)
@@ -137,7 +133,7 @@ mkStorePathHash bs =
 --
 -- Use is the same as for 'hash'.  This runs in constant space, but
 -- forces the entire bytestring.
-hashLazy :: forall a.ValidAlgo a => BSL.ByteString -> Digest a
+hashLazy :: forall a . ValidAlgo a => BSL.ByteString -> Digest a
 hashLazy bsl =
   finalize $ foldl' (update @a) (initialize @a) (BSL.toChunks bsl)
 

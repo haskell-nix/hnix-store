@@ -19,9 +19,7 @@ import           Test.Tasty.QuickCheck
 import           System.Nix.Hash
 import           System.Nix.StorePath
 import           Arbitrary
-import           System.Nix.Internal.Base   ( decodeWith
-                                            , encodeWith
-                                            )
+import           System.Nix.Internal.Base
 import           Data.Coerce                ( coerce )
 
 spec_hash :: Spec
