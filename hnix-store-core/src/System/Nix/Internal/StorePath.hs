@@ -10,7 +10,28 @@ Description : Representation of Nix store paths.
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 
-module System.Nix.Internal.StorePath where
+module System.Nix.Internal.StorePath
+  ( -- * Basic store path types
+    StorePath(..)
+  , StorePathName(..)
+  , StorePathSet
+  , mkStorePathHashPart
+  , StorePathHashPart(..)
+  , ContentAddressableAddress(..)
+  , NarHashMode(..)
+  , -- * Manipulating 'StorePathName'
+    makeStorePathName
+  , validStorePathName
+  , -- * Rendering out 'StorePath's
+    storePathToFilePath
+  , storePathToRawFilePath
+  , storePathToText
+  , storePathToNarInfo
+  , -- * Parsing 'StorePath's
+    parsePath
+  , pathParser
+  )
+where
 import           System.Nix.Internal.Hash
 import           System.Nix.Internal.Base
 import qualified System.Nix.Internal.Base32    as Nix.Base32

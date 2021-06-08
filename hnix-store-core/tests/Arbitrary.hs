@@ -11,8 +11,7 @@ import qualified Data.Text                     as T
 
 import           Test.Tasty.QuickCheck
 
-import           System.Nix.Hash
-import           System.Nix.StorePath
+import           System.Nix.Internal.Hash
 import           System.Nix.Internal.StorePath
 import           Control.Applicative                ( liftA3 )
 import           Data.Coerce                        ( coerce )
