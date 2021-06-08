@@ -2,7 +2,10 @@
 {-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE DataKinds           #-}
 
-module System.Nix.Internal.Truncation where
+module System.Nix.Internal.Truncation
+  ( truncateInNixWay
+  )
+where
 
 import qualified Data.ByteString        as Bytes
 import           Data.Bits              (xor)

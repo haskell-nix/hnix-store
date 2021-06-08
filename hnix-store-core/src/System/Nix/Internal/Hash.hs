@@ -40,7 +40,6 @@ import qualified Data.Text              as T
 import           System.Nix.Internal.Base
 import           Data.Coerce            (coerce)
 import           System.Nix.Internal.Truncation
-                                        (truncateInNixWay)
 
 -- | The universe of supported hash algorithms.
 --
