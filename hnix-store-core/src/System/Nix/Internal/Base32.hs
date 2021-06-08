@@ -1,4 +1,9 @@
-module System.Nix.Internal.Base32 where
+module System.Nix.Internal.Base32
+ ( encode
+ , decode
+ , digits32
+ )
+where
 
 
 import           Data.Bool                      ( bool )

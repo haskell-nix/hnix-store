@@ -19,7 +19,6 @@ import           System.Nix.Internal.Hash       ( HashAlgorithm(SHA256)
 
 
 import qualified System.Nix.Internal.Base32    as Nix.Base32
-                                                ( digits32 )
 
 import           Data.ByteString                ( ByteString )
 import qualified Data.ByteString.Char8         as Bytes.Char8
