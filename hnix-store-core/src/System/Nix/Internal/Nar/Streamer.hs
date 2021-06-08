@@ -3,7 +3,11 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module System.Nix.Internal.Nar.Streamer where
+module System.Nix.Internal.Nar.Streamer
+  ( streamNarIO
+  , IsExecutable(..)
+  )
+where
 
 import           Control.Monad                    ( forM_
                                                   , when
