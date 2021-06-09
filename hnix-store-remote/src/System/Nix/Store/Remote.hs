@@ -47,20 +47,20 @@ import           Nix.Derivation                 ( Derivation )
 import           System.Nix.Build               ( BuildMode
                                                 , BuildResult
                                                 )
-import           System.Nix.Hash                ( Digest
-                                                , NamedAlgo
-                                                , ValidAlgo
+import           System.Nix.Hash                ( NamedAlgo
                                                 , SomeNamedDigest(..)
-                                                , BaseEncoding(Base32)
+                                                , BaseEncoding(NixBase32)
+                                                , decodeDigestWith
                                                 )
 import           System.Nix.StorePath           ( StorePath
                                                 , StorePathName
                                                 , StorePathSet
-                                                , StorePathHashAlgo
+                                                , StorePathHashPart
                                                 )
 import           System.Nix.StorePathMetadata   ( StorePathMetadata(..)
                                                 , StorePathTrust(..)
                                                 )
+import           System.Nix.Internal.Base       ( encodeWith )
 
 import qualified Data.Binary.Put
 import qualified Data.ByteString.Lazy
@@ -77,6 +77,8 @@ import           System.Nix.Store.Remote.Binary
 import           System.Nix.Store.Remote.Types
 import           System.Nix.Store.Remote.Protocol
 import           System.Nix.Store.Remote.Util
+import           Crypto.Hash                    ( SHA256 )
+import           Data.Coerce                    ( coerce )
 
 type RepairFlag = Bool
 type CheckFlag = Bool
@@ -85,7 +87,7 @@ type SubstituteFlag = Bool
 -- | Pack `FilePath` as `Nar` and add it to the store.
 addToStore
   :: forall a
-   . (ValidAlgo a, NamedAlgo a)
+   . NamedAlgo a
   => StorePathName        -- ^ Name part of the newly created `StorePath`
   -> FilePath             -- ^ Local `FilePath` to add
   -> Bool                 -- ^ Add target directory recursively
@@ -167,9 +169,9 @@ buildDerivation p drv buildMode = do
     -- but without it protocol just hangs waiting for
     -- more data. Needs investigation.
     -- Intentionally the only warning that should pop-up.
-    putInt 0
+    putInt (0 :: Integer)
 
-  res <- getSocketIncremental $ getBuildResult
+  res <- getSocketIncremental getBuildResult
   pure res
 
 ensurePath :: StorePath -> MonadStore ()
@@ -237,7 +239,7 @@ queryPathInfoUncached path = do
   let
     narHash =
       case
-        System.Nix.Hash.decodeBase @'System.Nix.Hash.SHA256 Base32 narHashText
+        decodeDigestWith @SHA256 NixBase32 narHashText
         of
         Left  e -> error e
         Right x -> SomeDigest x
@@ -285,13 +287,13 @@ queryDerivationOutputNames p = do
   runOpArgs QueryDerivationOutputNames $ putPath p
   sockGetPaths
 
-queryPathFromHashPart :: Digest StorePathHashAlgo -> MonadStore StorePath
+queryPathFromHashPart :: StorePathHashPart -> MonadStore StorePath
 queryPathFromHashPart storePathHash = do
   runOpArgs QueryPathFromHashPart
     $ putByteStringLen
     $ Data.ByteString.Lazy.fromStrict
     $ Data.Text.Encoding.encodeUtf8
-    $ System.Nix.Hash.encodeInBase Base32 storePathHash
+    $ encodeWith NixBase32 $ coerce storePathHash
   sockGetPath
 
 queryMissing

@@ -10,17 +10,14 @@ module System.Nix.Store.Remote.Builders
 where
 
 import           Data.Text.Lazy                 ( Text )
-import           System.Nix.Hash                ( Digest
-                                                , SomeNamedDigest(SomeDigest)
-                                                , BaseEncoding(Base32)
-                                                )
+import           Crypto.Hash                    ( Digest )
 import           System.Nix.StorePath           ( ContentAddressableAddress(..)
                                                 )
 
 import           Data.Text.Lazy.Builder         ( Builder )
 import qualified Data.Text.Lazy.Builder
 
-import qualified System.Nix.Hash
+import           System.Nix.Hash
 
 -- | Marshall `ContentAddressableAddress` to `Text`
 -- in form suitable for remote protocol usage.
@@ -38,4 +35,4 @@ contentAddressableAddressBuilder (Fixed _narHashMode (SomeDigest (digest :: Dige
 
 digestBuilder :: Digest a -> Builder
 digestBuilder =
-  Data.Text.Lazy.Builder.fromText . System.Nix.Hash.encodeInBase Base32
+  Data.Text.Lazy.Builder.fromText . encodeDigestWith NixBase32

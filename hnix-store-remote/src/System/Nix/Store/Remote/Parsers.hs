@@ -19,6 +19,7 @@ import           System.Nix.Hash
 import           System.Nix.StorePath           ( ContentAddressableAddress(..)
                                                 , NarHashMode(..)
                                                 )
+import           Crypto.Hash                    ( SHA256 )
 
 -- | Parse `ContentAddressableAddress` from `ByteString`
 parseContentAddressableAddress
@@ -34,7 +35,7 @@ contentAddressableAddressParser = caText <|> caFixed
 caText :: Parser ContentAddressableAddress
 caText = do
   _      <- "text:sha256:"
-  digest <- decodeBase @'SHA256 Base32 <$> parseHash
+  digest <- decodeDigestWith @SHA256 NixBase32 <$> parseHash
   either fail pure $ Text <$> digest
 
 -- | Parser for @fixed:<r?>:<ht>:<h>@
