@@ -2,16 +2,10 @@
 Description : Cryptographic hashes for hnix-store.
 -}
 module System.Nix.Hash
-  ( Hash.Digest
-
-  , Hash.HashAlgorithm(..)
-  , Hash.mkStorePathHash
-  , Hash.ValidAlgo(..)
+  ( Hash.mkStorePathHash
   , Hash.NamedAlgo(..)
   , Hash.SomeNamedDigest(..)
 
-  , Hash.hash
-  , Hash.hashLazy
   , Hash.mkNamedDigest
 
   , Base.BaseEncoding(..)

@@ -11,10 +11,13 @@ import qualified Data.Text                     as T
 
 import           Test.Tasty.QuickCheck
 
-import           System.Nix.Internal.Hash
 import           System.Nix.Internal.StorePath
 import           Control.Applicative                ( liftA3 )
 import           Data.Coerce                        ( coerce )
+import           Crypto.Hash                        ( SHA256
+                                                    , Digest
+                                                    , hash
+                                                    )
 
 genSafeChar :: Gen Char
 genSafeChar = choose ('\1', '\127') -- ASCII without \NUL
@@ -35,7 +38,7 @@ instance Arbitrary StorePathName where
 instance Arbitrary StorePathHashPart where
   arbitrary = mkStorePathHashPart . BSC.pack <$> arbitrary
 
-instance Arbitrary (Digest 'SHA256) where
+instance Arbitrary (Digest SHA256) where
   arbitrary = hash . BSC.pack <$> arbitrary
 
 newtype NixLike = NixLike {getNixLike :: StorePath}

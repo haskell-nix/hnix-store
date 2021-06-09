@@ -51,6 +51,9 @@ import qualified System.FilePath               as FilePath
 import           Data.Hashable                  ( Hashable(..) )
 import           Data.HashSet                   ( HashSet )
 import           Data.Coerce                    ( coerce )
+import           Crypto.Hash                    ( SHA256
+                                                , Digest
+                                                )
 
 -- | A path in a Nix store.
 --
@@ -96,7 +99,7 @@ newtype StorePathHashPart = StorePathHashPart ByteString
   deriving (Eq, Hashable, Ord, Show)
 
 mkStorePathHashPart :: ByteString -> StorePathHashPart
-mkStorePathHashPart = coerce . mkStorePathHash @'SHA256
+mkStorePathHashPart = coerce . mkStorePathHash @SHA256
 
 -- | A set of 'StorePath's.
 type StorePathSet = HashSet StorePath
@@ -114,7 +117,7 @@ data ContentAddressableAddress
   = -- | The path is a plain file added via makeTextPath or
     -- addTextToStore. It is addressed according to a sha256sum of the
     -- file contents.
-    Text !(Digest 'SHA256)
+    Text !(Digest SHA256)
   | -- | The path was added to the store via makeFixedOutputPath or
     -- addToStore. It is addressed according to some hash algorithm
     -- applied to the nar serialization via some 'NarHashMode'.
@@ -134,7 +137,7 @@ data NarHashMode
 makeStorePathName :: Text -> Either String StorePathName
 makeStorePathName n =
   if validStorePathName n
-    then Right $ StorePathName n
+    then pure $ StorePathName n
     else Left $ reasonInvalid n
 
 reasonInvalid :: Text -> String

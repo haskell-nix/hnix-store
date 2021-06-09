@@ -56,10 +56,9 @@ library
     , bytestring
     , cereal
     , containers
-    , cryptohash-md5
-    , cryptohash-sha1
-    , cryptohash-sha256
-    , cryptohash-sha512
+    -- Required for cryptonite low-level type convertion
+    , memory
+    , cryptonite
     , directory
     , filepath
     , hashable
@@ -106,6 +105,7 @@ test-suite format-tests
     , binary
     , bytestring
     , containers
+    , cryptonite
     , directory
     , filepath
     , process

@@ -7,6 +7,7 @@
 module Hash where
 
 import           Control.Monad               ( forM_ )
+import           Data.ByteString             ( ByteString )
 import qualified Data.ByteString.Char8       as BSC
 import qualified Data.ByteString.Base16      as B16
 import qualified System.Nix.Base32           as B32
@@ -21,6 +22,11 @@ import           System.Nix.StorePath
 import           Arbitrary
 import           System.Nix.Internal.Base
 import           Data.Coerce                ( coerce )
+import           Crypto.Hash                ( MD5
+                                            , SHA1
+                                            , SHA256
+                                            , hash
+                                            )
 
 spec_hash :: Spec
 spec_hash = do
@@ -28,13 +34,13 @@ spec_hash = do
   describe "hashing parity with nix-store" $ do
 
     it "produces (base32 . sha256) of \"nix-output:foo\" the same as Nix does at the moment for placeholder \"foo\"" $
-      shouldBe (encodeDigestWith NixBase32 (hash @'SHA256 "nix-output:foo"))
+      shouldBe (encodeDigestWith NixBase32 (hash @ByteString @SHA256 "nix-output:foo"))
                "1x0ymrsy7yr7i9wdsqy9khmzc1yy7nvxw6rdp72yzn50285s67j5"
     it "produces (base16 . md5) of \"Hello World\" the same as the thesis" $
-      shouldBe (encodeDigestWith Base16 (hash @'MD5 "Hello World"))
+      shouldBe (encodeDigestWith Base16 (hash @ByteString @MD5 "Hello World"))
                "b10a8db164e0754105b7a99be72e3fe5"
     it "produces (base32 . sha1) of \"Hello World\" the same as the thesis" $
-      shouldBe (encodeDigestWith NixBase32 (hash @'SHA1 "Hello World"))
+      shouldBe (encodeDigestWith NixBase32 (hash @ByteString @SHA1 "Hello World"))
                "s23c9fs0v32pf6bhmcph5rbqsyl5ak8a"
 
     -- The example in question:

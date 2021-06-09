@@ -17,6 +17,15 @@ import           System.Nix.Nar
 import           System.Nix.StorePath
 import           Control.Monad.State.Strict
 import           Data.Coerce                    ( coerce )
+import           Crypto.Hash                    ( Context
+                                                , Digest
+                                                , hash
+                                                , hashlazy
+                                                , hashInit
+                                                , hashUpdate
+                                                , hashFinalize
+                                                , SHA256
+                                                )
 
 
 makeStorePath
@@ -37,11 +46,11 @@ makeStorePath fp ty h nm = StorePath (coerce storeHash) nm fp
         [ algoName @h
         , encodeDigestWith Base16 h
         , T.pack fp
-        , unStorePathName nm
+        , coerce nm
         ]
 
 makeTextPath
-  :: FilePath -> StorePathName -> Digest 'SHA256 -> StorePathSet -> StorePath
+  :: FilePath -> StorePathName -> Digest SHA256 -> StorePathSet -> StorePath
 makeTextPath fp nm h refs = makeStorePath fp ty h nm
  where
   ty =
@@ -61,7 +70,7 @@ makeFixedOutputPath fp recursive h =
     else makeStorePath fp "output:out" h'
  where
   h' =
-    hash @'SHA256
+    hash @ByteString @SHA256
       $  "fixed:out:"
       <> encodeUtf8 (algoName @hashAlgo)
       <> (if recursive then ":r:" else ":")
@@ -83,10 +92,10 @@ computeStorePathForPath name pth recursive _pathFilter _repair = do
   selectedHash <- if recursive then recursiveContentHash else flatContentHash
   pure $ makeFixedOutputPath "/nix/store" recursive selectedHash name
  where
-  recursiveContentHash :: IO (Digest 'SHA256)
-  recursiveContentHash = finalize <$> execStateT streamNarUpdate (initialize @'SHA256)
-  streamNarUpdate :: StateT (AlgoCtx 'SHA256) IO ()
-  streamNarUpdate = streamNarIO (modify . flip (update @'SHA256)) narEffectsIO pth
+  recursiveContentHash :: IO (Digest SHA256)
+  recursiveContentHash = hashFinalize <$> execStateT streamNarUpdate (hashInit @SHA256)
+  streamNarUpdate :: StateT (Context SHA256) IO ()
+  streamNarUpdate = streamNarIO (modify . flip (hashUpdate @ByteString @SHA256)) narEffectsIO pth
 
-  flatContentHash :: IO (Digest 'SHA256)
-  flatContentHash = hashLazy <$> narReadFile narEffectsIO pth
+  flatContentHash :: IO (Digest SHA256)
+  flatContentHash = hashlazy <$> narReadFile narEffectsIO pth
