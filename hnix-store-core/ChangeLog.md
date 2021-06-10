@@ -1,19 +1,20 @@
 # ChangeLog
 
-## WIP
+## [0.5.0.0](https://github.com/haskell-nix/hnix-store/compare/0.4.3.0...core-0.5.0.0) 2021-06-10
 
 * Breaking:
 
-  * [(link)](https://github.com/haskell-nix/hnix-store/pull/157/commits/97146b41cc87327625e02b81971aeb2fd7d66a3f) Migration from packages `cryptohash-` -> `cryptonite`:
-    `System.Nix.Hash`:
+  * `System.Nix.Hash`:
+    * [(link)](https://github.com/haskell-nix/hnix-store/pull/157/commits/97146b41cc87327625e02b81971aeb2fd7d66a3f) Migration from packages `cryptohash-` -> `cryptonite`:
+      * rm `newtype Digest` in favour of `cryptonite: newtype Digest`
       * rm `data HashAlgorithm` in favour of `cryptonite: class HashAlgorithm`
       * rm `class ValidAlgo` in favour of `cryptonite: class HashAlgorithm`.
-      * `class NamedAlgo` removed `hashSize` in favour of `cryptonite: class HashAlgorithm: hashDigestSize`. Former became a subclas of the latter.
+      * `class NamedAlgo` removed `hashSize` in favour of `cryptonite: class HashAlgorithm: hashDigestSize`. Former became a subclass of the latter.
       * rm `hash` in favour of `cryptonite: hash`
       * rm `hashLazy` in favour of `cryptonite: hashlazy`
-  * [(link)](https://github.com/haskell-nix/hnix-store/pull/157/commits/2af74986de8aef1a13dbfc955886f9935ca246a3) `System.Nix.Hash`: Base encoding/decoding function for hashes changed (due to changes in type system & separation of specially truncated Nix Store hasing):
-    * `encode(InBase -> DigestWith)`
-    * `decode(Base -> DigestWith)`
+    * [(link)](https://github.com/haskell-nix/hnix-store/pull/157/commits/2af74986de8aef1a13dbfc955886f9935ca246a3) Base encoding/decoding function for hashes (digests) changed (due to changes in type system & separation of specially truncated Nix Store hasing):
+      * `encode(InBase -> DigestWith)`
+      * `decode(Base -> DigestWith)`
   * [(link)](https://github.com/haskell-nix/hnix-store/pull/157/commits/2af74986de8aef1a13dbfc955886f9935ca246a3) `System.Nix.StorePath`:
     * rm `type StorePathHashAlgo = 'Truncated 20 'SHA256` in favour of `StorePathHashPart` & `mkStorePathHashPart`.
     * rm `unStorePathName`, please use `GHC: coerce` for `StorePathName <-> Text`, `StorePathName` data constructor is provided.
@@ -21,6 +22,8 @@
 
 
 * Additional:
+
+  * [(link)](https://github.com/haskell-nix/hnix-store/pull/157/commits/97146b41cc87327625e02b81971aeb2fd7d66a3f) Support of GHC 9.0.
 
   * [(link)](https://github.com/haskell-nix/hnix-store/pull/157/commits/2af74986de8aef1a13dbfc955886f9935ca246a3) `System.Nix.StorePath`:
     * exposed `StorePathName` data constructor to API.
