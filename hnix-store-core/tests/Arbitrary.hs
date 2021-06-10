@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE DataKinds            #-}
 {-# OPTIONS_GHC -Wno-orphans      #-}
@@ -10,10 +11,13 @@ import qualified Data.Text                     as T
 
 import           Test.Tasty.QuickCheck
 
-import           System.Nix.Hash
-import           System.Nix.Internal.Hash
-import           System.Nix.StorePath
 import           System.Nix.Internal.StorePath
+import           Control.Applicative                ( liftA3 )
+import           Data.Coerce                        ( coerce )
+import           Crypto.Hash                        ( SHA256
+                                                    , Digest
+                                                    , hash
+                                                    )
 
 genSafeChar :: Gen Char
 genSafeChar = choose ('\1', '\127') -- ASCII without \NUL
@@ -22,7 +26,7 @@ nonEmptyString :: Gen String
 nonEmptyString = listOf1 genSafeChar
 
 dir :: Gen String
-dir = ('/':) <$> (listOf1 $ elements $ '/':['a'..'z'])
+dir = ('/':) <$> listOf1 (elements $ '/':['a'..'z'])
 
 instance Arbitrary StorePathName where
   arbitrary = StorePathName . T.pack <$> ((:) <$> s1 <*> listOf sn)
@@ -31,10 +35,10 @@ instance Arbitrary StorePathName where
     s1       = elements $ alphanum <> "+-_?="
     sn       = elements $ alphanum <> "+-._?="
 
-instance Arbitrary (Digest StorePathHashAlgo) where
-  arbitrary = hash . BSC.pack <$> arbitrary
+instance Arbitrary StorePathHashPart where
+  arbitrary = mkStorePathHashPart . BSC.pack <$> arbitrary
 
-instance Arbitrary (Digest 'SHA256) where
+instance Arbitrary (Digest SHA256) where
   arbitrary = hash . BSC.pack <$> arbitrary
 
 newtype NixLike = NixLike {getNixLike :: StorePath}
@@ -42,15 +46,19 @@ newtype NixLike = NixLike {getNixLike :: StorePath}
 
 instance Arbitrary NixLike where
   arbitrary =
-    NixLike
-      <$> (StorePath
-         <$> arbitraryTruncatedDigest
-         <*> arbitrary
-         <*> pure "/nix/store"
-        )
+    NixLike <$>
+      (liftA3 StorePath
+        arbitraryTruncatedDigest
+        arbitrary
+        (pure "/nix/store")
+      )
    where
     -- 160-bit hash, 20 bytes, 32 chars in base32
-    arbitraryTruncatedDigest = Digest . BSC.pack <$> replicateM 20 genSafeChar
+    arbitraryTruncatedDigest = coerce . BSC.pack <$> replicateM 20 genSafeChar
 
 instance Arbitrary StorePath where
-  arbitrary = StorePath <$> arbitrary <*> arbitrary <*> dir
+  arbitrary =
+    liftA3 StorePath
+      arbitrary
+      arbitrary
+      dir

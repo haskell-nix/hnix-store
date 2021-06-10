@@ -7,7 +7,13 @@
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE TypeFamilies               #-}
 
-module System.Nix.Internal.Nar.Parser where
+module System.Nix.Internal.Nar.Parser
+  ( runParser
+  , parseNar
+  , testParser
+  , testParser'
+  )
+where
 
 import qualified Algebra.Graph                   as Graph
 import qualified Algebra.Graph.ToGraph           as Graph

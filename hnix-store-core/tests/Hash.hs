@@ -6,13 +6,13 @@
 
 module Hash where
 
-import           Control.Monad               (forM_)
+import           Control.Monad               ( forM_ )
+import           Data.ByteString             ( ByteString )
 import qualified Data.ByteString.Char8       as BSC
 import qualified Data.ByteString.Base16      as B16
 import qualified System.Nix.Base32           as B32
 import qualified Data.ByteString.Base64.Lazy as B64
 import qualified Data.ByteString.Lazy        as BSL
-import           Data.Text                   (Text)
 
 import           Test.Hspec
 import           Test.Tasty.QuickCheck
@@ -20,6 +20,13 @@ import           Test.Tasty.QuickCheck
 import           System.Nix.Hash
 import           System.Nix.StorePath
 import           Arbitrary
+import           System.Nix.Internal.Base
+import           Data.Coerce                ( coerce )
+import           Crypto.Hash                ( MD5
+                                            , SHA1
+                                            , SHA256
+                                            , hash
+                                            )
 
 spec_hash :: Spec
 spec_hash = do
@@ -27,13 +34,13 @@ spec_hash = do
   describe "hashing parity with nix-store" $ do
 
     it "produces (base32 . sha256) of \"nix-output:foo\" the same as Nix does at the moment for placeholder \"foo\"" $
-      shouldBe (encodeInBase Base32 (hash @'SHA256 "nix-output:foo"))
+      shouldBe (encodeDigestWith NixBase32 (hash @ByteString @SHA256 "nix-output:foo"))
                "1x0ymrsy7yr7i9wdsqy9khmzc1yy7nvxw6rdp72yzn50285s67j5"
     it "produces (base16 . md5) of \"Hello World\" the same as the thesis" $
-      shouldBe (encodeInBase Base16 (hash @'MD5 "Hello World"))
+      shouldBe (encodeDigestWith Base16 (hash @ByteString @MD5 "Hello World"))
                "b10a8db164e0754105b7a99be72e3fe5"
     it "produces (base32 . sha1) of \"Hello World\" the same as the thesis" $
-      shouldBe (encodeInBase Base32 (hash @'SHA1 "Hello World"))
+      shouldBe (encodeDigestWith NixBase32 (hash @ByteString @SHA1 "Hello World"))
                "s23c9fs0v32pf6bhmcph5rbqsyl5ak8a"
 
     -- The example in question:
@@ -42,21 +49,17 @@ spec_hash = do
       let exampleStr =
             "source:sha256:2bfef67de873c54551d884fdab3055d84d573e654efa79db3"
             <> "c0d7b98883f9ee3:/nix/store:myfile"
-      shouldBe (encodeInBase32 @StorePathHashAlgo (hash exampleStr))
+      shouldBe (encodeWith NixBase32 $ coerce $ mkStorePathHashPart exampleStr)
         "xv2iccirbrvklck36f1g7vldn5v58vck"
-   where
-    encodeInBase32 :: Digest a -> Text
-    encodeInBase32 = encodeInBase Base32
 
 -- | Test that Nix-like base32 encoding roundtrips
 prop_nixBase32Roundtrip :: Property
 prop_nixBase32Roundtrip = forAllShrink nonEmptyString genericShrink $
-  \x -> Right (BSC.pack x) === (B32.decode . B32.encode . BSC.pack $ x)
+  \x -> pure (BSC.pack x) === (B32.decode . B32.encode . BSC.pack $ x)
 
 -- | API variants
-prop_nixBase16Roundtrip :: Digest StorePathHashAlgo -> Property
-prop_nixBase16Roundtrip =
-  \(x :: Digest StorePathHashAlgo) -> Right x === (decodeBase Base16 . encodeInBase Base16 $ x)
+prop_nixBase16Roundtrip :: StorePathHashPart -> Property
+prop_nixBase16Roundtrip x = pure (coerce x) === decodeWith Base16 (encodeWith Base16 $ coerce x)
 
 -- | Hash encoding conversion ground-truth.
 -- Similiar to nix/tests/hash.sh

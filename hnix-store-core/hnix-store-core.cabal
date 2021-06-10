@@ -33,7 +33,9 @@ library
     , System.Nix.Build
     , System.Nix.Derivation
     , System.Nix.Hash
+    , System.Nix.Internal.Base
     , System.Nix.Internal.Base32
+    , System.Nix.Internal.Truncation
     , System.Nix.Internal.Hash
     , System.Nix.Internal.Nar.Parser
     , System.Nix.Internal.Nar.Streamer
@@ -54,10 +56,9 @@ library
     , bytestring
     , cereal
     , containers
-    , cryptohash-md5
-    , cryptohash-sha1
-    , cryptohash-sha256
-    , cryptohash-sha512
+    -- Required for cryptonite low-level type convertion
+    , memory
+    , cryptonite
     , directory
     , filepath
     , hashable
@@ -104,6 +105,7 @@ test-suite format-tests
     , binary
     , bytestring
     , containers
+    , cryptonite
     , directory
     , filepath
     , process

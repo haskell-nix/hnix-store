@@ -1,4 +1,9 @@
-module System.Nix.Internal.Base32 where
+module System.Nix.Internal.Base32
+ ( encode
+ , decode
+ , digits32
+ )
+where
 
 
 import           Data.Bool                      ( bool )
@@ -22,7 +27,7 @@ digits32 = Vector.fromList "0123456789abcdfghijklmnpqrsvwxyz"
 
 -- | Encode a 'BS.ByteString' in Nix's base32 encoding
 encode :: ByteString -> Text
-encode c = Data.Text.pack $ fmap char32 [nChar - 1, nChar - 2 .. 0]
+encode c = Data.Text.pack $ takeCharPosFromDict <$> [nChar - 1, nChar - 2 .. 0]
  where
   -- Each base32 character gives us 5 bits of information, while
   -- each byte gives is 8. Because 'div' rounds down, we need to add
@@ -43,8 +48,8 @@ encode c = Data.Text.pack $ fmap char32 [nChar - 1, nChar - 2 .. 0]
       [ fromIntegral (byte j) * (256 ^ j)
         | j <- [0 .. Bytes.length c - 1] ]
 
-  char32 :: Integer -> Char
-  char32 i = digits32 Vector.! digitInd
+  takeCharPosFromDict :: Integer -> Char
+  takeCharPosFromDict i = digits32 Vector.! digitInd
    where
     digitInd =
       fromIntegral $
@@ -54,7 +59,7 @@ encode c = Data.Text.pack $ fmap char32 [nChar - 1, nChar - 2 .. 0]
 decode :: Text -> Either String ByteString
 decode what =
   bool
-    (Left "Invalid Base32 string")
+    (Left "Invalid NixBase32 string")
     (unsafeDecode what)
     (Data.Text.all (`elem` digits32) what)
 

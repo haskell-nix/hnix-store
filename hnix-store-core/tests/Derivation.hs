@@ -20,11 +20,11 @@ processDerivation source dest = do
   contents <- Data.Text.IO.readFile source
   either
     fail
-    (\ drv ->
-      Data.Text.IO.writeFile dest
-        . Data.Text.Lazy.toStrict
-        . Data.Text.Lazy.Builder.toLazyText
-        $ buildDerivation drv
+    -- It seems to be derivation.
+    (Data.Text.IO.writeFile dest
+      . Data.Text.Lazy.toStrict
+      . Data.Text.Lazy.Builder.toLazyText
+      . buildDerivation
     )
     (Data.Attoparsec.Text.parseOnly
       (parseDerivation "/nix/store")

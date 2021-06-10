@@ -4,14 +4,14 @@ Description : Representation of Nix store paths.
 module System.Nix.StorePath
   ( -- * Basic store path types
     StorePath(..)
-  , StorePathName
+  , StorePathName(..)
   , StorePathSet
-  , StorePathHashAlgo
+  , mkStorePathHashPart
+  , StorePathHashPart(..)
   , ContentAddressableAddress(..)
   , NarHashMode(..)
   , -- * Manipulating 'StorePathName'
     makeStorePathName
-  , unStorePathName
   , validStorePathName
   , -- * Rendering out 'StorePath's
     storePathToFilePath

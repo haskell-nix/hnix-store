@@ -4,7 +4,11 @@ Description : Nix-relevant interfaces to NaCl signatures.
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE CPP #-}
 
-module System.Nix.Internal.Signature where
+module System.Nix.Internal.Signature
+  ( Signature
+  , NarSignature(..)
+  )
+where
 
 
 import           Data.ByteString                    ( ByteString )

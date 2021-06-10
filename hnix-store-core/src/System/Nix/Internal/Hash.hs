@@ -12,223 +12,96 @@ Description : Cryptographic hashing interface for hnix-store, on top
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE CPP #-}
 
-module System.Nix.Internal.Hash where
+module System.Nix.Internal.Hash
+  ( NamedAlgo(..)
+  , SomeNamedDigest(..)
+  , mkNamedDigest
+  , encodeDigestWith
+  , decodeDigestWith
+  , mkStorePathHash
+  )
+where
 
-import qualified Crypto.Hash.MD5        as MD5
-import qualified Crypto.Hash.SHA1       as SHA1
-import qualified Crypto.Hash.SHA256     as SHA256
-import qualified Crypto.Hash.SHA512     as SHA512
+import qualified Crypto.Hash            as C
 import qualified Data.ByteString        as BS
-import qualified Data.ByteString.Base16 as Base16
-import qualified System.Nix.Base32      as Base32  -- Nix has own Base32 encoding
-import qualified Data.ByteString.Base64 as Base64
-import           Data.Bits              (xor)
-import qualified Data.ByteString.Lazy   as BSL
-import qualified Data.Hashable          as DataHashable
-import           Data.List              (foldl')
-import           Data.Proxy             (Proxy(Proxy))
 import           Data.Text              (Text)
 import qualified Data.Text              as T
-import qualified Data.Text.Encoding     as T
-import           Data.Word              (Word8)
-import           GHC.TypeLits           (Nat, KnownNat, natVal)
-import           Data.Coerce            (coerce)
-
--- | Constructors to indicate the base encodings
-data BaseEncoding
-  = Base16
-  | Base32
-  -- | ^ Nix has a special map of Base32 encoding
-  | Base64
-
--- | The universe of supported hash algorithms.
---
--- Currently only intended for use at the type level.
-data HashAlgorithm
-  = MD5
-  | SHA1
-  | SHA256
-  | SHA512
-  | Truncated Nat HashAlgorithm
-    -- ^ The hash algorithm obtained by truncating the result of the
-    -- input 'HashAlgorithm' to the given number of bytes. See
-    -- 'truncateDigest' for a description of the truncation algorithm.
-
--- | The result of running a 'HashAlgorithm'.
-newtype Digest (a :: HashAlgorithm) =
-  Digest BS.ByteString deriving (Eq, Ord, DataHashable.Hashable)
-
-instance Show (Digest a) where
-  show = ("Digest " <>) . show . encodeInBase Base32
-
--- | The primitive interface for incremental hashing for a given
--- 'HashAlgorithm'. Every 'HashAlgorithm' should have an instance.
-class ValidAlgo (a :: HashAlgorithm) where
-  -- | The incremental state for constructing a hash.
-  type AlgoCtx a
-
-  -- | Start building a new hash.
-  initialize        :: AlgoCtx a
-  -- | Append a 'BS.ByteString' to the overall contents to be hashed.
-  update            :: AlgoCtx a -> BS.ByteString -> AlgoCtx a
-  -- | Finish hashing and generate the output.
-  finalize          :: AlgoCtx a -> Digest a
+import           System.Nix.Internal.Base
+import           Data.ByteArray
+import           System.Nix.Internal.Truncation
 
 -- | A 'HashAlgorithm' with a canonical name, for serialization
 -- purposes (e.g. SRI hashes)
-class ValidAlgo a => NamedAlgo (a :: HashAlgorithm) where
+class C.HashAlgorithm a => NamedAlgo a where
   algoName :: Text
-  hashSize :: Int
 
-instance NamedAlgo 'MD5 where
+instance NamedAlgo C.MD5 where
   algoName = "md5"
-  hashSize = 16
 
-instance NamedAlgo 'SHA1 where
+instance NamedAlgo C.SHA1 where
   algoName = "sha1"
-  hashSize = 20
 
-instance NamedAlgo 'SHA256 where
+instance NamedAlgo C.SHA256 where
   algoName = "sha256"
-  hashSize = 32
 
-instance NamedAlgo 'SHA512 where
+instance NamedAlgo C.SHA512 where
   algoName = "sha512"
-  hashSize = 64
 
 -- | A digest whose 'NamedAlgo' is not known at compile time.
-data SomeNamedDigest = forall a . NamedAlgo a => SomeDigest (Digest a)
+data SomeNamedDigest = forall a . NamedAlgo a => SomeDigest (C.Digest a)
 
 instance Show SomeNamedDigest where
   show sd = case sd of
-    SomeDigest (digest :: Digest hashType) -> T.unpack $ "SomeDigest " <> algoName @hashType <> ":" <> encodeInBase Base32 digest
+    SomeDigest (digest :: C.Digest hashType) -> T.unpack $ "SomeDigest " <> algoName @hashType <> ":" <> encodeDigestWith NixBase32 digest
 
 mkNamedDigest :: Text -> Text -> Either String SomeNamedDigest
 mkNamedDigest name sriHash =
   let (sriName, h) = T.breakOnEnd "-" sriHash in
-    if sriName == "" || sriName == (name <> "-")
+    if sriName == "" || sriName == name <> "-"
     then mkDigest h
     else Left $ T.unpack $ "Sri hash method " <> sriName <> " does not match the required hash type " <> name
  where
   mkDigest h = case name of
-    "md5"    -> SomeDigest <$> decodeGo @'MD5    h
-    "sha1"   -> SomeDigest <$> decodeGo @'SHA1   h
-    "sha256" -> SomeDigest <$> decodeGo @'SHA256 h
-    "sha512" -> SomeDigest <$> decodeGo @'SHA512 h
+    "md5"    -> SomeDigest <$> decodeGo C.MD5    h
+    "sha1"   -> SomeDigest <$> decodeGo C.SHA1   h
+    "sha256" -> SomeDigest <$> decodeGo C.SHA256 h
+    "sha512" -> SomeDigest <$> decodeGo C.SHA512 h
     _        -> Left $ "Unknown hash name: " <> T.unpack name
-  decodeGo :: forall a . (NamedAlgo a, ValidAlgo a) => Text -> Either String (Digest a)
-  decodeGo h
-    | size == base16Len = decodeBase Base16 h
-    | size == base32Len = decodeBase Base32 h
-    | size == base64Len = decodeBase Base64 h
+  decodeGo :: forall a . NamedAlgo a => a -> Text -> Either String (C.Digest a)
+  decodeGo a h
+    | size == base16Len = decodeDigestWith Base16 h
+    | size == base32Len = decodeDigestWith NixBase32 h
+    | size == base64Len = decodeDigestWith Base64 h
     | otherwise = Left $ T.unpack sriHash <> " is not a valid " <> T.unpack name <> " hash. Its length (" <> show size <> ") does not match any of " <> show [base16Len, base32Len, base64Len]
    where
     size = T.length h
-    hsize = hashSize @a
+    hsize = C.hashDigestSize a
     base16Len = hsize * 2
     base32Len = ((hsize * 8 - 1) `div` 5) + 1;
     base64Len = ((4 * hsize `div` 3) + 3) `div` 4 * 4;
 
 
--- | Hash an entire (strict) 'BS.ByteString' as a single call.
---
---   For example:
---   > let d = hash "Hello, sha-256!" :: Digest SHA256
---   or
---   > :set -XTypeApplications
---   > let d = hash @SHA256 "Hello, sha-256!"
-hash :: forall a.ValidAlgo a => BS.ByteString -> Digest a
-hash bs =
-  finalize $ update @a (initialize @a) bs
-
--- | Hash an entire (lazy) 'BSL.ByteString' as a single call.
---
--- Use is the same as for 'hash'.  This runs in constant space, but
--- forces the entire bytestring.
-hashLazy :: forall a.ValidAlgo a => BSL.ByteString -> Digest a
-hashLazy bsl =
-  finalize $ foldl' (update @a) (initialize @a) (BSL.toChunks bsl)
-
+mkStorePathHash :: forall a . C.HashAlgorithm a => BS.ByteString -> BS.ByteString
+mkStorePathHash bs =
+  truncateInNixWay 20 $ convert $ C.hash @BS.ByteString @a bs
 
 -- | Take BaseEncoding type of the output -> take the Digeest as input -> encode Digest
-encodeInBase :: BaseEncoding -> Digest a -> T.Text
-encodeInBase Base16 = T.decodeUtf8 . Base16.encode . coerce
-encodeInBase Base32 = Base32.encode . coerce
-encodeInBase Base64 = T.decodeUtf8 . Base64.encode . coerce
+encodeDigestWith :: BaseEncoding -> C.Digest a -> T.Text
+encodeDigestWith b = encodeWith b . convert
 
 
 -- | Take BaseEncoding type of the input -> take the input itself -> decodeBase into Digest
-decodeBase :: BaseEncoding -> T.Text -> Either String (Digest a)
-#if MIN_VERSION_base16_bytestring(1,0,0)
-decodeBase Base16 = fmap Digest . Base16.decode . T.encodeUtf8
-#else
-decodeBase Base16 = lDecode  -- this tacit sugar simply makes GHC pleased with number of args
+decodeDigestWith :: C.HashAlgorithm a => BaseEncoding -> T.Text -> Either String (C.Digest a)
+decodeDigestWith b x =
+  do
+    bs <- decodeWith b x
+    let
+      toEither =
+        maybeToRight
+          ("Cryptonite was not able to convert '(ByteString -> Digest a)' for: '" <> show bs <>"'.")
+    (toEither . C.digestFromByteString) bs
  where
-  lDecode t = case Base16.decode (T.encodeUtf8 t) of
-    (x, "") -> Right $ Digest x
-    _       -> Left $ "Unable to decode base16 string" <> T.unpack t
-#endif
-decodeBase Base32 = fmap Digest . Base32.decode
-decodeBase Base64 = fmap Digest . Base64.decode . T.encodeUtf8
-
-
--- | Uses "Crypto.Hash.MD5" from cryptohash-md5.
-instance ValidAlgo 'MD5 where
-  type AlgoCtx 'MD5 = MD5.Ctx
-  initialize = MD5.init
-  update = MD5.update
-  finalize = Digest . MD5.finalize
-
--- | Uses "Crypto.Hash.SHA1" from cryptohash-sha1.
-instance ValidAlgo 'SHA1 where
-  type AlgoCtx 'SHA1 = SHA1.Ctx
-  initialize = SHA1.init
-  update = SHA1.update
-  finalize = Digest . SHA1.finalize
-
--- | Uses "Crypto.Hash.SHA256" from cryptohash-sha256.
-instance ValidAlgo 'SHA256 where
-  type AlgoCtx 'SHA256 = SHA256.Ctx
-  initialize = SHA256.init
-  update = SHA256.update
-  finalize = Digest . SHA256.finalize
-
--- | Uses "Crypto.Hash.SHA512" from cryptohash-sha512.
-instance ValidAlgo 'SHA512 where
-  type AlgoCtx 'SHA512 = SHA512.Ctx
-  initialize = SHA512.init
-  update = SHA512.update
-  finalize = Digest . SHA512.finalize
-
--- | Reuses the underlying 'ValidAlgo' instance, but does a
--- 'truncateDigest' at the end.
-instance (ValidAlgo a, KnownNat n) => ValidAlgo ('Truncated n a) where
-  type AlgoCtx ('Truncated n a) = AlgoCtx a
-  initialize = initialize @a
-  update = update @a
-  finalize = truncateDigest @n . finalize @a
-
--- | Bytewise truncation of a 'Digest'.
---
--- When truncation length is greater than the length of the bytestring
--- but less than twice the bytestring length, truncation splits the
--- bytestring into a head part (truncation length) and tail part
--- (leftover part), right-pads the leftovers with 0 to the truncation
--- length, and combines the two strings bytewise with 'xor'.
-truncateDigest
-  :: forall n a.(KnownNat n) => Digest a -> Digest ('Truncated n a)
-truncateDigest (Digest c) =
-    Digest $ BS.pack $ fmap truncOutputByte [0.. n-1]
-  where
-    n = fromIntegral $ natVal (Proxy @n)
-
-    truncOutputByte :: Int -> Word8
-    truncOutputByte i = foldl' (aux i) 0 [0 .. BS.length c - 1]
-
-    inputByte :: Int -> Word8
-    inputByte j = BS.index c (fromIntegral j)
-
-    aux :: Int -> Word8 -> Int -> Word8
-    aux i x j = if j `mod` fromIntegral n == fromIntegral i
-                then xor x (inputByte $ fromIntegral j)
-                else x
+  -- To not depend on @extra@
+  maybeToRight :: b -> Maybe a -> Either b a
+  maybeToRight _ (Just r) = pure r
+  maybeToRight y Nothing  = Left y
