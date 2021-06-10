@@ -1,5 +1,12 @@
 # Revision history for hnix-store-remote
 
+## [0.5.0.0](https://github.com/haskell-nix/hnix-store/compare/0.4.3.0...0.5.0.0) 2021-06-11
+
+* Breaking:
+  * [(link)](https://github.com/haskell-nix/hnix-store/commit/3b948d112aa9307b0451258f28c7ee5dc86b24c7) `System.Nix.Store.Remote`:
+    * `addToStore`: constraint of `ValidAlgo a` removed in favour of constraint on `cryptonite: HashAlgorithm a` through constraint `NamedAlgo a`.
+    * `queryPathFromHashPart`: 1st arg changed from `Digest StorePathHashAlgo` to `StorePathHashPart`, for details: [hnix-store-core 0.5.0.0 ChangeLog](https://hackage.haskell.org/package/hnix-store-core-0.5.0.0/changelog).
+
 ## [0.4.3.0](https://github.com/haskell-nix/hnix-store/compare/0.4.2.0...0.4.3.0) 2021-05-30
 
 Nothing (it is tandem `hnix-store-core` fix release)
