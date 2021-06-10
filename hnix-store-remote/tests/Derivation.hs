@@ -18,8 +18,6 @@ import           System.Nix.Store.Remote        ( MonadStore
                                                 , addToStore
                                                 , addTextToStore
                                                 )
-import           System.Nix.Hash                ( HashAlgorithm(SHA256) )
-
 import qualified Data.Map
 import qualified Data.Set
 import qualified Data.Text
@@ -29,6 +27,7 @@ import qualified Data.Vector
 import qualified System.Nix.Derivation
 import qualified System.Nix.StorePath
 import qualified System.Directory
+import           Crypto.Hash                    ( SHA256 )
 
 drvSample :: StorePath -> StorePath -> StorePath -> Derivation StorePath Text
 drvSample builder' buildScript out = Derivation
@@ -48,7 +47,7 @@ withBash action = do
     Nothing -> error "No bash executable found"
     Just fp -> do
       let Right n = System.Nix.StorePath.makeStorePathName "bash"
-      pth <- addToStore @'SHA256 n fp False (pure True) False
+      pth <- addToStore @SHA256 n fp False (pure True) False
       action pth
 
 withBuildScript :: (StorePath -> MonadStore a) -> MonadStore a

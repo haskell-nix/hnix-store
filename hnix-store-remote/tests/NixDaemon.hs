@@ -32,12 +32,13 @@ import           Test.Hspec.Expectations.Lifted
 import           System.FilePath
 
 import           System.Nix.Build
-import           System.Nix.Hash
 import           System.Nix.StorePath
 import           System.Nix.Store.Remote
 import           System.Nix.Store.Remote.Protocol
 
 import           Derivation
+import           Crypto.Hash                    ( SHA256
+                                                )
 
 createProcessEnv :: FilePath -> String -> [String] -> IO P.ProcessHandle
 createProcessEnv fp proc args = do
@@ -167,13 +168,13 @@ withPath action = do
 dummy :: MonadStore StorePath
 dummy = do
   let Right n = makeStorePathName "dummy"
-  res <- addToStore @'SHA256 n "dummy" False (pure True) False
+  res <- addToStore @SHA256 n "dummy" False (pure True) False
   pure res
 
 invalidPath :: StorePath
 invalidPath =
   let Right n = makeStorePathName "invalid"
-  in  StorePath (hash "invalid") n "no_such_root"
+  in  StorePath (mkStorePathHashPart "invalid") n "no_such_root"
 
 withBuilder :: (StorePath -> MonadStore a) -> MonadStore a
 withBuilder action = do
@@ -259,7 +260,7 @@ spec_protocol = Hspec.around withNixDaemon $
       itRights "adds file to store" $ do
         fp <- liftIO $ writeSystemTempFile "addition" "lal"
         let Right n = makeStorePathName "tmp-addition"
-        res <- addToStore @'SHA256 n fp False (pure True) False
+        res <- addToStore @SHA256 n fp False (pure True) False
         liftIO $ print res
 
     context "with dummy" $ do
