@@ -1,9 +1,41 @@
-# Revision history for hnix-store-core
+# ChangeLog
+
+## WIP
+
+* Breaking:
+
+  * [(link)](https://github.com/haskell-nix/hnix-store/pull/157/commits/97146b41cc87327625e02b81971aeb2fd7d66a3f) Migration from packages `cryptohash-` -> `cryptonite`:
+    `System.Nix.Hash`:
+      * rm `data HashAlgorithm` in favour of `cryptonite: class HashAlgorithm`
+      * rm `class ValidAlgo` in favour of `cryptonite: class HashAlgorithm`.
+      * `class NamedAlgo` removed `hashSize` in favour of `cryptonite: class HashAlgorithm: hashDigestSize`. Former became a subclas of the latter.
+      * rm `hash` in favour of `cryptonite: hash`
+      * rm `hashLazy` in favour of `cryptonite: hashlazy`
+  * [(link)](https://github.com/haskell-nix/hnix-store/pull/157/commits/2af74986de8aef1a13dbfc955886f9935ca246a3) `System.Nix.Hash`: Base encoding/decoding function for hashes changed (due to changes in type system & separation of specially truncated Nix Store hasing):
+    * `encode(InBase -> DigestWith)`
+    * `decode(Base -> DigestWith)`
+  * [(link)](https://github.com/haskell-nix/hnix-store/pull/157/commits/2af74986de8aef1a13dbfc955886f9935ca246a3) `System.Nix.StorePath`:
+    * rm `type StorePathHashAlgo = 'Truncated 20 'SHA256` in favour of `StorePathHashPart` & `mkStorePathHashPart`.
+    * rm `unStorePathName`, please use `GHC: coerce` for `StorePathName <-> Text`, `StorePathName` data constructor is provided.
+  * `Internal` modules now have export lists, if something, please contact.
+
+
+* Additional:
+
+  * [(link)](https://github.com/haskell-nix/hnix-store/pull/157/commits/2af74986de8aef1a13dbfc955886f9935ca246a3) `System.Nix.StorePath`:
+    * exposed `StorePathName` data constructor to API.
+    * added `newtype StorePathHashPart = StorePathHashPart ByteString`.
+      * added builder `mkStorePathHashPart :: ByteString -> StorePathHashPart`
+  * [(link)](https://github.com/haskell-nix/hnix-store/pull/157/commits/2af74986de8aef1a13dbfc955886f9935ca246a3) `System.Nix.Hash`:
+    * Nix store (which are specially truncated) hashes are now handled separately from other hashes:
+      * add `mkStorePathHash` - a function to create a content into Nix storepath-style hash:
+        `mkStorePathHash :: HashAlgorithm a => ByteString -> ByteString`
+        but recommend to at once use `mkStorePathHashPart`.
+    
 
 ## [0.4.3.0](https://github.com/haskell-nix/hnix-store/compare/0.4.2.0...0.4.3.0) 2021-05-30
 
 * Additional:
-
   * [(link)](https://github.com/haskell-nix/hnix-store/commit/b85f7c875fe6b0bca939ffbcd8b9bd0ab1598aa0) `System.Nix.ReadonlyStore`: add a readonly `computeStorePathForPath`
   * [(link)](https://github.com/haskell-nix/hnix-store/commit/db71ecea3109c0ba270fa98a9041a8556e35217f) `System.Nix.ReadonlyStore`: `computeStorePathForPath`: force SHA256 as it's the only valid choice
   * [(link)](https://github.com/haskell-nix/hnix-store/commit/5fddf3c66ba1bcabb72c4d6b6e09fb41a7acd62c): `makeTextPath`: order the references
