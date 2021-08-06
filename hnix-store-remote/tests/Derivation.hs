@@ -16,7 +16,6 @@ import           System.Nix.Store.Remote        ( MonadStore
 import qualified Data.Map
 import qualified Data.Set
 import qualified Data.Text
-import qualified Data.Text.Lazy
 import qualified Data.Text.Lazy.Builder
 import qualified Data.Vector
 import qualified System.Nix.Derivation

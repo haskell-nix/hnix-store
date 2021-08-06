@@ -6,8 +6,6 @@ import           Control.Monad.Except
 
 import           Data.Binary.Get
 import           Data.Binary.Put
-import qualified Data.Text.Encoding            as T
-import qualified Data.Text.Lazy                as TL
 import qualified Data.Text.Lazy.Encoding       as TL
 import           Data.Time
 import           Data.Time.Clock.POSIX

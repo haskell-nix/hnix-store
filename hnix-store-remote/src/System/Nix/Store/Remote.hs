@@ -58,7 +58,6 @@ import           System.Nix.Internal.Base       ( encodeWith )
 import qualified Data.Binary.Put
 import qualified Data.Map.Strict
 import qualified Data.Set
-import qualified Data.Text.Encoding
 
 import qualified System.Nix.Nar
 import qualified System.Nix.StorePath

@@ -21,7 +21,6 @@ import           Data.Binary.Get
 import           Data.Binary.Put
 import qualified Data.ByteString
 import qualified Data.ByteString.Char8
-import qualified Data.ByteString.Lazy
 
 import           Network.Socket                 ( SockAddr(SockAddrUnix) )
 import qualified Network.Socket

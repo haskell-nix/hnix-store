@@ -9,7 +9,6 @@ import           Control.Concurrent             ( threadDelay )
 import qualified Data.HashSet                  as HS
 import qualified Data.Map.Strict               as M
 import           System.Directory
-import qualified System.Environment
 import           System.IO.Temp
 import qualified System.Process                as P
 import           System.Posix.User             as U
