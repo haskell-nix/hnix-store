@@ -77,7 +77,7 @@ streamStringOutIO
   -> m ()
 streamStringOutIO f getChunk =
   Exception.Lifted.bracket
-    (IO.liftIO $ IO.openFile f IO.WriteMode)
+    (IO.liftIO $ IO.openFile f WriteMode)
     (IO.liftIO . IO.hClose)
     go
   `Exception.Lifted.catch`

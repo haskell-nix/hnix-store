@@ -154,7 +154,7 @@ unit_packSelfSrcDir = Temp.withSystemTempDirectory "nar-test" $ \tmpDir -> do
             bool
               (pass)
               (do
-                withFile narFilePath IO.WriteMode $ \h ->
+                withFile narFilePath WriteMode $ \h ->
                   buildNarIO narEffectsIO "src" h
                 hnixNar <- BSL.readFile narFilePath
                 nixStoreNar <- getNixStoreDump "src"
@@ -175,7 +175,7 @@ unit_packSelfSrcDir = Temp.withSystemTempDirectory "nar-test" $ \tmpDir -> do
 --         nixStoreNar
 -- =======
 --       let narFile = tmpDir </> "src.nar"
---       withFile narFile IO.WriteMode $ \h ->
+--       withFile narFile WriteMode $ \h ->
 --         buildNarIO narEffectsIO "src" h
 --       hnixNar <- BSL.readFile narFile
 --       nixStoreNar <- getNixStoreDump "src"
@@ -194,7 +194,7 @@ test_streamLargeFileToNar = HU.testCaseSteps "streamLargeFileToNar" $ \step -> d
   -- BSL.writeFile narFileName =<< buildNarIO narEffectsIO bigFileName
   --
   step "create nar file"
-  withFile narFileName IO.WriteMode $ \h ->
+  withFile narFileName WriteMode $ \h ->
     buildNarIO narEffectsIO bigFileName h
 
   step "assert bounded memory"
@@ -223,7 +223,7 @@ test_streamManyFilesToNar = HU.testCaseSteps "streamManyFilesToNar" $ \step ->
 
       _run =  do
         filesPrecount <- countProcessFiles
-        withFile "hnar" IO.WriteMode $ \h ->
+        withFile "hnar" WriteMode $ \h ->
           buildNarIO narEffectsIO narFilePath h
         filesPostcount <- countProcessFiles
         pure $ (-) <$> filesPostcount <*> filesPrecount
@@ -237,7 +237,7 @@ test_streamManyFilesToNar = HU.testCaseSteps "streamManyFilesToNar" $ \step ->
     filesPrecount <- countProcessFiles
 
     step "pack nar"
-    withFile narFilePath IO.WriteMode $ \h ->
+    withFile narFilePath WriteMode $ \h ->
       buildNarIO narEffectsIO packagePath h
 
     step "unpack nar"
@@ -296,7 +296,7 @@ filesystemNixStore testErrorName n = do
       assertExists nixNarFile
 
       -- hnix converts those files to nar
-      withFile hnixNarFile IO.WriteMode $ \h ->
+      withFile hnixNarFile WriteMode $ \h ->
         buildNarIO narEffectsIO testFile h
       assertExists hnixNarFile
 
@@ -346,7 +346,7 @@ packThenExtract testName setup =
 
         step $ "Build NAR from " <> narFilePath <> " to " <> hnixNarFile
         -- narBS <- buildNarIO narEffectsIO narFile
-        withFile hnixNarFile IO.WriteMode $ \h ->
+        withFile hnixNarFile WriteMode $ \h ->
           buildNarIO narEffectsIO narFilePath h
 
         -- BSL.writeFile hnixNarFile narBS

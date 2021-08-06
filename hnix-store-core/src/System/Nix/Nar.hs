@@ -44,7 +44,7 @@ import qualified System.Nix.Internal.Nar.Streamer  as Nar
 
 -- | Pack the filesystem object at @FilePath@ into a NAR and stream it into the
 --   @IO.Handle@
---   The handle should aleady be open and in @IO.WriteMode@.
+--   The handle should aleady be open and in @WriteMode@.
 buildNarIO
   :: Nar.NarEffects IO
   -> FilePath
