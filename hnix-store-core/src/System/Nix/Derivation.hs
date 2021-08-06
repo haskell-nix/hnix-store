@@ -27,7 +27,5 @@ parseDerivation expectedRoot =
 buildDerivation :: Derivation StorePath Text -> Text.Lazy.Builder
 buildDerivation =
   Derivation.buildDerivationWith
-    (string . Text.pack . show)
-    string
-  where
-    string = Text.Lazy.Builder.fromText . Text.pack . show
+    (show . show)
+    show
