@@ -3,6 +3,7 @@
 
 module NixDaemon where
 
+import qualified System.Environment            as Env
 import           Control.Exception              ( bracket )
 import           Control.Concurrent             ( threadDelay )
 import qualified Data.HashSet                  as HS
@@ -33,7 +34,7 @@ import           Crypto.Hash                    ( SHA256
 
 createProcessEnv :: FilePath -> String -> [String] -> IO P.ProcessHandle
 createProcessEnv fp proc args = do
-  mPath         <- System.Environment.lookupEnv "PATH"
+  mPath         <- Env.lookupEnv "PATH"
 
   (_, _, _, ph) <-
     P.createProcess (P.proc proc args)
