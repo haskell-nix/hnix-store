@@ -1,6 +1,4 @@
-{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE TypeApplications    #-}
 
 module Derivation where
 
