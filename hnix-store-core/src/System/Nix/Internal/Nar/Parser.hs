@@ -232,11 +232,11 @@ parseFile = do
           pure $ Just chunk
 
   target     <- currentFile
-  streamFile <- Reader.asks Nar.narStreamFile
+  streamFile <- asks Nar.narStreamFile
   Trans.lift (streamFile target getChunk)
 
   when (s == "executable") $ do
-    effs :: Nar.NarEffects m <- Reader.ask
+    effs :: Nar.NarEffects m <- ask
     Trans.lift $ do
       p <- Nar.narGetPerms effs target
       Nar.narSetPerms effs target (p { Directory.executable = True })
@@ -248,7 +248,7 @@ parseFile = do
 --   handles for target files longer than needed
 parseDirectory :: (IO.MonadIO m, Fail.MonadFail m) => NarParser m ()
 parseDirectory = do
-  createDirectory <- Reader.asks Nar.narCreateDir
+  createDirectory <- asks Nar.narCreateDir
   target          <- currentFile
   Trans.lift $ createDirectory target
   parseEntryOrFinish
@@ -375,7 +375,7 @@ parens act = do
 --   (Targets must be created before the links that target them)
 createLinks :: IO.MonadIO m => NarParser m ()
 createLinks = do
-  createLink  <- Reader.asks Nar.narCreateLink
+  createLink  <- asks Nar.narCreateLink
   allLinks    <- State.gets links
   sortedLinks <- IO.liftIO $ sortLinksIO allLinks
   forM_ sortedLinks $ \li -> do
