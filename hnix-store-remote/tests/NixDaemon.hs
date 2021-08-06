@@ -46,7 +46,7 @@ createProcessEnv fp proc args = do
 
   (_, _, _, ph) <-
     P.createProcess (P.proc proc args)
-      { P.cwd = Just $ fp
+      { P.cwd = Just fp
       , P.env = Just $ mockedEnv mPath fp
       }
   pure ph
@@ -59,7 +59,7 @@ mockedEnv mEnvPath fp =
   , ("NIX_STATE_DIR"     , fp </> "var" </> "nix")
   , ("NIX_CONF_DIR"      , fp </> "etc")
 --  , ("NIX_REMOTE", "daemon")
-    ] <> (maybe [] (\x -> [("PATH", x)]) mEnvPath)
+    ] <> maybe [] (\x -> [("PATH", x)]) mEnvPath
 
 waitSocket :: FilePath -> Int -> IO ()
 waitSocket _  0 = fail "No socket"
@@ -131,7 +131,7 @@ withNixDaemon action =
 
     bracket (startDaemon path)
             (P.terminateProcess . fst)
-            (\x -> action . snd $ x)
+            (action . snd)
 
 checks :: (Show a, Show b) => IO (a, b) -> (a -> Bool) -> IO ()
 checks action check = action >>= (`Hspec.shouldSatisfy` (check . fst))
@@ -143,7 +143,7 @@ it
   -> (a -> Bool)
   -> Hspec.SpecWith (m () -> IO (a, b))
 it name action check =
-  Hspec.it name $ \run -> (run (action >> pure ())) `checks` check
+  Hspec.it name $ \run -> run (action >> pure ()) `checks` check
 
 itRights
   :: (Show a, Show b, Show c, Monad m)
@@ -168,8 +168,7 @@ withPath action = do
 dummy :: MonadStore StorePath
 dummy = do
   let Right n = makeStorePathName "dummy"
-  res <- addToStore @SHA256 n "dummy" False (pure True) False
-  pure res
+  addToStore @SHA256 n "dummy" False (pure True) False
 
 invalidPath :: StorePath
 invalidPath =
@@ -204,30 +203,30 @@ spec_protocol = Hspec.around withNixDaemon $
         verifyStore True True `shouldReturn` False
 
     context "addTextToStore" $
-      itRights "adds text to store" $ withPath $ const pure ()
+      itRights "adds text to store" $ withPath $ pure
 
     context "isValidPathUncached" $ do
       itRights "validates path" $ withPath $ \path -> do
-        liftIO $ putStrLn $ show path
-        (isValidPathUncached path) `shouldReturn` True
-      itLefts "fails on invalid path" $ isValidPathUncached $ invalidPath
+        liftIO $ print path
+        isValidPathUncached path `shouldReturn` True
+      itLefts "fails on invalid path" $ isValidPathUncached invalidPath
 
     context "queryAllValidPaths" $ do
-      itRights "empty query" $ queryAllValidPaths
+      itRights "empty query" queryAllValidPaths
       itRights "non-empty query" $ withPath $ \path ->
-        queryAllValidPaths `shouldReturn` (HS.fromList [path])
+        queryAllValidPaths `shouldReturn` HS.fromList [path]
 
     context "queryPathInfoUncached" $
-      itRights "queries path info" $ withPath $ queryPathInfoUncached
+      itRights "queries path info" $ withPath queryPathInfoUncached
 
     context "ensurePath" $
-      itRights "simple ensure" $ withPath $ ensurePath
+      itRights "simple ensure" $ withPath ensurePath
 
     context "addTempRoot" $
-      itRights "simple addition" $ withPath $ addTempRoot
+      itRights "simple addition" $ withPath addTempRoot
 
     context "addIndirectRoot" $
-      itRights "simple addition" $ withPath $ addIndirectRoot
+      itRights "simple addition" $ withPath addIndirectRoot
 
     context "buildPaths" $ do
       itRights "build Normal" $ withPath $ \path -> do
@@ -243,13 +242,13 @@ spec_protocol = Hspec.around withNixDaemon $
         buildPaths pathSet Repair
 
     context "roots" $ context "findRoots" $ do
-        itRights "empty roots" $ (findRoots `shouldReturn` M.empty)
+        itRights "empty roots" (findRoots `shouldReturn` M.empty)
 
         itRights "path added as a temp root" $ withPath $ \_ -> do
           roots <- findRoots
           roots `shouldSatisfy` ((== 1) . M.size)
 
-    context "optimiseStore" $ itRights "optimises" $ optimiseStore
+    context "optimiseStore" $ itRights "optimises" optimiseStore
 
     context "queryMissing" $
       itRights "queries" $ withPath $ \path -> do
@@ -268,8 +267,8 @@ spec_protocol = Hspec.around withNixDaemon $
 
       itRights "valid dummy" $ do
         path <- dummy
-        liftIO $ putStrLn $ show path
-        (isValidPathUncached path) `shouldReturn` True
+        liftIO $ print path
+        isValidPathUncached path `shouldReturn` True
 
     context "derivation" $
       itRights "build derivation" $
