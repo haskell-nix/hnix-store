@@ -33,7 +33,7 @@ jobs:
         id: HaskEnvSetup
         uses: haskell/actions/setup@v1
         with:
-          ghc-version: '8.10'
+          ghc-version: '9.0'
 
       - name: "Repository update"
         run: cabal v2-update
