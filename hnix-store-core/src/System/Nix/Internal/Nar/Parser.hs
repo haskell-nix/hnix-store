@@ -25,13 +25,10 @@ import qualified Control.Monad.State             as State
 import qualified Control.Monad.Trans             as Trans
 import qualified Control.Monad.Trans.Control     as Base
 import qualified Data.ByteString                 as Bytes
-import qualified Data.Either                     as Either
-import qualified Data.IORef                      as IORef
 import qualified Data.List                       as List
 import qualified Data.Map                        as Map
 import qualified Data.Serialize                  as Serialize
 import qualified Data.Text                       as Text
-import qualified Data.Text.Encoding              as Text
 import qualified System.Directory                as Directory
 import           System.FilePath                 as FilePath
 import qualified System.IO                       as IO

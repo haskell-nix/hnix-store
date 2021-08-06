@@ -8,7 +8,6 @@ import qualified Data.ByteString.Char8       as BSC
 import qualified Data.ByteString.Base16      as B16
 import qualified System.Nix.Base32           as B32
 import qualified Data.ByteString.Base64.Lazy as B64
-import qualified Data.ByteString.Lazy        as BSL
 
 import           Test.Hspec
 import           Test.Tasty.QuickCheck

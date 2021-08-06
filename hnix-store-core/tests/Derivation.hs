@@ -12,7 +12,6 @@ import           System.Nix.Derivation          ( parseDerivation
 
 import qualified Data.Attoparsec.Text
 import qualified Data.Text.IO
-import qualified Data.Text.Lazy
 import qualified Data.Text.Lazy.Builder
 
 processDerivation :: FilePath -> FilePath -> IO ()

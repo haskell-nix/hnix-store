@@ -5,7 +5,6 @@ module System.Nix.ReadonlyStore where
 
 
 import qualified Data.ByteString               as BS
-import qualified Data.Text                     as T
 import qualified Data.HashSet                  as HS
 import           System.Nix.Hash
 import           System.Nix.Nar

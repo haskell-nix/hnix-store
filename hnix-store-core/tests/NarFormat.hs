@@ -17,7 +17,6 @@ import qualified Data.ByteString.Lazy             as BSL
 import qualified Data.ByteString.Lazy.Char8       as BSLC
 import qualified Data.Map                         as Map
 import qualified Data.Text                        as T
-import qualified Data.Text.Encoding               as E
 import           System.Directory                 ( doesDirectoryExist
                                                   , doesPathExist
                                                   , removeDirectoryRecursive
@@ -152,7 +151,7 @@ unit_packSelfSrcDir = Temp.withSystemTempDirectory "nar-test" $ \tmpDir -> do
       let go dir = do
             srcHere <- doesDirectoryExist dir
             bool
-              (pass)
+              pass
               (do
                 withFile narFilePath WriteMode $ \h ->
                   buildNarIO narEffectsIO "src" h
@@ -695,12 +694,12 @@ getNar = fmap Nar $ header >> parens getFile
           assertStr_ "entry"
           parens $ do
               assertStr_ "name"
-              name <- decodeUtf8 <$> str
+              name <- str
               assertStr_ "node"
               file <- parens getFile
               maybe (fail $ "Bad FilePathPart: " <> show name)
                     (pure . (,file))
-                    (filePathPart $ encodeUtf8 name)
+                    (filePathPart $ toStrict name)
 
       -- Fetch a length-prefixed, null-padded string
       str = fmap snd sizedStr

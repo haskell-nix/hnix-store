@@ -5,10 +5,8 @@ module System.Nix.Derivation
   )
 where
 
-import qualified Data.Text                     as Text
 import qualified Data.Text.Lazy.Builder        as Text.Lazy
                                                 ( Builder )
-import qualified Data.Text.Lazy.Builder        as Text.Lazy.Builder
 import qualified Data.Attoparsec.Text.Lazy     as Text.Lazy
                                                 ( Parser )
 import           Nix.Derivation                 ( Derivation )

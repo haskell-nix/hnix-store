@@ -40,8 +40,6 @@ import qualified System.Nix.Internal.Base32    as Nix.Base32
 import qualified Data.ByteString.Char8         as Bytes.Char8
 import qualified Data.Char                     as Char
 import qualified Data.Text                     as Text
-import qualified Data.Text.Encoding            as Text
-                                                ( encodeUtf8 )
 import           Data.Attoparsec.Text.Lazy      ( Parser
                                                 , (<?>)
                                                 )

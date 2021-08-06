@@ -4,7 +4,6 @@
 module Arbitrary where
 
 import qualified Data.ByteString.Char8         as BSC
-import qualified Data.Text                     as T
 
 import           Test.Tasty.QuickCheck
 
