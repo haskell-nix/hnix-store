@@ -2,9 +2,6 @@
 
 module Derivation where
 
-import           Control.Monad.IO.Class         ( liftIO )
-
-import           Data.Text                      ( Text )
 import           Nix.Derivation                 ( Derivation(..)
                                                 , DerivationOutput(..)
                                                 )

@@ -8,11 +8,7 @@ module System.Nix.Store.Remote.Parsers
   )
 where
 
-import           Control.Applicative            ( (<|>) )
 import           Data.Attoparsec.ByteString.Char8
-import           Data.ByteString.Char8
-import           Data.Text                      ( Text )
-import           Data.Text.Encoding             ( decodeUtf8 )
 import           System.Nix.Hash
 import           System.Nix.StorePath           ( ContentAddressableAddress(..)
                                                 , NarHashMode(..)

@@ -12,12 +12,10 @@ module System.Nix.Store.Remote.Protocol
   )
 where
 
+import qualified Relude.Unsafe                 as Unsafe
 
-import           Data.Bool                      ( bool )
 import           Control.Exception              ( bracket )
 import           Control.Monad.Except
-import           Control.Monad.Reader
-import           Control.Monad.State
 
 import           Data.Binary.Get
 import           Data.Binary.Put
@@ -130,7 +128,7 @@ simpleOpArgs op args = do
   bool
     sockGetBool
     (do
-      Error _num msg <- head <$> getError
+      Error _num msg <- Unsafe.head <$> getError
       throwError $ Data.ByteString.Char8.unpack msg
     )
     err
@@ -159,7 +157,7 @@ runOpArgsIO op encoder = do
   modify (\(a, b) -> (a, b <> out))
   err <- gotError
   when err $ do
-    Error _num msg <- head <$> getError
+    Error _num msg <- Unsafe.head <$> getError
     throwError $ Data.ByteString.Char8.unpack msg
 
 runStore :: MonadStore a -> IO (Either String a, [Logger])

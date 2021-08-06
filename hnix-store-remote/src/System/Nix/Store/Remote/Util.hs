@@ -1,19 +1,16 @@
 {-# LANGUAGE RecordWildCards     #-}
 module System.Nix.Store.Remote.Util where
 
+import           Prelude                 hiding ( putText )
 import           Control.Monad.Except
-import           Control.Monad.Reader
 
-import           Data.Either
 import           Data.Binary.Get
 import           Data.Binary.Put
-import           Data.Text                      ( Text )
 import qualified Data.Text.Encoding            as T
 import qualified Data.Text.Lazy                as TL
 import qualified Data.Text.Lazy.Encoding       as TL
 import           Data.Time
 import           Data.Time.Clock.POSIX
-import           Data.ByteString                ( ByteString )
 import qualified Data.ByteString.Char8         as BSC
 import qualified Data.ByteString.Lazy          as BSL
 
@@ -39,7 +36,7 @@ genericIncremental getsome parser = go decoder
   go (Partial k                   ) = do
     chunk <- getsome
     go (k chunk)
-  go (Fail _leftover _consumed msg) = error msg
+  go (Fail _leftover _consumed msg) = error $ fromString msg
 
 getSocketIncremental :: Get a -> MonadStore a
 getSocketIncremental = genericIncremental sockGet8
@@ -169,4 +166,4 @@ putDerivation Derivation{..} = do
   putMany putText args
 
   flip putMany (Data.Map.toList env)
-    $ \(first, second) -> putText first >> putText second
+    $ \(a1, a2) -> putText a1 *> putText a2

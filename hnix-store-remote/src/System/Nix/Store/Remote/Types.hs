@@ -17,12 +17,8 @@ module System.Nix.Store.Remote.Types
 where
 
 
-import           Data.ByteString                ( ByteString )
 import qualified Data.ByteString.Lazy          as BSL
 import           Network.Socket                 ( Socket )
-import           Control.Monad.Except
-import           Control.Monad.Reader
-import           Control.Monad.State
 
 data StoreConfig = StoreConfig
   { storeDir    :: FilePath

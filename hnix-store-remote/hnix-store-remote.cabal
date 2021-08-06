@@ -53,6 +53,10 @@ library
     , mtl
     , unordered-containers
     , hnix-store-core >= 0.5 && <0.6
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude)
+    , relude
   default-extensions:
       OverloadedStrings
     , DeriveGeneric
@@ -95,6 +99,7 @@ test-suite hnix-store-remote-tests
     tasty-discover:tasty-discover
   build-depends:
       base
+    , relude
     , hnix-store-core >= 0.3
     , hnix-store-remote
     , containers
@@ -115,6 +120,10 @@ test-suite hnix-store-remote-tests
     , unix
     , unordered-containers
     , vector
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude)
+    , relude
   default-extensions:
       OverloadedStrings
     , DeriveGeneric

@@ -4,10 +4,8 @@ Maintainer  : srk <srk@48.io>
 |-}
 module System.Nix.Store.Remote.Binary where
 
-import           Control.Monad
 import           Data.Binary.Get
 import           Data.Binary.Put
-import           Data.ByteString                ( ByteString )
 import qualified Data.ByteString.Lazy          as BSL
 
 putInt :: Integral a => a -> Put

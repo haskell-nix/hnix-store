@@ -33,13 +33,8 @@ module System.Nix.Store.Remote
   )
 where
 
-import           Control.Monad                  ( void
-                                                , unless
-                                                , when
-                                                )
-import           Data.ByteString.Lazy           ( ByteString )
-import           Data.Map.Strict                ( Map )
-import           Data.Text                      ( Text )
+import           Prelude                 hiding ( putText )
+import qualified Data.ByteString.Lazy          as BSL
 
 import           Nix.Derivation                 ( Derivation )
 import           System.Nix.Build               ( BuildMode
@@ -61,7 +56,6 @@ import           System.Nix.StorePathMetadata   ( StorePathMetadata(..)
 import           System.Nix.Internal.Base       ( encodeWith )
 
 import qualified Data.Binary.Put
-import qualified Data.ByteString.Lazy
 import qualified Data.Map.Strict
 import qualified Data.Set
 import qualified Data.Text.Encoding
@@ -75,7 +69,6 @@ import           System.Nix.Store.Remote.Types
 import           System.Nix.Store.Remote.Protocol
 import           System.Nix.Store.Remote.Util
 import           Crypto.Hash                    ( SHA256 )
-import           Data.Coerce                    ( coerce )
 
 type RepairFlag = Bool
 type CheckFlag = Bool
@@ -94,7 +87,7 @@ addToStore
 addToStore name pth recursive _pathFilter _repair = do
 
   runOpArgsIO AddToStore $ \yield -> do
-    yield $ Data.ByteString.Lazy.toStrict $ Data.Binary.Put.runPut $ do
+    yield $ BSL.toStrict $ Data.Binary.Put.runPut $ do
       putText $ System.Nix.StorePath.unStorePathName name
 
       putBool $ not $ System.Nix.Hash.algoName @a == "sha256" && recursive
@@ -126,7 +119,7 @@ addTextToStore name text references' repair = do
     putPaths references'
   sockGetPath
 
-addSignatures :: StorePath -> [ByteString] -> MonadStore ()
+addSignatures :: StorePath -> [BSL.ByteString] -> MonadStore ()
 addSignatures p signatures = do
   void $ simpleOpArgs AddSignatures $ do
     putPath p
@@ -175,7 +168,7 @@ ensurePath pn = do
   void $ simpleOpArgs EnsurePath $ putPath pn
 
 -- | Find garbage collector roots.
-findRoots :: MonadStore (Map ByteString StorePath)
+findRoots :: MonadStore (Map BSL.ByteString StorePath)
 findRoots = do
   runOp FindRoots
   sd  <- getStoreDir
@@ -183,7 +176,7 @@ findRoots = do
     getSocketIncremental
     $ getMany
     $ (,)
-      <$> (Data.ByteString.Lazy.fromStrict <$> getByteStringLen)
+      <$> (BSL.fromStrict <$> getByteStringLen)
       <*> getPath sd
 
   r <- catRights res
@@ -194,7 +187,7 @@ findRoots = do
 
   ex :: (a, Either [Char] b) -> MonadStore (a, b)
   ex (x , Right y) = pure (x, y)
-  ex (_x, Left e ) = error $ "Unable to decode root: " <> e
+  ex (_x, Left e ) = error $ "Unable to decode root: " <> fromString e
 
 isValidPathUncached :: StorePath -> MonadStore Bool
 isValidPathUncached p = do
@@ -237,7 +230,7 @@ queryPathInfoUncached path = do
       case
         decodeDigestWith @SHA256 NixBase32 narHashText
         of
-        Left  e -> error e
+        Left  e -> error $ fromString e
         Right x -> SomeDigest x
 
   references       <- sockGetPaths
@@ -256,7 +249,7 @@ queryPathInfoUncached path = do
         case
           System.Nix.Store.Remote.Parsers.parseContentAddressableAddress caString
           of
-          Left  e -> error e
+          Left  e -> error $ fromString e
           Right x -> Just x
 
       trust = if ultimate then BuiltLocally else BuiltElsewhere
@@ -287,7 +280,7 @@ queryPathFromHashPart :: StorePathHashPart -> MonadStore StorePath
 queryPathFromHashPart storePathHash = do
   runOpArgs QueryPathFromHashPart
     $ putByteStringLen
-    $ Data.ByteString.Lazy.fromStrict
+    $ BSL.fromStrict
     $ Data.Text.Encoding.encodeUtf8
     $ encodeWith NixBase32 $ coerce storePathHash
   sockGetPath
