@@ -42,7 +42,7 @@ caText = do
 caFixed :: Parser ContentAddressableAddress
 caFixed = do
   _           <- "fixed:"
-  narHashMode <- (pure Recursive <$> "r:") <|> (pure RegularFile <$> "")
+  narHashMode <- (Recursive <$ "r:") <|> (RegularFile <$ "")
   digest      <- parseTypedDigest
   either fail pure $ Fixed narHashMode <$> digest
 

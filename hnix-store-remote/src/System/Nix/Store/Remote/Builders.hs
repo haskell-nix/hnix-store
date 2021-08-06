@@ -30,7 +30,7 @@ contentAddressableAddressBuilder (Text digest) =
   "text:" <> digestBuilder digest
 contentAddressableAddressBuilder (Fixed _narHashMode (SomeDigest (digest :: Digest hashAlgo))) =
   "fixed:"
-  <> (Data.Text.Lazy.Builder.fromText $ System.Nix.Hash.algoName @hashAlgo)
+  <> Data.Text.Lazy.Builder.fromText (System.Nix.Hash.algoName @hashAlgo)
   <> digestBuilder digest
 
 digestBuilder :: Digest a -> Builder

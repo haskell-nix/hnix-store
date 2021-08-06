@@ -47,7 +47,7 @@ import           Nix.Derivation                 ( Derivation )
 import           System.Nix.Build               ( BuildMode
                                                 , BuildResult
                                                 )
-import           System.Nix.Hash                ( NamedAlgo
+import           System.Nix.Hash                ( NamedAlgo(..)
                                                 , SomeNamedDigest(..)
                                                 , BaseEncoding(NixBase32)
                                                 , decodeDigestWith
@@ -69,7 +69,6 @@ import qualified Data.Set
 import qualified Data.Text.Encoding
 
 import qualified System.Nix.Nar
-import qualified System.Nix.Hash
 import qualified System.Nix.StorePath
 import qualified System.Nix.Store.Remote.Parsers
 
@@ -171,8 +170,7 @@ buildDerivation p drv buildMode = do
     -- Intentionally the only warning that should pop-up.
     putInt (0 :: Integer)
 
-  res <- getSocketIncremental getBuildResult
-  pure res
+  getSocketIncremental getBuildResult
 
 ensurePath :: StorePath -> MonadStore ()
 ensurePath pn = do

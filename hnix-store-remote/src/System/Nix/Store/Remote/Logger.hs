@@ -60,8 +60,7 @@ processOutput = go decoder
             sockPut $ putByteStringLen part
             clearData
 
-        next <- go decoder
-        pure next
+        go decoder
 
       -- we should probably handle Read here as well
       x -> do
@@ -77,7 +76,7 @@ processOutput = go decoder
 getFields :: Get [Field]
 getFields = do
   cnt <- getInt
-  sequence $ replicate cnt getField
+  replicateM cnt getField
 
 getField :: Get Field
 getField = do
