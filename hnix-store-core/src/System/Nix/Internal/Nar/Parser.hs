@@ -166,7 +166,7 @@ parseSymlink = do
   (dir, file) <- currentDirectoryAndFile
   pushLink $
     LinkInfo
-      { linkTarget = Text.unpack target
+      { linkTarget = toString target
       , linkFile   = file
       , linkPWD    = dir
       }
@@ -271,7 +271,7 @@ parseDirectory = do
     parens $ do
       expectStr "name"
       fName <- parseStr
-      pushFileName (Text.unpack fName)
+      pushFileName (toString fName)
       expectStr "node"
       parens parseFSO
       popFileName

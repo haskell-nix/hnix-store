@@ -39,7 +39,7 @@ decodeWith Base16 = lDecode  -- this tacit sugar simply makes GHC pleased with n
   lDecode t =
     case Base16.decode (T.encodeUtf8 t) of
       (x, "") -> pure $ x
-      _       -> Left $ "Unable to decode base16 string" <> T.unpack t
+      _       -> Left $ "Unable to decode base16 string" <> toString t
 #endif
 decodeWith NixBase32 = Base32.decode
 decodeWith Base64 = Base64.decode . T.encodeUtf8

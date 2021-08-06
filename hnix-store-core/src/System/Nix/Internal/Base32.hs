@@ -68,7 +68,7 @@ unsafeDecode what =
         (\c -> fromMaybe (error "character not in digits32")
           $ Vector.findIndex (== c) digits32
         )
-        (Data.Text.unpack what)
+        (toString what)
     of
       [(i, _)] -> pure $ padded $ integerToBS i
       x        -> Left $ "Can't decode: readInt returned " <> show x
