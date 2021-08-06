@@ -75,7 +75,7 @@ runParser
      -- ^ A parser to run, such as @parseNar@
   -> IO.Handle
      -- ^ A handle the stream containg the NAR. It should already be
-     --   open and in @IO.ReadMode@
+     --   open and in @ReadMode@
   -> FilePath
      -- ^ The root file system object to be created by the NAR
   -> m (Either String a)
@@ -481,14 +481,14 @@ pushLink linkInfo = State.modify (\s -> s { links = linkInfo : links s })
 testParser :: (m ~ IO) => NarParser m a -> ByteString -> m (Either String a)
 testParser p b = do
   Bytes.writeFile tmpFileName b
-  withFile tmpFileName IO.ReadMode $ \h ->
+  withFile tmpFileName ReadMode $ \h ->
     runParser Nar.narEffectsIO p h tmpFileName
  where
   tmpFileName = "tmp"
 
 testParser' :: (m ~ IO) => FilePath -> IO (Either String ())
 testParser' fp =
-  withFile fp IO.ReadMode $ \h -> runParser Nar.narEffectsIO parseNar h "tmp"
+  withFile fp ReadMode $ \h -> runParser Nar.narEffectsIO parseNar h "tmp"
 
 
 

@@ -46,7 +46,7 @@ withBytesAsHandle bytes act = do
   Temp.withSystemTempFile "nar-test-file-XXXXX" $ \tmpFile h -> do
     IO.hClose h
     BSL.writeFile tmpFile bytes
-    withFile tmpFile IO.ReadMode act
+    withFile tmpFile ReadMode act
 
 spec_narEncoding :: Spec
 spec_narEncoding = do
@@ -241,7 +241,7 @@ test_streamManyFilesToNar = HU.testCaseSteps "streamManyFilesToNar" $ \step ->
       buildNarIO narEffectsIO packagePath h
 
     step "unpack nar"
-    r <- withFile narFilePath IO.ReadMode $ \h ->
+    r <- withFile narFilePath ReadMode $ \h ->
       unpackNarIO narEffectsIO h packagePath'
     r `shouldBe` Right ()
 
@@ -352,7 +352,7 @@ packThenExtract testName setup =
         -- BSL.writeFile hnixNarFile narBS
 
         step $ "Unpack NAR to " <> outputFile
-        _narHandle <- withFile nixNarFile IO.ReadMode $ \h ->
+        _narHandle <- withFile nixNarFile ReadMode $ \h ->
           unpackNarIO narEffectsIO h outputFile
 
         pass
