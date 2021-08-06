@@ -97,7 +97,7 @@ textToBS :: Text -> ByteString
 textToBS = T.encodeUtf8
 
 bslToText :: BSL.ByteString -> Text
-bslToText = TL.toStrict . TL.decodeUtf8
+bslToText = toText . TL.decodeUtf8
 
 textToBSL :: Text -> BSL.ByteString
 textToBSL = TL.encodeUtf8 . TL.fromStrict

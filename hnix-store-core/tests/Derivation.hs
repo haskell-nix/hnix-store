@@ -22,7 +22,7 @@ processDerivation source dest = do
     fail
     -- It seems to be derivation.
     (Data.Text.IO.writeFile dest
-      . Data.Text.Lazy.toStrict
+      . toText
       . Data.Text.Lazy.Builder.toLazyText
       . buildDerivation
     )

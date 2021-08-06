@@ -178,7 +178,7 @@ storePathToFilePath = Bytes.Char8.unpack . storePathToRawFilePath
 
 -- | Render a 'StorePath' as a 'Text'.
 storePathToText :: StorePath -> Text
-storePathToText = Text.pack . Bytes.Char8.unpack . storePathToRawFilePath
+storePathToText = toText . Bytes.Char8.unpack . storePathToRawFilePath
 
 -- | Build `narinfo` suffix from `StorePath` which
 -- can be used to query binary caches.
@@ -192,7 +192,7 @@ parsePath :: FilePath -> Bytes.Char8.ByteString -> Either String StorePath
 parsePath expectedRoot x =
   let
     (rootDir, fname) = FilePath.splitFileName . Bytes.Char8.unpack $ x
-    (storeBasedHashPart, namePart) = Text.breakOn "-" $ Text.pack fname
+    (storeBasedHashPart, namePart) = Text.breakOn "-" $ toText fname
     storeHash = decodeWith NixBase32 storeBasedHashPart
     name = makeStorePathName . Text.drop 1 $ namePart
     --rootDir' = dropTrailingPathSeparator rootDir
@@ -208,7 +208,7 @@ parsePath expectedRoot x =
 pathParser :: FilePath -> Parser StorePath
 pathParser expectedRoot = do
   _ <-
-    Parser.Text.Lazy.string (Text.pack expectedRoot)
+    Parser.Text.Lazy.string (toText expectedRoot)
       <?> "Store root mismatch" -- e.g. /nix/store
 
   _ <- Parser.Text.Lazy.char '/'

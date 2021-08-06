@@ -24,7 +24,7 @@ dir :: Gen String
 dir = ('/':) <$> listOf1 (elements $ '/':['a'..'z'])
 
 instance Arbitrary StorePathName where
-  arbitrary = StorePathName . T.pack <$> ((:) <$> s1 <*> listOf sn)
+  arbitrary = StorePathName . toText <$> ((:) <$> s1 <*> listOf sn)
    where
     alphanum = ['a' .. 'z'] <> ['A' .. 'Z'] <> ['0' .. '9']
     s1       = elements $ alphanum <> "+-_?="

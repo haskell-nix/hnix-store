@@ -64,7 +64,7 @@ withDerivation action = withBuildScript $ \buildScript -> withBash $ \bash ->
 
     pth <- addTextToStore
       "hnix-store-derivation"
-      ( Data.Text.Lazy.toStrict
+      ( toText
       $ Data.Text.Lazy.Builder.toLazyText
       $ System.Nix.Derivation.buildDerivation d
       )

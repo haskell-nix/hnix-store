@@ -38,7 +38,7 @@ makeStorePath fp ty h nm = StorePath (coerce storeHash) nm fp
       ty:fmap encodeUtf8
         [ algoName @h
         , encodeDigestWith Base16 h
-        , T.pack fp
+        , toText fp
         , coerce nm
         ]
 
