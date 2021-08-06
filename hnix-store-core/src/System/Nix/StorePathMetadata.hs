@@ -8,9 +8,7 @@ import           System.Nix.StorePath           ( StorePath
                                                 , ContentAddressableAddress
                                                 )
 import           System.Nix.Hash                ( SomeNamedDigest )
-import           Data.Set                       ( Set )
 import           Data.Time                      ( UTCTime )
-import           Data.Word                      ( Word64 )
 import           System.Nix.Signature           ( NarSignature )
 
 -- | Metadata about a 'StorePath'

@@ -5,15 +5,8 @@
 
 module NixDaemon where
 
-import           Data.Bool                      ( bool )
-import           Control.Monad                  ( void )
-import           Control.Monad.IO.Class         ( liftIO )
 import           Control.Exception              ( bracket )
 import           Control.Concurrent             ( threadDelay )
-import           Data.Either                    ( isRight
-                                                , isLeft
-                                                )
-import           Data.Text                      ( Text )
 import qualified Data.HashSet                  as HS
 import qualified Data.Map.Strict               as M
 import           System.Directory
@@ -72,7 +65,7 @@ waitSocket fp x = do
 
 writeConf :: FilePath -> IO ()
 writeConf fp =
-  writeFile fp $ unlines
+  writeFile fp $ toString $ unlines
     [ "build-users-group = "
     , "trusted-users = root"
     , "allowed-users = *"

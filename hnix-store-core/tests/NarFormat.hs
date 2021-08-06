@@ -6,13 +6,8 @@
 
 module NarFormat where
 
-import           Data.Bool
-import           Data.Foldable
-import           Control.Applicative              (many, optional, (<|>))
 import qualified Control.Concurrent               as Concurrent
-import           Control.Exception                (SomeException, try)
-import           Control.Monad                    (replicateM, void,
-                                                   when)
+import           Control.Exception                (try)
 import           Data.Binary.Get                  (Get, getByteString,
                                                    getInt64le,
                                                    getLazyByteString, runGet)
@@ -23,9 +18,7 @@ import qualified Data.ByteString.Base64.Lazy      as B64
 import qualified Data.ByteString.Char8            as BSC
 import qualified Data.ByteString.Lazy             as BSL
 import qualified Data.ByteString.Lazy.Char8       as BSLC
-import           Data.Int
 import qualified Data.Map                         as Map
-import           Data.Maybe                       (fromMaybe)
 import qualified Data.Text                        as T
 import qualified Data.Text.Encoding               as E
 import           System.Directory                 ( doesDirectoryExist
@@ -45,7 +38,6 @@ import           Test.Hspec
 import qualified Test.Tasty.HUnit                 as HU
 import           Test.Tasty.QuickCheck
 import qualified Text.Printf                      as Printf
-import           Text.Read                        (readMaybe)
 
 import qualified System.Nix.Internal.Nar.Streamer as Nar
 import           System.Nix.Nar
@@ -377,7 +369,7 @@ countProcessFiles = do
     then pure Nothing
     else do
       let fdDir = "/proc/" <> show pid <> "/fd"
-      fds  <- P.readProcess "ls" [fdDir] ""
+      fds  <- toText <$> P.readProcess "ls" [fdDir] ""
       pure $ pure $ length $ words fds
 
 
@@ -542,8 +534,8 @@ getBigFileSize = fromMaybe 5000000 . readMaybe <$> (getEnv "HNIX_BIG_FILE_SIZE" 
 -- | Add a link to a FileSystemObject. This is useful
 --   when creating Arbitrary FileSystemObjects. It
 --   isn't implemented yet
-mkLink ::
-     FilePath -- ^ Target
+mkLink
+  :: FilePath -- ^ Target
   -> FilePath -- ^ Link
   -> FileSystemObject -- ^ FileSystemObject to add link to
   -> FileSystemObject

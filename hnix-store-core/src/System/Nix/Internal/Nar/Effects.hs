@@ -10,7 +10,6 @@ module System.Nix.Internal.Nar.Effects
 
 import qualified Data.ByteString             as Bytes
 import qualified Data.ByteString.Lazy        as Bytes.Lazy
-import           Data.Int                    (Int64)
 import qualified System.Directory            as Directory
 import           System.Posix.Files          ( createSymbolicLink
                                         , fileSize

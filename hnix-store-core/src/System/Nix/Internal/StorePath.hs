@@ -32,14 +32,15 @@ module System.Nix.Internal.StorePath
   , pathParser
   )
 where
+
+import qualified Relude.Unsafe as Unsafe
+import qualified Text.Show
 import           System.Nix.Internal.Hash
 import           System.Nix.Internal.Base
 import qualified System.Nix.Internal.Base32    as Nix.Base32
 
-import           Data.ByteString                ( ByteString )
 import qualified Data.ByteString.Char8         as Bytes.Char8
 import qualified Data.Char                     as Char
-import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
 import qualified Data.Text.Encoding            as Text
                                                 ( encodeUtf8 )
@@ -48,9 +49,6 @@ import           Data.Attoparsec.Text.Lazy      ( Parser
                                                 )
 import qualified Data.Attoparsec.Text.Lazy     as Parser.Text.Lazy
 import qualified System.FilePath               as FilePath
-import           Data.Hashable                  ( Hashable(..) )
-import           Data.HashSet                   ( HashSet )
-import           Data.Coerce                    ( coerce )
 import           Crypto.Hash                    ( SHA256
                                                 , Digest
                                                 )
@@ -201,10 +199,10 @@ parsePath expectedRoot x =
     name = makeStorePathName . Text.drop 1 $ namePart
     --rootDir' = dropTrailingPathSeparator rootDir
     -- cannot use ^^ as it drops multiple slashes /a/b/// -> /a/b
-    rootDir' = init rootDir
+    rootDir' = Unsafe.init rootDir
     storeDir =
       if expectedRoot == rootDir'
-        then Right rootDir'
+        then pure rootDir'
         else Left $ "Root store dir mismatch, expected" <> expectedRoot <> "got" <> rootDir'
   in
     StorePath <$> coerce storeHash <*> name <*> storeDir

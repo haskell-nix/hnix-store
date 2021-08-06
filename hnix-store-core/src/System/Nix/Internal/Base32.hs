@@ -6,18 +6,12 @@ module System.Nix.Internal.Base32
 where
 
 
-import           Data.Bool                      ( bool )
-import           Data.Maybe                     ( fromMaybe )
-import           Data.ByteString                ( ByteString )
 import qualified Data.ByteString               as Bytes
 import qualified Data.ByteString.Char8         as Bytes.Char8
 import qualified Data.Text
 import           Data.Vector                    ( Vector )
 import qualified Data.Vector                   as Vector
-import           Data.Text                      ( Text )
 import           Data.Bits                      ( shiftR )
-import           Data.Word                      ( Word8 )
-import           Data.List                      ( unfoldr )
 import           Numeric                        ( readInt )
 
 
@@ -71,12 +65,12 @@ unsafeDecode what =
       readInt
         32
         (`elem` digits32)
-        (\c -> fromMaybe (error "character not in digits32")
+        (\c -> fromMaybe (error $ toText "character not in digits32")
           $ Vector.findIndex (== c) digits32
         )
         (Data.Text.unpack what)
     of
-      [(i, _)] -> Right $ padded $ integerToBS i
+      [(i, _)] -> pure $ padded $ integerToBS i
       x        -> Left $ "Can't decode: readInt returned " <> show x
  where
   padded x
@@ -93,7 +87,7 @@ integerToBS :: Integer -> ByteString
 integerToBS 0 = Bytes.pack [0]
 integerToBS i
     | i > 0     = Bytes.pack $ unfoldr f i
-    | otherwise = error "integerToBS not defined for negative values"
+    | otherwise = error $ toText "integerToBS not defined for negative values"
   where
     f 0 = Nothing
     f x = Just (fromInteger x :: Word8, x `shiftR` 8)

@@ -12,7 +12,6 @@ module System.Nix.Build
 where
 
 import           Data.Time                      ( UTCTime )
-import           Data.Text                      ( Text )
 
 -- keep the order of these Enums to match enums from reference implementations
 -- src/libstore/store-api.hh

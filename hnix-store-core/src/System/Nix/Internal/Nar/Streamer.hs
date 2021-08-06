@@ -9,18 +9,12 @@ module System.Nix.Internal.Nar.Streamer
   )
 where
 
-import           Control.Monad                    ( forM_
-                                                  , when
-                                                  )
 import qualified Control.Monad.IO.Class          as IO
-import           Data.Bool                        ( bool )
-import           Data.ByteString                  ( ByteString )
 import qualified Data.ByteString                 as Bytes
 import qualified Data.ByteString.Char8           as Bytes.Char8
 import qualified Data.ByteString.Lazy            as Bytes.Lazy
 import qualified Data.List                       as List
 import qualified Data.Serialize                  as Serial
-import           GHC.Int                          ( Int64 )
 import qualified System.Directory                as Directory
 import           System.FilePath                  ( (</>) )
 

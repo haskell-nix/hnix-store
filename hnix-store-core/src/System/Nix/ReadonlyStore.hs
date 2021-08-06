@@ -6,17 +6,12 @@
 module System.Nix.ReadonlyStore where
 
 
-import           Data.ByteString                ( ByteString )
 import qualified Data.ByteString               as BS
-import           Data.List                      ( sort )
 import qualified Data.Text                     as T
 import qualified Data.HashSet                  as HS
-import           Data.Text.Encoding
 import           System.Nix.Hash
 import           System.Nix.Nar
 import           System.Nix.StorePath
-import           Control.Monad.State.Strict
-import           Data.Coerce                    ( coerce )
 import           Crypto.Hash                    ( Context
                                                 , Digest
                                                 , hash

@@ -15,14 +15,11 @@ module System.Nix.Internal.Nar.Parser
   )
 where
 
+import qualified Relude.Unsafe as Unsafe
 import qualified Algebra.Graph                   as Graph
 import qualified Algebra.Graph.ToGraph           as Graph
 import qualified Control.Concurrent              as Concurrent
 import qualified Control.Exception.Lifted        as Exception.Lifted
-import           Control.Monad                    ( forM
-                                                  , when
-                                                  , forM_
-                                                  )
 import qualified Control.Monad.Except            as Except
 import qualified Control.Monad.Fail              as Fail
 import qualified Control.Monad.IO.Class          as IO
@@ -30,17 +27,12 @@ import qualified Control.Monad.Reader            as Reader
 import qualified Control.Monad.State             as State
 import qualified Control.Monad.Trans             as Trans
 import qualified Control.Monad.Trans.Control     as Base
-import           Data.ByteString                  ( ByteString )
 import qualified Data.ByteString                 as Bytes
-import           Data.Bool                        ( bool )
 import qualified Data.Either                     as Either
-import           Data.Int                         ( Int64 )
 import qualified Data.IORef                      as IORef
 import qualified Data.List                       as List
 import qualified Data.Map                        as Map
-import           Data.Maybe                       ( catMaybes )
 import qualified Data.Serialize                  as Serialize
-import           Data.Text                        ( Text )
 import qualified Data.Text                       as Text
 import qualified Data.Text.Encoding              as Text
 import qualified System.Directory                as Directory
@@ -185,7 +177,7 @@ parseSymlink = do
   currentDirectoryAndFile :: Monad m => NarParser m (FilePath, FilePath)
   currentDirectoryAndFile = do
     dirStack <- State.gets directoryStack
-    pure (List.foldr1 (</>) (List.reverse $ drop 1 dirStack), head dirStack)
+    pure (List.foldr1 (</>) (List.reverse $ drop 1 dirStack), Unsafe.head dirStack)
 
 
 -- | Internal data type representing symlinks encountered in the NAR

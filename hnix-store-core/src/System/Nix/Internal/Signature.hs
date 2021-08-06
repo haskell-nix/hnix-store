@@ -11,9 +11,7 @@ module System.Nix.Internal.Signature
 where
 
 
-import           Data.ByteString                    ( ByteString )
 import qualified Data.ByteString                   as Bytes
-import           Data.Coerce                        ( coerce )
 import           Crypto.Saltine.Core.Sign           ( PublicKey )
 import           Crypto.Saltine.Class               ( IsEncoding(..) )
 

@@ -6,7 +6,6 @@ module System.Nix.Derivation
   )
 where
 
-import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
 import qualified Data.Text.Lazy.Builder        as Text.Lazy
                                                 ( Builder )

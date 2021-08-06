@@ -21,9 +21,9 @@ module System.Nix.Internal.Hash
   )
 where
 
+import qualified Text.Show
 import qualified Crypto.Hash            as C
 import qualified Data.ByteString        as BS
-import           Data.Text              (Text)
 import qualified Data.Text              as T
 import           System.Nix.Internal.Base
 import           Data.ByteArray
@@ -99,8 +99,3 @@ decodeDigestWith b x =
         maybeToRight
           ("Cryptonite was not able to convert '(ByteString -> Digest a)' for: '" <> show bs <>"'.")
     (toEither . C.digestFromByteString) bs
- where
-  -- To not depend on @extra@
-  maybeToRight :: b -> Maybe a -> Either b a
-  maybeToRight _ (Just r) = pure r
-  maybeToRight y Nothing  = Left y
