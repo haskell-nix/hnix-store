@@ -43,12 +43,12 @@ createProcessEnv fp proc args = do
   pure ph
 
 mockedEnv :: Maybe String -> FilePath -> [(String, FilePath)]
-mockedEnv mEnvPath fp =
-  [ ("NIX_STORE_DIR"     , fp </> "store")
-  , ("NIX_LOCALSTATE_DIR", fp </> "var")
-  , ("NIX_LOG_DIR"       , fp </> "var" </> "log")
-  , ("NIX_STATE_DIR"     , fp </> "var" </> "nix")
-  , ("NIX_CONF_DIR"      , fp </> "etc")
+mockedEnv mEnvPath fp = (fp </>) <<$>>
+  [ ("NIX_STORE_DIR"     , "store")
+  , ("NIX_LOCALSTATE_DIR", "var")
+  , ("NIX_LOG_DIR"       , "var" </> "log")
+  , ("NIX_STATE_DIR"     , "var" </> "nix")
+  , ("NIX_CONF_DIR"      , "etc")
 --  , ("NIX_REMOTE", "daemon")
     ] <> foldMap (\x -> [("PATH", x)]) mEnvPath
 
