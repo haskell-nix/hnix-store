@@ -549,7 +549,7 @@ mkBigFile path = do
 filePathPart :: BSC.ByteString -> Maybe FilePathPart
 filePathPart p = if BSC.any (`elem` ['/', '\NUL']) p then Nothing else Just $ FilePathPart p
 
-data Nar = Nar { narFile :: FileSystemObject }
+newtype Nar = Nar { narFile :: FileSystemObject }
     deriving (Eq, Show)
 
 -- | A FileSystemObject (FSO) is an anonymous entity that can be NAR archived
