@@ -6,6 +6,8 @@
 
 module NarFormat where
 
+import           Data.Bool
+import           Data.Foldable
 import           Control.Applicative              (many, optional, (<|>))
 import qualified Control.Concurrent               as Concurrent
 import           Control.Exception                (SomeException, try)
@@ -84,7 +86,7 @@ spec_narEncoding = do
           IO.hClose h
           BSL.readFile tmpFile
 
-        res' `shouldBe` (runPut $ putNar n)
+        res' `shouldBe` runPut (putNar n)
 
   -- For a Haskell embedded Nar, check that encoding it gives
   -- the same bytestring as `nix-store --dump`
@@ -160,9 +162,9 @@ unit_packSelfSrcDir = Temp.withSystemTempDirectory "nar-test" $ \tmpDir -> do
     Right _ -> do
       let go dir = do
             srcHere <- doesDirectoryExist dir
-            case srcHere of
-              False -> pure ()
-              True -> do
+            bool
+              (pure ())
+              (do
                 IO.withFile narFilePath IO.WriteMode $ \h ->
                   buildNarIO narEffectsIO "src" h
                 hnixNar <- BSL.readFile narFilePath
@@ -171,6 +173,8 @@ unit_packSelfSrcDir = Temp.withSystemTempDirectory "nar-test" $ \tmpDir -> do
                   "src dir serializes the same between hnix-store and nix-store"
                   hnixNar
                   nixStoreNar
+              )
+              srcHere
       go "src"
       go "hnix-store-core/src"
 -- ||||||| merged common ancestors
@@ -237,7 +241,7 @@ test_streamManyFilesToNar = HU.testCaseSteps "streamManyFilesToNar" $ \step ->
 
     step "create test files"
     Directory.createDirectory packagePath
-    flip mapM_ [0..1000] $ \i -> do
+    forM_ [0..1000] $ \i -> do
       BSL.writeFile (Printf.printf (packagePath </> "%08d") (i :: Int)) "hi\n"
       Concurrent.threadDelay 50
 
@@ -254,7 +258,7 @@ test_streamManyFilesToNar = HU.testCaseSteps "streamManyFilesToNar" $ \step ->
 
     step "check constant file usage"
     filesPostcount <- countProcessFiles
-    case ((-) <$> filesPostcount <*> filesPrecount) of
+    case (-) <$> filesPostcount <*> filesPrecount of
       Nothing -> pure ()
       Just c -> c `shouldSatisfy` (< 50)
 
@@ -554,9 +558,7 @@ mkBigFile path = do
 -- | Construct FilePathPart from Text by checking that there
 --   are no '/' or '\\NUL' characters
 filePathPart :: BSC.ByteString -> Maybe FilePathPart
-filePathPart p = case BSC.any (`elem` ['/', '\NUL']) p of
-  False -> Just $ FilePathPart p
-  True  -> Nothing
+filePathPart p = if BSC.any (`elem` ['/', '\NUL']) p then Nothing else Just $ FilePathPart p
 
 data Nar = Nar { narFile :: FileSystemObject }
     deriving (Eq, Show)
@@ -650,7 +652,7 @@ putNar (Nar file) = header <> parens (putFile file)
             in int len <> pad len t
 
         putContents :: Int64 -> BSL.ByteString -> Put
-        putContents fSize bs = str "contents" <> int fSize <> (pad fSize bs)
+        putContents fSize bs = str "contents" <> int fSize <> pad fSize bs
 
         int :: Integral a => a -> Put
         int n = putInt64le $ fromIntegral n

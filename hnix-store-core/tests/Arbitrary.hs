@@ -46,11 +46,10 @@ newtype NixLike = NixLike {getNixLike :: StorePath}
 instance Arbitrary NixLike where
   arbitrary =
     NixLike <$>
-      (liftA3 StorePath
+      liftA3 StorePath
         arbitraryTruncatedDigest
         arbitrary
         (pure "/nix/store")
-      )
    where
     -- 160-bit hash, 20 bytes, 32 chars in base32
     arbitraryTruncatedDigest = coerce . BSC.pack <$> replicateM 20 genSafeChar
