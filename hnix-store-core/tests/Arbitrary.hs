@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE DataKinds            #-}
 {-# OPTIONS_GHC -Wno-orphans      #-}

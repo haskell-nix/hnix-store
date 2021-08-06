@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 module System.Nix.Store.Remote.Protocol
   ( WorkerOp(..)
   , simpleOp
