@@ -100,7 +100,7 @@ bslToText :: BSL.ByteString -> Text
 bslToText = toText . TL.decodeUtf8
 
 textToBSL :: Text -> BSL.ByteString
-textToBSL = TL.encodeUtf8 . TL.fromStrict
+textToBSL = TL.encodeUtf8 . toLText
 
 putText :: Text -> Put
 putText = putByteStringLen . textToBSL
