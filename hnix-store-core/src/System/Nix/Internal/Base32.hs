@@ -65,7 +65,7 @@ unsafeDecode what =
       readInt
         32
         (`elem` digits32)
-        (\c -> fromMaybe (error $ toText "character not in digits32")
+        (\c -> fromMaybe (error "character not in digits32")
           $ Vector.findIndex (== c) digits32
         )
         (Data.Text.unpack what)
@@ -87,7 +87,7 @@ integerToBS :: Integer -> ByteString
 integerToBS 0 = Bytes.pack [0]
 integerToBS i
     | i > 0     = Bytes.pack $ unfoldr f i
-    | otherwise = error $ toText "integerToBS not defined for negative values"
+    | otherwise = error "integerToBS not defined for negative values"
   where
     f 0 = Nothing
     f x = Just (fromInteger x :: Word8, x `shiftR` 8)

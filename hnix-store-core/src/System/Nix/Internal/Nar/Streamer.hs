@@ -1,6 +1,5 @@
 -- | Stream out a NAR file from a regular file
 
-{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module System.Nix.Internal.Nar.Streamer

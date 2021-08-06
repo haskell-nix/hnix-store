@@ -1,18 +1,14 @@
-{-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE DataKinds            #-}
 {-# OPTIONS_GHC -Wno-orphans      #-}
 
 module Arbitrary where
 
-import           Control.Monad                  ( replicateM )
 import qualified Data.ByteString.Char8         as BSC
 import qualified Data.Text                     as T
 
 import           Test.Tasty.QuickCheck
 
 import           System.Nix.Internal.StorePath
-import           Control.Applicative                ( liftA3 )
-import           Data.Coerce                        ( coerce )
 import           Crypto.Hash                        ( SHA256
                                                     , Digest
                                                     , hash

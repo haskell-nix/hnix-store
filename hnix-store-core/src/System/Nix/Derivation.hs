@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 
 module System.Nix.Derivation
   ( parseDerivation

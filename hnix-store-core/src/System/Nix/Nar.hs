@@ -3,8 +3,6 @@ Description : Generating and consuming NAR files
 Maintainer  : Shea Levy <shea@shealevy.com>
 -}
 
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies        #-}
 

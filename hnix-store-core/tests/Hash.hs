@@ -1,13 +1,9 @@
 {-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE CPP #-}
 
 module Hash where
 
-import           Control.Monad               ( forM_ )
-import           Data.ByteString             ( ByteString )
 import qualified Data.ByteString.Char8       as BSC
 import qualified Data.ByteString.Base16      as B16
 import qualified System.Nix.Base32           as B32
@@ -21,7 +17,6 @@ import           System.Nix.Hash
 import           System.Nix.StorePath
 import           Arbitrary
 import           System.Nix.Internal.Base
-import           Data.Coerce                ( coerce )
 import           Crypto.Hash                ( MD5
                                             , SHA1
                                             , SHA256
