@@ -58,7 +58,7 @@ waitSocket fp x = do
   ex <- doesFileExist fp
   bool
     (threadDelay 100000 >> waitSocket fp (x - 1))
-    (pure ())
+    (pass)
     ex
 
 writeConf :: FilePath -> IO ()
@@ -134,7 +134,7 @@ it
   -> (a -> Bool)
   -> Hspec.SpecWith (m () -> IO (a, b))
 it name action check =
-  Hspec.it name $ \run -> run (action >> pure ()) `checks` check
+  Hspec.it name $ \run -> run (action >> pass) `checks` check
 
 itRights
   :: (Show a, Show b, Show c, Monad m)

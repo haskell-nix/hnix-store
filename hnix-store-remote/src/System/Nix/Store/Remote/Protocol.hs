@@ -119,7 +119,7 @@ opNum QueryMissing                = 40
 
 
 simpleOp :: WorkerOp -> MonadStore Bool
-simpleOp op = simpleOpArgs op $ pure ()
+simpleOp op = simpleOpArgs op $ pass
 
 simpleOpArgs :: WorkerOp -> Put -> MonadStore Bool
 simpleOpArgs op args = do
@@ -134,7 +134,7 @@ simpleOpArgs op args = do
     err
 
 runOp :: WorkerOp -> MonadStore ()
-runOp op = runOpArgs op $ pure ()
+runOp op = runOpArgs op $ pass
 
 runOpArgs :: WorkerOp -> Put -> MonadStore ()
 runOpArgs op args =

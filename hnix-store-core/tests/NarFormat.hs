@@ -152,7 +152,7 @@ unit_packSelfSrcDir = Temp.withSystemTempDirectory "nar-test" $ \tmpDir -> do
       let go dir = do
             srcHere <- doesDirectoryExist dir
             bool
-              (pure ())
+              (pass)
               (do
                 IO.withFile narFilePath IO.WriteMode $ \h ->
                   buildNarIO narEffectsIO "src" h
@@ -248,7 +248,7 @@ test_streamManyFilesToNar = HU.testCaseSteps "streamManyFilesToNar" $ \step ->
     step "check constant file usage"
     filesPostcount <- countProcessFiles
     case (-) <$> filesPostcount <*> filesPrecount of
-      Nothing -> pure ()
+      Nothing -> pass
       Just c -> c `shouldSatisfy` (< 50)
 
     -- step "check file exists"
@@ -313,7 +313,7 @@ assertBoundedMemory = do
       bytes <- max_live_bytes <$> getRTSStats
       bytes < 100 * 1000 * 1000 `shouldBe` True
 #else
-      pure ()
+      pass
 #endif
 
 
@@ -355,7 +355,7 @@ packThenExtract testName setup =
         _narHandle <- IO.withFile nixNarFile IO.ReadMode $ \h ->
           unpackNarIO narEffectsIO h outputFile
 
-        pure ()
+        pass
 
 -- | Count file descriptors owned by the current process
 countProcessFiles :: IO (Maybe Int)
@@ -614,7 +614,7 @@ putNar (Nar file) = header <> parens (putFile file)
                strs ["type", "regular"]
             >> (if isExec == Nar.Executable
                then strs ["executable", ""]
-               else pure ())
+               else pass)
             >> putContents fSize contents
 
         putFile (SymLink target) =
