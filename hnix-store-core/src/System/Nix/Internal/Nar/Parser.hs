@@ -481,14 +481,14 @@ pushLink linkInfo = State.modify (\s -> s { links = linkInfo : links s })
 testParser :: (m ~ IO) => NarParser m a -> ByteString -> m (Either String a)
 testParser p b = do
   Bytes.writeFile tmpFileName b
-  IO.withFile tmpFileName IO.ReadMode $ \h ->
+  withFile tmpFileName IO.ReadMode $ \h ->
     runParser Nar.narEffectsIO p h tmpFileName
  where
   tmpFileName = "tmp"
 
 testParser' :: (m ~ IO) => FilePath -> IO (Either String ())
 testParser' fp =
-  IO.withFile fp IO.ReadMode $ \h -> runParser Nar.narEffectsIO parseNar h "tmp"
+  withFile fp IO.ReadMode $ \h -> runParser Nar.narEffectsIO parseNar h "tmp"
 
 
 
