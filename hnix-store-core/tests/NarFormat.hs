@@ -64,7 +64,7 @@ spec_narEncoding = do
 
         res <- withBytesAsHandle (runPut (putNar n)) $ \h -> do
           unpackNarIO narEffectsIO h packageFilePath
-        res `shouldBe` Right ()
+        res `shouldBe` pass
 
         e' <- doesPathExist packageFilePath
         e' `shouldBe` True
@@ -242,7 +242,7 @@ test_streamManyFilesToNar = HU.testCaseSteps "streamManyFilesToNar" $ \step ->
     step "unpack nar"
     r <- withFile narFilePath ReadMode $ \h ->
       unpackNarIO narEffectsIO h packagePath'
-    r `shouldBe` Right ()
+    r `shouldBe` pass
 
     step "check constant file usage"
     filesPostcount <- countProcessFiles

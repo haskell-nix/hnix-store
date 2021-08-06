@@ -79,21 +79,21 @@ spec_nixhash = do
         ]
 
     it "b16 encoded . b32 decoded should equal original b16" $
-      forM_ samples $ \(b16, b32, _b64) -> shouldBe (B16.encode <$> B32.decode b32) (Right b16)
+      forM_ samples $ \(b16, b32, _b64) -> shouldBe (B16.encode <$> B32.decode b32) (pure b16)
 
     it "b64 encoded . b32 decoded should equal original b64" $
-      forM_ samples $ \(_b16, b32, b64) -> shouldBe (B64.encode . fromStrict <$> B32.decode b32) (Right b64)
+      forM_ samples $ \(_b16, b32, b64) -> shouldBe (B64.encode . fromStrict <$> B32.decode b32) (pure b64)
 
     it "b32 encoded . b64 decoded should equal original b32" $
-      forM_ samples $ \(_b16, b32, b64) -> shouldBe (B32.encode . toStrict <$> B64.decode b64 ) (Right b32)
+      forM_ samples $ \(_b16, b32, b64) -> shouldBe (B32.encode . toStrict <$> B64.decode b64 ) (pure b32)
 
     it "b16 encoded . b64 decoded should equal original b16" $
-      forM_ samples $ \(b16, _b32, b64) -> shouldBe (B16.encode . toStrict <$> B64.decode b64 ) (Right b16)
+      forM_ samples $ \(b16, _b32, b64) -> shouldBe (B16.encode . toStrict <$> B64.decode b64 ) (pure b16)
 
     it "b32 encoded . b16 decoded should equal original b32" $
       forM_ samples $ \(b16, b32, _b64) -> shouldBe (B32.encode
 #if MIN_VERSION_base16_bytestring(1,0,0)
-        <$> B16.decode b16) (Right b32)
+        <$> B16.decode b16) (pure b32)
 #else
         $ fst $ B16.decode b16) (b32)
 
@@ -102,7 +102,7 @@ spec_nixhash = do
     it "b64 encoded . b16 decoded should equal original b64" $
       forM_ samples $ \(b16, _b32, b64) -> shouldBe (B64.encode . fromStrict
 #if MIN_VERSION_base16_bytestring(1,0,0)
-        <$> B16.decode b16) (Right b64)
+        <$> B16.decode b16) (pure b64)
 #else
         $ fst $ B16.decode b16 ) (b64)
 #endif
