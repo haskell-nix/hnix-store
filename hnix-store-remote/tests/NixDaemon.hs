@@ -51,7 +51,7 @@ mockedEnv mEnvPath fp =
   , ("NIX_STATE_DIR"     , fp </> "var" </> "nix")
   , ("NIX_CONF_DIR"      , fp </> "etc")
 --  , ("NIX_REMOTE", "daemon")
-    ] <> maybe [] (\x -> [("PATH", x)]) mEnvPath
+    ] <> foldMap (\x -> [("PATH", x)]) mEnvPath
 
 waitSocket :: FilePath -> Int -> IO ()
 waitSocket _  0 = fail "No socket"
@@ -59,7 +59,7 @@ waitSocket fp x = do
   ex <- doesFileExist fp
   bool
     (threadDelay 100000 >> waitSocket fp (x - 1))
-    (pass)
+    pass
     ex
 
 writeConf :: FilePath -> IO ()
@@ -195,7 +195,7 @@ spec_protocol = Hspec.around withNixDaemon $
         verifyStore True True `shouldReturn` False
 
     context "addTextToStore" $
-      itRights "adds text to store" $ withPath $ pure
+      itRights "adds text to store" $ withPath pure
 
     context "isValidPathUncached" $ do
       itRights "validates path" $ withPath $ \path -> do

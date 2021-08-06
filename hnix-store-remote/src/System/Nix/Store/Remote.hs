@@ -87,7 +87,7 @@ addToStore
 addToStore name pth recursive _pathFilter _repair = do
 
   runOpArgsIO AddToStore $ \yield -> do
-    yield $ BSL.toStrict $ Data.Binary.Put.runPut $ do
+    yield $ toStrict $ Data.Binary.Put.runPut $ do
       putText $ System.Nix.StorePath.unStorePathName name
 
       putBool $ not $ System.Nix.Hash.algoName @a == "sha256" && recursive
@@ -176,7 +176,7 @@ findRoots = do
     getSocketIncremental
     $ getMany
     $ (,)
-      <$> (BSL.fromStrict <$> getByteStringLen)
+      <$> (fromStrict <$> getByteStringLen)
       <*> getPath sd
 
   r <- catRights res
@@ -224,7 +224,7 @@ queryPathInfoUncached path = do
 
   deriverPath <- sockGetPathMay
 
-  narHashText <- Data.Text.Encoding.decodeUtf8 <$> sockGetStr
+  narHashText <- decodeUtf8 <$> sockGetStr
   let
     narHash =
       case
@@ -280,9 +280,7 @@ queryPathFromHashPart :: StorePathHashPart -> MonadStore StorePath
 queryPathFromHashPart storePathHash = do
   runOpArgs QueryPathFromHashPart
     $ putByteStringLen
-    $ BSL.fromStrict
-    $ Data.Text.Encoding.encodeUtf8
-    $ encodeWith NixBase32 $ coerce storePathHash
+    $ encodeUtf8 (encodeWith NixBase32 $ coerce storePathHash)
   sockGetPath
 
 queryMissing

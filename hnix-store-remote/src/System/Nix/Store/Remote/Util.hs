@@ -49,7 +49,7 @@ getSocketIncremental = genericIncremental sockGet8
 sockPut :: Put -> MonadStore ()
 sockPut p = do
   soc <- asks storeSocket
-  liftIO $ sendAll soc $ BSL.toStrict $ runPut p
+  liftIO $ sendAll soc $ toStrict $ runPut p
 
 sockGet :: Get a -> MonadStore a
 sockGet = getSocketIncremental
@@ -91,10 +91,10 @@ sockGetPaths = do
   getSocketIncremental (getPaths sd)
 
 bsToText :: ByteString -> Text
-bsToText = T.decodeUtf8
+bsToText = decodeUtf8
 
 textToBS :: Text -> ByteString
-textToBS = T.encodeUtf8
+textToBS = encodeUtf8
 
 bslToText :: BSL.ByteString -> Text
 bslToText = toText . TL.decodeUtf8
@@ -116,11 +116,11 @@ getPaths sd =
   Data.HashSet.fromList . rights . fmap (parsePath sd) <$> getByteStrings
 
 putPath :: StorePath -> Put
-putPath = putByteStringLen . BSL.fromStrict . storePathToRawFilePath
+putPath = putByteStringLen . fromStrict . storePathToRawFilePath
 
 putPaths :: StorePathSet -> Put
 putPaths = putByteStrings . Data.HashSet.toList . Data.HashSet.map
-  (BSL.fromStrict . storePathToRawFilePath)
+  (fromStrict . storePathToRawFilePath)
 
 putBool :: Bool -> Put
 putBool True  = putInt (1 :: Int)

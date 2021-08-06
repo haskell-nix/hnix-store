@@ -59,7 +59,7 @@ streamNarIO yield effs basePath = do
     when isDir $ do
       fs <- IO.liftIO (Nar.narListDir effs path)
       yield $ strs ["type", "directory"]
-      forM_ (List.sort fs) $ \f -> do
+      forM_ (sort fs) $ \f -> do
         yield $ str "entry"
         parens $ do
           let fullName = path </> f

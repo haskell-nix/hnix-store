@@ -25,9 +25,9 @@ data BaseEncoding
 
 -- | Encode @ByteString@ with @Base@ encoding, produce @Text@.
 encodeWith :: BaseEncoding -> Bytes.ByteString -> T.Text
-encodeWith Base16 = T.decodeUtf8 . Base16.encode
+encodeWith Base16 = decodeUtf8 . Base16.encode
 encodeWith NixBase32 = Base32.encode
-encodeWith Base64 = T.decodeUtf8 . Base64.encode
+encodeWith Base64 = decodeUtf8 . Base64.encode
 
 -- | Take the input & @Base@ encoding witness -> decode into @Text@.
 decodeWith :: BaseEncoding -> T.Text -> Either String Bytes.ByteString

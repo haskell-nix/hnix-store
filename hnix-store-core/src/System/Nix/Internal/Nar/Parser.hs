@@ -81,9 +81,9 @@ runParser
   -> m (Either String a)
 runParser effs (NarParser action) h target = do
   unpackResult <-
-    Reader.runReaderT (Except.runExceptT $ State.evalStateT action state0) effs
+    runReaderT (runExceptT $ State.evalStateT action state0) effs
       `Exception.Lifted.catch` exceptionHandler
-  when (Either.isLeft unpackResult) cleanup
+  when (isLeft unpackResult) cleanup
   pure unpackResult
 
  where
@@ -209,7 +209,7 @@ parseFile = do
 
   -- Set up for defining `getChunk`
   narHandle    <- State.gets handle
-  bytesLeftVar <- IO.liftIO $ IORef.newIORef fSize
+  bytesLeftVar <- IO.liftIO $ newIORef fSize
 
   let
     -- getChunk tracks the number of total bytes we still need to get from the
@@ -217,13 +217,13 @@ parseFile = do
     -- chunk we read)
     getChunk :: m (Maybe ByteString)
     getChunk = do
-      bytesLeft <- IO.liftIO $ IORef.readIORef bytesLeftVar
+      bytesLeft <- IO.liftIO $ readIORef bytesLeftVar
       if bytesLeft == 0
         then pure Nothing
         else do
           chunk <- IO.liftIO $ Bytes.hGetSome narHandle $ fromIntegral $ min 10000 bytesLeft
           when (Bytes.null chunk) (Fail.fail "ZERO BYTES")
-          IO.liftIO $ IORef.modifyIORef bytesLeftVar $ \n -> n - fromIntegral (Bytes.length chunk)
+          IO.liftIO $ modifyIORef bytesLeftVar $ \n -> n - fromIntegral (Bytes.length chunk)
 
           -- This short pause is necessary for letting the garbage collector
           -- clean up chunks from previous runs. Without it, heap memory usage can
@@ -296,7 +296,7 @@ parseStr = do
       strBytes <- consume $ fromIntegral len
       expectRawString
         (Bytes.replicate (fromIntegral $ padLen $ fromIntegral len) 0)
-      pure $ Text.decodeUtf8 strBytes
+      pure $ decodeUtf8 strBytes
 
 
 -- | Get an Int64 describing the length of the upcoming string,
@@ -436,7 +436,7 @@ consume n = do
 popStr :: Monad m => NarParser m (Maybe Text)
 popStr = do
   s <- State.get
-  case List.uncons (tokenStack s) of
+  case uncons (tokenStack s) of
     Nothing      -> pure Nothing
     Just (x, xs) -> do
       State.put $ s { tokenStack = xs }

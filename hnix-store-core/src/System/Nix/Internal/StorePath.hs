@@ -169,8 +169,8 @@ storePathToRawFilePath StorePath{..} =
   root <> "/" <> hashPart <> "-" <> name
  where
   root     = Bytes.Char8.pack storePathRoot
-  hashPart = Text.encodeUtf8 $ encodeWith NixBase32 $ coerce storePathHash
-  name     = Text.encodeUtf8 $ unStorePathName storePathName
+  hashPart = encodeUtf8 $ encodeWith NixBase32 $ coerce storePathHash
+  name     = encodeUtf8 $ unStorePathName storePathName
 
 -- | Render a 'StorePath' as a 'FilePath'.
 storePathToFilePath :: StorePath -> FilePath
@@ -184,7 +184,7 @@ storePathToText = toText . Bytes.Char8.unpack . storePathToRawFilePath
 -- can be used to query binary caches.
 storePathToNarInfo :: StorePath -> Bytes.Char8.ByteString
 storePathToNarInfo StorePath{..} =
-  Text.encodeUtf8 $ encodeWith NixBase32 (coerce storePathHash) <> ".narinfo"
+  encodeUtf8 $ encodeWith NixBase32 (coerce storePathHash) <> ".narinfo"
 
 -- | Parse `StorePath` from `Bytes.Char8.ByteString`, checking
 -- that store directory matches `expectedRoot`.

@@ -119,7 +119,7 @@ opNum QueryMissing                = 40
 
 
 simpleOp :: WorkerOp -> MonadStore Bool
-simpleOp op = simpleOpArgs op $ pass
+simpleOp op = simpleOpArgs op pass
 
 simpleOpArgs :: WorkerOp -> Put -> MonadStore Bool
 simpleOpArgs op args = do
@@ -134,13 +134,13 @@ simpleOpArgs op args = do
     err
 
 runOp :: WorkerOp -> MonadStore ()
-runOp op = runOpArgs op $ pass
+runOp op = runOpArgs op pass
 
 runOpArgs :: WorkerOp -> Put -> MonadStore ()
 runOpArgs op args =
   runOpArgsIO
     op
-    (\encode -> encode $ Data.ByteString.Lazy.toStrict $ runPut args)
+    (\encode -> encode $ toStrict $ runPut args)
 
 runOpArgsIO
   :: WorkerOp
@@ -187,7 +187,7 @@ runStoreOpts sockPath storeRootDir code = do
     vermagic <- liftIO $ recv soc 16
     let
       (magic2, _daemonProtoVersion) =
-        flip runGet (Data.ByteString.Lazy.fromStrict vermagic)
+        flip runGet (fromStrict vermagic)
           $ (,)
             <$> (getInt :: Get Int)
             <*> (getInt :: Get Int)
