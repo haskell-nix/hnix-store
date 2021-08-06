@@ -618,7 +618,7 @@ putNar (Nar file) = header <> parens (putFile file)
             >> putContents fSize contents
 
         putFile (SymLink target) =
-               strs ["type", "symlink", "target", BSL.fromStrict $ E.encodeUtf8 target]
+               strs ["type", "symlink", "target", fromStrict $ encodeUtf8 target]
 
         -- toList sorts the entries by FilePathPart before serializing
         putFile (Directory entries) =
@@ -629,7 +629,7 @@ putNar (Nar file) = header <> parens (putFile file)
             str "entry"
             parens $ do
               str "name"
-              str (BSL.fromStrict name)
+              str (fromStrict name)
               str "node"
               parens (putFile fso)
 
@@ -700,7 +700,7 @@ getNar = fmap Nar $ header >> parens getFile
               file <- parens getFile
               maybe (fail $ "Bad FilePathPart: " <> show name)
                     (pure . (,file))
-                    (filePathPart $ E.encodeUtf8 name)
+                    (filePathPart $ encodeUtf8 name)
 
       -- Fetch a length-prefixed, null-padded string
       str = fmap snd sizedStr
