@@ -112,7 +112,7 @@ runParser effs (NarParser action) h target = do
 
 
 instance Trans.MonadTrans NarParser where
-  lift act = NarParser $ (Trans.lift . Trans.lift . Trans.lift) act
+  lift act = NarParser $ (lift . lift . lift) act
 
 
 data ParserState = ParserState
@@ -233,11 +233,11 @@ parseFile = do
 
   target     <- currentFile
   streamFile <- asks Nar.narStreamFile
-  Trans.lift (streamFile target getChunk)
+  lift (streamFile target getChunk)
 
   when (s == "executable") $ do
     effs :: Nar.NarEffects m <- ask
-    Trans.lift $ do
+    lift $ do
       p <- Nar.narGetPerms effs target
       Nar.narSetPerms effs target (p { Directory.executable = True })
 
@@ -250,7 +250,7 @@ parseDirectory :: (IO.MonadIO m, Fail.MonadFail m) => NarParser m ()
 parseDirectory = do
   createDirectory <- asks Nar.narCreateDir
   target          <- currentFile
-  Trans.lift $ createDirectory target
+  lift $ createDirectory target
   parseEntryOrFinish
 
  where
@@ -381,7 +381,7 @@ createLinks = do
   forM_ sortedLinks $ \li -> do
     pwd <- IO.liftIO Directory.getCurrentDirectory
     IO.liftIO $ Directory.setCurrentDirectory (linkPWD li)
-    Trans.lift $ createLink (linkTarget li) (linkFile li)
+    lift $ createLink (linkTarget li) (linkFile li)
     IO.liftIO $ Directory.setCurrentDirectory pwd
 
  where
