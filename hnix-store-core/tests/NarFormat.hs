@@ -689,13 +689,13 @@ getNar = fmap Nar $ header >> parens getFile
           assertStr_ "type"
           assertStr_ "symlink"
           assertStr_ "target"
-          fmap (SymLink . E.decodeUtf8 . BSL.toStrict) str
+          fmap (SymLink . decodeUtf8) str
 
       getEntry = do
           assertStr_ "entry"
           parens $ do
               assertStr_ "name"
-              name <- E.decodeUtf8 . BSL.toStrict <$> str
+              name <- decodeUtf8 <$> str
               assertStr_ "node"
               file <- parens getFile
               maybe (fail $ "Bad FilePathPart: " <> show name)
