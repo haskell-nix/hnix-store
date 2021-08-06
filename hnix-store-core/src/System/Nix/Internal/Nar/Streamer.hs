@@ -1,6 +1,6 @@
 -- | Stream out a NAR file from a regular file
 
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# language ScopedTypeVariables #-}
 
 module System.Nix.Internal.Nar.Streamer
   ( streamNarIO

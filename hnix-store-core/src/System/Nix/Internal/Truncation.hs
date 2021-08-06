@@ -1,5 +1,5 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE DataKinds           #-}
+{-# language ScopedTypeVariables #-}
+{-# language DataKinds           #-}
 
 module System.Nix.Internal.Truncation
   ( truncateInNixWay

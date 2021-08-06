@@ -2,12 +2,12 @@
 Description : Cryptographic hashing interface for hnix-store, on top
               of the cryptohash family of libraries.
 -}
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE TypeFamilies        #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE CPP #-}
+{-# language AllowAmbiguousTypes #-}
+{-# language TypeFamilies        #-}
+{-# language ScopedTypeVariables #-}
+{-# language DataKinds           #-}
+{-# language ExistentialQuantification #-}
+{-# language CPP #-}
 
 module System.Nix.Internal.Hash
   ( NamedAlgo(..)

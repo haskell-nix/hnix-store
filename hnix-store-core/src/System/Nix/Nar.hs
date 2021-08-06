@@ -3,8 +3,8 @@ Description : Generating and consuming NAR files
 Maintainer  : Shea Levy <shea@shealevy.com>
 -}
 
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies        #-}
+{-# language ScopedTypeVariables #-}
+{-# language TypeFamilies        #-}
 
 
 module System.Nix.Nar

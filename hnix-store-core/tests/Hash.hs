@@ -1,6 +1,6 @@
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE CPP #-}
+{-# language DataKinds           #-}
+{-# language ScopedTypeVariables #-}
+{-# language CPP #-}
 
 module Hash where
 

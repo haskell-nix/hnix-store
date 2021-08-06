@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards     #-}
+{-# language RecordWildCards     #-}
 module System.Nix.Store.Remote.Util where
 
 import           Prelude                 hiding ( putText )

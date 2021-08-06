@@ -1,6 +1,6 @@
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# language KindSignatures      #-}
+{-# language RankNTypes          #-}
+{-# language ScopedTypeVariables #-}
 
 module System.Nix.Internal.Nar.Effects
   ( NarEffects(..)

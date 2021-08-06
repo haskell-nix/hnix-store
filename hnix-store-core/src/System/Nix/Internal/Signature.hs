@@ -1,8 +1,8 @@
 {-|
 Description : Nix-relevant interfaces to NaCl signatures.
 -}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE CPP #-}
+{-# language GeneralizedNewtypeDeriving #-}
+{-# language CPP #-}
 
 module System.Nix.Internal.Signature
   ( Signature

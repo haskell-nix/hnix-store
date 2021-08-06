@@ -1,5 +1,5 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# language DataKinds #-}
+{-# language ScopedTypeVariables #-}
 
 module System.Nix.ReadonlyStore where
 

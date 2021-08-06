@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# language CPP #-}
 
 module System.Nix.Internal.Base
   ( BaseEncoding(Base16,NixBase32,Base64)

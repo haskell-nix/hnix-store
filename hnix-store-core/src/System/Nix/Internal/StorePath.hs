@@ -1,12 +1,12 @@
 {-|
 Description : Representation of Nix store paths.
 -}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE DataKinds #-}
+{-# language ConstraintKinds #-}
+{-# language RecordWildCards #-}
+{-# language GeneralizedNewtypeDeriving #-}
+{-# language ScopedTypeVariables #-}
+{-# language AllowAmbiguousTypes #-}
+{-# language DataKinds #-}
 
 module System.Nix.Internal.StorePath
   ( -- * Basic store path types

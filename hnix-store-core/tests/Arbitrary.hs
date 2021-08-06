@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds            #-}
+{-# language DataKinds            #-}
 {-# OPTIONS_GHC -Wno-orphans      #-}
 
 module Arbitrary where

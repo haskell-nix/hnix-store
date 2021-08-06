@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds           #-}
+{-# language DataKinds           #-}
 
 module Derivation where
 

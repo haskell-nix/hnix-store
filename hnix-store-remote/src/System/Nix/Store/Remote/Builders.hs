@@ -1,6 +1,6 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE RankNTypes          #-}
+{-# language AllowAmbiguousTypes #-}
+{-# language ScopedTypeVariables #-}
+{-# language RankNTypes          #-}
 
 module System.Nix.Store.Remote.Builders
   ( buildContentAddressableAddress

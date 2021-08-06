@@ -1,7 +1,7 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE DataKinds           #-}
+{-# language AllowAmbiguousTypes #-}
+{-# language ScopedTypeVariables #-}
+{-# language RankNTypes          #-}
+{-# language DataKinds           #-}
 
 module System.Nix.Store.Remote.Parsers
   ( parseContentAddressableAddress

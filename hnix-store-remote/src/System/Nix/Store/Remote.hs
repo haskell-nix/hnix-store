@@ -1,9 +1,9 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE RecordWildCards     #-}
+{-# language AllowAmbiguousTypes #-}
+{-# language KindSignatures      #-}
+{-# language RankNTypes          #-}
+{-# language ScopedTypeVariables #-}
+{-# language DataKinds           #-}
+{-# language RecordWildCards     #-}
 module System.Nix.Store.Remote
   ( addToStore
   , addTextToStore
