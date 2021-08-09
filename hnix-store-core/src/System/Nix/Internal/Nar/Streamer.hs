@@ -1,7 +1,6 @@
 -- | Stream out a NAR file from a regular file
 
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# language ScopedTypeVariables #-}
 
 module System.Nix.Internal.Nar.Streamer
   ( streamNarIO
@@ -9,18 +8,11 @@ module System.Nix.Internal.Nar.Streamer
   )
 where
 
-import           Control.Monad                    ( forM_
-                                                  , when
-                                                  )
 import qualified Control.Monad.IO.Class          as IO
-import           Data.Bool                        ( bool )
-import           Data.ByteString                  ( ByteString )
 import qualified Data.ByteString                 as Bytes
 import qualified Data.ByteString.Char8           as Bytes.Char8
 import qualified Data.ByteString.Lazy            as Bytes.Lazy
-import qualified Data.List                       as List
 import qualified Data.Serialize                  as Serial
-import           GHC.Int                          ( Int64 )
 import qualified System.Directory                as Directory
 import           System.FilePath                  ( (</>) )
 
@@ -66,7 +58,7 @@ streamNarIO yield effs basePath = do
     when isDir $ do
       fs <- IO.liftIO (Nar.narListDir effs path)
       yield $ strs ["type", "directory"]
-      forM_ (List.sort fs) $ \f -> do
+      forM_ (sort fs) $ \f -> do
         yield $ str "entry"
         parens $ do
           let fullName = path </> f

@@ -1,20 +1,14 @@
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE RecordWildCards     #-}
+{-# language RecordWildCards     #-}
 module System.Nix.Store.Remote.Util where
 
+import           Prelude                 hiding ( putText )
 import           Control.Monad.Except
-import           Control.Monad.Reader
 
-import           Data.Either
 import           Data.Binary.Get
 import           Data.Binary.Put
-import           Data.Text                      ( Text )
-import qualified Data.Text.Encoding            as T
-import qualified Data.Text.Lazy                as TL
 import qualified Data.Text.Lazy.Encoding       as TL
 import           Data.Time
 import           Data.Time.Clock.POSIX
-import           Data.ByteString                ( ByteString )
 import qualified Data.ByteString.Char8         as BSC
 import qualified Data.ByteString.Lazy          as BSL
 
@@ -40,7 +34,7 @@ genericIncremental getsome parser = go decoder
   go (Partial k                   ) = do
     chunk <- getsome
     go (k chunk)
-  go (Fail _leftover _consumed msg) = error msg
+  go (Fail _leftover _consumed msg) = error $ fromString msg
 
 getSocketIncremental :: Get a -> MonadStore a
 getSocketIncremental = genericIncremental sockGet8
@@ -53,7 +47,7 @@ getSocketIncremental = genericIncremental sockGet8
 sockPut :: Put -> MonadStore ()
 sockPut p = do
   soc <- asks storeSocket
-  liftIO $ sendAll soc $ BSL.toStrict $ runPut p
+  liftIO $ sendAll soc $ toStrict $ runPut p
 
 sockGet :: Get a -> MonadStore a
 sockGet = getSocketIncremental
@@ -95,16 +89,16 @@ sockGetPaths = do
   getSocketIncremental (getPaths sd)
 
 bsToText :: ByteString -> Text
-bsToText = T.decodeUtf8
+bsToText = decodeUtf8
 
 textToBS :: Text -> ByteString
-textToBS = T.encodeUtf8
+textToBS = encodeUtf8
 
 bslToText :: BSL.ByteString -> Text
-bslToText = TL.toStrict . TL.decodeUtf8
+bslToText = toText . TL.decodeUtf8
 
 textToBSL :: Text -> BSL.ByteString
-textToBSL = TL.encodeUtf8 . TL.fromStrict
+textToBSL = TL.encodeUtf8 . toLText
 
 putText :: Text -> Put
 putText = putByteStringLen . textToBSL
@@ -120,11 +114,11 @@ getPaths sd =
   Data.HashSet.fromList . rights . fmap (parsePath sd) <$> getByteStrings
 
 putPath :: StorePath -> Put
-putPath = putByteStringLen . BSL.fromStrict . storePathToRawFilePath
+putPath = putByteStringLen . fromStrict . storePathToRawFilePath
 
 putPaths :: StorePathSet -> Put
 putPaths = putByteStrings . Data.HashSet.toList . Data.HashSet.map
-  (BSL.fromStrict . storePathToRawFilePath)
+  (fromStrict . storePathToRawFilePath)
 
 putBool :: Bool -> Put
 putBool True  = putInt (1 :: Int)
@@ -170,4 +164,4 @@ putDerivation Derivation{..} = do
   putMany putText args
 
   flip putMany (Data.Map.toList env)
-    $ \(first, second) -> putText first >> putText second
+    $ \(a1, a2) -> putText a1 *> putText a2

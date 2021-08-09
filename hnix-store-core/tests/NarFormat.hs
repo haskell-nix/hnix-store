@@ -1,16 +1,10 @@
-{-# LANGUAGE CPP                 #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections       #-}
-{-# LANGUAGE TypeApplications    #-}
+{-# language CPP                 #-}
+{-# language ScopedTypeVariables #-}
 
 module NarFormat where
 
-import           Control.Applicative              (many, optional, (<|>))
 import qualified Control.Concurrent               as Concurrent
-import           Control.Exception                (SomeException, try)
-import           Control.Monad                    (replicateM, void,
-                                                   when)
+import           Control.Exception                (try)
 import           Data.Binary.Get                  (Get, getByteString,
                                                    getInt64le,
                                                    getLazyByteString, runGet)
@@ -21,11 +15,8 @@ import qualified Data.ByteString.Base64.Lazy      as B64
 import qualified Data.ByteString.Char8            as BSC
 import qualified Data.ByteString.Lazy             as BSL
 import qualified Data.ByteString.Lazy.Char8       as BSLC
-import           Data.Int
 import qualified Data.Map                         as Map
-import           Data.Maybe                       (fromMaybe)
 import qualified Data.Text                        as T
-import qualified Data.Text.Encoding               as E
 import           System.Directory                 ( doesDirectoryExist
                                                   , doesPathExist
                                                   , removeDirectoryRecursive
@@ -43,7 +34,6 @@ import           Test.Hspec
 import qualified Test.Tasty.HUnit                 as HU
 import           Test.Tasty.QuickCheck
 import qualified Text.Printf                      as Printf
-import           Text.Read                        (readMaybe)
 
 import qualified System.Nix.Internal.Nar.Streamer as Nar
 import           System.Nix.Nar
@@ -55,7 +45,7 @@ withBytesAsHandle bytes act = do
   Temp.withSystemTempFile "nar-test-file-XXXXX" $ \tmpFile h -> do
     IO.hClose h
     BSL.writeFile tmpFile bytes
-    IO.withFile tmpFile IO.ReadMode act
+    withFile tmpFile ReadMode act
 
 spec_narEncoding :: Spec
 spec_narEncoding = do
@@ -74,7 +64,7 @@ spec_narEncoding = do
 
         res <- withBytesAsHandle (runPut (putNar n)) $ \h -> do
           unpackNarIO narEffectsIO h packageFilePath
-        res `shouldBe` Right ()
+        res `shouldBe` pass
 
         e' <- doesPathExist packageFilePath
         e' `shouldBe` True
@@ -84,7 +74,7 @@ spec_narEncoding = do
           IO.hClose h
           BSL.readFile tmpFile
 
-        res' `shouldBe` (runPut $ putNar n)
+        res' `shouldBe` runPut (putNar n)
 
   -- For a Haskell embedded Nar, check that encoding it gives
   -- the same bytestring as `nix-store --dump`
@@ -160,10 +150,10 @@ unit_packSelfSrcDir = Temp.withSystemTempDirectory "nar-test" $ \tmpDir -> do
     Right _ -> do
       let go dir = do
             srcHere <- doesDirectoryExist dir
-            case srcHere of
-              False -> pure ()
-              True -> do
-                IO.withFile narFilePath IO.WriteMode $ \h ->
+            bool
+              pass
+              (do
+                withFile narFilePath WriteMode $ \h ->
                   buildNarIO narEffectsIO "src" h
                 hnixNar <- BSL.readFile narFilePath
                 nixStoreNar <- getNixStoreDump "src"
@@ -171,6 +161,8 @@ unit_packSelfSrcDir = Temp.withSystemTempDirectory "nar-test" $ \tmpDir -> do
                   "src dir serializes the same between hnix-store and nix-store"
                   hnixNar
                   nixStoreNar
+              )
+              srcHere
       go "src"
       go "hnix-store-core/src"
 -- ||||||| merged common ancestors
@@ -182,7 +174,7 @@ unit_packSelfSrcDir = Temp.withSystemTempDirectory "nar-test" $ \tmpDir -> do
 --         nixStoreNar
 -- =======
 --       let narFile = tmpDir </> "src.nar"
---       IO.withFile narFile IO.WriteMode $ \h ->
+--       withFile narFile WriteMode $ \h ->
 --         buildNarIO narEffectsIO "src" h
 --       hnixNar <- BSL.readFile narFile
 --       nixStoreNar <- getNixStoreDump "src"
@@ -201,7 +193,7 @@ test_streamLargeFileToNar = HU.testCaseSteps "streamLargeFileToNar" $ \step -> d
   -- BSL.writeFile narFileName =<< buildNarIO narEffectsIO bigFileName
   --
   step "create nar file"
-  IO.withFile narFileName IO.WriteMode $ \h ->
+  withFile narFileName WriteMode $ \h ->
     buildNarIO narEffectsIO bigFileName h
 
   step "assert bounded memory"
@@ -230,32 +222,32 @@ test_streamManyFilesToNar = HU.testCaseSteps "streamManyFilesToNar" $ \step ->
 
       _run =  do
         filesPrecount <- countProcessFiles
-        IO.withFile "hnar" IO.WriteMode $ \h ->
+        withFile "hnar" WriteMode $ \h ->
           buildNarIO narEffectsIO narFilePath h
         filesPostcount <- countProcessFiles
         pure $ (-) <$> filesPostcount <*> filesPrecount
 
     step "create test files"
     Directory.createDirectory packagePath
-    flip mapM_ [0..1000] $ \i -> do
+    forM_ [0..1000] $ \i -> do
       BSL.writeFile (Printf.printf (packagePath </> "%08d") (i :: Int)) "hi\n"
       Concurrent.threadDelay 50
 
     filesPrecount <- countProcessFiles
 
     step "pack nar"
-    IO.withFile narFilePath IO.WriteMode $ \h ->
+    withFile narFilePath WriteMode $ \h ->
       buildNarIO narEffectsIO packagePath h
 
     step "unpack nar"
-    r <- IO.withFile narFilePath IO.ReadMode $ \h ->
+    r <- withFile narFilePath ReadMode $ \h ->
       unpackNarIO narEffectsIO h packagePath'
-    r `shouldBe` Right ()
+    r `shouldBe` pass
 
     step "check constant file usage"
     filesPostcount <- countProcessFiles
-    case ((-) <$> filesPostcount <*> filesPrecount) of
-      Nothing -> pure ()
+    case (-) <$> filesPostcount <*> filesPrecount of
+      Nothing -> pass
       Just c -> c `shouldSatisfy` (< 50)
 
     -- step "check file exists"
@@ -303,7 +295,7 @@ filesystemNixStore testErrorName n = do
       assertExists nixNarFile
 
       -- hnix converts those files to nar
-      IO.withFile hnixNarFile IO.WriteMode $ \h ->
+      withFile hnixNarFile WriteMode $ \h ->
         buildNarIO narEffectsIO testFile h
       assertExists hnixNarFile
 
@@ -320,7 +312,7 @@ assertBoundedMemory = do
       bytes <- max_live_bytes <$> getRTSStats
       bytes < 100 * 1000 * 1000 `shouldBe` True
 #else
-      pure ()
+      pass
 #endif
 
 
@@ -353,16 +345,16 @@ packThenExtract testName setup =
 
         step $ "Build NAR from " <> narFilePath <> " to " <> hnixNarFile
         -- narBS <- buildNarIO narEffectsIO narFile
-        IO.withFile hnixNarFile IO.WriteMode $ \h ->
+        withFile hnixNarFile WriteMode $ \h ->
           buildNarIO narEffectsIO narFilePath h
 
         -- BSL.writeFile hnixNarFile narBS
 
         step $ "Unpack NAR to " <> outputFile
-        _narHandle <- IO.withFile nixNarFile IO.ReadMode $ \h ->
+        _narHandle <- withFile nixNarFile ReadMode $ \h ->
           unpackNarIO narEffectsIO h outputFile
 
-        pure ()
+        pass
 
 -- | Count file descriptors owned by the current process
 countProcessFiles :: IO (Maybe Int)
@@ -373,7 +365,7 @@ countProcessFiles = do
     then pure Nothing
     else do
       let fdDir = "/proc/" <> show pid <> "/fd"
-      fds  <- P.readProcess "ls" [fdDir] ""
+      fds  <- toText <$> P.readProcess "ls" [fdDir] ""
       pure $ pure $ length $ words fds
 
 
@@ -538,8 +530,8 @@ getBigFileSize = fromMaybe 5000000 . readMaybe <$> (getEnv "HNIX_BIG_FILE_SIZE" 
 -- | Add a link to a FileSystemObject. This is useful
 --   when creating Arbitrary FileSystemObjects. It
 --   isn't implemented yet
-mkLink ::
-     FilePath -- ^ Target
+mkLink
+  :: FilePath -- ^ Target
   -> FilePath -- ^ Link
   -> FileSystemObject -- ^ FileSystemObject to add link to
   -> FileSystemObject
@@ -554,11 +546,9 @@ mkBigFile path = do
 -- | Construct FilePathPart from Text by checking that there
 --   are no '/' or '\\NUL' characters
 filePathPart :: BSC.ByteString -> Maybe FilePathPart
-filePathPart p = case BSC.any (`elem` ['/', '\NUL']) p of
-  False -> Just $ FilePathPart p
-  True  -> Nothing
+filePathPart p = if BSC.any (`elem` ['/', '\NUL']) p then Nothing else Just $ FilePathPart p
 
-data Nar = Nar { narFile :: FileSystemObject }
+newtype Nar = Nar { narFile :: FileSystemObject }
     deriving (Eq, Show)
 
 -- | A FileSystemObject (FSO) is an anonymous entity that can be NAR archived
@@ -623,11 +613,11 @@ putNar (Nar file) = header <> parens (putFile file)
                strs ["type", "regular"]
             >> (if isExec == Nar.Executable
                then strs ["executable", ""]
-               else pure ())
+               else pass)
             >> putContents fSize contents
 
         putFile (SymLink target) =
-               strs ["type", "symlink", "target", BSL.fromStrict $ E.encodeUtf8 target]
+               strs ["type", "symlink", "target", fromStrict $ encodeUtf8 target]
 
         -- toList sorts the entries by FilePathPart before serializing
         putFile (Directory entries) =
@@ -638,7 +628,7 @@ putNar (Nar file) = header <> parens (putFile file)
             str "entry"
             parens $ do
               str "name"
-              str (BSL.fromStrict name)
+              str (fromStrict name)
               str "node"
               parens (putFile fso)
 
@@ -650,7 +640,7 @@ putNar (Nar file) = header <> parens (putFile file)
             in int len <> pad len t
 
         putContents :: Int64 -> BSL.ByteString -> Put
-        putContents fSize bs = str "contents" <> int fSize <> (pad fSize bs)
+        putContents fSize bs = str "contents" <> int fSize <> pad fSize bs
 
         int :: Integral a => a -> Put
         int n = putInt64le $ fromIntegral n
@@ -698,18 +688,18 @@ getNar = fmap Nar $ header >> parens getFile
           assertStr_ "type"
           assertStr_ "symlink"
           assertStr_ "target"
-          fmap (SymLink . E.decodeUtf8 . BSL.toStrict) str
+          fmap (SymLink . decodeUtf8) str
 
       getEntry = do
           assertStr_ "entry"
           parens $ do
               assertStr_ "name"
-              name <- E.decodeUtf8 . BSL.toStrict <$> str
+              name <- str
               assertStr_ "node"
               file <- parens getFile
               maybe (fail $ "Bad FilePathPart: " <> show name)
                     (pure . (,file))
-                    (filePathPart $ E.encodeUtf8 name)
+                    (filePathPart $ toStrict name)
 
       -- Fetch a length-prefixed, null-padded string
       str = fmap snd sizedStr

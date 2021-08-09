@@ -1,6 +1,5 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
+{-# language DataKinds #-}
+{-# language ScopedTypeVariables #-}
 module System.Nix.Store.Remote.Protocol
   ( WorkerOp(..)
   , simpleOp
@@ -13,18 +12,15 @@ module System.Nix.Store.Remote.Protocol
   )
 where
 
+import qualified Relude.Unsafe                 as Unsafe
 
-import           Data.Bool                      ( bool )
 import           Control.Exception              ( bracket )
 import           Control.Monad.Except
-import           Control.Monad.Reader
-import           Control.Monad.State
 
 import           Data.Binary.Get
 import           Data.Binary.Put
 import qualified Data.ByteString
 import qualified Data.ByteString.Char8
-import qualified Data.ByteString.Lazy
 
 import           Network.Socket                 ( SockAddr(SockAddrUnix) )
 import qualified Network.Socket
@@ -122,7 +118,7 @@ opNum QueryMissing                = 40
 
 
 simpleOp :: WorkerOp -> MonadStore Bool
-simpleOp op = simpleOpArgs op $ pure ()
+simpleOp op = simpleOpArgs op pass
 
 simpleOpArgs :: WorkerOp -> Put -> MonadStore Bool
 simpleOpArgs op args = do
@@ -131,19 +127,19 @@ simpleOpArgs op args = do
   bool
     sockGetBool
     (do
-      Error _num msg <- head <$> getError
+      Error _num msg <- Unsafe.head <$> getError
       throwError $ Data.ByteString.Char8.unpack msg
     )
     err
 
 runOp :: WorkerOp -> MonadStore ()
-runOp op = runOpArgs op $ pure ()
+runOp op = runOpArgs op pass
 
 runOpArgs :: WorkerOp -> Put -> MonadStore ()
 runOpArgs op args =
   runOpArgsIO
     op
-    (\encode -> encode $ Data.ByteString.Lazy.toStrict $ runPut args)
+    (\encode -> encode $ toStrict $ runPut args)
 
 runOpArgsIO
   :: WorkerOp
@@ -160,7 +156,7 @@ runOpArgsIO op encoder = do
   modify (\(a, b) -> (a, b <> out))
   err <- gotError
   when err $ do
-    Error _num msg <- head <$> getError
+    Error _num msg <- Unsafe.head <$> getError
     throwError $ Data.ByteString.Char8.unpack msg
 
 runStore :: MonadStore a -> IO (Either String a, [Logger])
@@ -190,7 +186,7 @@ runStoreOpts sockPath storeRootDir code = do
     vermagic <- liftIO $ recv soc 16
     let
       (magic2, _daemonProtoVersion) =
-        flip runGet (Data.ByteString.Lazy.fromStrict vermagic)
+        flip runGet (fromStrict vermagic)
           $ (,)
             <$> (getInt :: Get Int)
             <*> (getInt :: Get Int)

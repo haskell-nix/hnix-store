@@ -21,7 +21,7 @@ jobs:
         # Separation between Core & Store workflows made deliberately, so when one fixes Core, CI does not falls because of the Hackage Core Remote builds with.
         # Also singleton also use is deliberate, it allows to reference the value in the further configuration & also leaves a name in the CI & preserves matrix flexibility for the future.
         packageRoot: [ hnix-store-core ]
-        ghc: [ "8.10", "8.4" ]
+        ghc: [ "9.0", "8.6" ]
     defaults:
       run:
         working-directory: "./${{ matrix.packageRoot }}"
@@ -67,5 +67,5 @@ jobs:
         run: cabal v2-test $cabalConfig
 
       - name: "Source distribution file"
-        if: ${{ matrix.ghc == '8.10' }}
+        if: ${{ matrix.ghc == '9.0' }}
         run: cabal v2-sdist

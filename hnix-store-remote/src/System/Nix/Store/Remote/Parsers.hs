@@ -1,20 +1,14 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE TypeApplications    #-}
+{-# language AllowAmbiguousTypes #-}
+{-# language ScopedTypeVariables #-}
+{-# language RankNTypes          #-}
+{-# language DataKinds           #-}
 
 module System.Nix.Store.Remote.Parsers
   ( parseContentAddressableAddress
   )
 where
 
-import           Control.Applicative            ( (<|>) )
 import           Data.Attoparsec.ByteString.Char8
-import           Data.ByteString.Char8
-import           Data.Text                      ( Text )
-import           Data.Text.Encoding             ( decodeUtf8 )
 import           System.Nix.Hash
 import           System.Nix.StorePath           ( ContentAddressableAddress(..)
                                                 , NarHashMode(..)
@@ -42,7 +36,7 @@ caText = do
 caFixed :: Parser ContentAddressableAddress
 caFixed = do
   _           <- "fixed:"
-  narHashMode <- (pure Recursive <$> "r:") <|> (pure RegularFile <$> "")
+  narHashMode <- (Recursive <$ "r:") <|> (RegularFile <$ "")
   digest      <- parseTypedDigest
   either fail pure $ Fixed narHashMode <$> digest
 

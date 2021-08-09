@@ -1,22 +1,14 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# language DataKinds #-}
+{-# language ScopedTypeVariables #-}
 
 module System.Nix.ReadonlyStore where
 
 
-import           Data.ByteString                ( ByteString )
 import qualified Data.ByteString               as BS
-import           Data.List                      ( sort )
-import qualified Data.Text                     as T
 import qualified Data.HashSet                  as HS
-import           Data.Text.Encoding
 import           System.Nix.Hash
 import           System.Nix.Nar
 import           System.Nix.StorePath
-import           Control.Monad.State.Strict
-import           Data.Coerce                    ( coerce )
 import           Crypto.Hash                    ( Context
                                                 , Digest
                                                 , hash
@@ -45,7 +37,7 @@ makeStorePath fp ty h nm = StorePath (coerce storeHash) nm fp
       ty:fmap encodeUtf8
         [ algoName @h
         , encodeDigestWith Base16 h
-        , T.pack fp
+        , toText fp
         , coerce nm
         ]
 

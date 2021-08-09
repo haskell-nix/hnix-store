@@ -1,12 +1,7 @@
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE TypeApplications    #-}
+{-# language DataKinds           #-}
 
 module Derivation where
 
-import           Control.Monad.IO.Class         ( liftIO )
-
-import           Data.Text                      ( Text )
 import           Nix.Derivation                 ( Derivation(..)
                                                 , DerivationOutput(..)
                                                 )
@@ -21,7 +16,6 @@ import           System.Nix.Store.Remote        ( MonadStore
 import qualified Data.Map
 import qualified Data.Set
 import qualified Data.Text
-import qualified Data.Text.Lazy
 import qualified Data.Text.Lazy.Builder
 import qualified Data.Vector
 import qualified System.Nix.Derivation
@@ -69,7 +63,7 @@ withDerivation action = withBuildScript $ \buildScript -> withBash $ \bash ->
 
     pth <- addTextToStore
       "hnix-store-derivation"
-      ( Data.Text.Lazy.toStrict
+      ( toText
       $ Data.Text.Lazy.Builder.toLazyText
       $ System.Nix.Derivation.buildDerivation d
       )

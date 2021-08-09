@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 
 module System.Nix.Derivation
   ( parseDerivation
@@ -6,11 +5,8 @@ module System.Nix.Derivation
   )
 where
 
-import           Data.Text                      ( Text )
-import qualified Data.Text                     as Text
 import qualified Data.Text.Lazy.Builder        as Text.Lazy
                                                 ( Builder )
-import qualified Data.Text.Lazy.Builder        as Text.Lazy.Builder
 import qualified Data.Attoparsec.Text.Lazy     as Text.Lazy
                                                 ( Parser )
 import           Nix.Derivation                 ( Derivation )
@@ -29,7 +25,5 @@ parseDerivation expectedRoot =
 buildDerivation :: Derivation StorePath Text -> Text.Lazy.Builder
 buildDerivation =
   Derivation.buildDerivationWith
-    (string . Text.pack . show)
-    string
-  where
-    string = Text.Lazy.Builder.fromText . Text.pack . show
+    (show . show)
+    show

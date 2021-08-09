@@ -1,7 +1,7 @@
 
 module Util where
 
-import           Data.Text.Arbitrary
+import           Data.Text.Arbitrary ()
 import           System.Nix.Store.Remote.Util
 import           Test.Tasty.QuickCheck
 

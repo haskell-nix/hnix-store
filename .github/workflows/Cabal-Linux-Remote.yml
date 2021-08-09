@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         packageRoot: [ hnix-store-remote ]
-        ghc: [ "8.10", "8.4" ]
+        ghc: [ "9.0", "8.6" ]
     defaults:
       run:
         working-directory: "./${{ matrix.packageRoot }}"
@@ -75,5 +75,5 @@ jobs:
         run: cabal v2-test $cabalConfig
 
       - name: "Source distribution file"
-        if: ${{ matrix.ghc == '8.10' }}
+        if: ${{ matrix.ghc == '9.0' }}
         run: cabal v2-sdist

@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes #-}
+{-# language RankNTypes #-}
 
 module System.Nix.Store.Remote.Logger
   ( Logger(..)
@@ -8,9 +8,8 @@ module System.Nix.Store.Remote.Logger
 where
 
 
-import           Control.Monad.Except
-import           Control.Monad.Reader           ( asks )
-import           Control.Monad.State            ( get )
+import           Prelude                 hiding ( Last )
+import           Control.Monad.Except           ( throwError )
 import           Data.Binary.Get
 
 import           Network.Socket.ByteString      ( recv )
@@ -60,8 +59,7 @@ processOutput = go decoder
             sockPut $ putByteStringLen part
             clearData
 
-        next <- go decoder
-        pure next
+        go decoder
 
       -- we should probably handle Read here as well
       x -> do
@@ -72,12 +70,12 @@ processOutput = go decoder
     chunk <- liftIO (Just <$> recv soc 8)
     go (k chunk)
 
-  go (Fail _leftover _consumed msg) = error msg
+  go (Fail _leftover _consumed msg) = error $ fromString msg
 
 getFields :: Get [Field]
 getFields = do
   cnt <- getInt
-  sequence $ replicate cnt getField
+  replicateM cnt getField
 
 getField :: Get Field
 getField = do

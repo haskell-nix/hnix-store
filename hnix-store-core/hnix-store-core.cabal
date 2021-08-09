@@ -48,7 +48,8 @@ library
     , System.Nix.StorePath
     , System.Nix.StorePathMetadata
   build-depends:
-      base >=4.10 && <5
+      base >=4.12 && <5
+    , relude
     , attoparsec
     , algebraic-graphs >= 0.5 && < 0.6
     , base16-bytestring
@@ -72,6 +73,29 @@ library
     , unix
     , unordered-containers
     , vector
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude)
+    , relude
+  default-extensions:
+      OverloadedStrings
+    , DeriveGeneric
+    , DeriveDataTypeable
+    , DeriveFunctor
+    , DeriveFoldable
+    , DeriveTraversable
+    , DeriveLift
+    , FlexibleContexts
+    , FlexibleInstances
+    , StandaloneDeriving
+    , TypeApplications
+    , TypeSynonymInstances
+    , InstanceSigs
+    , MultiParamTypeClasses
+    , TupleSections
+    , LambdaCase
+    , BangPatterns
+    , ViewPatterns
   hs-source-dirs:      src
   default-language:    Haskell2010
 
@@ -100,6 +124,7 @@ test-suite format-tests
       hnix-store-core
     , attoparsec
     , base
+    , relude
     , base16-bytestring
     , base64-bytestring
     , binary
@@ -118,4 +143,27 @@ test-suite format-tests
     , temporary
     , text
     , unix
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude)
+    , relude
+  default-extensions:
+      OverloadedStrings
+    , DeriveGeneric
+    , DeriveDataTypeable
+    , DeriveFunctor
+    , DeriveFoldable
+    , DeriveTraversable
+    , DeriveLift
+    , FlexibleContexts
+    , FlexibleInstances
+    , StandaloneDeriving
+    , TypeApplications
+    , TypeSynonymInstances
+    , InstanceSigs
+    , MultiParamTypeClasses
+    , TupleSections
+    , LambdaCase
+    , BangPatterns
+    , ViewPatterns
   default-language: Haskell2010

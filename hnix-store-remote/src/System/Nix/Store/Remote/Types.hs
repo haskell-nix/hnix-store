@@ -1,7 +1,6 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# language DataKinds #-}
+{-# language KindSignatures #-}
+{-# language ScopedTypeVariables #-}
 module System.Nix.Store.Remote.Types
   ( MonadStore
   , StoreConfig(..)
@@ -18,12 +17,8 @@ module System.Nix.Store.Remote.Types
 where
 
 
-import           Data.ByteString                ( ByteString )
 import qualified Data.ByteString.Lazy          as BSL
 import           Network.Socket                 ( Socket )
-import           Control.Monad.Except
-import           Control.Monad.Reader
-import           Control.Monad.State
 
 data StoreConfig = StoreConfig
   { storeDir    :: FilePath
@@ -61,13 +56,13 @@ isError (Error _ _) = True
 isError _           = False
 
 gotError :: MonadStore Bool
-gotError = any isError . snd <$> get
+gotError = gets (any isError . snd)
 
 getError :: MonadStore [Logger]
-getError = filter isError . snd <$> get
+getError = gets (filter isError . snd)
 
 getLog :: MonadStore [Logger]
-getLog = snd <$> get
+getLog = gets snd
 
 flushLog :: MonadStore ()
 flushLog = modify (\(a, _b) -> (a, []))
@@ -79,4 +74,4 @@ clearData :: MonadStore ()
 clearData = modify (\(_, b) -> (Nothing, b))
 
 getStoreDir :: MonadStore FilePath
-getStoreDir = storeDir <$> ask
+getStoreDir = asks storeDir

@@ -1,11 +1,8 @@
 -- | A streaming parser for the NAR format
 
-{-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE TupleSections              #-}
-{-# LANGUAGE TypeFamilies               #-}
+{-# language GeneralizedNewtypeDeriving #-}
+{-# language ScopedTypeVariables        #-}
+{-# language TypeFamilies               #-}
 
 module System.Nix.Internal.Nar.Parser
   ( runParser
@@ -15,14 +12,11 @@ module System.Nix.Internal.Nar.Parser
   )
 where
 
+import qualified Relude.Unsafe as Unsafe
 import qualified Algebra.Graph                   as Graph
 import qualified Algebra.Graph.ToGraph           as Graph
 import qualified Control.Concurrent              as Concurrent
 import qualified Control.Exception.Lifted        as Exception.Lifted
-import           Control.Monad                    ( forM
-                                                  , when
-                                                  , forM_
-                                                  )
 import qualified Control.Monad.Except            as Except
 import qualified Control.Monad.Fail              as Fail
 import qualified Control.Monad.IO.Class          as IO
@@ -30,19 +24,11 @@ import qualified Control.Monad.Reader            as Reader
 import qualified Control.Monad.State             as State
 import qualified Control.Monad.Trans             as Trans
 import qualified Control.Monad.Trans.Control     as Base
-import           Data.ByteString                  ( ByteString )
 import qualified Data.ByteString                 as Bytes
-import           Data.Bool                        ( bool )
-import qualified Data.Either                     as Either
-import           Data.Int                         ( Int64 )
-import qualified Data.IORef                      as IORef
 import qualified Data.List                       as List
 import qualified Data.Map                        as Map
-import           Data.Maybe                       ( catMaybes )
 import qualified Data.Serialize                  as Serialize
-import           Data.Text                        ( Text )
 import qualified Data.Text                       as Text
-import qualified Data.Text.Encoding              as Text
 import qualified System.Directory                as Directory
 import           System.FilePath                 as FilePath
 import qualified System.IO                       as IO
@@ -86,15 +72,15 @@ runParser
      -- ^ A parser to run, such as @parseNar@
   -> IO.Handle
      -- ^ A handle the stream containg the NAR. It should already be
-     --   open and in @IO.ReadMode@
+     --   open and in @ReadMode@
   -> FilePath
      -- ^ The root file system object to be created by the NAR
   -> m (Either String a)
 runParser effs (NarParser action) h target = do
   unpackResult <-
-    Reader.runReaderT (Except.runExceptT $ State.evalStateT action state0) effs
+    runReaderT (runExceptT $ State.evalStateT action state0) effs
       `Exception.Lifted.catch` exceptionHandler
-  when (Either.isLeft unpackResult) cleanup
+  when (isLeft unpackResult) cleanup
   pure unpackResult
 
  where
@@ -123,7 +109,7 @@ runParser effs (NarParser action) h target = do
 
 
 instance Trans.MonadTrans NarParser where
-  lift act = NarParser $ (Trans.lift . Trans.lift . Trans.lift) act
+  lift act = NarParser $ (lift . lift . lift) act
 
 
 data ParserState = ParserState
@@ -177,7 +163,7 @@ parseSymlink = do
   (dir, file) <- currentDirectoryAndFile
   pushLink $
     LinkInfo
-      { linkTarget = Text.unpack target
+      { linkTarget = toString target
       , linkFile   = file
       , linkPWD    = dir
       }
@@ -185,7 +171,7 @@ parseSymlink = do
   currentDirectoryAndFile :: Monad m => NarParser m (FilePath, FilePath)
   currentDirectoryAndFile = do
     dirStack <- State.gets directoryStack
-    pure (List.foldr1 (</>) (List.reverse $ drop 1 dirStack), head dirStack)
+    pure (List.foldr1 (</>) (List.reverse $ drop 1 dirStack), Unsafe.head dirStack)
 
 
 -- | Internal data type representing symlinks encountered in the NAR
@@ -220,7 +206,7 @@ parseFile = do
 
   -- Set up for defining `getChunk`
   narHandle    <- State.gets handle
-  bytesLeftVar <- IO.liftIO $ IORef.newIORef fSize
+  bytesLeftVar <- IO.liftIO $ newIORef fSize
 
   let
     -- getChunk tracks the number of total bytes we still need to get from the
@@ -228,13 +214,13 @@ parseFile = do
     -- chunk we read)
     getChunk :: m (Maybe ByteString)
     getChunk = do
-      bytesLeft <- IO.liftIO $ IORef.readIORef bytesLeftVar
+      bytesLeft <- IO.liftIO $ readIORef bytesLeftVar
       if bytesLeft == 0
         then pure Nothing
         else do
           chunk <- IO.liftIO $ Bytes.hGetSome narHandle $ fromIntegral $ min 10000 bytesLeft
           when (Bytes.null chunk) (Fail.fail "ZERO BYTES")
-          IO.liftIO $ IORef.modifyIORef bytesLeftVar $ \n -> n - fromIntegral (Bytes.length chunk)
+          IO.liftIO $ modifyIORef bytesLeftVar $ \n -> n - fromIntegral (Bytes.length chunk)
 
           -- This short pause is necessary for letting the garbage collector
           -- clean up chunks from previous runs. Without it, heap memory usage can
@@ -243,12 +229,12 @@ parseFile = do
           pure $ Just chunk
 
   target     <- currentFile
-  streamFile <- Reader.asks Nar.narStreamFile
-  Trans.lift (streamFile target getChunk)
+  streamFile <- asks Nar.narStreamFile
+  lift (streamFile target getChunk)
 
   when (s == "executable") $ do
-    effs :: Nar.NarEffects m <- Reader.ask
-    Trans.lift $ do
+    effs :: Nar.NarEffects m <- ask
+    lift $ do
       p <- Nar.narGetPerms effs target
       Nar.narSetPerms effs target (p { Directory.executable = True })
 
@@ -259,9 +245,9 @@ parseFile = do
 --   handles for target files longer than needed
 parseDirectory :: (IO.MonadIO m, Fail.MonadFail m) => NarParser m ()
 parseDirectory = do
-  createDirectory <- Reader.asks Nar.narCreateDir
+  createDirectory <- asks Nar.narCreateDir
   target          <- currentFile
-  Trans.lift $ createDirectory target
+  lift $ createDirectory target
   parseEntryOrFinish
 
  where
@@ -282,7 +268,7 @@ parseDirectory = do
     parens $ do
       expectStr "name"
       fName <- parseStr
-      pushFileName (Text.unpack fName)
+      pushFileName (toString fName)
       expectStr "node"
       parens parseFSO
       popFileName
@@ -307,7 +293,7 @@ parseStr = do
       strBytes <- consume $ fromIntegral len
       expectRawString
         (Bytes.replicate (fromIntegral $ padLen $ fromIntegral len) 0)
-      pure $ Text.decodeUtf8 strBytes
+      pure $ decodeUtf8 strBytes
 
 
 -- | Get an Int64 describing the length of the upcoming string,
@@ -386,13 +372,13 @@ parens act = do
 --   (Targets must be created before the links that target them)
 createLinks :: IO.MonadIO m => NarParser m ()
 createLinks = do
-  createLink  <- Reader.asks Nar.narCreateLink
+  createLink  <- asks Nar.narCreateLink
   allLinks    <- State.gets links
   sortedLinks <- IO.liftIO $ sortLinksIO allLinks
   forM_ sortedLinks $ \li -> do
     pwd <- IO.liftIO Directory.getCurrentDirectory
     IO.liftIO $ Directory.setCurrentDirectory (linkPWD li)
-    Trans.lift $ createLink (linkTarget li) (linkFile li)
+    lift $ createLink (linkTarget li) (linkFile li)
     IO.liftIO $ Directory.setCurrentDirectory pwd
 
  where
@@ -447,7 +433,7 @@ consume n = do
 popStr :: Monad m => NarParser m (Maybe Text)
 popStr = do
   s <- State.get
-  case List.uncons (tokenStack s) of
+  case uncons (tokenStack s) of
     Nothing      -> pure Nothing
     Just (x, xs) -> do
       State.put $ s { tokenStack = xs }
@@ -492,14 +478,14 @@ pushLink linkInfo = State.modify (\s -> s { links = linkInfo : links s })
 testParser :: (m ~ IO) => NarParser m a -> ByteString -> m (Either String a)
 testParser p b = do
   Bytes.writeFile tmpFileName b
-  IO.withFile tmpFileName IO.ReadMode $ \h ->
+  withFile tmpFileName ReadMode $ \h ->
     runParser Nar.narEffectsIO p h tmpFileName
  where
   tmpFileName = "tmp"
 
 testParser' :: (m ~ IO) => FilePath -> IO (Either String ())
 testParser' fp =
-  IO.withFile fp IO.ReadMode $ \h -> runParser Nar.narEffectsIO parseNar h "tmp"
+  withFile fp ReadMode $ \h -> runParser Nar.narEffectsIO parseNar h "tmp"
 
 
 

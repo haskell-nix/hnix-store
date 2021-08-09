@@ -1,6 +1,5 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE DataKinds           #-}
+{-# language ScopedTypeVariables #-}
+{-# language DataKinds           #-}
 
 module System.Nix.Internal.Truncation
   ( truncateInNixWay
@@ -8,10 +7,6 @@ module System.Nix.Internal.Truncation
 where
 
 import qualified Data.ByteString        as Bytes
-import           Data.Bits              (xor)
-import           Data.List              (foldl')
-import           Data.Word              (Word8)
-import           Data.Bool                 (bool)
 
 -- | Bytewise truncation of a 'Digest'.
 --

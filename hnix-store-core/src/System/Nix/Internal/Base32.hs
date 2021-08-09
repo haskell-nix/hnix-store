@@ -6,18 +6,12 @@ module System.Nix.Internal.Base32
 where
 
 
-import           Data.Bool                      ( bool )
-import           Data.Maybe                     ( fromMaybe )
-import           Data.ByteString                ( ByteString )
 import qualified Data.ByteString               as Bytes
 import qualified Data.ByteString.Char8         as Bytes.Char8
 import qualified Data.Text
 import           Data.Vector                    ( Vector )
 import qualified Data.Vector                   as Vector
-import           Data.Text                      ( Text )
 import           Data.Bits                      ( shiftR )
-import           Data.Word                      ( Word8 )
-import           Data.List                      ( unfoldr )
 import           Numeric                        ( readInt )
 
 
@@ -27,7 +21,7 @@ digits32 = Vector.fromList "0123456789abcdfghijklmnpqrsvwxyz"
 
 -- | Encode a 'BS.ByteString' in Nix's base32 encoding
 encode :: ByteString -> Text
-encode c = Data.Text.pack $ takeCharPosFromDict <$> [nChar - 1, nChar - 2 .. 0]
+encode c = toText $ takeCharPosFromDict <$> [nChar - 1, nChar - 2 .. 0]
  where
   -- Each base32 character gives us 5 bits of information, while
   -- each byte gives is 8. Because 'div' rounds down, we need to add
@@ -74,9 +68,9 @@ unsafeDecode what =
         (\c -> fromMaybe (error "character not in digits32")
           $ Vector.findIndex (== c) digits32
         )
-        (Data.Text.unpack what)
+        (toString what)
     of
-      [(i, _)] -> Right $ padded $ integerToBS i
+      [(i, _)] -> pure $ padded $ integerToBS i
       x        -> Left $ "Can't decode: readInt returned " <> show x
  where
   padded x

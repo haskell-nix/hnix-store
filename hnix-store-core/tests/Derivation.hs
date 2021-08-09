@@ -12,7 +12,6 @@ import           System.Nix.Derivation          ( parseDerivation
 
 import qualified Data.Attoparsec.Text
 import qualified Data.Text.IO
-import qualified Data.Text.Lazy
 import qualified Data.Text.Lazy.Builder
 
 processDerivation :: FilePath -> FilePath -> IO ()
@@ -22,7 +21,7 @@ processDerivation source dest = do
     fail
     -- It seems to be derivation.
     (Data.Text.IO.writeFile dest
-      . Data.Text.Lazy.toStrict
+      . toText
       . Data.Text.Lazy.Builder.toLazyText
       . buildDerivation
     )

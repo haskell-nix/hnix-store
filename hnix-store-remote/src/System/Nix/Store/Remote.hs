@@ -1,11 +1,9 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE RecordWildCards     #-}
+{-# language AllowAmbiguousTypes #-}
+{-# language KindSignatures      #-}
+{-# language RankNTypes          #-}
+{-# language ScopedTypeVariables #-}
+{-# language DataKinds           #-}
+{-# language RecordWildCards     #-}
 module System.Nix.Store.Remote
   ( addToStore
   , addTextToStore
@@ -35,19 +33,14 @@ module System.Nix.Store.Remote
   )
 where
 
-import           Control.Monad                  ( void
-                                                , unless
-                                                , when
-                                                )
-import           Data.ByteString.Lazy           ( ByteString )
-import           Data.Map.Strict                ( Map )
-import           Data.Text                      ( Text )
+import           Prelude                 hiding ( putText )
+import qualified Data.ByteString.Lazy          as BSL
 
 import           Nix.Derivation                 ( Derivation )
 import           System.Nix.Build               ( BuildMode
                                                 , BuildResult
                                                 )
-import           System.Nix.Hash                ( NamedAlgo
+import           System.Nix.Hash                ( NamedAlgo(..)
                                                 , SomeNamedDigest(..)
                                                 , BaseEncoding(NixBase32)
                                                 , decodeDigestWith
@@ -63,13 +56,10 @@ import           System.Nix.StorePathMetadata   ( StorePathMetadata(..)
 import           System.Nix.Internal.Base       ( encodeWith )
 
 import qualified Data.Binary.Put
-import qualified Data.ByteString.Lazy
 import qualified Data.Map.Strict
 import qualified Data.Set
-import qualified Data.Text.Encoding
 
 import qualified System.Nix.Nar
-import qualified System.Nix.Hash
 import qualified System.Nix.StorePath
 import qualified System.Nix.Store.Remote.Parsers
 
@@ -78,7 +68,6 @@ import           System.Nix.Store.Remote.Types
 import           System.Nix.Store.Remote.Protocol
 import           System.Nix.Store.Remote.Util
 import           Crypto.Hash                    ( SHA256 )
-import           Data.Coerce                    ( coerce )
 
 type RepairFlag = Bool
 type CheckFlag = Bool
@@ -97,7 +86,7 @@ addToStore
 addToStore name pth recursive _pathFilter _repair = do
 
   runOpArgsIO AddToStore $ \yield -> do
-    yield $ Data.ByteString.Lazy.toStrict $ Data.Binary.Put.runPut $ do
+    yield $ toStrict $ Data.Binary.Put.runPut $ do
       putText $ System.Nix.StorePath.unStorePathName name
 
       putBool $ not $ System.Nix.Hash.algoName @a == "sha256" && recursive
@@ -129,7 +118,7 @@ addTextToStore name text references' repair = do
     putPaths references'
   sockGetPath
 
-addSignatures :: StorePath -> [ByteString] -> MonadStore ()
+addSignatures :: StorePath -> [BSL.ByteString] -> MonadStore ()
 addSignatures p signatures = do
   void $ simpleOpArgs AddSignatures $ do
     putPath p
@@ -171,15 +160,14 @@ buildDerivation p drv buildMode = do
     -- Intentionally the only warning that should pop-up.
     putInt (0 :: Integer)
 
-  res <- getSocketIncremental getBuildResult
-  pure res
+  getSocketIncremental getBuildResult
 
 ensurePath :: StorePath -> MonadStore ()
 ensurePath pn = do
   void $ simpleOpArgs EnsurePath $ putPath pn
 
 -- | Find garbage collector roots.
-findRoots :: MonadStore (Map ByteString StorePath)
+findRoots :: MonadStore (Map BSL.ByteString StorePath)
 findRoots = do
   runOp FindRoots
   sd  <- getStoreDir
@@ -187,7 +175,7 @@ findRoots = do
     getSocketIncremental
     $ getMany
     $ (,)
-      <$> (Data.ByteString.Lazy.fromStrict <$> getByteStringLen)
+      <$> (fromStrict <$> getByteStringLen)
       <*> getPath sd
 
   r <- catRights res
@@ -198,7 +186,7 @@ findRoots = do
 
   ex :: (a, Either [Char] b) -> MonadStore (a, b)
   ex (x , Right y) = pure (x, y)
-  ex (_x, Left e ) = error $ "Unable to decode root: " <> e
+  ex (_x, Left e ) = error $ "Unable to decode root: " <> fromString e
 
 isValidPathUncached :: StorePath -> MonadStore Bool
 isValidPathUncached p = do
@@ -235,13 +223,13 @@ queryPathInfoUncached path = do
 
   deriverPath <- sockGetPathMay
 
-  narHashText <- Data.Text.Encoding.decodeUtf8 <$> sockGetStr
+  narHashText <- decodeUtf8 <$> sockGetStr
   let
     narHash =
       case
         decodeDigestWith @SHA256 NixBase32 narHashText
         of
-        Left  e -> error e
+        Left  e -> error $ fromString e
         Right x -> SomeDigest x
 
   references       <- sockGetPaths
@@ -260,7 +248,7 @@ queryPathInfoUncached path = do
         case
           System.Nix.Store.Remote.Parsers.parseContentAddressableAddress caString
           of
-          Left  e -> error e
+          Left  e -> error $ fromString e
           Right x -> Just x
 
       trust = if ultimate then BuiltLocally else BuiltElsewhere
@@ -291,9 +279,7 @@ queryPathFromHashPart :: StorePathHashPart -> MonadStore StorePath
 queryPathFromHashPart storePathHash = do
   runOpArgs QueryPathFromHashPart
     $ putByteStringLen
-    $ Data.ByteString.Lazy.fromStrict
-    $ Data.Text.Encoding.encodeUtf8
-    $ encodeWith NixBase32 $ coerce storePathHash
+    $ encodeUtf8 (encodeWith NixBase32 $ coerce storePathHash)
   sockGetPath
 
 queryMissing

@@ -1,7 +1,6 @@
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# language KindSignatures      #-}
+{-# language RankNTypes          #-}
+{-# language ScopedTypeVariables #-}
 
 module System.Nix.Internal.Nar.Effects
   ( NarEffects(..)
@@ -10,7 +9,6 @@ module System.Nix.Internal.Nar.Effects
 
 import qualified Data.ByteString             as Bytes
 import qualified Data.ByteString.Lazy        as Bytes.Lazy
-import           Data.Int                    (Int64)
 import qualified System.Directory            as Directory
 import           System.Posix.Files          ( createSymbolicLink
                                         , fileSize
@@ -79,7 +77,7 @@ streamStringOutIO
   -> m ()
 streamStringOutIO f getChunk =
   Exception.Lifted.bracket
-    (IO.liftIO $ IO.openFile f IO.WriteMode)
+    (IO.liftIO $ IO.openFile f WriteMode)
     (IO.liftIO . IO.hClose)
     go
   `Exception.Lifted.catch`
@@ -89,7 +87,7 @@ streamStringOutIO f getChunk =
   go handle = do
     chunk <- getChunk
     case chunk of
-      Nothing -> pure ()
+      Nothing -> pass
       Just c  -> do
         IO.liftIO $ Bytes.hPut handle c
         go handle

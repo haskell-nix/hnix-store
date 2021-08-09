@@ -1,14 +1,12 @@
 {-|
 Description : Representation of Nix store paths.
 -}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE DataKinds #-}
+{-# language ConstraintKinds #-}
+{-# language RecordWildCards #-}
+{-# language GeneralizedNewtypeDeriving #-}
+{-# language ScopedTypeVariables #-}
+{-# language AllowAmbiguousTypes #-}
+{-# language DataKinds #-}
 
 module System.Nix.Internal.StorePath
   ( -- * Basic store path types
@@ -32,25 +30,21 @@ module System.Nix.Internal.StorePath
   , pathParser
   )
 where
+
+import qualified Relude.Unsafe as Unsafe
+import qualified Text.Show
 import           System.Nix.Internal.Hash
 import           System.Nix.Internal.Base
 import qualified System.Nix.Internal.Base32    as Nix.Base32
 
-import           Data.ByteString                ( ByteString )
 import qualified Data.ByteString.Char8         as Bytes.Char8
 import qualified Data.Char                     as Char
-import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
-import qualified Data.Text.Encoding            as Text
-                                                ( encodeUtf8 )
 import           Data.Attoparsec.Text.Lazy      ( Parser
                                                 , (<?>)
                                                 )
 import qualified Data.Attoparsec.Text.Lazy     as Parser.Text.Lazy
 import qualified System.FilePath               as FilePath
-import           Data.Hashable                  ( Hashable(..) )
-import           Data.HashSet                   ( HashSet )
-import           Data.Coerce                    ( coerce )
 import           Crypto.Hash                    ( SHA256
                                                 , Digest
                                                 )
@@ -173,8 +167,8 @@ storePathToRawFilePath StorePath{..} =
   root <> "/" <> hashPart <> "-" <> name
  where
   root     = Bytes.Char8.pack storePathRoot
-  hashPart = Text.encodeUtf8 $ encodeWith NixBase32 $ coerce storePathHash
-  name     = Text.encodeUtf8 $ unStorePathName storePathName
+  hashPart = encodeUtf8 $ encodeWith NixBase32 $ coerce storePathHash
+  name     = encodeUtf8 $ unStorePathName storePathName
 
 -- | Render a 'StorePath' as a 'FilePath'.
 storePathToFilePath :: StorePath -> FilePath
@@ -182,13 +176,13 @@ storePathToFilePath = Bytes.Char8.unpack . storePathToRawFilePath
 
 -- | Render a 'StorePath' as a 'Text'.
 storePathToText :: StorePath -> Text
-storePathToText = Text.pack . Bytes.Char8.unpack . storePathToRawFilePath
+storePathToText = toText . Bytes.Char8.unpack . storePathToRawFilePath
 
 -- | Build `narinfo` suffix from `StorePath` which
 -- can be used to query binary caches.
 storePathToNarInfo :: StorePath -> Bytes.Char8.ByteString
 storePathToNarInfo StorePath{..} =
-  Text.encodeUtf8 $ encodeWith NixBase32 (coerce storePathHash) <> ".narinfo"
+  encodeUtf8 $ encodeWith NixBase32 (coerce storePathHash) <> ".narinfo"
 
 -- | Parse `StorePath` from `Bytes.Char8.ByteString`, checking
 -- that store directory matches `expectedRoot`.
@@ -196,15 +190,15 @@ parsePath :: FilePath -> Bytes.Char8.ByteString -> Either String StorePath
 parsePath expectedRoot x =
   let
     (rootDir, fname) = FilePath.splitFileName . Bytes.Char8.unpack $ x
-    (storeBasedHashPart, namePart) = Text.breakOn "-" $ Text.pack fname
+    (storeBasedHashPart, namePart) = Text.breakOn "-" $ toText fname
     storeHash = decodeWith NixBase32 storeBasedHashPart
     name = makeStorePathName . Text.drop 1 $ namePart
     --rootDir' = dropTrailingPathSeparator rootDir
     -- cannot use ^^ as it drops multiple slashes /a/b/// -> /a/b
-    rootDir' = init rootDir
+    rootDir' = Unsafe.init rootDir
     storeDir =
       if expectedRoot == rootDir'
-        then Right rootDir'
+        then pure rootDir'
         else Left $ "Root store dir mismatch, expected" <> expectedRoot <> "got" <> rootDir'
   in
     StorePath <$> coerce storeHash <*> name <*> storeDir
@@ -212,7 +206,7 @@ parsePath expectedRoot x =
 pathParser :: FilePath -> Parser StorePath
 pathParser expectedRoot = do
   _ <-
-    Parser.Text.Lazy.string (Text.pack expectedRoot)
+    Parser.Text.Lazy.string (toText expectedRoot)
       <?> "Store root mismatch" -- e.g. /nix/store
 
   _ <- Parser.Text.Lazy.char '/'

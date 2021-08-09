@@ -1,19 +1,13 @@
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE DataKinds            #-}
+{-# language DataKinds            #-}
 {-# OPTIONS_GHC -Wno-orphans      #-}
 
 module Arbitrary where
 
-import           Control.Monad                  ( replicateM )
 import qualified Data.ByteString.Char8         as BSC
-import qualified Data.Text                     as T
 
 import           Test.Tasty.QuickCheck
 
 import           System.Nix.Internal.StorePath
-import           Control.Applicative                ( liftA3 )
-import           Data.Coerce                        ( coerce )
 import           Crypto.Hash                        ( SHA256
                                                     , Digest
                                                     , hash
@@ -29,7 +23,7 @@ dir :: Gen String
 dir = ('/':) <$> listOf1 (elements $ '/':['a'..'z'])
 
 instance Arbitrary StorePathName where
-  arbitrary = StorePathName . T.pack <$> ((:) <$> s1 <*> listOf sn)
+  arbitrary = StorePathName . toText <$> ((:) <$> s1 <*> listOf sn)
    where
     alphanum = ['a' .. 'z'] <> ['A' .. 'Z'] <> ['0' .. '9']
     s1       = elements $ alphanum <> "+-_?="
@@ -47,11 +41,10 @@ newtype NixLike = NixLike {getNixLike :: StorePath}
 instance Arbitrary NixLike where
   arbitrary =
     NixLike <$>
-      (liftA3 StorePath
+      liftA3 StorePath
         arbitraryTruncatedDigest
         arbitrary
         (pure "/nix/store")
-      )
    where
     -- 160-bit hash, 20 bytes, 32 chars in base32
     arbitraryTruncatedDigest = coerce . BSC.pack <$> replicateM 20 genSafeChar
