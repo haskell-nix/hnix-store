@@ -38,6 +38,9 @@ import qualified Text.Printf                      as Printf
 import qualified System.Nix.Internal.Nar.Streamer as Nar
 import           System.Nix.Nar
 
+#ifdef BOUNDED_MEMORY
+import GHC.Stats
+#endif
 
 
 withBytesAsHandle :: BSLC.ByteString -> (IO.Handle -> IO a) -> IO a
