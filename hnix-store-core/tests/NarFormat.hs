@@ -38,6 +38,7 @@ import qualified Text.Printf                      as Printf
 import qualified System.Nix.Internal.Nar.Streamer as Nar
 import           System.Nix.Nar
 
+-- Without the import, `max_live_bytes` and `getRTSStats` are undefined on some setups.
 #ifdef BOUNDED_MEMORY
 import GHC.Stats
 #endif
