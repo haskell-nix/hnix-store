@@ -63,7 +63,7 @@ waitSocket fp x = do
 
 writeConf :: FilePath -> IO ()
 writeConf fp =
-  writeFile fp $ toString $ unlines
+  writeFileText fp $ unlines
     [ "build-users-group = "
     , "trusted-users = root"
     , "allowed-users = *"
