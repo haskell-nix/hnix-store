@@ -1,5 +1,6 @@
 {-# language DataKinds #-}
 {-# language ScopedTypeVariables #-}
+{-# LANGUAGE LambdaCase #-}
 module System.Nix.Store.Remote.Protocol
   ( WorkerOp(..)
   , simpleOp
@@ -9,6 +10,8 @@ module System.Nix.Store.Remote.Protocol
   , runOpArgsIO
   , runStore
   , runStoreOpts
+  , runStoreOptsTCP
+  , runStoreOptsInner
   )
 where
 
@@ -23,7 +26,7 @@ import qualified Data.ByteString
 import qualified Data.ByteString.Char8
 
 import           Network.Socket                 ( SockAddr(SockAddrUnix) )
-import qualified Network.Socket
+import qualified Network.Socket                 as S
 import           Network.Socket.ByteString      ( recv
                                                 , sendAll
                                                 )
@@ -164,17 +167,25 @@ runStore = runStoreOpts defaultSockPath "/nix/store"
 
 runStoreOpts
   :: FilePath -> FilePath -> MonadStore a -> IO (Either String a, [Logger])
-runStoreOpts sockPath storeRootDir code = do
-  bracket (open sockPath) (Network.Socket.close . storeSocket) run
- where
-  open path = do
-    soc <-
-      Network.Socket.socket
-        Network.Socket.AF_UNIX
-        Network.Socket.Stream
-        0
+runStoreOpts path = runStoreOptsInner S.AF_UNIX (SockAddrUnix path)
 
-    Network.Socket.connect soc (SockAddrUnix path)
+runStoreOptsTCP
+  :: String -> Int -> FilePath -> MonadStore a -> IO (Either String a, [Logger])
+runStoreOptsTCP host port storeRootDir code = do
+  let hints = S.defaultHints
+  S.getAddrInfo (Just hints) (Just host) (Just $ show port) >>= \case
+    (sockAddr:_) -> runStoreOptsInner (S.addrFamily sockAddr) (S.addrAddress sockAddr) storeRootDir code
+    _ -> return (Left "Couldn't resolve host and port with getAddrInfo.", [])
+
+runStoreOptsInner
+  :: S.Family -> S.SockAddr -> FilePath -> MonadStore a -> IO (Either String a, [Logger])
+runStoreOptsInner sockFamily sockAddr storeRootDir code =
+  bracket open (S.close . storeSocket) run
+
+ where
+  open = do
+    soc <- S.socket sockFamily S.Stream 0
+    S.connect soc sockAddr
     pure StoreConfig
         { storeSocket = soc
         , storeDir = storeRootDir
