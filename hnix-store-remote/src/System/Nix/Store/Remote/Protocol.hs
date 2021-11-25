@@ -11,7 +11,7 @@ module System.Nix.Store.Remote.Protocol
   , runStore
   , runStoreOpts
   , runStoreOptsTCP
-  , runStoreOptsInner
+  , runStoreOpts'
   )
 where
 
@@ -167,19 +167,18 @@ runStore = runStoreOpts defaultSockPath "/nix/store"
 
 runStoreOpts
   :: FilePath -> FilePath -> MonadStore a -> IO (Either String a, [Logger])
-runStoreOpts path = runStoreOptsInner S.AF_UNIX (SockAddrUnix path)
+runStoreOpts path = runStoreOpts' S.AF_UNIX (SockAddrUnix path)
 
 runStoreOptsTCP
   :: String -> Int -> FilePath -> MonadStore a -> IO (Either String a, [Logger])
 runStoreOptsTCP host port storeRootDir code = do
-  let hints = S.defaultHints
-  S.getAddrInfo (Just hints) (Just host) (Just $ show port) >>= \case
-    (sockAddr:_) -> runStoreOptsInner (S.addrFamily sockAddr) (S.addrAddress sockAddr) storeRootDir code
-    _ -> return (Left "Couldn't resolve host and port with getAddrInfo.", [])
+  S.getAddrInfo (Just S.defaultHints) (Just host) (Just $ show port) >>= \case
+    (sockAddr:_) -> runStoreOpts' (S.addrFamily sockAddr) (S.addrAddress sockAddr) storeRootDir code
+    _ -> pure (Left "Couldn't resolve host and port with getAddrInfo.", [])
 
-runStoreOptsInner
+runStoreOpts'
   :: S.Family -> S.SockAddr -> FilePath -> MonadStore a -> IO (Either String a, [Logger])
-runStoreOptsInner sockFamily sockAddr storeRootDir code =
+runStoreOpts' sockFamily sockAddr storeRootDir code =
   bracket open (S.close . storeSocket) run
 
  where
