@@ -21,22 +21,6 @@ import           System.FilePath                  ( (</>) )
 import qualified System.Nix.Internal.Nar.Effects as Nar
 
 
-int :: Integral a => a -> ByteString
-int n = Serial.runPut $ Serial.putInt64le $ fromIntegral n
-
-str :: ByteString -> ByteString
-str t =
-  let
-    len = Bytes.length t
-  in
-    int len <> padBS len t
-
-padBS :: Int -> ByteString -> ByteString
-padBS strSize bs = bs <> Bytes.replicate (padLen strSize) 0
-
-strs :: [ByteString] -> ByteString
-strs xs = Bytes.concat $ str <$> xs
-
 -- | NarSource 
 -- the source to provide nar to the handler
 type NarSource m =  (ByteString -> m ()) -> m ()
@@ -57,7 +41,7 @@ dumpString text yield = do
 -- | This implementation of Nar encoding takes an arbitrary @yield@
 --   function from any streaming library, and repeatedly calls
 --   it while traversing the filesystem object to Nar encode
-streamNarIO :: forall m . IO.MonadIO m => Nar.NarEffects IO -> FilePath -> NarSource  m
+streamNarIO :: forall m . IO.MonadIO m => Nar.NarEffects IO -> FilePath -> NarSource m
 streamNarIO effs basePath yield = do
   yield $ str "nix-archive-1"
   yield $ str "("
@@ -120,3 +104,19 @@ isExecutable effs fp =
 -- | Distance to the next multiple of 8
 padLen :: Int -> Int
 padLen n = (8 - n) `mod` 8
+
+int :: Integral a => a -> ByteString
+int n = Serial.runPut $ Serial.putInt64le $ fromIntegral n
+
+str :: ByteString -> ByteString
+str t =
+  let
+    len = Bytes.length t
+  in
+    int len <> padBS len t
+
+padBS :: Int -> ByteString -> ByteString
+padBS strSize bs = bs <> Bytes.replicate (padLen strSize) 0
+
+strs :: [ByteString] -> ByteString
+strs xs = Bytes.concat $ str <$> xs
