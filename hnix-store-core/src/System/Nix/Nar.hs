@@ -26,6 +26,7 @@ module System.Nix.Nar
   -- * Internal
   , Nar.streamNarIO
   , Nar.runParser
+  , Nar.dumpString
 
   -- * Type
   , Nar.NarSource

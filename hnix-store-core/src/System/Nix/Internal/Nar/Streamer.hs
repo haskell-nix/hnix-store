@@ -66,7 +66,7 @@ streamNarIO effs basePath yield = do
       fSize <- IO.liftIO $ Nar.narFileSize effs path
       yield $ str "contents"
       yield $ int fSize
-      yieldFile path fSize 
+      yieldFile path fSize
 
     when isDir $ do
       fs <- IO.liftIO (Nar.narListDir effs path)
