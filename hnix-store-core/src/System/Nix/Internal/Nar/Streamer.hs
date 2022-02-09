@@ -5,6 +5,7 @@
 module System.Nix.Internal.Nar.Streamer
   ( NarSource 
   , dumpString
+  , dumpPath
   , streamNarIO
   , IsExecutable(..)
   )
@@ -25,6 +26,7 @@ import qualified System.Nix.Internal.Nar.Effects as Nar
 -- the source to provide nar to the handler
 type NarSource m =  (ByteString -> m ()) -> m ()
 
+
 -- | dumpString
 -- dump a string to nar
 dumpString :: forall m . IO.MonadIO m => ByteString -> NarSource m
@@ -36,6 +38,13 @@ dumpString text yield = do
   yield $ str "contents"
   yield $ str text
   yield $ str ")"
+
+
+-- | dumpPath
+-- shorthand
+-- build a Source that turn file path to nar using the default narEffectsIO.
+dumpPath :: forall m . IO.MonadIO m => FilePath -> NarSource m
+dumpPath = streamNarIO Nar.narEffectsIO
 
 
 -- | This implementation of Nar encoding takes an arbitrary @yield@
