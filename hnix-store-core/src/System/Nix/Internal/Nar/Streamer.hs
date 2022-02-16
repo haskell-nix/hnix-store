@@ -3,7 +3,7 @@
 {-# language ScopedTypeVariables #-}
 
 module System.Nix.Internal.Nar.Streamer
-  ( NarSource 
+  ( NarSource
   , dumpString
   , dumpPath
   , streamNarIO
@@ -22,28 +22,32 @@ import           System.FilePath                  ( (</>) )
 import qualified System.Nix.Internal.Nar.Effects as Nar
 
 
--- | NarSource 
--- the source to provide nar to the handler
+-- | NarSource
+-- The source to provide nar to the handler `(ByteString -> m ())`.
+-- It is isomorphic to ByteString by Yoneda lemma
+-- if the result is meant to be m ().
+-- It is done in CPS style so IO can be chunks.
 type NarSource m =  (ByteString -> m ()) -> m ()
 
 
 -- | dumpString
--- dump a string to nar
-dumpString :: forall m . IO.MonadIO m => ByteString -> NarSource m
-dumpString text yield = do
-  yield $ str "nix-archive-1"
-  yield $ str "("
-  yield $ str "type" 
-  yield $ str "regular"
-  yield $ str "contents"
-  yield $ str text
-  yield $ str ")"
+-- dump a string to nar in CPS style. The function takes in a `ByteString`,
+-- and build a `NarSource m`.
+dumpString
+  :: forall m. IO.MonadIO m
+  => ByteString -- ^ the string you want to dump
+  -> NarSource m -- ^ The nar result in CPS style
+dumpString text yield = traverse_ (yield . str)
+  ["nix-archive-1", "(", "type" , "regular", "contents", text, ")"]
 
 
 -- | dumpPath
 -- shorthand
 -- build a Source that turn file path to nar using the default narEffectsIO.
-dumpPath :: forall m . IO.MonadIO m => FilePath -> NarSource m
+dumpPath
+  :: forall m . IO.MonadIO m
+  => FilePath -- ^ path for the file you want to dump to nar
+  -> NarSource m -- ^ the nar result in CPS style
 dumpPath = streamNarIO Nar.narEffectsIO
 
 
@@ -53,9 +57,7 @@ dumpPath = streamNarIO Nar.narEffectsIO
 streamNarIO :: forall m . IO.MonadIO m => Nar.NarEffects IO -> FilePath -> NarSource m
 streamNarIO effs basePath yield = do
   yield $ str "nix-archive-1"
-  yield $ str "("
-  go basePath
-  yield $ str ")"
+  parens $ go basePath
  where
   go :: FilePath -> m ()
   go path = do
@@ -98,7 +100,6 @@ streamNarIO effs basePath yield = do
   yieldFile path fsize = do
     mapM_ yield . Bytes.Lazy.toChunks =<< IO.liftIO (Bytes.Lazy.readFile path)
     yield $ Bytes.replicate (padLen $ fromIntegral fsize) 0
-          
 
 data IsExecutable = NonExecutable | Executable
   deriving (Eq, Show)
