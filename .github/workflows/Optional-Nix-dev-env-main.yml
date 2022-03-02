@@ -28,7 +28,7 @@ jobs:
         working-directory: "./${{ matrix.packageRoot }}"
     steps:
     - name: "Git checkout"
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         submodules: recursive
     - name: "Install Nix"
