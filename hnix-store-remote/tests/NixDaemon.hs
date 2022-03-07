@@ -27,7 +27,6 @@ import           System.Nix.StorePath
 import           System.Nix.Store.Remote
 import           System.Nix.Store.Remote.Protocol
 
-import           Derivation
 import           Crypto.Hash                    ( SHA256
                                                 )
 
@@ -49,6 +48,7 @@ mockedEnv mEnvPath fp = (fp </>) <<$>>
   , ("NIX_LOG_DIR"       , "var" </> "log")
   , ("NIX_STATE_DIR"     , "var" </> "nix")
   , ("NIX_CONF_DIR"      , "etc")
+  , ("HOME"              , "home")
 --  , ("NIX_REMOTE", "daemon")
     ] <> foldMap (\x -> [("PATH", x)]) mEnvPath
 
@@ -260,9 +260,3 @@ spec_protocol = Hspec.around withNixDaemon $
         path <- dummy
         liftIO $ print path
         isValidPathUncached path `shouldReturn` True
-
-    context "derivation" $
-      itRights "build derivation" $
-        withDerivation $ \path drv -> do
-          result <- buildDerivation path drv Normal
-          result `shouldSatisfy` ((== AlreadyValid) . status)
