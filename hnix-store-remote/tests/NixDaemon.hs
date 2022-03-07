@@ -49,6 +49,7 @@ mockedEnv mEnvPath fp = (fp </>) <<$>>
   , ("NIX_LOG_DIR"       , "var" </> "log")
   , ("NIX_STATE_DIR"     , "var" </> "nix")
   , ("NIX_CONF_DIR"      , "etc")
+  , ("HOME"              , "home")
 --  , ("NIX_REMOTE", "daemon")
     ] <> foldMap (\x -> [("PATH", x)]) mEnvPath
 
