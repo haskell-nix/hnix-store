@@ -90,8 +90,7 @@ test-suite hnix-store-remote-tests
   type:              exitcode-stdio-1.0
   main-is:           Driver.hs
   other-modules:
-      Derivation
-    , NixDaemon
+      NixDaemon
     , Spec
     , Util
   hs-source-dirs:    tests
@@ -114,7 +113,6 @@ test-suite hnix-store-remote-tests
     , tasty-hspec
     , tasty-quickcheck
     , linux-namespaces
-    , nix-derivation
     , temporary
     , text
     , unix
