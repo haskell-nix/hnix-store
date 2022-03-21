@@ -52,7 +52,7 @@ jobs:
         run: cp -a cabal.project.freeze ../cabal.project.freeze
 
       - name: "Configuring GitHub cache"
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ${{ steps.HaskEnvSetup.outputs.cabal-store }}
