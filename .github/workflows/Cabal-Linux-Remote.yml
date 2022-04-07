@@ -44,7 +44,7 @@ jobs:
 
       # Still required for Remote
       - name: "Install Nix"
-        uses: cachix/install-nix-action@v16
+        uses: cachix/install-nix-action@v17
         if: matrix.packageRoot == 'hnix-store-remote'
 
       # Remote: Enabling testsuite, because it requires networking in the default Nix environment.
