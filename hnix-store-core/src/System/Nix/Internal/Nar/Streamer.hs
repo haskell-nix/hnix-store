@@ -3,7 +3,9 @@
 {-# language ScopedTypeVariables #-}
 
 module System.Nix.Internal.Nar.Streamer
-  ( streamNarIO
+  ( NarSource 
+  , dumpString
+  , streamNarIO
   , IsExecutable(..)
   )
 where
@@ -19,22 +21,49 @@ import           System.FilePath                  ( (</>) )
 import qualified System.Nix.Internal.Nar.Effects as Nar
 
 
+int :: Integral a => a -> ByteString
+int n = Serial.runPut $ Serial.putInt64le $ fromIntegral n
+
+str :: ByteString -> ByteString
+str t =
+  let
+    len = Bytes.length t
+  in
+    int len <> padBS len t
+
+padBS :: Int -> ByteString -> ByteString
+padBS strSize bs = bs <> Bytes.replicate (padLen strSize) 0
+
+strs :: [ByteString] -> ByteString
+strs xs = Bytes.concat $ str <$> xs
+
+-- | NarSource 
+-- the source to provide nar to the handler
+type NarSource m =  (ByteString -> m ()) -> m ()
+
+-- | dumpString
+-- dump a string to nar
+dumpString :: forall m . IO.MonadIO m => ByteString -> NarSource m
+dumpString text yield = do
+  yield $ str "nix-archive-1"
+  yield $ str "("
+  yield $ str "type" 
+  yield $ str "regular"
+  yield $ str "contents"
+  yield $ str text
+  yield $ str ")"
+
+
 -- | This implementation of Nar encoding takes an arbitrary @yield@
 --   function from any streaming library, and repeatedly calls
 --   it while traversing the filesystem object to Nar encode
-streamNarIO
-  :: forall m
-   . (IO.MonadIO m)
-  => (ByteString -> m ())
-  -> Nar.NarEffects IO
-  -> FilePath
-  -> m ()
-streamNarIO yield effs basePath = do
+streamNarIO :: forall m . IO.MonadIO m => Nar.NarEffects IO -> FilePath -> NarSource  m
+streamNarIO effs basePath yield = do
   yield $ str "nix-archive-1"
-  parens $ go basePath
-
+  yield $ str "("
+  go basePath
+  yield $ str ")"
  where
-
   go :: FilePath -> m ()
   go path = do
     isDir     <- IO.liftIO $ Nar.narIsDir effs path
@@ -53,7 +82,7 @@ streamNarIO yield effs basePath = do
       fSize <- IO.liftIO $ Nar.narFileSize effs path
       yield $ str "contents"
       yield $ int fSize
-      yieldFile path fSize
+      yieldFile path fSize 
 
     when isDir $ do
       fs <- IO.liftIO (Nar.narListDir effs path)
@@ -64,16 +93,6 @@ streamNarIO yield effs basePath = do
           let fullName = path </> f
           yield $ strs ["name", Bytes.Char8.pack f, "node"]
           parens $ go fullName
-
-  str :: ByteString -> ByteString
-  str t =
-    let
-      len = Bytes.length t
-    in
-      int len <> padBS len t
-
-  padBS :: Int -> ByteString -> ByteString
-  padBS strSize bs = bs <> Bytes.replicate (padLen strSize) 0
 
   parens act = do
     yield $ str "("
@@ -86,13 +105,7 @@ streamNarIO yield effs basePath = do
   yieldFile path fsize = do
     mapM_ yield . Bytes.Lazy.toChunks =<< IO.liftIO (Bytes.Lazy.readFile path)
     yield $ Bytes.replicate (padLen $ fromIntegral fsize) 0
-
-  strs :: [ByteString] -> ByteString
-  strs xs = Bytes.concat $ str <$> xs
-
-  int :: Integral a => a -> ByteString
-  int n = Serial.runPut $ Serial.putInt64le $ fromIntegral n
-
+          
 
 data IsExecutable = NonExecutable | Executable
   deriving (Eq, Show)
