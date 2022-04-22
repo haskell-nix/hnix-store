@@ -42,9 +42,3 @@ jobs:
         signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
     - name: "Determined Nix-build"
       run: nix-build ../ -A "haskellPackages.${{ matrix.packageRoot }}"
-      env:
-        #  2020-12-22: NOTE: allowBroken ideally should be temporary.
-        NIXPKGS_ALLOW_BROKEN: "1"
-
-
-
