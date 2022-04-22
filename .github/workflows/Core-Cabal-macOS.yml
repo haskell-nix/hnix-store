@@ -25,13 +25,13 @@ jobs:
     steps:
 
       - name: "Git checkout"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           submodules: recursive
 
       - name: "Haskell env setup"
         id: HaskEnvSetup
-        uses: haskell/actions/setup@v1
+        uses: haskell/actions/setup@v2
         with:
           ghc-version: '9.0'
 
@@ -49,7 +49,7 @@ jobs:
         run: cp -a cabal.project.freeze ../cabal.project.freeze
 
       - name: "Configuring GitHub cache"
-        uses: actions/cache@v2
+        uses: actions/cache@v3.0.1
         with:
           path: |
             ${{ steps.HaskEnvSetup.outputs.cabal-store }}
