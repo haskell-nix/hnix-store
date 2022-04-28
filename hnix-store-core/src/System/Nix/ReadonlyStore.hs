@@ -87,7 +87,7 @@ computeStorePathForPath name pth recursive _pathFilter _repair = do
   recursiveContentHash :: IO (Digest SHA256)
   recursiveContentHash = hashFinalize <$> execStateT streamNarUpdate (hashInit @SHA256)
   streamNarUpdate :: StateT (Context SHA256) IO ()
-  streamNarUpdate = streamNarIO (modify . flip (hashUpdate @ByteString @SHA256)) narEffectsIO pth
+  streamNarUpdate = streamNarIO narEffectsIO pth (modify . flip (hashUpdate @ByteString @SHA256))
 
   flatContentHash :: IO (Digest SHA256)
   flatContentHash = hashlazy <$> narReadFile narEffectsIO pth
