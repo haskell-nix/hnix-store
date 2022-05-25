@@ -27,8 +27,8 @@ import           System.Nix.StorePath
 import           System.Nix.Store.Remote
 import           System.Nix.Store.Remote.Protocol
 
-import           Crypto.Hash                    ( SHA256
-                                                )
+import           Crypto.Hash                    ( SHA256 )
+import           System.Nix.Nar                 ( dumpPath )
 
 createProcessEnv :: FilePath -> String -> [String] -> IO P.ProcessHandle
 createProcessEnv fp proc args = do
@@ -159,7 +159,7 @@ withPath action = do
 dummy :: MonadStore StorePath
 dummy = do
   let Right n = makeStorePathName "dummy"
-  addToStore @SHA256 n "dummy" False (pure True) False
+  addToStore @SHA256 n (dumpPath "dummy") False False
 
 invalidPath :: StorePath
 invalidPath =
@@ -250,7 +250,7 @@ spec_protocol = Hspec.around withNixDaemon $
       itRights "adds file to store" $ do
         fp <- liftIO $ writeSystemTempFile "addition" "lal"
         let Right n = makeStorePathName "tmp-addition"
-        res <- addToStore @SHA256 n fp False (pure True) False
+        res <- addToStore @SHA256 n (dumpPath fp) False False
         liftIO $ print res
 
     context "with dummy" $ do
