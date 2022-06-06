@@ -114,10 +114,8 @@ test-suite hnix-store-remote-tests
     , tasty-quickcheck
     , linux-namespaces
     , temporary
-    , text
     , unix
     , unordered-containers
-    , vector
   mixins:
       base hiding (Prelude)
     , relude (Relude as Prelude)
