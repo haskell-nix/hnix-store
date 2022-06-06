@@ -52,7 +52,7 @@ library
     , nix-derivation >= 1.1.1 && <2
     , mtl
     , unordered-containers
-    , hnix-store-core >= 0.5 && <0.6
+    , hnix-store-core >= 0.6 && <0.7
   mixins:
       base hiding (Prelude)
     , relude (Relude as Prelude)
