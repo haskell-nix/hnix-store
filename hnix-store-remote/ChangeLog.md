@@ -1,5 +1,12 @@
 # Revision history for hnix-store-remote
 
+## [0.6.0.0](https://github.com/haskell-nix/hnix-store/compare/0.5.0.0...0.6.0.0) 2021-06-06
+
+* Breaking:
+  * [(link)](https://github.com/haskell-nix/hnix-store/pull/179) `System.Nix.Store.Remote`:
+    * `addToStore` no longer accepts `FilePath` as its second argument but uses
+      more generic `NarSource` [(NarSource PR)](https://github.com/haskell-nix/hnix-store/pull/177)
+
 ## [0.5.0.0](https://github.com/haskell-nix/hnix-store/compare/0.4.3.0...0.5.0.0) 2021-06-11
 
 * Breaking:
