@@ -1,5 +1,13 @@
 # ChangeLog
 
+## [0.6.0.0](https://github.com/haskell-nix/hnix-store/compare/core-0.5.0.0...core-0.6.0.0) 2022-06-06
+
+* Breaking:
+
+    * [(link)](https://github.com/haskell-nix/hnix-store/pull/177) `streamNarIO` changes type and returns `NarSource m`
+      * `FilePath` can turn to `NarSource m` using `dumpPath`
+      * `ByteString` can turn to `NarSource m` using `dumpString`
+
 ## [0.5.0.0](https://github.com/haskell-nix/hnix-store/compare/0.4.3.0...core-0.5.0.0) 2021-06-10
 
 * Breaking:
@@ -34,7 +42,6 @@
       * add `mkStorePathHash` - a function to create a content into Nix storepath-style hash:
         `mkStorePathHash :: HashAlgorithm a => ByteString -> ByteString`
         but recommend to at once use `mkStorePathHashPart`.
-    
 
 ## [0.4.3.0](https://github.com/haskell-nix/hnix-store/compare/0.4.2.0...0.4.3.0) 2021-05-30
 
