@@ -33,7 +33,7 @@ Library
         containers                     < 0.7 ,
         deepseq         >= 1.4.0.0  && < 1.5 ,
         text            >= 0.8.0.0  && < 2.1 ,
-        vector                         < 0.13,
+        vector                         < 0.14,
         filepath                       < 1.5
     Exposed-Modules:
         Nix.Derivation
