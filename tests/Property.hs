@@ -11,7 +11,7 @@ import Data.Vector (Vector)
 import System.FilePath
 import Nix.Derivation (Derivation(..), DerivationOutput(..))
 import Prelude hiding (FilePath, either)
-import Test.QuickCheck (Arbitrary(..))
+import Test.QuickCheck (Gen, Arbitrary(..), oneof)
 
 import qualified Data.Attoparsec.Text.Lazy
 import qualified Data.Text
@@ -27,11 +27,28 @@ instance Arbitrary a => Arbitrary (Vector a) where
     arbitrary = fmap Data.Vector.fromList arbitrary
 
 instance Arbitrary (DerivationOutput FilePath Text) where
-    arbitrary = do
-        path     <- arbitrary
-        hashAlgo <- arbitrary
-        hash     <- arbitrary
-        return (DerivationOutput {..})
+    arbitrary = oneof
+      [ derivationOutput
+      , fixedDerivationOutput
+      , contentAddressedDerivationOutput
+      ]
+
+derivationOutput :: Gen (DerivationOutput FilePath Text)
+derivationOutput = do
+  path     <- arbitrary
+  return (DerivationOutput {..})
+
+fixedDerivationOutput :: Gen (DerivationOutput FilePath Text)
+fixedDerivationOutput = do
+  path     <- arbitrary
+  hashAlgo <- arbitrary
+  hash     <- arbitrary
+  return (FixedDerivationOutput {..})
+
+contentAddressedDerivationOutput :: Gen (DerivationOutput FilePath Text)
+contentAddressedDerivationOutput = do
+  hashAlgo <- arbitrary
+  return (ContentAddressedDerivationOutput {..})
 
 instance Arbitrary (Derivation FilePath Text) where
     arbitrary = do

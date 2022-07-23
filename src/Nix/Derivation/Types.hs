@@ -40,13 +40,23 @@ data Derivation fp txt = Derivation
 instance (NFData a, NFData b) => NFData (Derivation a b)
 
 -- | An output of a Nix derivation
-data DerivationOutput fp txt = DerivationOutput
-    { path     :: fp
-    -- ^ Path where the output will be saved
-    , hashAlgo :: txt
-    -- ^ Hash used for expected hash computation
-    , hash     :: txt
-    -- ^ Expected hash
-    } deriving (Eq, Generic, Ord, Show)
+data DerivationOutput fp txt
+    = DerivationOutput
+        { path     :: fp
+        -- ^ Path where the output will be saved
+        }
+    | FixedDerivationOutput
+        { path     :: fp
+        -- ^ Path where the output will be saved
+        , hashAlgo :: txt
+        -- ^ Hash used for expected hash computation
+        , hash     :: txt
+        -- ^ Expected hash
+        }
+    | ContentAddressedDerivationOutput
+        { hashAlgo :: txt
+        -- ^ Hash used for expected hash computation
+        }
+    deriving (Eq, Generic, Ord, Show)
 
 instance (NFData a, NFData b) => NFData (DerivationOutput a b)

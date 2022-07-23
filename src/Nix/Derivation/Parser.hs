@@ -40,7 +40,7 @@ parseDerivation = parseDerivationWith filepathParser textParser
 
 -- | Parse a derivation using custom
 -- parsers for filepaths and text fields
-parseDerivationWith :: (Ord fp, Ord txt) => Parser fp -> Parser txt -> Parser (Derivation fp txt)
+parseDerivationWith :: (Ord fp, Monoid fp, Ord txt, Monoid txt) => Parser fp -> Parser txt -> Parser (Derivation fp txt)
 parseDerivationWith filepath string = do
     "Derive("
 
@@ -54,7 +54,8 @@ parseDerivationWith filepath string = do
             ","
             hash <- string
             ")"
-            return (key, DerivationOutput {..})
+            drvOutput <- derivationOutput path hashAlgo hash
+            return (key, drvOutput)
     outputs <- mapOf keyValue0
 
     ","
@@ -98,6 +99,16 @@ parseDerivationWith filepath string = do
     ")"
 
     return (Derivation {..})
+
+derivationOutput :: (Ord fp, Monoid fp, Ord txt, Monoid txt) => fp -> txt -> txt -> Parser (DerivationOutput fp txt)
+derivationOutput path hashAlgo hash
+    | path /= mempty && hashAlgo == mempty && hash == mempty =
+        return DerivationOutput {..}
+    | path /= mempty && hashAlgo /= mempty && hash /= mempty =
+        return FixedDerivationOutput {..}
+    | path == mempty && hashAlgo /= mempty && hash == mempty =
+        return ContentAddressedDerivationOutput {..}
+    | otherwise = fail "bad output in derivation"
 
 textParser :: Parser Text
 textParser = do
