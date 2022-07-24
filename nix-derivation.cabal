@@ -79,7 +79,7 @@ Test-Suite property
         nix-derivation                       ,
         QuickCheck                     < 2.15,
         text                                 ,
-        vector                         < 0.13,
+        vector                         < 0.14,
         filepath                       < 1.5
 
 Benchmark benchmark
