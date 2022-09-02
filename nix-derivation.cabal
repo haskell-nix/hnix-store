@@ -92,6 +92,6 @@ Benchmark benchmark
     Build-Depends:
         base            >= 4.6.0.0  && < 5   ,
         attoparsec      >= 0.12.0.0 && < 0.15,
-        criterion       >= 1.1.4.0  && < 1.6 ,
+        criterion       >= 1.1.4.0  && < 1.7 ,
         nix-derivation                       ,
         text
