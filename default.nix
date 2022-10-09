@@ -1,4 +1,4 @@
-{ rev ?  "c542baa0c894796c92a8173dead027f3b952c22e"
+{ rev ?  "272fad732d39b24c4549c475176e0d8cbc8c897a"
 , pkgs ?
     if ((rev == "") || (rev == "default") || (rev == "local"))
       then import <nixpkgs> {}
