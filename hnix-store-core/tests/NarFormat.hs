@@ -115,6 +115,8 @@ spec_narEncoding = do
 
     it "matches directory" $ do
       encEqualsNixStore (Nar sampleDirectory) sampleDirectoryBaseline
+    it "matches symlink to directory" $ do
+      encEqualsNixStore (Nar sampleLinkToDirectory) sampleLinkToDirectoryBaseline
 
 
 unit_nixStoreRegular :: HU.Assertion
@@ -452,6 +454,14 @@ sampleLargeDir fSize = Directory $ Map.fromList $ [
      )
   ]
 
+sampleLinkToDirectory :: FileSystemObject
+sampleLinkToDirectory = Directory $ Map.fromList [
+  (FilePathPart "foo", Directory $ Map.fromList [
+        (FilePathPart "file", Regular Nar.NonExecutable 8 "foo text")
+      ])
+  , (FilePathPart "linkfoo"  , SymLink "foo")
+  ]
+
 --------------------------------------------------------------------------------
 sampleDirWithManyFiles :: Int -> FileSystemObject
 sampleDirWithManyFiles nFiles =
@@ -525,6 +535,21 @@ sampleDirectoryBaseline = B64.decodeLenient $ BSL.concat
   ,"AAAAKQAAAAAAAAABAAAAAAAAACkAAAAAAAAA"
   ]
 
+sampleLinkToDirectoryBaseline :: BSL.ByteString
+sampleLinkToDirectoryBaseline = B64.decodeLenient $ BSL.concat
+  ["DQAAAAAAAABuaXgtYXJjaGl2ZS0xAAAAAQAAAAAAAAAoAAAAAAAAAAQAAAAAAAAAdHlwZQAAAAAJ"
+  ,"AAAAAAAAAGRpcmVjdG9yeQAAAAAAAAAFAAAAAAAAAGVudHJ5AAAAAQAAAAAAAAAoAAAAAAAAAAQA"
+  ,"AAAAAAAAbmFtZQAAAAADAAAAAAAAAGZvbwAAAAAABAAAAAAAAABub2RlAAAAAAEAAAAAAAAAKAAA"
+  ,"AAAAAAAEAAAAAAAAAHR5cGUAAAAACQAAAAAAAABkaXJlY3RvcnkAAAAAAAAABQAAAAAAAABlbnRy"
+  ,"eQAAAAEAAAAAAAAAKAAAAAAAAAAEAAAAAAAAAG5hbWUAAAAABAAAAAAAAABmaWxlAAAAAAQAAAAA"
+  ,"AAAAbm9kZQAAAAABAAAAAAAAACgAAAAAAAAABAAAAAAAAAB0eXBlAAAAAAcAAAAAAAAAcmVndWxh"
+  ,"cgAIAAAAAAAAAGNvbnRlbnRzCAAAAAAAAABmb28gdGV4dAEAAAAAAAAAKQAAAAAAAAABAAAAAAAA"
+  ,"ACkAAAAAAAAAAQAAAAAAAAApAAAAAAAAAAEAAAAAAAAAKQAAAAAAAAAFAAAAAAAAAGVudHJ5AAAA"
+  ,"AQAAAAAAAAAoAAAAAAAAAAQAAAAAAAAAbmFtZQAAAAAHAAAAAAAAAGxpbmtmb28ABAAAAAAAAABu"
+  ,"b2RlAAAAAAEAAAAAAAAAKAAAAAAAAAAEAAAAAAAAAHR5cGUAAAAABwAAAAAAAABzeW1saW5rAAYA"
+  ,"AAAAAAAAdGFyZ2V0AAADAAAAAAAAAGZvbwAAAAAAAQAAAAAAAAApAAAAAAAAAAEAAAAAAAAAKQAA"
+  ,"AAAAAAABAAAAAAAAACkAAAAAAAAA"
+  ]
 
 -- | Control testcase sizes (bytes) by env variable
 getBigFileSize :: IO Int64
