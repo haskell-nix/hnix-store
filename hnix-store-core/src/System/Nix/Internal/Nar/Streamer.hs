@@ -16,6 +16,8 @@ import qualified Data.ByteString                 as Bytes
 import qualified Data.ByteString.Char8           as Bytes.Char8
 import qualified Data.ByteString.Lazy            as Bytes.Lazy
 import qualified Data.Serialize                  as Serial
+import qualified Data.Text                       as T (pack)
+import qualified Data.Text.Encoding              as TE (encodeUtf8)
 import qualified System.Directory                as Directory
 import           System.FilePath                 ((</>))
 
@@ -65,7 +67,7 @@ streamNarIO effs basePath yield = do
     if isSymLink then do
       target <- IO.liftIO $ Nar.narReadLink effs path
       yield $
-        strs ["type", "symlink", "target", Bytes.Char8.pack target]
+        strs ["type", "symlink", "target", filePathToBS target]
       else do
         isDir <- IO.liftIO $ Nar.narIsDir effs path
         if isDir then do
@@ -75,7 +77,7 @@ streamNarIO effs basePath yield = do
             yield $ str "entry"
             parens $ do
               let fullName = path </> f
-              yield $ strs ["name", Bytes.Char8.pack f, "node"]
+              yield $ strs ["name", filePathToBS f, "node"]
               parens $ go fullName
         else do
           isExec <- IO.liftIO $ isExecutable effs path
@@ -85,6 +87,8 @@ streamNarIO effs basePath yield = do
           yield $ str "contents"
           yield $ int fSize
           yieldFile path fSize
+
+  filePathToBS = TE.encodeUtf8 . T.pack
 
   parens act = do
     yield $ str "("
