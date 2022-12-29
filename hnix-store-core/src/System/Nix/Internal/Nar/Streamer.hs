@@ -1,6 +1,6 @@
 -- | Stream out a NAR file from a regular file
 
-{-# language ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module System.Nix.Internal.Nar.Streamer
   ( NarSource
@@ -17,7 +17,7 @@ import qualified Data.ByteString.Char8           as Bytes.Char8
 import qualified Data.ByteString.Lazy            as Bytes.Lazy
 import qualified Data.Serialize                  as Serial
 import qualified System.Directory                as Directory
-import           System.FilePath                  ( (</>) )
+import           System.FilePath                 ((</>))
 
 import qualified System.Nix.Internal.Nar.Effects as Nar
 
@@ -61,33 +61,30 @@ streamNarIO effs basePath yield = do
  where
   go :: FilePath -> m ()
   go path = do
-    isDir     <- IO.liftIO $ Nar.narIsDir effs path
     isSymLink <- IO.liftIO $ Nar.narIsSymLink effs path
-    let isRegular = not $ isDir || isSymLink
-
-    when isSymLink $ do
+    if isSymLink then do
       target <- IO.liftIO $ Nar.narReadLink effs path
       yield $
         strs ["type", "symlink", "target", Bytes.Char8.pack target]
-
-    when isRegular $ do
-      isExec <- IO.liftIO $ isExecutable effs path
-      yield $ strs ["type", "regular"]
-      when (isExec == Executable) $ yield $ strs ["executable", ""]
-      fSize <- IO.liftIO $ Nar.narFileSize effs path
-      yield $ str "contents"
-      yield $ int fSize
-      yieldFile path fSize
-
-    when (isDir && not isSymLink) $ do
-      fs <- IO.liftIO (Nar.narListDir effs path)
-      yield $ strs ["type", "directory"]
-      forM_ (sort fs) $ \f -> do
-        yield $ str "entry"
-        parens $ do
-          let fullName = path </> f
-          yield $ strs ["name", Bytes.Char8.pack f, "node"]
-          parens $ go fullName
+      else do
+        isDir <- IO.liftIO $ Nar.narIsDir effs path
+        if isDir then do
+          fs <- IO.liftIO (Nar.narListDir effs path)
+          yield $ strs ["type", "directory"]
+          forM_ (sort fs) $ \f -> do
+            yield $ str "entry"
+            parens $ do
+              let fullName = path </> f
+              yield $ strs ["name", Bytes.Char8.pack f, "node"]
+              parens $ go fullName
+        else do
+          isExec <- IO.liftIO $ isExecutable effs path
+          yield $ strs ["type", "regular"]
+          when (isExec == Executable) $ yield $ strs ["executable", ""]
+          fSize <- IO.liftIO $ Nar.narFileSize effs path
+          yield $ str "contents"
+          yield $ int fSize
+          yieldFile path fSize
 
   parens act = do
     yield $ str "("
