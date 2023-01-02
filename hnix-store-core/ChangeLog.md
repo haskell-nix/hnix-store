@@ -1,5 +1,11 @@
 # ChangeLog
 
+## [0.6.1.0](https://github.com/haskell-nix/hnix-store/compare/core-0.6.0.0...core-0.6.1.0) 2023-01-02
+
+* Fixed:
+
+    * [(link)](https://github.com/haskell-nix/hnix-store/pull/201) [(link)](https://github.com/haskell-nix/hnix-store/pull/203) NAR serialization compatibility (symlinks, directory symlinks, UTF-8 handling)
+
 ## [0.6.0.0](https://github.com/haskell-nix/hnix-store/compare/core-0.5.0.0...core-0.6.0.0) 2022-06-06
 
 * Breaking:
