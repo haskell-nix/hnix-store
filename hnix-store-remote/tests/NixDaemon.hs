@@ -6,6 +6,7 @@ module NixDaemon where
 import qualified System.Environment            as Env
 import           Control.Exception              ( bracket )
 import           Control.Concurrent             ( threadDelay )
+import qualified Data.ByteString.Char8         as BSC
 import qualified Data.HashSet                  as HS
 import qualified Data.Map.Strict               as M
 import           System.Directory
@@ -90,7 +91,7 @@ startDaemon fp = do
   writeConf (fp </> "etc" </> "nix.conf")
   p <- createProcessEnv fp "nix-daemon" []
   waitSocket sockFp 30
-  pure (p, runStoreOpts sockFp (fp </> "store"))
+  pure (p, runStoreOpts sockFp (StoreDir $ BSC.pack $ fp </> "store"))
  where
   sockFp = fp </> "var/nix/daemon-socket/socket"
 
@@ -164,7 +165,7 @@ dummy = do
 invalidPath :: StorePath
 invalidPath =
   let Right n = makeStorePathName "invalid"
-  in  StorePath (mkStorePathHashPart "invalid") n "no_such_root"
+  in  StorePath (mkStorePathHashPart "invalid") n
 
 withBuilder :: (StorePath -> MonadStore a) -> MonadStore a
 withBuilder action = do
@@ -200,7 +201,7 @@ spec_protocol = Hspec.around withNixDaemon $
       itRights "validates path" $ withPath $ \path -> do
         liftIO $ print path
         isValidPathUncached path `shouldReturn` True
-      itLefts "fails on invalid path" $ isValidPathUncached invalidPath
+      itLefts "fails on invalid path" $ mapStoreDir (\_ -> StoreDir "/asdf") $ isValidPathUncached invalidPath
 
     context "queryAllValidPaths" $ do
       itRights "empty query" queryAllValidPaths

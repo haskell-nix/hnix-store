@@ -1,3 +1,4 @@
+{-# language OverloadedStrings #-}
 {-# language DataKinds #-}
 {-# language ScopedTypeVariables #-}
 {-# LANGUAGE LambdaCase #-}
@@ -31,6 +32,7 @@ import           Network.Socket.ByteString      ( recv
                                                 , sendAll
                                                 )
 
+import           System.Nix.StorePath           ( StoreDir(..) )
 import           System.Nix.Store.Remote.Binary
 import           System.Nix.Store.Remote.Logger
 import           System.Nix.Store.Remote.Types
@@ -163,21 +165,21 @@ runOpArgsIO op encoder = do
     throwError $ Data.ByteString.Char8.unpack msg
 
 runStore :: MonadStore a -> IO (Either String a, [Logger])
-runStore = runStoreOpts defaultSockPath "/nix/store"
+runStore = runStoreOpts defaultSockPath $ StoreDir "/nix/store"
 
 runStoreOpts
-  :: FilePath -> FilePath -> MonadStore a -> IO (Either String a, [Logger])
+  :: FilePath -> StoreDir -> MonadStore a -> IO (Either String a, [Logger])
 runStoreOpts path = runStoreOpts' S.AF_UNIX (SockAddrUnix path)
 
 runStoreOptsTCP
-  :: String -> Int -> FilePath -> MonadStore a -> IO (Either String a, [Logger])
+  :: String -> Int -> StoreDir -> MonadStore a -> IO (Either String a, [Logger])
 runStoreOptsTCP host port storeRootDir code = do
   S.getAddrInfo (Just S.defaultHints) (Just host) (Just $ show port) >>= \case
     (sockAddr:_) -> runStoreOpts' (S.addrFamily sockAddr) (S.addrAddress sockAddr) storeRootDir code
     _ -> pure (Left "Couldn't resolve host and port with getAddrInfo.", [])
 
 runStoreOpts'
-  :: S.Family -> S.SockAddr -> FilePath -> MonadStore a -> IO (Either String a, [Logger])
+  :: S.Family -> S.SockAddr -> StoreDir -> MonadStore a -> IO (Either String a, [Logger])
 runStoreOpts' sockFamily sockAddr storeRootDir code =
   bracket open (S.close . storeSocket) run
 

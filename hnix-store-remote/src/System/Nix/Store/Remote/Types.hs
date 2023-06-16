@@ -6,6 +6,7 @@ module System.Nix.Store.Remote.Types
   , StoreConfig(..)
   , Logger(..)
   , Field(..)
+  , mapStoreDir
   , getStoreDir
   , getLog
   , flushLog
@@ -16,12 +17,15 @@ module System.Nix.Store.Remote.Types
   )
 where
 
-
+import           Control.Monad.Trans.State.Strict (mapStateT)
+import           Control.Monad.Trans.Except (mapExceptT)
 import qualified Data.ByteString.Lazy          as BSL
 import           Network.Socket                 ( Socket )
 
+import           System.Nix.StorePath          ( StoreDir )
+
 data StoreConfig = StoreConfig
-  { storeDir    :: FilePath
+  { storeDir    :: StoreDir
   , storeSocket :: Socket
   }
 
@@ -30,6 +34,10 @@ type MonadStore a
       String
       (StateT (Maybe BSL.ByteString, [Logger]) (ReaderT StoreConfig IO))
       a
+
+-- | For lying about the store dir in tests
+mapStoreDir :: (StoreDir -> StoreDir) -> (MonadStore a -> MonadStore a)
+mapStoreDir f = mapExceptT . mapStateT . withReaderT $ \c@StoreConfig { storeDir = sd } -> c { storeDir = f sd }
 
 type ActivityID = Int
 type ActivityParentID = Int
@@ -73,5 +81,5 @@ setData x = modify (\(_, b) -> (Just x, b))
 clearData :: MonadStore ()
 clearData = modify (\(_, b) -> (Nothing, b))
 
-getStoreDir :: MonadStore FilePath
+getStoreDir :: MonadStore StoreDir
 getStoreDir = asks storeDir
