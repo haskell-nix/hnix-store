@@ -6,6 +6,7 @@ import           Test.Tasty                     ( TestTree
                                                 )
 import           Test.Tasty.Golden              ( goldenVsFile )
 
+import           System.Nix.StorePath           ( StoreDir(..) )
 import           System.Nix.Derivation          ( parseDerivation
                                                 , buildDerivation
                                                 )
@@ -23,10 +24,10 @@ processDerivation source dest = do
     (Data.Text.IO.writeFile dest
       . toText
       . Data.Text.Lazy.Builder.toLazyText
-      . buildDerivation
+      . buildDerivation (StoreDir "/nix/store")
     )
     (Data.Attoparsec.Text.parseOnly
-      (parseDerivation "/nix/store")
+      (parseDerivation $ StoreDir "/nix/store")
       contents
     )
 

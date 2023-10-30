@@ -4,6 +4,7 @@
 module System.Nix.ReadonlyStore where
 
 
+import qualified Data.ByteString.Char8         as Bytes.Char8
 import qualified Data.ByteString               as BS
 import qualified Data.HashSet                  as HS
 import           System.Nix.Hash
@@ -23,43 +24,42 @@ import           Crypto.Hash                    ( Context
 makeStorePath
   :: forall h
    . (NamedAlgo h)
-  => FilePath
+  => StoreDir
   -> ByteString
   -> Digest h
   -> StorePathName
   -> StorePath
-makeStorePath fp ty h nm = StorePath (coerce storeHash) nm fp
+makeStorePath storeDir ty h nm = StorePath (coerce storeHash) nm
  where
   storeHash = mkStorePathHash @h s
-
   s =
     BS.intercalate ":" $
       ty:fmap encodeUtf8
         [ algoName @h
         , encodeDigestWith Base16 h
-        , toText fp
+        , toText . Bytes.Char8.unpack $ unStoreDir storeDir
         , coerce nm
         ]
 
 makeTextPath
-  :: FilePath -> StorePathName -> Digest SHA256 -> StorePathSet -> StorePath
-makeTextPath fp nm h refs = makeStorePath fp ty h nm
+  :: StoreDir -> StorePathName -> Digest SHA256 -> StorePathSet -> StorePath
+makeTextPath storeDir nm h refs = makeStorePath storeDir ty h nm
  where
   ty =
-    BS.intercalate ":" $ "text" : sort (storePathToRawFilePath <$> HS.toList refs)
+    BS.intercalate ":" $ "text" : sort (storePathToRawFilePath storeDir <$> HS.toList refs)
 
 makeFixedOutputPath
   :: forall hashAlgo
   .  NamedAlgo hashAlgo
-  => FilePath
+  => StoreDir
   -> Bool
   -> Digest hashAlgo
   -> StorePathName
   -> StorePath
-makeFixedOutputPath fp recursive h =
+makeFixedOutputPath storeDir recursive h =
   if recursive && (algoName @hashAlgo) == "sha256"
-    then makeStorePath fp "source" h
-    else makeStorePath fp "output:out" h'
+    then makeStorePath storeDir "source" h
+    else makeStorePath storeDir "output:out" h'
  where
   h' =
     hash @ByteString @SHA256
@@ -70,19 +70,20 @@ makeFixedOutputPath fp recursive h =
       <> ":"
 
 computeStorePathForText
-  :: FilePath -> StorePathName -> ByteString -> (StorePathSet -> StorePath)
-computeStorePathForText fp nm = makeTextPath fp nm . hash
+  :: StoreDir -> StorePathName -> ByteString -> (StorePathSet -> StorePath)
+computeStorePathForText storeDir nm = makeTextPath storeDir nm . hash
 
 computeStorePathForPath
-  :: StorePathName        -- ^ Name part of the newly created `StorePath`
+  :: StoreDir
+  -> StorePathName        -- ^ Name part of the newly created `StorePath`
   -> FilePath             -- ^ Local `FilePath` to add
   -> Bool                 -- ^ Add target directory recursively
   -> (FilePath -> Bool)   -- ^ Path filter function
   -> Bool                 -- ^ Only used by local store backend
   -> IO StorePath
-computeStorePathForPath name pth recursive _pathFilter _repair = do
+computeStorePathForPath storeDir name pth recursive _pathFilter _repair = do
   selectedHash <- if recursive then recursiveContentHash else flatContentHash
-  pure $ makeFixedOutputPath "/nix/store" recursive selectedHash name
+  pure $ makeFixedOutputPath storeDir recursive selectedHash name
  where
   recursiveContentHash :: IO (Digest SHA256)
   recursiveContentHash = hashFinalize <$> execStateT streamNarUpdate (hashInit @SHA256)

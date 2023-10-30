@@ -106,19 +106,19 @@ putText = putByteStringLen . textToBSL
 putTexts :: [Text] -> Put
 putTexts = putByteStrings . fmap textToBSL
 
-getPath :: FilePath -> Get (Either String StorePath)
+getPath :: StoreDir -> Get (Either String StorePath)
 getPath sd = parsePath sd <$> getByteStringLen
 
-getPaths :: FilePath -> Get StorePathSet
+getPaths :: StoreDir -> Get StorePathSet
 getPaths sd =
   Data.HashSet.fromList . rights . fmap (parsePath sd) <$> getByteStrings
 
-putPath :: StorePath -> Put
-putPath = putByteStringLen . fromStrict . storePathToRawFilePath
+putPath :: StoreDir -> StorePath -> Put
+putPath storeDir = putByteStringLen . fromStrict . storePathToRawFilePath storeDir
 
-putPaths :: StorePathSet -> Put
-putPaths = putByteStrings . Data.HashSet.toList . Data.HashSet.map
-  (fromStrict . storePathToRawFilePath)
+putPaths :: StoreDir -> StorePathSet -> Put
+putPaths storeDir = putByteStrings . Data.HashSet.toList . Data.HashSet.map
+  (fromStrict . storePathToRawFilePath storeDir)
 
 putBool :: Bool -> Put
 putBool True  = putInt (1 :: Int)
@@ -149,16 +149,16 @@ getBuildResult =
     <*> getTime
     <*> getTime
 
-putDerivation :: Derivation StorePath Text -> Put
-putDerivation Derivation{..} = do
+putDerivation :: StoreDir -> Derivation StorePath Text -> Put
+putDerivation storeDir Derivation{..} = do
   flip putMany (Data.Map.toList outputs)
     $ \(outputName, DerivationOutput{..}) -> do
         putText outputName
-        putPath path
+        putPath storeDir path
         putText hashAlgo
         putText hash
 
-  putMany putPath inputSrcs
+  putMany (putPath storeDir) inputSrcs
   putText platform
   putText builder
   putMany putText args

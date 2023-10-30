@@ -3,7 +3,8 @@ Description : Representation of Nix store paths.
 -}
 module System.Nix.StorePath
   ( -- * Basic store path types
-    StorePath(..)
+    StoreDir(..)
+  , StorePath(..)
   , StorePathName(..)
   , StorePathSet
   , mkStorePathHashPart

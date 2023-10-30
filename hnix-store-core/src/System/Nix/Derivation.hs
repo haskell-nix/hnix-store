@@ -11,19 +11,22 @@ import qualified Data.Attoparsec.Text.Lazy     as Text.Lazy
                                                 ( Parser )
 import           Nix.Derivation                 ( Derivation )
 import qualified Nix.Derivation                as Derivation
-import           System.Nix.StorePath           ( StorePath )
+import           System.Nix.StorePath           ( StoreDir
+                                                , StorePath
+                                                , storePathToFilePath
+                                                )
 import qualified System.Nix.StorePath          as StorePath
 
 
 
-parseDerivation :: FilePath -> Text.Lazy.Parser (Derivation StorePath Text)
+parseDerivation :: StoreDir -> Text.Lazy.Parser (Derivation StorePath Text)
 parseDerivation expectedRoot =
   Derivation.parseDerivationWith
     ("\"" *> StorePath.pathParser expectedRoot <* "\"")
     Derivation.textParser
 
-buildDerivation :: Derivation StorePath Text -> Text.Lazy.Builder
-buildDerivation =
+buildDerivation :: StoreDir -> Derivation StorePath Text -> Text.Lazy.Builder
+buildDerivation storeDir =
   Derivation.buildDerivationWith
-    (show . show)
+    (show . storePathToFilePath storeDir)
     show

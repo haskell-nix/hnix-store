@@ -10,7 +10,8 @@ Description : Representation of Nix store paths.
 
 module System.Nix.Internal.StorePath
   ( -- * Basic store path types
-    StorePath(..)
+    StoreDir(..)
+  , StorePath(..)
   , StorePathName(..)
   , StorePathSet
   , mkStorePathHashPart
@@ -32,7 +33,6 @@ module System.Nix.Internal.StorePath
 where
 
 import qualified Relude.Unsafe as Unsafe
-import qualified Text.Show
 import           System.Nix.Internal.Hash
 import           System.Nix.Internal.Base
 import qualified System.Nix.Internal.Base32    as Nix.Base32
@@ -54,10 +54,9 @@ import           Crypto.Hash                    ( SHA256
 -- From the Nix thesis: A store path is the full path of a store
 -- object. It has the following anatomy: storeDir/hashPart-name.
 --
--- @storeDir@: The root of the Nix store (e.g. \/nix\/store).
---
--- See the 'StoreDir' haddocks for details on why we represent this at
--- the type level.
+-- The store directory is *not* included, and must be known from the
+-- context. This matches modern C++ Nix, and also represents the fact
+-- that store paths for different store directories cannot be mixed.
 data StorePath = StorePath
   { -- | The 160-bit hash digest reflecting the "address" of the name.
     -- Currently, this is a truncated SHA256 hash.
@@ -66,17 +65,12 @@ data StorePath = StorePath
     -- this is typically the package name and version (e.g.
     -- hello-1.2.3).
     storePathName :: !StorePathName
-  , -- | Root of the store
-    storePathRoot :: !FilePath
   }
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 
 instance Hashable StorePath where
   hashWithSalt s StorePath{..} =
     s `hashWithSalt` storePathHash `hashWithSalt` storePathName
-
-instance Show StorePath where
-  show p = Bytes.Char8.unpack $ storePathToRawFilePath p
 
 -- | The name portion of a Nix path.
 --
@@ -86,7 +80,7 @@ instance Show StorePath where
 newtype StorePathName = StorePathName
   { -- | Extract the contents of the name.
     unStorePathName :: Text
-  } deriving (Eq, Hashable, Ord)
+  } deriving (Eq, Hashable, Ord, Show)
 
 -- | The hash algorithm used for store path hashes.
 newtype StorePathHashPart = StorePathHashPart ByteString
@@ -161,22 +155,29 @@ validStorePathNameChar c =
 -- to avoid the dependency.
 type RawFilePath = ByteString
 
+-- | The path to the store dir
+--
+-- Many operations need to be parameterized with this, since store paths
+-- do not know their own store dir by design.
+newtype StoreDir = StoreDir {
+    unStoreDir :: RawFilePath
+  } deriving (Eq, Hashable, Ord, Show)
+
 -- | Render a 'StorePath' as a 'RawFilePath'.
-storePathToRawFilePath :: StorePath -> RawFilePath
-storePathToRawFilePath StorePath{..} =
-  root <> "/" <> hashPart <> "-" <> name
+storePathToRawFilePath :: StoreDir -> StorePath -> RawFilePath
+storePathToRawFilePath storeDir StorePath{..} =
+  unStoreDir storeDir <> "/" <> hashPart <> "-" <> name
  where
-  root     = Bytes.Char8.pack storePathRoot
   hashPart = encodeUtf8 $ encodeWith NixBase32 $ coerce storePathHash
   name     = encodeUtf8 $ unStorePathName storePathName
 
 -- | Render a 'StorePath' as a 'FilePath'.
-storePathToFilePath :: StorePath -> FilePath
-storePathToFilePath = Bytes.Char8.unpack . storePathToRawFilePath
+storePathToFilePath :: StoreDir -> StorePath -> FilePath
+storePathToFilePath storeDir = Bytes.Char8.unpack . storePathToRawFilePath storeDir
 
 -- | Render a 'StorePath' as a 'Text'.
-storePathToText :: StorePath -> Text
-storePathToText = toText . Bytes.Char8.unpack . storePathToRawFilePath
+storePathToText :: StoreDir -> StorePath -> Text
+storePathToText storeDir = toText . Bytes.Char8.unpack . storePathToRawFilePath storeDir
 
 -- | Build `narinfo` suffix from `StorePath` which
 -- can be used to query binary caches.
@@ -186,7 +187,7 @@ storePathToNarInfo StorePath{..} =
 
 -- | Parse `StorePath` from `Bytes.Char8.ByteString`, checking
 -- that store directory matches `expectedRoot`.
-parsePath :: FilePath -> Bytes.Char8.ByteString -> Either String StorePath
+parsePath :: StoreDir -> Bytes.Char8.ByteString -> Either String StorePath
 parsePath expectedRoot x =
   let
     (rootDir, fname) = FilePath.splitFileName . Bytes.Char8.unpack $ x
@@ -196,17 +197,20 @@ parsePath expectedRoot x =
     --rootDir' = dropTrailingPathSeparator rootDir
     -- cannot use ^^ as it drops multiple slashes /a/b/// -> /a/b
     rootDir' = Unsafe.init rootDir
+    expectedRootS = Bytes.Char8.unpack (unStoreDir expectedRoot)
     storeDir =
-      if expectedRoot == rootDir'
+      if expectedRootS == rootDir'
         then pure rootDir'
-        else Left $ "Root store dir mismatch, expected" <> expectedRoot <> "got" <> rootDir'
+        else Left $ "Root store dir mismatch, expected" <> expectedRootS <> "got" <> rootDir'
   in
-    StorePath <$> coerce storeHash <*> name <*> storeDir
+    either Left (pure $ StorePath <$> coerce storeHash <*> name) storeDir
 
-pathParser :: FilePath -> Parser StorePath
+pathParser :: StoreDir -> Parser StorePath
 pathParser expectedRoot = do
+  let expectedRootS = Bytes.Char8.unpack (unStoreDir expectedRoot)
+
   _ <-
-    Parser.Text.Lazy.string (toText expectedRoot)
+    Parser.Text.Lazy.string (toText expectedRootS)
       <?> "Store root mismatch" -- e.g. /nix/store
 
   _ <- Parser.Text.Lazy.char '/'
@@ -232,4 +236,4 @@ pathParser expectedRoot = do
   either
     fail
     pure
-    (StorePath <$> coerce digest <*> name <*> pure expectedRoot)
+    (StorePath <$> coerce digest <*> name)

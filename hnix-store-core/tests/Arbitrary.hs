@@ -35,23 +35,24 @@ instance Arbitrary StorePathHashPart where
 instance Arbitrary (Digest SHA256) where
   arbitrary = hash . BSC.pack <$> arbitrary
 
+instance Arbitrary StoreDir where
+  arbitrary = StoreDir . ("/" <>) . BSC.pack <$> arbitrary
+
 newtype NixLike = NixLike {getNixLike :: StorePath}
  deriving (Eq, Ord, Show)
 
 instance Arbitrary NixLike where
   arbitrary =
     NixLike <$>
-      liftA3 StorePath
+      liftA2 StorePath
         arbitraryTruncatedDigest
         arbitrary
-        (pure "/nix/store")
    where
     -- 160-bit hash, 20 bytes, 32 chars in base32
     arbitraryTruncatedDigest = coerce . BSC.pack <$> replicateM 20 genSafeChar
 
 instance Arbitrary StorePath where
   arbitrary =
-    liftA3 StorePath
+    liftA2 StorePath
       arbitrary
       arbitrary
-      dir

@@ -1,5 +1,13 @@
 # Revision history for hnix-store-remote
 
+## Unreleased 202y-mm-dd
+
+* Breaking:
+    * [(link)](https://github.com/haskell-nix/hnix-store/pull/216) `StorePath` no longer carries `storePathRoot` field and we
+      have a stand-alone `StoreDir` type instead to be used instead of `FilePath`
+      when store root directory is needed as a context.
+      Fore `-remote`, this affects `runStoreOpts` and its variants.
+
 ## [0.6.0.0](https://github.com/haskell-nix/hnix-store/compare/remote-0.5.0.0...remote-0.6.0.0) 2021-06-06
 
 * Breaking:

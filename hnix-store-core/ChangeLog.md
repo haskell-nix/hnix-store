@@ -1,5 +1,12 @@
 # ChangeLog
 
+## Unreleased 202y-mm-dd
+
+* Breaking:
+    * [(link)](https://github.com/haskell-nix/hnix-store/pull/216) `StorePath` no longer carries `storePathRoot` field and we
+      have a stand-alone `StoreDir` type instead to be used instead of `FilePath`
+      when store root directory is needed as a context.
+
 ## [0.6.1.0](https://github.com/haskell-nix/hnix-store/compare/core-0.6.0.0...core-0.6.1.0) 2023-01-02
 
 * Fixed:

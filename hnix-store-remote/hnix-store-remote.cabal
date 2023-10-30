@@ -53,6 +53,7 @@ library
     , mtl
     , unordered-containers
     , hnix-store-core >= 0.6 && <0.7
+    , transformers
   mixins:
       base hiding (Prelude)
     , relude (Relude as Prelude)
@@ -98,6 +99,7 @@ test-suite hnix-store-remote-tests
     tasty-discover:tasty-discover
   build-depends:
       base
+    , bytestring
     , relude
     , hnix-store-core >= 0.3
     , hnix-store-remote
