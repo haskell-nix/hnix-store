@@ -204,7 +204,7 @@ parsePath expectedRoot x =
         then pure rootDir'
         else Left $ "Root store dir mismatch, expected" <> expectedRootS <> "got" <> rootDir'
   in
-    StorePath <$> coerce storeHash <*> name
+    either Left (pure $ StorePath <$> coerce storeHash <*> name) storeDir
 
 pathParser :: StoreDir -> Parser StorePath
 pathParser expectedRoot = do
