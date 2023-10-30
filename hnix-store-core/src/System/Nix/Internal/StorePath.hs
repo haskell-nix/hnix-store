@@ -33,7 +33,6 @@ module System.Nix.Internal.StorePath
 where
 
 import qualified Relude.Unsafe as Unsafe
-import qualified Text.Show
 import           System.Nix.Internal.Hash
 import           System.Nix.Internal.Base
 import qualified System.Nix.Internal.Base32    as Nix.Base32
