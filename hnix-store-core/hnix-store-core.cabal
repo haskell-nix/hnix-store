@@ -40,6 +40,7 @@ library
     , System.Nix.Internal.Nar.Parser
     , System.Nix.Internal.Nar.Streamer
     , System.Nix.Internal.Nar.Effects
+    , System.Nix.Internal.Nar.Options
     , System.Nix.Internal.Signature
     , System.Nix.Internal.StorePath
     , System.Nix.Nar
@@ -55,6 +56,7 @@ library
     , base16-bytestring
     , base64-bytestring
     , bytestring
+    , case-insensitive
     , cereal
     , containers
     -- Required for cryptonite low-level type convertion
