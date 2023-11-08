@@ -1,0 +1,12 @@
+tests: True
+-- this is intentionally disabled
+-- as it fails on ubuntu-20.04 and ubuntu-latest
+-- with unshare: invalid argument
+-- and it cannot run on darwin as it requires linux-namespaces
+-- flags: +io-testsuite
+
+package hnix-store-core
+  ghc-options: -Wunused-packages -Wall
+
+package hnix-store-remote
+  ghc-options: -Wunused-packages -Wall
