@@ -51,7 +51,7 @@ library
       base >=4.12 && <5
     , relude >= 1.0
     , attoparsec
-    , algebraic-graphs >= 0.5 && < 0.7
+    , algebraic-graphs >= 0.5 && < 0.8
     , base16-bytestring
     , base64-bytestring
     , bytestring
