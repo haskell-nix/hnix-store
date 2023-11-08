@@ -17,8 +17,10 @@
       then pkgs.lib.composeExtensions orig.overrides overlay
       else overlay;
   };
-in {
   haskellPackages =
     pkgs.haskellPackages.override overrideHaskellPackages;
+in {
+  inherit (haskellPackages) hnix-store-core hnix-store-remote;
+  inherit haskellPackages;
   inherit pkgs;
 }
