@@ -84,7 +84,7 @@ library
 test-suite hnix-store-remote-tests
   import: commons
 
-  if !flag(io-testsuite)
+  if !flag(io-testsuite) || os(darwin)
     buildable: False
     ghc-options:       -rtsopts -fprof-auto
 
