@@ -13,7 +13,6 @@ where
 
 import qualified Control.Monad.IO.Class          as IO
 import qualified Data.ByteString                 as Bytes
-import qualified Data.ByteString.Char8           as Bytes.Char8
 import qualified Data.ByteString.Lazy            as Bytes.Lazy
 import qualified Data.Serialize                  as Serial
 import qualified Data.Text                       as T (pack)
