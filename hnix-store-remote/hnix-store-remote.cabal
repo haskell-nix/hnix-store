@@ -86,10 +86,11 @@ test-suite hnix-store-remote-tests
 
   if !flag(io-testsuite) || os(darwin)
     buildable: False
-    ghc-options:       -rtsopts -fprof-auto
 
   type:              exitcode-stdio-1.0
   main-is:           Driver.hs
+  -- See https://github.com/redneb/hs-linux-namespaces/issues/3
+  ghc-options:       -rtsopts -fprof-auto "-with-rtsopts -V0"
   other-modules:
       NixDaemon
     , Spec
