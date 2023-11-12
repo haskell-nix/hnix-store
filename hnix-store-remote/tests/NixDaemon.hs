@@ -7,6 +7,7 @@ import qualified System.Environment            as Env
 import           Control.Exception              ( bracket )
 import           Control.Concurrent             ( threadDelay )
 import qualified Data.ByteString.Char8         as BSC
+import qualified Data.Either
 import qualified Data.HashSet                  as HS
 import qualified Data.Map.Strict               as M
 import           System.Directory
@@ -159,13 +160,13 @@ withPath action = do
 -- | dummy path, adds <tmp>/dummpy with "Hello World" contents
 dummy :: MonadStore StorePath
 dummy = do
-  let Right n = makeStorePathName "dummy"
-  addToStore @SHA256 n (dumpPath "dummy") False False
+  let name = Data.Either.fromRight (error "impossible") $ makeStorePathName "dummy"
+  addToStore @SHA256 name (dumpPath "dummy") False False
 
 invalidPath :: StorePath
 invalidPath =
-  let Right n = makeStorePathName "invalid"
-  in  StorePath (mkStorePathHashPart "invalid") n
+  let name = Data.Either.fromRight (error "impossible") $ makeStorePathName "invalid"
+  in  StorePath (mkStorePathHashPart "invalid") name
 
 withBuilder :: (StorePath -> MonadStore a) -> MonadStore a
 withBuilder action = do
@@ -250,8 +251,8 @@ spec_protocol = Hspec.around withNixDaemon $
     context "addToStore" $
       itRights "adds file to store" $ do
         fp <- liftIO $ writeSystemTempFile "addition" "lal"
-        let Right n = makeStorePathName "tmp-addition"
-        res <- addToStore @SHA256 n (dumpPath fp) False False
+        let name = Data.Either.fromRight (error "impossible") $ makeStorePathName "tmp-addition"
+        res <- addToStore @SHA256 name (dumpPath fp) False False
         liftIO $ print res
 
     context "with dummy" $ do
