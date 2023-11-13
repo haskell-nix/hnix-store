@@ -44,6 +44,10 @@ several Haskell packages.
 
 ### [hnix-store-core]
 
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/haskell-nix/hnix-store/ci.yaml?branch=master)](https://github.com/haskell-nix/hnix-store/actions/workflows/ci.yaml)
+[![Hackage version](https://img.shields.io/hackage/v/hnix-store-core.svg?color=success)](https://hackage.haskell.org/package/hnix-store-core)
+[![Dependencies](https://img.shields.io/hackage-deps/v/hnix-store-core?label=Dependencies)](https://packdeps.haskellers.com/feed?needle=hnix-store-core)
+
 Contains the core effect types and
 fundamental operations combining them, agnostic to any particular
 effectful implementation (e.g. in-memory, talking to the Nix daemon in
@@ -55,6 +59,10 @@ and only at the very edges of the system would it be necessary to
 bring in a specific implementation.
 
 ### [hnix-store-remote]
+
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/haskell-nix/hnix-store/ci.yaml?branch=master)](https://github.com/haskell-nix/hnix-store/actions/workflows/ci.yaml)
+[![Hackage version](https://img.shields.io/hackage/v/hnix-store-remote.svg?color=success)](https://hackage.haskell.org/package/hnix-store-remote)
+[![Dependencies](https://img.shields.io/hackage-deps/v/hnix-store-remote?label=Dependencies)](https://packdeps.haskellers.com/feed?needle=hnix-store-remote)
 
 [Nix] worker protocol implementation for interacting with remote Nix store
 via `nix-daemon`.
