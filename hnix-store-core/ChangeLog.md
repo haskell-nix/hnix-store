@@ -7,6 +7,13 @@
       have a stand-alone `StoreDir` type instead to be used instead of `FilePath`
       when store root directory is needed as a context.
 
+* Additional:
+    * [(link)](https://github.com/haskell-nix/hnix-store/pull/218) NAR encoding and decoding now supports case-insensitive filesystems.
+      * The "case hack" replicates the behavior of the `use-case-hack` option in Nix, which adds a suffix to conflicting filenames.
+        This feature is enabled by default on macOS (darwin).
+      * `data NarOptions` has been added to configure NAR encoding and decoding. The `optUseCaseHack` field can be used to enable or disable the case hack.
+      * New `streamNarIOWithOptions` and `runParserWithOptions` functions have been added to `System.Nix.Nar` to support the new configurable options.
+
 ## [0.6.1.0](https://github.com/haskell-nix/hnix-store/compare/core-0.6.0.0...core-0.6.1.0) 2023-01-02
 
 * Fixed:
