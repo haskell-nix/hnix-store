@@ -5,6 +5,7 @@ module NarFormat where
 
 import qualified Control.Concurrent               as Concurrent
 import           Control.Exception                (try)
+import           Data.Binary                      (Binary(..), decodeFile)
 import           Data.Binary.Get                  (Get, getByteString,
                                                    getInt64le,
                                                    getLazyByteString, runGet)
@@ -100,6 +101,10 @@ spec_narEncoding = do
     it "roundtrips directory" $ do
       roundTrip "sampleDirectory" (Nar sampleDirectory)
 
+    it "roundtrips case conflicts" $ do
+      nar <- decodeFile "tests/fixtures/case-conflict.nar"
+      roundTrip "caseConflict" nar
+
   describe "matches-nix-store fixture" $ do
     it "matches regular" $ do
       encEqualsNixStore (Nar sampleRegular) sampleRegularBaseline
@@ -115,6 +120,7 @@ spec_narEncoding = do
 
     it "matches directory" $ do
       encEqualsNixStore (Nar sampleDirectory) sampleDirectoryBaseline
+
     it "matches symlink to directory" $ do
       encEqualsNixStore (Nar sampleLinkToDirectory) sampleLinkToDirectoryBaseline
 
@@ -578,7 +584,7 @@ filePathPart :: BSC.ByteString -> Maybe FilePathPart
 filePathPart p = if BSC.any (`elem` ['/', '\NUL']) p then Nothing else Just $ FilePathPart p
 
 newtype Nar = Nar { narFile :: FileSystemObject }
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
 
 -- | A FileSystemObject (FSO) is an anonymous entity that can be NAR archived
 data FileSystemObject =
@@ -594,6 +600,9 @@ data FileSystemObject =
 newtype FilePathPart = FilePathPart { unFilePathPart :: BSC.ByteString }
   deriving (Eq, Ord, Show)
 
+instance Binary Nar where
+  get = getNar
+  put = putNar
 
 instance Arbitrary Nar where
   arbitrary = Nar <$> resize 10 arbitrary

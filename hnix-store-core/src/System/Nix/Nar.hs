@@ -23,9 +23,14 @@ module System.Nix.Nar
   , Nar.NarEffects(..)
   , Nar.narEffectsIO
 
+  , Nar.NarOptions(..)
+  , Nar.defaultNarOptions
+
   -- * Internal
   , Nar.streamNarIO
+  , Nar.streamNarIOWithOptions
   , Nar.runParser
+  , Nar.runParserWithOptions
   , Nar.dumpString
   , Nar.dumpPath
 
@@ -39,6 +44,7 @@ import qualified Data.ByteString                   as BS
 import qualified System.IO                         as IO
 
 import qualified System.Nix.Internal.Nar.Effects   as Nar
+import qualified System.Nix.Internal.Nar.Options   as Nar
 import qualified System.Nix.Internal.Nar.Parser    as Nar
 import qualified System.Nix.Internal.Nar.Streamer  as Nar
 

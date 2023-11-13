@@ -7,6 +7,7 @@ module System.Nix.Internal.Nar.Streamer
   , dumpString
   , dumpPath
   , streamNarIO
+  , streamNarIOWithOptions
   , IsExecutable(..)
   )
 where
@@ -15,12 +16,13 @@ import qualified Control.Monad.IO.Class          as IO
 import qualified Data.ByteString                 as Bytes
 import qualified Data.ByteString.Lazy            as Bytes.Lazy
 import qualified Data.Serialize                  as Serial
-import qualified Data.Text                       as T (pack)
+import qualified Data.Text                       as T (pack, breakOn)
 import qualified Data.Text.Encoding              as TE (encodeUtf8)
 import qualified System.Directory                as Directory
 import           System.FilePath                 ((</>))
 
 import qualified System.Nix.Internal.Nar.Effects as Nar
+import qualified System.Nix.Internal.Nar.Options as Nar
 
 
 -- | NarSource
@@ -56,7 +58,11 @@ dumpPath = streamNarIO Nar.narEffectsIO
 --   function from any streaming library, and repeatedly calls
 --   it while traversing the filesystem object to Nar encode
 streamNarIO :: forall m . IO.MonadIO m => Nar.NarEffects IO -> FilePath -> NarSource m
-streamNarIO effs basePath yield = do
+streamNarIO effs basePath yield =
+  streamNarIOWithOptions Nar.defaultNarOptions effs basePath yield
+
+streamNarIOWithOptions :: forall m . IO.MonadIO m => Nar.NarOptions -> Nar.NarEffects IO -> FilePath -> NarSource m
+streamNarIOWithOptions opts effs basePath yield = do
   yield $ str "nix-archive-1"
   parens $ go basePath
  where
@@ -76,7 +82,12 @@ streamNarIO effs basePath yield = do
             yield $ str "entry"
             parens $ do
               let fullName = path </> f
-              yield $ strs ["name", filePathToBS f, "node"]
+              let serializedPath =
+                    if Nar.optUseCaseHack opts then
+                      filePathToBSWithCaseHack f
+                    else
+                      filePathToBS f
+              yield $ strs ["name", serializedPath, "node"]
               parens $ go fullName
         else do
           isExec <- IO.liftIO $ isExecutable effs path
@@ -86,8 +97,6 @@ streamNarIO effs basePath yield = do
           yield $ str "contents"
           yield $ int fSize
           yieldFile path fSize
-
-  filePathToBS = TE.encodeUtf8 . T.pack
 
   parens act = do
     yield $ str "("
@@ -130,3 +139,12 @@ padBS strSize bs = bs <> Bytes.replicate (padLen strSize) 0
 
 strs :: [ByteString] -> ByteString
 strs xs = Bytes.concat $ str <$> xs
+
+filePathToBS :: FilePath -> ByteString
+filePathToBS = TE.encodeUtf8 . T.pack
+
+filePathToBSWithCaseHack :: FilePath -> ByteString
+filePathToBSWithCaseHack = TE.encodeUtf8 . undoCaseHack . T.pack
+
+undoCaseHack :: Text -> Text
+undoCaseHack = fst . T.breakOn Nar.caseHackSuffix
