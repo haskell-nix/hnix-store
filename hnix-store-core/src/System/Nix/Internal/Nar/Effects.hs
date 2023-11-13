@@ -7,6 +7,7 @@ module System.Nix.Internal.Nar.Effects
   , narEffectsIO
   ) where
 
+import Data.Kind ()
 import qualified Data.ByteString             as Bytes
 import qualified Data.ByteString.Lazy        as Bytes.Lazy
 import qualified System.Directory            as Directory
@@ -22,7 +23,7 @@ import           Control.Monad.Trans.Control (MonadBaseControl)
 import qualified Control.Exception.Lifted    as Exception.Lifted
 import qualified Control.Monad.Fail          as MonadFail
 
-data NarEffects (m :: * -> *) = NarEffects {
+data NarEffects (m :: Type -> Type) = NarEffects {
     narReadFile   :: FilePath -> m Bytes.Lazy.ByteString
   , narWriteFile  :: FilePath -> Bytes.Lazy.ByteString -> m ()
   , narStreamFile :: FilePath -> m (Maybe Bytes.ByteString) -> m ()

@@ -1,5 +1,6 @@
+attrs@{...}:
 let
-  inherit (import ./. {}) pkgs haskellPackages;
+  inherit (import ./. attrs) pkgs haskellPackages;
   hlib = pkgs.haskell.lib;
 
   packages = [ "hnix-store-core" "hnix-store-remote" ];

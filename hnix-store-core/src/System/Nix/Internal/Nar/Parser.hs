@@ -3,6 +3,7 @@
 {-# language GeneralizedNewtypeDeriving #-}
 {-# language ScopedTypeVariables        #-}
 {-# language TypeFamilies               #-}
+{-# language TypeOperators              #-}
 
 module System.Nix.Internal.Nar.Parser
   ( runParser
