@@ -12,17 +12,19 @@ via `nix-daemon`.
 ## Example
 
 ```haskell
+{-# LANGUAGE OverloadedStrings #-}
 
+import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
-import Data.HashSet as HS
 import System.Nix.Store.Remote
 
+main :: IO ()
 main = do
-  runStore $ do
+  void $ runStore $ do
     syncWithGC
     roots <- findRoots
     liftIO $ print roots
 
-    res <- addTextToStore "hnix-store" "test" (HS.fromList []) False
+    res <- addTextToStore "hnix-store" "test" mempty False
     liftIO $ print res
 ```
