@@ -26,6 +26,12 @@ flag io-testsuite
     Enable testsuite, which requires external
     binaries and Linux namespace support.
 
+flag build-readme
+  default:
+    True
+  description:
+    Build README.lhs example
+
 library
   import: commons
   exposed-modules:
@@ -80,6 +86,16 @@ library
   hs-source-dirs:      src
   default-language:    Haskell2010
   ghc-options:         -Wall
+
+executable remote-readme
+  build-depends:
+      base >=4.12 && <5
+    , hnix-store-remote
+  build-tool-depends:
+      markdown-unlit:markdown-unlit
+  default-language: Haskell2010
+  main-is: README.lhs
+  ghc-options: -pgmL markdown-unlit -Wall
 
 test-suite hnix-store-remote-tests
   import: commons
