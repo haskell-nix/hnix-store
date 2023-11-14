@@ -6,7 +6,6 @@ module System.Nix.StorePath
     StoreDir(..)
   , StorePath(..)
   , StorePathName
-  , StorePathSet
   , StorePathHashPart
   , mkStorePathHashPart
   , unStorePathHashPart

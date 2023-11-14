@@ -13,7 +13,6 @@ module System.Nix.Internal.StorePath
     StoreDir(..)
   , StorePath(..)
   , StorePathName(..)
-  , StorePathSet
   , StorePathHashPart(..)
   , mkStorePathHashPart
   , ContentAddressableAddress(..)
@@ -96,9 +95,6 @@ mkStorePathHashPart
   => ByteString
   -> StorePathHashPart
 mkStorePathHashPart = coerce . mkStorePathHash @hashAlgo
-
--- | A set of 'StorePath's.
-type StorePathSet = HashSet StorePath
 
 -- | An address for a content-addressable store path, i.e. one whose
 -- store path hash is purely a function of its contents (as opposed to

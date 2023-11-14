@@ -49,7 +49,6 @@ import           System.Nix.Hash                ( NamedAlgo(..)
                                                 )
 import           System.Nix.StorePath           ( StorePath
                                                 , StorePathName
-                                                , StorePathSet
                                                 , StorePathHashPart
                                                 )
 import           System.Nix.StorePathMetadata   ( StorePathMetadata(..)
@@ -99,10 +98,10 @@ addToStore name source recursive repair = do
 -- Reference accepts repair but only uses it
 -- to throw error in case of remote talking to nix-daemon.
 addTextToStore
-  :: Text         -- ^ Name of the text
-  -> Text         -- ^ Actual text to add
-  -> StorePathSet -- ^ Set of `StorePath`s that the added text references
-  -> RepairFlag   -- ^ Repair flag, must be `False` in case of remote backend
+  :: Text              -- ^ Name of the text
+  -> Text              -- ^ Actual text to add
+  -> HashSet StorePath -- ^ Set of `StorePath`s that the added text references
+  -> RepairFlag        -- ^ Repair flag, must be `False` in case of remote backend
   -> MonadStore StorePath
 addTextToStore name text references' repair = do
   when (unRepairFlag repair)
@@ -138,7 +137,7 @@ addTempRoot pn = do
 -- | Build paths if they are an actual derivations.
 --
 -- If derivation output paths are already valid, do nothing.
-buildPaths :: StorePathSet -> BuildMode -> MonadStore ()
+buildPaths :: HashSet StorePath -> BuildMode -> MonadStore ()
 buildPaths ps bm = do
   storeDir <- getStoreDir
   void $ simpleOpArgs BuildPaths $ do
@@ -198,9 +197,9 @@ isValidPathUncached p = do
 
 -- | Query valid paths from set, optionally try to use substitutes.
 queryValidPaths
-  :: StorePathSet   -- ^ Set of `StorePath`s to query
+  :: HashSet StorePath   -- ^ Set of `StorePath`s to query
   -> SubstituteFlag -- ^ Try substituting missing paths when `True`
-  -> MonadStore StorePathSet
+  -> MonadStore (HashSet StorePath)
 queryValidPaths ps substitute = do
   storeDir <- getStoreDir
   runOpArgs QueryValidPaths $ do
@@ -208,12 +207,12 @@ queryValidPaths ps substitute = do
     putBool (unSubstituteFlag substitute)
   sockGetPaths
 
-queryAllValidPaths :: MonadStore StorePathSet
+queryAllValidPaths :: MonadStore (HashSet StorePath)
 queryAllValidPaths = do
   runOp QueryAllValidPaths
   sockGetPaths
 
-querySubstitutablePaths :: StorePathSet -> MonadStore StorePathSet
+querySubstitutablePaths :: HashSet StorePath -> MonadStore (HashSet StorePath)
 querySubstitutablePaths ps = do
   storeDir <- getStoreDir
   runOpArgs QuerySubstitutablePaths $ putPaths storeDir ps
@@ -262,25 +261,25 @@ queryPathInfoUncached path = do
 
   pure $ StorePathMetadata{..}
 
-queryReferrers :: StorePath -> MonadStore StorePathSet
+queryReferrers :: StorePath -> MonadStore (HashSet StorePath)
 queryReferrers p = do
   storeDir <- getStoreDir
   runOpArgs QueryReferrers $ putPath storeDir p
   sockGetPaths
 
-queryValidDerivers :: StorePath -> MonadStore StorePathSet
+queryValidDerivers :: StorePath -> MonadStore (HashSet StorePath)
 queryValidDerivers p = do
   storeDir <- getStoreDir
   runOpArgs QueryValidDerivers $ putPath storeDir p
   sockGetPaths
 
-queryDerivationOutputs :: StorePath -> MonadStore StorePathSet
+queryDerivationOutputs :: StorePath -> MonadStore (HashSet StorePath)
 queryDerivationOutputs p = do
   storeDir <- getStoreDir
   runOpArgs QueryDerivationOutputs $ putPath storeDir p
   sockGetPaths
 
-queryDerivationOutputNames :: StorePath -> MonadStore StorePathSet
+queryDerivationOutputNames :: StorePath -> MonadStore (HashSet StorePath)
 queryDerivationOutputNames p = do
   storeDir <- getStoreDir
   runOpArgs QueryDerivationOutputNames $ putPath storeDir p
@@ -297,13 +296,13 @@ queryPathFromHashPart storePathHash = do
   sockGetPath
 
 queryMissing
-  :: StorePathSet
+  :: (HashSet StorePath)
   -> MonadStore
-      ( StorePathSet-- Paths that will be built
-      , StorePathSet -- Paths that have substitutes
-      , StorePathSet -- Unknown paths
-      , Integer            -- Download size
-      , Integer            -- Nar size?
+      ( HashSet StorePath -- Paths that will be built
+      , HashSet StorePath -- Paths that have substitutes
+      , HashSet StorePath -- Unknown paths
+      , Integer           -- Download size
+      , Integer           -- Nar size?
       )
 queryMissing ps = do
   storeDir <- getStoreDir

@@ -83,7 +83,7 @@ sockGetPathMay = do
       Just
       pth
 
-sockGetPaths :: MonadStore StorePathSet
+sockGetPaths :: MonadStore (HashSet StorePath)
 sockGetPaths = do
   sd <- getStoreDir
   getSocketIncremental (getPaths sd)
@@ -109,14 +109,14 @@ putTexts = putByteStrings . fmap textToBSL
 getPath :: StoreDir -> Get (Either String StorePath)
 getPath sd = parsePath sd <$> getByteStringLen
 
-getPaths :: StoreDir -> Get StorePathSet
+getPaths :: StoreDir -> Get (HashSet StorePath)
 getPaths sd =
   Data.HashSet.fromList . rights . fmap (parsePath sd) <$> getByteStrings
 
 putPath :: StoreDir -> StorePath -> Put
 putPath storeDir = putByteStringLen . fromStrict . storePathToRawFilePath storeDir
 
-putPaths :: StoreDir -> StorePathSet -> Put
+putPaths :: StoreDir -> HashSet StorePath -> Put
 putPaths storeDir = putByteStrings . Data.HashSet.toList . Data.HashSet.map
   (fromStrict . storePathToRawFilePath storeDir)
 
