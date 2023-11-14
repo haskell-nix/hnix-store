@@ -78,7 +78,7 @@ addToStore
    . (NamedAlgo a)
   => StorePathName        -- ^ Name part of the newly created `StorePath`
   -> NarSource MonadStore -- ^ provide nar stream
-  -> Bool                 -- ^ Add target directory recursively
+  -> Recursive            -- ^ Add target directory recursively
   -> RepairFlag           -- ^ Only used by local store backend
   -> MonadStore StorePath
 addToStore name source recursive repair = do
@@ -88,8 +88,8 @@ addToStore name source recursive repair = do
   runOpArgsIO AddToStore $ \yield -> do
     yield $ toStrict $ Data.Binary.Put.runPut $ do
       putText $ System.Nix.StorePath.unStorePathName name
-      putBool $ not $ System.Nix.Hash.algoName @a == "sha256" && recursive
-      putBool recursive
+      putBool $ not $ System.Nix.Hash.algoName @a == "sha256" && (unRecursive recursive)
+      putBool (unRecursive recursive)
       putText $ System.Nix.Hash.algoName @a
     source yield
   sockGetPath

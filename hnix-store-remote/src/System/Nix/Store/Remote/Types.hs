@@ -16,6 +16,10 @@ module System.Nix.Store.Remote.Types
   , doSubstitute
   , dontSubstitute
   , unSubstituteFlag
+  , Recursive
+  , addRecursive
+  , addNonRecursive
+  , unRecursive
   , Logger(..)
   , Field(..)
   , mapStoreDir
@@ -65,6 +69,16 @@ newtype SubstituteFlag = SubstituteFlag { unSubstituteFlag :: Bool }
 doSubstitute, dontSubstitute :: SubstituteFlag
 doSubstitute = SubstituteFlag True
 dontSubstitute = SubstituteFlag False
+
+-- | Recursive, used by @addToStore@
+newtype Recursive = Recursive { unRecursive :: Bool }
+  deriving (Eq, Ord, Show)
+
+addRecursive, addNonRecursive :: Recursive
+-- | Add target directory recursively
+addRecursive = Recursive True
+-- | Add target directory non-recursively
+addNonRecursive = Recursive False
 
 type MonadStore a
   = ExceptT

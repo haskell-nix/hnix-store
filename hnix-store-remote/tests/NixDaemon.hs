@@ -161,7 +161,7 @@ withPath action = do
 dummy :: MonadStore StorePath
 dummy = do
   let name = Data.Either.fromRight (error "impossible") $ makeStorePathName "dummy"
-  addToStore @SHA256 name (dumpPath "dummy") False dontRepair
+  addToStore @SHA256 name (dumpPath "dummy") addNonRecursive dontRepair
 
 invalidPath :: StorePath
 invalidPath =
@@ -252,7 +252,7 @@ spec_protocol = Hspec.around withNixDaemon $
       itRights "adds file to store" $ do
         fp <- liftIO $ writeSystemTempFile "addition" "lal"
         let name = Data.Either.fromRight (error "impossible") $ makeStorePathName "tmp-addition"
-        res <- addToStore @SHA256 name (dumpPath fp) False dontRepair
+        res <- addToStore @SHA256 name (dumpPath fp) addNonRecursive dontRepair
         liftIO $ print res
 
     context "with dummy" $ do
