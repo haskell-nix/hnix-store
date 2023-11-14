@@ -22,20 +22,20 @@ import           Crypto.Hash                    ( Context
 
 
 makeStorePath
-  :: forall h
-   . (NamedAlgo h)
+  :: forall hashAlgo
+   . (NamedAlgo hashAlgo)
   => StoreDir
   -> ByteString
-  -> Digest h
+  -> Digest hashAlgo
   -> StorePathName
   -> StorePath
-makeStorePath storeDir ty h nm = StorePath (coerce storeHash) nm
+makeStorePath storeDir ty h nm = StorePath storeHash nm
  where
-  storeHash = mkStorePathHash @h s
+  storeHash = mkStorePathHashPart @hashAlgo s
   s =
     BS.intercalate ":" $
       ty:fmap encodeUtf8
-        [ algoName @h
+        [ algoName @hashAlgo
         , encodeDigestWith Base16 h
         , toText . Bytes.Char8.unpack $ unStoreDir storeDir
         , unStorePathName nm

@@ -37,7 +37,7 @@ spec_hash = do
     -- The example in question:
     -- https://nixos.org/nixos/nix-pills/nix-store-paths.html
     it "produces same base32 as nix pill flat file example" $ do
-      shouldBe (encodeWith NixBase32 $ coerce $ mkStorePathHashPart "source:sha256:2bfef67de873c54551d884fdab3055d84d573e654efa79db3c0d7b98883f9ee3:/nix/store:myfile")
+      shouldBe (encodeWith NixBase32 $ unStorePathHashPart $ mkStorePathHashPart @SHA256 "source:sha256:2bfef67de873c54551d884fdab3055d84d573e654efa79db3c0d7b98883f9ee3:/nix/store:myfile")
         "xv2iccirbrvklck36f1g7vldn5v58vck"
  where
   cmp :: String -> BaseEncoding -> (ByteString -> Digest a) -> ByteString -> Text -> SpecWith ()
@@ -52,7 +52,8 @@ prop_nixBase32Roundtrip = forAllShrink nonEmptyString genericShrink $
 
 -- | API variants
 prop_nixBase16Roundtrip :: StorePathHashPart -> Property
-prop_nixBase16Roundtrip x = pure (coerce x) === decodeWith Base16 (encodeWith Base16 $ coerce x)
+prop_nixBase16Roundtrip x =
+  pure (unStorePathHashPart x) === decodeWith Base16 (encodeWith Base16 $ unStorePathHashPart x)
 
 -- | Hash encoding conversion ground-truth.
 -- Similiar to nix/tests/hash.sh

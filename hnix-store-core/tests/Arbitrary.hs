@@ -30,7 +30,7 @@ instance Arbitrary StorePathName where
     sn       = elements $ alphanum <> "+-._?="
 
 instance Arbitrary StorePathHashPart where
-  arbitrary = mkStorePathHashPart . BSC.pack <$> arbitrary
+  arbitrary = mkStorePathHashPart @SHA256 . BSC.pack <$> arbitrary
 
 instance Arbitrary (Digest SHA256) where
   arbitrary = hash . BSC.pack <$> arbitrary

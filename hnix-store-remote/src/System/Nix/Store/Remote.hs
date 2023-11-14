@@ -290,7 +290,10 @@ queryPathFromHashPart :: StorePathHashPart -> MonadStore StorePath
 queryPathFromHashPart storePathHash = do
   runOpArgs QueryPathFromHashPart
     $ putByteStringLen
-    $ encodeUtf8 (encodeWith NixBase32 $ coerce storePathHash)
+    $ encodeUtf8
+    $ encodeWith NixBase32
+    $ System.Nix.StorePath.unStorePathHashPart
+        storePathHash
   sockGetPath
 
 queryMissing

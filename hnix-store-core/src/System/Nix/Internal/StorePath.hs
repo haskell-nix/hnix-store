@@ -14,8 +14,8 @@ module System.Nix.Internal.StorePath
   , StorePath(..)
   , StorePathName(..)
   , StorePathSet
-  , mkStorePathHashPart
   , StorePathHashPart(..)
+  , mkStorePathHashPart
   , ContentAddressableAddress(..)
   , NarHashMode(..)
   , -- * Manipulating 'StorePathName'
@@ -47,6 +47,7 @@ import qualified Data.Attoparsec.Text.Lazy     as Parser.Text.Lazy
 import qualified System.FilePath               as FilePath
 import           Crypto.Hash                    ( SHA256
                                                 , Digest
+                                                , HashAlgorithm
                                                 )
 
 -- | A path in a Nix store.
@@ -83,11 +84,18 @@ newtype StorePathName = StorePathName
   } deriving (Eq, Hashable, Ord, Show)
 
 -- | The hash algorithm used for store path hashes.
-newtype StorePathHashPart = StorePathHashPart ByteString
+newtype StorePathHashPart = StorePathHashPart
+  { -- | Extract the contents of the hash.
+    unStorePathHashPart :: ByteString
+  }
   deriving (Eq, Hashable, Ord, Show)
 
-mkStorePathHashPart :: ByteString -> StorePathHashPart
-mkStorePathHashPart = coerce . mkStorePathHash @SHA256
+mkStorePathHashPart
+  :: forall hashAlgo
+   . HashAlgorithm hashAlgo
+  => ByteString
+  -> StorePathHashPart
+mkStorePathHashPart = coerce . mkStorePathHash @hashAlgo
 
 -- | A set of 'StorePath's.
 type StorePathSet = HashSet StorePath
