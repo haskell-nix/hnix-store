@@ -38,7 +38,7 @@ makeStorePath storeDir ty h nm = StorePath (coerce storeHash) nm
         [ algoName @h
         , encodeDigestWith Base16 h
         , toText . Bytes.Char8.unpack $ unStoreDir storeDir
-        , coerce nm
+        , unStorePathName nm
         ]
 
 makeTextPath
