@@ -71,9 +71,6 @@ import           System.Nix.Store.Remote.Util
 import           Crypto.Hash                    ( SHA256 )
 import           System.Nix.Nar                 ( NarSource )
 
-type RepairFlag = Bool
-type CheckFlag = Bool
-type SubstituteFlag = Bool
 
 -- | Pack `Nar` and add it to the store.
 addToStore
@@ -84,7 +81,10 @@ addToStore
   -> Bool                 -- ^ Add target directory recursively
   -> RepairFlag           -- ^ Only used by local store backend
   -> MonadStore StorePath
-addToStore name source recursive _repair = do
+addToStore name source recursive repair = do
+  when (unRepairFlag repair)
+    $ error "repairing is not supported when building through the Nix daemon"
+
   runOpArgsIO AddToStore $ \yield -> do
     yield $ toStrict $ Data.Binary.Put.runPut $ do
       putText $ System.Nix.StorePath.unStorePathName name
@@ -105,8 +105,9 @@ addTextToStore
   -> RepairFlag   -- ^ Repair flag, must be `False` in case of remote backend
   -> MonadStore StorePath
 addTextToStore name text references' repair = do
-  when repair
+  when (unRepairFlag repair)
     $ error "repairing is not supported when building through the Nix daemon"
+
   storeDir <- getStoreDir
   runOpArgs AddTextToStore $ do
     putText name
@@ -204,7 +205,7 @@ queryValidPaths ps substitute = do
   storeDir <- getStoreDir
   runOpArgs QueryValidPaths $ do
     putPaths storeDir ps
-    putBool substitute
+    putBool (unSubstituteFlag substitute)
   sockGetPaths
 
 queryAllValidPaths :: MonadStore StorePathSet
@@ -321,5 +322,5 @@ syncWithGC = void $ simpleOp SyncWithGC
 -- returns True on errors
 verifyStore :: CheckFlag -> RepairFlag -> MonadStore Bool
 verifyStore check repair = simpleOpArgs VerifyStore $ do
-  putBool check
-  putBool repair
+  putBool $ unCheckFlag check
+  putBool $ unRepairFlag repair
