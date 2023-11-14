@@ -13,7 +13,7 @@ category:            Nix
 build-type:          Simple
 extra-source-files:  ChangeLog.md, README.md
 
-Common commons
+common commons
   if impl(ghc >= 8.10)
     ghc-options:  -Wall -Wunused-packages
   else
@@ -28,6 +28,8 @@ Common commons
     , DeriveLift
     , FlexibleContexts
     , FlexibleInstances
+    , RecordWildCards
+    , ScopedTypeVariables
     , StandaloneDeriving
     , TypeApplications
     , TypeSynonymInstances
