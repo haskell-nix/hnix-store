@@ -97,7 +97,7 @@ executable remote-readme
   main-is: README.lhs
   ghc-options: -pgmL markdown-unlit -Wall
 
-test-suite hnix-store-remote-tests
+test-suite remote-io
   import: commons
 
   if !flag(io-testsuite) || os(darwin)
@@ -110,10 +110,7 @@ test-suite hnix-store-remote-tests
   other-modules:
       NixDaemon
     , Spec
-    , Util
-  hs-source-dirs:    tests
-  build-tool-depends:
-    tasty-discover:tasty-discover
+  hs-source-dirs:    tests-io
   build-depends:
       base
     , bytestring
@@ -135,6 +132,8 @@ test-suite hnix-store-remote-tests
     , temporary
     , unix
     , unordered-containers
+  build-tool-depends:
+      tasty-discover:tasty-discover
   mixins:
       base hiding (Prelude)
     , relude (Relude as Prelude)
