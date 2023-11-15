@@ -1,6 +1,19 @@
-# ChangeLog
+# Next
 
-## [0.7.0.0](https://github.com/haskell-nix/hnix-store/compare/core-0.6.1.0...core-0.7.0.0) 2023-11-15
+* Changes:
+   * Constructors of `StorePathName` and `StorePathHashPart` are no longer
+     exported. Use respective `mkStorePath..` functions. [#230](https://github.com/haskell-nix/hnix-store/pull/230)
+   * `StorePathSet` type alias is no more, use `HashSet StorePath` [#230](https://github.com/haskell-nix/hnix-store/pull/230)
+
+
+* Additions:
+   * Added `Arbitrary` instances for (exported by default) [#230](https://github.com/haskell-nix/hnix-store/pull/230)
+     * `StorePath`
+     * `StorePathName`
+     * `StorePathHashPart`
+     * `StoreDir`
+
+# [0.7.0.0](https://github.com/haskell-nix/hnix-store/compare/core-0.6.1.0...core-0.7.0.0) 2023-11-15
 
 * Breaking:
     * [(link)](https://github.com/haskell-nix/hnix-store/pull/216) `StorePath` no longer carries `storePathRoot` field and we
@@ -14,13 +27,13 @@
       * `data NarOptions` has been added to configure NAR encoding and decoding. The `optUseCaseHack` field can be used to enable or disable the case hack.
       * New `streamNarIOWithOptions` and `runParserWithOptions` functions have been added to `System.Nix.Nar` to support the new configurable options.
 
-## [0.6.1.0](https://github.com/haskell-nix/hnix-store/compare/core-0.6.0.0...core-0.6.1.0) 2023-01-02
+# [0.6.1.0](https://github.com/haskell-nix/hnix-store/compare/core-0.6.0.0...core-0.6.1.0) 2023-01-02
 
 * Fixed:
 
     * [(link)](https://github.com/haskell-nix/hnix-store/pull/201) [(link)](https://github.com/haskell-nix/hnix-store/pull/203) NAR serialization compatibility (symlinks, directory symlinks, UTF-8 handling)
 
-## [0.6.0.0](https://github.com/haskell-nix/hnix-store/compare/core-0.5.0.0...core-0.6.0.0) 2022-06-06
+# [0.6.0.0](https://github.com/haskell-nix/hnix-store/compare/core-0.5.0.0...core-0.6.0.0) 2022-06-06
 
 * Breaking:
 
@@ -28,7 +41,7 @@
       * `FilePath` can turn to `NarSource m` using `dumpPath`
       * `ByteString` can turn to `NarSource m` using `dumpString`
 
-## [0.5.0.0](https://github.com/haskell-nix/hnix-store/compare/0.4.3.0...core-0.5.0.0) 2021-06-10
+# [0.5.0.0](https://github.com/haskell-nix/hnix-store/compare/0.4.3.0...core-0.5.0.0) 2021-06-10
 
 * Breaking:
 
@@ -63,14 +76,14 @@
         `mkStorePathHash :: HashAlgorithm a => ByteString -> ByteString`
         but recommend to at once use `mkStorePathHashPart`.
 
-## [0.4.3.0](https://github.com/haskell-nix/hnix-store/compare/0.4.2.0...0.4.3.0) 2021-05-30
+# [0.4.3.0](https://github.com/haskell-nix/hnix-store/compare/0.4.2.0...0.4.3.0) 2021-05-30
 
 * Additional:
   * [(link)](https://github.com/haskell-nix/hnix-store/commit/b85f7c875fe6b0bca939ffbcd8b9bd0ab1598aa0) `System.Nix.ReadonlyStore`: add a readonly `computeStorePathForPath`
   * [(link)](https://github.com/haskell-nix/hnix-store/commit/db71ecea3109c0ba270fa98a9041a8556e35217f) `System.Nix.ReadonlyStore`: `computeStorePathForPath`: force SHA256 as it's the only valid choice
   * [(link)](https://github.com/haskell-nix/hnix-store/commit/5fddf3c66ba1bcabb72c4d6b6e09fb41a7acd62c): `makeTextPath`: order the references
 
-## [0.4.2.0](https://github.com/haskell-nix/hnix-store/compare/0.4.1.0...0.4.2.0) 2021-03-12
+# [0.4.2.0](https://github.com/haskell-nix/hnix-store/compare/0.4.1.0...0.4.2.0) 2021-03-12
 
 * Additional:
 
@@ -85,18 +98,18 @@
   * [(link)](https://github.com/haskell-nix/hnix-store/commit/2a897ab581c0501587ce04da6d6e3a6f543b1d72) Test suite: fixed nar test for the envs without `/proc` (test suite now works on `macOS`).
 
 
-## [0.4.1.0](https://github.com/haskell-nix/hnix-store/compare/0.4.0.0...0.4.1.0) 2021-01-16
+# [0.4.1.0](https://github.com/haskell-nix/hnix-store/compare/0.4.0.0...0.4.1.0) 2021-01-16
 
 * Big clean-up of dependencies.
 
-## [0.4.0.0](https://github.com/haskell-nix/hnix-store/compare/0.3.0.0...0.4.0.0) 2020-12-30
+# [0.4.0.0](https://github.com/haskell-nix/hnix-store/compare/0.3.0.0...0.4.0.0) 2020-12-30
 
 * `System.Nix.Hash` no longer exports `encodeBase16, decodeBase16` and their `Base32` counterparts.
     These were replaced by `encodeInBase` and `decodeBase` functions
     accepting `BaseEncoding` data type [#87](https://github.com/haskell-nix/hnix-store/pull/87)
 * Support `base16-bytestring >= 1` [#86](https://github.com/haskell-nix/hnix-store/pull/86) [#100](https://github.com/haskell-nix/hnix-store/pull/100)
 
-## 0.3.0.0 -- 2020-11-29
+# 0.3.0.0 -- 2020-11-29
 
 * `System.Nix.Nar` changes API to support NAR format streaming:
   * `buildNarIO :: FilePath -> Handle -> IO ()` - Create a NAR from a regular filesystem object, stream it out on the Handle
@@ -115,11 +128,11 @@ symbolic store path root.
 * Removed `System.Nix.Util` module, moved to `hnix-store-remote`
 * Added base64 and SHA512 hash support
 
-## 0.2.0.0 -- 2020-03-12
+# 0.2.0.0 -- 2020-03-12
 
 Removed `System.Nix.Store`. We may reintroduce it later when multiple backends
 exist and we can tell what common effects they should share.
 
-## 0.1.0.0  -- 2019-03-18
+# 0.1.0.0  -- 2019-03-18
 
 * First version.
