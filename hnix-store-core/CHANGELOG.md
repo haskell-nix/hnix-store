@@ -14,6 +14,12 @@
      * `StorePathName`
      * `StorePathHashPart`
      * `StoreDir`
+   * Added `Arbitrary` instances for [#231](https://github.com/haskell-nix/hnix-store/pull/231)
+     * `BuildMode`
+     * `BuildStatus`
+     * `BuildResult`
+     * `Derivation StorePath Text`
+     * `DerivationOutput StorePath Text`
 
 # [0.7.0.0](https://github.com/haskell-nix/hnix-store/compare/core-0.6.1.0...core-0.7.0.0) 2023-11-15
 
