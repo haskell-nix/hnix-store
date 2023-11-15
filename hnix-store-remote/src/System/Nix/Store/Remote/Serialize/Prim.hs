@@ -157,6 +157,15 @@ getPath :: StoreDir -> Get (Either InvalidPathError StorePath)
 getPath sd =
   System.Nix.StorePath.parsePath sd <$> getByteString
 
+-- | Deserialize @StorePath@, checking
+-- that @StoreDir@ matches expected value
+getPathOrFail :: StoreDir -> Get StorePath
+getPathOrFail sd =
+  getPath sd
+  >>= either
+    (fail . show)
+    pure
+
 -- | Serialize @StorePath@ with its associated @StoreDir@
 putPath :: StoreDir -> Putter StorePath
 putPath storeDir =

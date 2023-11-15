@@ -93,6 +93,7 @@ library
     , unordered-containers
     , hnix-store-core >= 0.7 && <0.8
     , transformers
+    , vector
   hs-source-dirs:      src
   ghc-options:         -Wall
 
@@ -117,6 +118,7 @@ test-suite remote
   build-depends:
       hnix-store-core
     , hnix-store-remote
+    , nix-derivation
     , bytestring
     , cereal
     , text

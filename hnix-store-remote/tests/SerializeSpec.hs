@@ -18,9 +18,11 @@ import qualified Data.HashSet
 import qualified Data.Time.Clock.POSIX
 import qualified System.Nix.Build
 
-import System.Nix.Build (BuildMode, BuildStatus, BuildResult)
+import Nix.Derivation (Derivation(..))
+import System.Nix.Build (BuildMode, BuildStatus)
+import System.Nix.Derivation ()
 import System.Nix.StorePath (StoreDir, StorePath)
-import System.Nix.Store.Remote.Serialize ()
+import System.Nix.Store.Remote.Serialize (getDerivation, putDerivation)
 import System.Nix.Store.Remote.Serialize.Prim
 
 roundTrip :: (Eq a, Show a) => Putter a -> Get a -> a -> Property
@@ -145,3 +147,13 @@ spec_buildEnums =
       it' "NotDeterministic"       System.Nix.Build.NotDeterministic       12
       it' "ResolvesToAlreadyValid" System.Nix.Build.ResolvesToAlreadyValid 13
       it' "NoSubstituters"         System.Nix.Build.NoSubstituters         14
+
+-- ** Derivation
+
+prop_derivation :: StoreDir -> Derivation StorePath Text -> Property
+prop_derivation sd drv =
+  roundTrip
+    (putDerivation sd)
+    (getDerivation sd)
+    -- inputDrvs is not used in remote protocol serialization
+    (drv { inputDrvs = mempty })
