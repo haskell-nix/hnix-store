@@ -11,13 +11,37 @@ maintainer:          srk@48.io
 copyright:           2018 Richard Marko
 category:            Nix
 build-type:          Simple
-extra-source-files:  ChangeLog.md, README.md
+extra-source-files:
+    CHANGELOG.md
+  , README.md
+  , README.lhs
 
-Common commons
+common commons
   if impl(ghc >= 8.10)
     ghc-options:  -Wall -Wunused-packages
   else
     ghc-options:  -Wall
+  default-extensions:
+      OverloadedStrings
+    , DeriveGeneric
+    , DeriveDataTypeable
+    , DeriveFunctor
+    , DeriveFoldable
+    , DeriveTraversable
+    , DeriveLift
+    , FlexibleContexts
+    , FlexibleInstances
+    , RecordWildCards
+    , ScopedTypeVariables
+    , StandaloneDeriving
+    , TypeApplications
+    , TypeSynonymInstances
+    , InstanceSigs
+    , MultiParamTypeClasses
+    , TupleSections
+    , LambdaCase
+    , BangPatterns
+    , ViewPatterns
 
 flag io-testsuite
   default:
@@ -64,25 +88,6 @@ library
       base hiding (Prelude)
     , relude (Relude as Prelude)
     , relude
-  default-extensions:
-      OverloadedStrings
-    , DeriveGeneric
-    , DeriveDataTypeable
-    , DeriveFunctor
-    , DeriveFoldable
-    , DeriveTraversable
-    , DeriveLift
-    , FlexibleContexts
-    , FlexibleInstances
-    , StandaloneDeriving
-    , TypeApplications
-    , TypeSynonymInstances
-    , InstanceSigs
-    , MultiParamTypeClasses
-    , TupleSections
-    , LambdaCase
-    , BangPatterns
-    , ViewPatterns
   hs-source-dirs:      src
   default-language:    Haskell2010
   ghc-options:         -Wall
@@ -97,7 +102,7 @@ executable remote-readme
   main-is: README.lhs
   ghc-options: -pgmL markdown-unlit -Wall
 
-test-suite hnix-store-remote-tests
+test-suite remote-io
   import: commons
 
   if !flag(io-testsuite) || os(darwin)
@@ -110,10 +115,7 @@ test-suite hnix-store-remote-tests
   other-modules:
       NixDaemon
     , Spec
-    , Util
-  hs-source-dirs:    tests
-  build-tool-depends:
-    tasty-discover:tasty-discover
+  hs-source-dirs:    tests-io
   build-depends:
       base
     , bytestring
@@ -135,27 +137,10 @@ test-suite hnix-store-remote-tests
     , temporary
     , unix
     , unordered-containers
+  build-tool-depends:
+      tasty-discover:tasty-discover
   mixins:
       base hiding (Prelude)
     , relude (Relude as Prelude)
     , relude
-  default-extensions:
-      OverloadedStrings
-    , DeriveGeneric
-    , DeriveDataTypeable
-    , DeriveFunctor
-    , DeriveFoldable
-    , DeriveTraversable
-    , DeriveLift
-    , FlexibleContexts
-    , FlexibleInstances
-    , StandaloneDeriving
-    , TypeApplications
-    , TypeSynonymInstances
-    , InstanceSigs
-    , MultiParamTypeClasses
-    , TupleSections
-    , LambdaCase
-    , BangPatterns
-    , ViewPatterns
   default-language: Haskell2010

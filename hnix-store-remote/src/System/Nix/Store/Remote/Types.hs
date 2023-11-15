@@ -4,6 +4,22 @@
 module System.Nix.Store.Remote.Types
   ( MonadStore
   , StoreConfig(..)
+  , CheckFlag
+  , doCheck
+  , dontCheck
+  , unCheckFlag
+  , RepairFlag
+  , doRepair
+  , dontRepair
+  , unRepairFlag
+  , SubstituteFlag
+  , doSubstitute
+  , dontSubstitute
+  , unSubstituteFlag
+  , Recursive
+  , addRecursive
+  , addNonRecursive
+  , unRecursive
   , Logger(..)
   , Field(..)
   , mapStoreDir
@@ -28,6 +44,41 @@ data StoreConfig = StoreConfig
   { storeDir    :: StoreDir
   , storeSocket :: Socket
   }
+
+-- | Check flag, used by @verifyStore@
+newtype CheckFlag = CheckFlag { unCheckFlag :: Bool }
+  deriving (Eq, Ord, Show)
+
+doCheck, dontCheck :: CheckFlag
+doCheck = CheckFlag True
+dontCheck = CheckFlag False
+
+-- | Repair flag, used by @addToStore@, @addTextToStore@
+-- and @verifyStore@
+newtype RepairFlag = RepairFlag { unRepairFlag :: Bool }
+  deriving (Eq, Ord, Show)
+
+doRepair, dontRepair :: RepairFlag
+doRepair = RepairFlag True
+dontRepair = RepairFlag False
+
+-- | Substitute flag, used by @queryValidPaths@
+newtype SubstituteFlag = SubstituteFlag { unSubstituteFlag :: Bool }
+  deriving (Eq, Ord, Show)
+
+doSubstitute, dontSubstitute :: SubstituteFlag
+doSubstitute = SubstituteFlag True
+dontSubstitute = SubstituteFlag False
+
+-- | Recursive, used by @addToStore@
+newtype Recursive = Recursive { unRecursive :: Bool }
+  deriving (Eq, Ord, Show)
+
+addRecursive, addNonRecursive :: Recursive
+-- | Add target directory recursively
+addRecursive = Recursive True
+-- | Add target directory non-recursively
+addNonRecursive = Recursive False
 
 type MonadStore a
   = ExceptT

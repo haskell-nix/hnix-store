@@ -154,23 +154,23 @@ itLefts name action = it name action isLeft
 
 withPath :: (StorePath -> MonadStore a) -> MonadStore a
 withPath action = do
-  path <- addTextToStore "hnix-store" "test" (HS.fromList []) False
+  path <- addTextToStore "hnix-store" "test" mempty dontRepair
   action path
 
 -- | dummy path, adds <tmp>/dummpy with "Hello World" contents
 dummy :: MonadStore StorePath
 dummy = do
   let name = Data.Either.fromRight (error "impossible") $ makeStorePathName "dummy"
-  addToStore @SHA256 name (dumpPath "dummy") False False
+  addToStore @SHA256 name (dumpPath "dummy") addNonRecursive dontRepair
 
 invalidPath :: StorePath
 invalidPath =
   let name = Data.Either.fromRight (error "impossible") $ makeStorePathName "invalid"
-  in  StorePath (mkStorePathHashPart "invalid") name
+  in  StorePath (mkStorePathHashPart @SHA256 "invalid") name
 
 withBuilder :: (StorePath -> MonadStore a) -> MonadStore a
 withBuilder action = do
-  path <- addTextToStore "builder" builderSh (HS.fromList []) False
+  path <- addTextToStore "builder" builderSh mempty dontRepair
   action path
 
 builderSh :: Text
@@ -186,14 +186,14 @@ spec_protocol = Hspec.around withNixDaemon $
 
     context "verifyStore" $ do
       itRights "check=False repair=False" $
-        verifyStore False False `shouldReturn` False
+        verifyStore dontCheck dontRepair `shouldReturn` False
 
       itRights "check=True repair=False" $
-        verifyStore True False `shouldReturn` False
+        verifyStore doCheck dontRepair `shouldReturn` False
 
       --privileged
       itRights "check=True repair=True" $
-        verifyStore True True `shouldReturn` False
+        verifyStore doCheck doRepair `shouldReturn` False
 
     context "addTextToStore" $
       itRights "adds text to store" $ withPath pure
@@ -252,7 +252,7 @@ spec_protocol = Hspec.around withNixDaemon $
       itRights "adds file to store" $ do
         fp <- liftIO $ writeSystemTempFile "addition" "lal"
         let name = Data.Either.fromRight (error "impossible") $ makeStorePathName "tmp-addition"
-        res <- addToStore @SHA256 name (dumpPath fp) False False
+        res <- addToStore @SHA256 name (dumpPath fp) addNonRecursive dontRepair
         liftIO $ print res
 
     context "with dummy" $ do

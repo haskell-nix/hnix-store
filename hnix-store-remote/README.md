@@ -25,6 +25,6 @@ main = do
     roots <- findRoots
     liftIO $ print roots
 
-    res <- addTextToStore "hnix-store" "test" mempty False
+    res <- addTextToStore "hnix-store" "test" mempty dontRepair
     liftIO $ print res
 ```

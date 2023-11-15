@@ -15,7 +15,7 @@ copyright:           2018 Shea Levy
 category:            Nix
 build-type:          Simple
 extra-source-files:
-    ChangeLog.md
+    CHANGELOG.md
   , README.md
   , tests/samples/example0.drv
   , tests/samples/example1.drv
@@ -70,6 +70,7 @@ library
     , monad-control
     , mtl
     , nix-derivation >= 1.1.1 && <2
+    , QuickCheck
     , saltine
     , time
     , text
@@ -114,7 +115,6 @@ test-suite format-tests
   type: exitcode-stdio-1.0
   main-is: Driver.hs
   other-modules:
-    Arbitrary
     Derivation
     NarFormat
     Hash

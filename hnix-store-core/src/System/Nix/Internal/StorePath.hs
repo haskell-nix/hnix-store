@@ -13,9 +13,8 @@ module System.Nix.Internal.StorePath
     StoreDir(..)
   , StorePath(..)
   , StorePathName(..)
-  , StorePathSet
-  , mkStorePathHashPart
   , StorePathHashPart(..)
+  , mkStorePathHashPart
   , ContentAddressableAddress(..)
   , NarHashMode(..)
   , -- * Manipulating 'StorePathName'
@@ -47,7 +46,10 @@ import qualified Data.Attoparsec.Text.Lazy     as Parser.Text.Lazy
 import qualified System.FilePath               as FilePath
 import           Crypto.Hash                    ( SHA256
                                                 , Digest
+                                                , HashAlgorithm
                                                 )
+
+import Test.QuickCheck
 
 -- | A path in a Nix store.
 --
@@ -72,6 +74,12 @@ instance Hashable StorePath where
   hashWithSalt s StorePath{..} =
     s `hashWithSalt` storePathHash `hashWithSalt` storePathName
 
+instance Arbitrary StorePath where
+  arbitrary =
+    liftA2 StorePath
+      arbitrary
+      arbitrary
+
 -- | The name portion of a Nix path.
 --
 -- 'unStorePathName' must only contain a-zA-Z0-9+._?=-, can't start
@@ -82,15 +90,29 @@ newtype StorePathName = StorePathName
     unStorePathName :: Text
   } deriving (Eq, Hashable, Ord, Show)
 
+instance Arbitrary StorePathName where
+  arbitrary = StorePathName . toText <$> ((:) <$> s1 <*> listOf sn)
+   where
+    alphanum = ['a' .. 'z'] <> ['A' .. 'Z'] <> ['0' .. '9']
+    s1       = elements $ alphanum <> "+-_?="
+    sn       = elements $ alphanum <> "+-._?="
+
 -- | The hash algorithm used for store path hashes.
-newtype StorePathHashPart = StorePathHashPart ByteString
+newtype StorePathHashPart = StorePathHashPart
+  { -- | Extract the contents of the hash.
+    unStorePathHashPart :: ByteString
+  }
   deriving (Eq, Hashable, Ord, Show)
 
-mkStorePathHashPart :: ByteString -> StorePathHashPart
-mkStorePathHashPart = coerce . mkStorePathHash @SHA256
+instance Arbitrary StorePathHashPart where
+  arbitrary = mkStorePathHashPart @SHA256 . Bytes.Char8.pack <$> arbitrary
 
--- | A set of 'StorePath's.
-type StorePathSet = HashSet StorePath
+mkStorePathHashPart
+  :: forall hashAlgo
+   . HashAlgorithm hashAlgo
+  => ByteString
+  -> StorePathHashPart
+mkStorePathHashPart = coerce . mkStorePathHash @hashAlgo
 
 -- | An address for a content-addressable store path, i.e. one whose
 -- store path hash is purely a function of its contents (as opposed to
@@ -162,6 +184,9 @@ type RawFilePath = ByteString
 newtype StoreDir = StoreDir {
     unStoreDir :: RawFilePath
   } deriving (Eq, Hashable, Ord, Show)
+
+instance Arbitrary StoreDir where
+  arbitrary = StoreDir . ("/" <>) . Bytes.Char8.pack <$> arbitrary
 
 -- | Render a 'StorePath' as a 'RawFilePath'.
 storePathToRawFilePath :: StoreDir -> StorePath -> RawFilePath

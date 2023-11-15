@@ -5,14 +5,15 @@ module System.Nix.StorePath
   ( -- * Basic store path types
     StoreDir(..)
   , StorePath(..)
-  , StorePathName(..)
-  , StorePathSet
+  , StorePathName
+  , StorePathHashPart
   , mkStorePathHashPart
-  , StorePathHashPart(..)
+  , unStorePathHashPart
   , ContentAddressableAddress(..)
   , NarHashMode(..)
   , -- * Manipulating 'StorePathName'
     makeStorePathName
+  , unStorePathName
   , validStorePathName
   , -- * Rendering out 'StorePath's
     storePathToFilePath

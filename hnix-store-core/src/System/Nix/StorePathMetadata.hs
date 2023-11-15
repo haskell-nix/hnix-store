@@ -4,7 +4,6 @@ Description : Metadata about Nix store paths.
 module System.Nix.StorePathMetadata where
 
 import           System.Nix.StorePath           ( StorePath
-                                                , StorePathSet
                                                 , ContentAddressableAddress
                                                 )
 import           System.Nix.Hash                ( SomeNamedDigest )
@@ -22,7 +21,7 @@ data StorePathMetadata = StorePathMetadata
     -- | The hash of the nar serialization of the path.
     narHash :: !SomeNamedDigest
   , -- | The paths that this path directly references
-    references :: !StorePathSet
+    references :: !(HashSet StorePath)
   , -- | When was this path registered valid in the store?
     registrationTime :: !UTCTime
   , -- | The size of the nar serialization of the path, in bytes.

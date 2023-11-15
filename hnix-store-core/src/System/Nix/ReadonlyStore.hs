@@ -22,27 +22,27 @@ import           Crypto.Hash                    ( Context
 
 
 makeStorePath
-  :: forall h
-   . (NamedAlgo h)
+  :: forall hashAlgo
+   . (NamedAlgo hashAlgo)
   => StoreDir
   -> ByteString
-  -> Digest h
+  -> Digest hashAlgo
   -> StorePathName
   -> StorePath
-makeStorePath storeDir ty h nm = StorePath (coerce storeHash) nm
+makeStorePath storeDir ty h nm = StorePath storeHash nm
  where
-  storeHash = mkStorePathHash @h s
+  storeHash = mkStorePathHashPart @hashAlgo s
   s =
     BS.intercalate ":" $
       ty:fmap encodeUtf8
-        [ algoName @h
+        [ algoName @hashAlgo
         , encodeDigestWith Base16 h
         , toText . Bytes.Char8.unpack $ unStoreDir storeDir
-        , coerce nm
+        , unStorePathName nm
         ]
 
 makeTextPath
-  :: StoreDir -> StorePathName -> Digest SHA256 -> StorePathSet -> StorePath
+  :: StoreDir -> StorePathName -> Digest SHA256 -> HashSet StorePath -> StorePath
 makeTextPath storeDir nm h refs = makeStorePath storeDir ty h nm
  where
   ty =
@@ -70,7 +70,7 @@ makeFixedOutputPath storeDir recursive h =
       <> ":"
 
 computeStorePathForText
-  :: StoreDir -> StorePathName -> ByteString -> (StorePathSet -> StorePath)
+  :: StoreDir -> StorePathName -> ByteString -> (HashSet StorePath -> StorePath)
 computeStorePathForText storeDir nm = makeTextPath storeDir nm . hash
 
 computeStorePathForPath
