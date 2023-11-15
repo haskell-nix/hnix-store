@@ -70,6 +70,7 @@ library
     , monad-control
     , mtl
     , nix-derivation >= 1.1.1 && <2
+    , QuickCheck
     , saltine
     , time
     , text
@@ -114,7 +115,6 @@ test-suite format-tests
   type: exitcode-stdio-1.0
   main-is: Driver.hs
   other-modules:
-    Arbitrary
     Derivation
     NarFormat
     Hash

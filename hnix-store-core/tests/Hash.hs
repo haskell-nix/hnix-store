@@ -13,7 +13,6 @@ import           Test.Tasty.QuickCheck
 
 import           System.Nix.Hash
 import           System.Nix.StorePath
-import           Arbitrary
 import           System.Nix.Internal.Base
 import           Crypto.Hash                ( MD5
                                             , SHA1
@@ -49,6 +48,12 @@ spec_hash = do
 prop_nixBase32Roundtrip :: Property
 prop_nixBase32Roundtrip = forAllShrink nonEmptyString genericShrink $
   \x -> pure (encodeUtf8 x) === (B32.decode . B32.encode . encodeUtf8 $ x)
+  where
+    nonEmptyString :: Gen String
+    nonEmptyString = listOf1 genSafeChar
+
+    genSafeChar :: Gen Char
+    genSafeChar = choose ('\1', '\127') -- ASCII without \NUL
 
 -- | API variants
 prop_nixBase16Roundtrip :: StorePathHashPart -> Property
