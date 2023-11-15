@@ -8,12 +8,16 @@ module System.Nix.Store.Remote.Parsers
   )
 where
 
+import Control.Applicative ((<|>))
+import Data.ByteString (ByteString)
+import Data.Text (Text)
 import           Data.Attoparsec.ByteString.Char8
 import           System.Nix.Hash
 import           System.Nix.StorePath           ( ContentAddressableAddress(..)
                                                 , NarHashMode(..)
                                                 )
 import           Crypto.Hash                    ( SHA256 )
+import qualified Data.Text.Encoding
 
 -- | Parse `ContentAddressableAddress` from `ByteString`
 parseContentAddressableAddress
@@ -45,7 +49,10 @@ parseTypedDigest = mkNamedDigest <$> parseHashType <*> parseHash
 
 parseHashType :: Parser Text
 parseHashType =
-  decodeUtf8 <$> ("sha256" <|> "sha512" <|> "sha1" <|> "md5") <* (":" <|> "-")
+  Data.Text.Encoding.decodeUtf8
+  <$> ("sha256" <|> "sha512" <|> "sha1" <|> "md5") <* (":" <|> "-")
 
 parseHash :: Parser Text
-parseHash = decodeUtf8 <$> takeWhile1 (/= ':')
+parseHash =
+  Data.Text.Encoding.decodeUtf8
+  <$> takeWhile1 (/= ':')

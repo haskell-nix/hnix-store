@@ -4,16 +4,21 @@ Maintainer  : srk <srk@48.io>
 |-}
 module System.Nix.Store.Remote.Serialize.Prim where
 
+import Data.ByteString (ByteString)
 import Data.Fixed (Uni)
+import Data.HashSet (HashSet)
 import Data.Serialize.Get (Get)
 import Data.Serialize.Put (Putter)
+import Data.Text (Text)
 import Data.Time (NominalDiffTime, UTCTime)
 import System.Nix.StorePath (StoreDir, StorePath, InvalidPathError)
 
+import qualified Control.Monad
 import qualified Data.HashSet
 import qualified Data.Serialize.Get
 import qualified Data.Serialize.Put
 import qualified Data.ByteString
+import qualified Data.Text.Encoding
 import qualified Data.Time.Clock.POSIX
 import qualified System.Nix.StorePath
 
@@ -80,7 +85,7 @@ putTime =
 getMany :: Get a -> Get [a]
 getMany parser = do
   count <- getInt
-  replicateM count parser
+  Control.Monad.replicateM count parser
 
 -- | Serialize a list
 putMany :: Foldable t => Putter a -> Putter (t a)
@@ -96,11 +101,13 @@ getByteString :: Get ByteString
 getByteString = do
   len <- getInt
   st  <- Data.Serialize.Get.getByteString len
-  when (len `mod` 8 /= 0) $ do
+  Control.Monad.when (len `mod` 8 /= 0) $ do
     pads <- unpad $ fromIntegral $ 8 - (len `mod` 8)
-    unless (all (== 0) pads) $ fail $ "No zeroes" <> show (st, len, pads)
+    Control.Monad.unless
+      (all (== 0) pads)
+      $ fail $ "No zeroes" <> show (st, len, pads)
   pure st
-  where unpad x = replicateM x Data.Serialize.Get.getWord8
+  where unpad x = Control.Monad.replicateM x Data.Serialize.Get.getWord8
 
 -- | Serialize @ByteString@ using length
 -- prefixed string packing with padding to 8 bytes
@@ -108,11 +115,13 @@ putByteString :: Putter ByteString
 putByteString x = do
   putInt len
   Data.Serialize.Put.putByteString x
-  when (len `mod` 8 /= 0) $ pad $ 8 - (len `mod` 8)
+  Control.Monad.when
+    (len `mod` 8 /= 0)
+    $ pad $ 8 - (len `mod` 8)
  where
   len :: Int
   len = fromIntegral $ Data.ByteString.length x
-  pad count = replicateM_ count (Data.Serialize.Put.putWord8 0)
+  pad count = Control.Monad.replicateM_ count (Data.Serialize.Put.putWord8 0)
 
 -- | Deserialize a list of @ByteString@s
 getByteStrings :: Get [ByteString]
@@ -126,19 +135,19 @@ putByteStrings = putMany putByteString
 
 -- | Deserialize @Text@
 getText :: Get Text
-getText = decodeUtf8 <$> getByteString
+getText = Data.Text.Encoding.decodeUtf8 <$> getByteString
 
 -- | Serialize @Text@
 putText :: Putter Text
-putText = putByteString . encodeUtf8
+putText = putByteString . Data.Text.Encoding.encodeUtf8
 
 -- | Deserialize a list of @Text@s
 getTexts :: Get [Text]
-getTexts = fmap decodeUtf8 <$> getByteStrings
+getTexts = fmap Data.Text.Encoding.decodeUtf8 <$> getByteStrings
 
 -- | Serialize a list of @Text@s
 putTexts :: (Functor f, Foldable f) => Putter (f Text)
-putTexts = putByteStrings . fmap encodeUtf8
+putTexts = putByteStrings . fmap Data.Text.Encoding.encodeUtf8
 
 -- * StorePath
 

@@ -16,15 +16,18 @@ module System.Nix.Store.Remote.Protocol
   )
 where
 
-import qualified Relude.Unsafe                 as Unsafe
-
+import qualified Control.Monad
 import           Control.Exception              ( bracket )
 import           Control.Monad.Except
+import           Control.Monad.Reader (asks, runReaderT)
+import           Control.Monad.State.Strict
 
+import qualified Data.Bool
 import           Data.Binary.Get
 import           Data.Binary.Put
 import qualified Data.ByteString
 import qualified Data.ByteString.Char8
+import qualified Data.ByteString.Lazy
 
 import           Network.Socket                 ( SockAddr(SockAddrUnix) )
 import qualified Network.Socket                 as S
@@ -123,28 +126,28 @@ opNum QueryMissing                = 40
 
 
 simpleOp :: WorkerOp -> MonadStore Bool
-simpleOp op = simpleOpArgs op pass
+simpleOp op = simpleOpArgs op $ pure ()
 
 simpleOpArgs :: WorkerOp -> Put -> MonadStore Bool
 simpleOpArgs op args = do
   runOpArgs op args
   err <- gotError
-  bool
+  Data.Bool.bool
     sockGetBool
     (do
-      Error _num msg <- Unsafe.head <$> getError
+      Error _num msg <- head <$> getError
       throwError $ Data.ByteString.Char8.unpack msg
     )
     err
 
 runOp :: WorkerOp -> MonadStore ()
-runOp op = runOpArgs op pass
+runOp op = runOpArgs op $ pure ()
 
 runOpArgs :: WorkerOp -> Put -> MonadStore ()
 runOpArgs op args =
   runOpArgsIO
     op
-    (\encode -> encode $ toStrict $ runPut args)
+    (\encode -> encode $ Data.ByteString.Lazy.toStrict $ runPut args)
 
 runOpArgsIO
   :: WorkerOp
@@ -160,8 +163,8 @@ runOpArgsIO op encoder = do
   out <- processOutput
   modify (\(a, b) -> (a, b <> out))
   err <- gotError
-  when err $ do
-    Error _num msg <- Unsafe.head <$> getError
+  Control.Monad.when err $ do
+    Error _num msg <- head <$> getError
     throwError $ Data.ByteString.Char8.unpack msg
 
 runStore :: MonadStore a -> IO (Either String a, [Logger])
@@ -198,11 +201,11 @@ runStoreOpts' sockFamily sockAddr storeRootDir code =
     vermagic <- liftIO $ recv soc 16
     let
       (magic2, _daemonProtoVersion) =
-        flip runGet (fromStrict vermagic)
+        flip runGet (Data.ByteString.Lazy.fromStrict vermagic)
           $ (,)
             <$> (getInt :: Get Int)
             <*> (getInt :: Get Int)
-    unless (magic2 == workerMagic2) $ error "Worker magic 2 mismatch"
+    Control.Monad.unless (magic2 == workerMagic2) $ error "Worker magic 2 mismatch"
 
     sockPut $ putInt protoVersion -- clientVersion
     sockPut $ putInt (0 :: Int)   -- affinity

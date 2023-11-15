@@ -4,6 +4,8 @@ Maintainer  : srk <srk@48.io>
 |-}
 module System.Nix.Store.Remote.Binary where
 
+import Control.Monad
+import Data.ByteString (ByteString)
 import           Data.Binary.Get
 import           Data.Binary.Put
 import qualified Data.ByteString.Lazy          as BSL
@@ -45,7 +47,7 @@ getByteStringLen = do
   when (len `mod` 8 /= 0) $ do
     pads <- unpad $ fromIntegral $ 8 - (len `mod` 8)
     unless (all (== 0) pads) $ fail $ "No zeroes" <> show (st, len, pads)
-  pure $ toStrict st
+  pure $ BSL.toStrict st
   where unpad x = replicateM x getWord8
 
 getByteStrings :: Get [ByteString]

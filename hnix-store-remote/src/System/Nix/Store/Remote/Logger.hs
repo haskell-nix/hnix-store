@@ -8,8 +8,10 @@ module System.Nix.Store.Remote.Logger
 where
 
 
-import           Prelude                 hiding ( Last )
 import           Control.Monad.Except           ( throwError )
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Reader (asks)
+import Control.Monad.State.Strict (get)
 import           Data.Binary.Get
 
 import           Network.Socket.ByteString      ( recv )
@@ -18,6 +20,8 @@ import           System.Nix.Store.Remote.Binary
 import           System.Nix.Store.Remote.Types
 import           System.Nix.Store.Remote.Util
 
+
+import qualified Control.Monad
 
 controlParser :: Get Logger
 controlParser = do
@@ -70,12 +74,12 @@ processOutput = go decoder
     chunk <- liftIO (Just <$> recv soc 8)
     go (k chunk)
 
-  go (Fail _leftover _consumed msg) = error $ fromString msg
+  go (Fail _leftover _consumed msg) = error msg
 
 getFields :: Get [Field]
 getFields = do
   cnt <- getInt
-  replicateM cnt getField
+  Control.Monad.replicateM cnt getField
 
 getField :: Get Field
 getField = do

@@ -44,11 +44,6 @@ common commons
     , ViewPatterns
   build-depends:
       base >=4.12 && <5
-    , relude
-  mixins:
-      base hiding (Prelude)
-    , relude (Relude as Prelude)
-    , relude
   default-language: Haskell2010
 
 common tests
@@ -122,11 +117,16 @@ test-suite remote
   build-depends:
       hnix-store-core
     , hnix-store-remote
+    , bytestring
     , cereal
+    , text
     , time
+    , hspec
     , tasty
+    , tasty-hspec
     , tasty-quickcheck
     , quickcheck-instances
+    , unordered-containers
 
 test-suite remote-io
   import: tests
@@ -143,15 +143,16 @@ test-suite remote-io
       NixDaemon
     , Spec
   build-depends:
-      bytestring
-    , hnix-store-core
+      hnix-store-core
     , hnix-store-remote
+    , bytestring
     , containers
     , cryptonite
     , directory
     , process
     , filepath
     , hspec-expectations-lifted
+    , text
     , tasty
     , hspec
     , tasty-hspec

@@ -35,7 +35,13 @@ module System.Nix.Store.Remote
   )
 where
 
-import           Prelude                 hiding ( putText )
+import Data.HashSet (HashSet)
+import Data.Map (Map)
+import Data.Text (Text)
+import qualified Control.Monad
+import qualified Data.ByteString.Lazy
+import qualified Data.Text.Encoding
+--
 import qualified Data.ByteString.Lazy          as BSL
 
 import           Nix.Derivation                 ( Derivation )
@@ -82,11 +88,11 @@ addToStore
   -> RepairFlag           -- ^ Only used by local store backend
   -> MonadStore StorePath
 addToStore name source recursive repair = do
-  when (unRepairFlag repair)
+  Control.Monad.when (unRepairFlag repair)
     $ error "repairing is not supported when building through the Nix daemon"
 
   runOpArgsIO AddToStore $ \yield -> do
-    yield $ toStrict $ Data.Binary.Put.runPut $ do
+    yield $ BSL.toStrict $ Data.Binary.Put.runPut $ do
       putText $ System.Nix.StorePath.unStorePathName name
       putBool $ not $ System.Nix.Hash.algoName @a == "sha256" && (unRecursive recursive)
       putBool (unRecursive recursive)
@@ -105,7 +111,7 @@ addTextToStore
   -> RepairFlag        -- ^ Repair flag, must be `False` in case of remote backend
   -> MonadStore StorePath
 addTextToStore name text references' repair = do
-  when (unRepairFlag repair)
+  Control.Monad.when (unRepairFlag repair)
     $ error "repairing is not supported when building through the Nix daemon"
 
   storeDir <- getStoreDir
@@ -118,14 +124,14 @@ addTextToStore name text references' repair = do
 addSignatures :: StorePath -> [BSL.ByteString] -> MonadStore ()
 addSignatures p signatures = do
   storeDir <- getStoreDir
-  void $ simpleOpArgs AddSignatures $ do
+  Control.Monad.void $ simpleOpArgs AddSignatures $ do
     putPath storeDir p
     putByteStrings signatures
 
 addIndirectRoot :: StorePath -> MonadStore ()
 addIndirectRoot pn = do
   storeDir <- getStoreDir
-  void $ simpleOpArgs AddIndirectRoot $ putPath storeDir pn
+  Control.Monad.void $ simpleOpArgs AddIndirectRoot $ putPath storeDir pn
 
 -- | Add temporary garbage collector root.
 --
@@ -133,7 +139,7 @@ addIndirectRoot pn = do
 addTempRoot :: StorePath -> MonadStore ()
 addTempRoot pn = do
   storeDir <- getStoreDir
-  void $ simpleOpArgs AddTempRoot $ putPath storeDir pn
+  Control.Monad.void $ simpleOpArgs AddTempRoot $ putPath storeDir pn
 
 -- | Build paths if they are an actual derivations.
 --
@@ -141,7 +147,7 @@ addTempRoot pn = do
 buildPaths :: HashSet StorePath -> BuildMode -> MonadStore ()
 buildPaths ps bm = do
   storeDir <- getStoreDir
-  void $ simpleOpArgs BuildPaths $ do
+  Control.Monad.void $ simpleOpArgs BuildPaths $ do
     putPaths storeDir ps
     putInt $ fromEnum bm
 
@@ -167,7 +173,7 @@ buildDerivation p drv buildMode = do
 ensurePath :: StorePath -> MonadStore ()
 ensurePath pn = do
   storeDir <- getStoreDir
-  void $ simpleOpArgs EnsurePath $ putPath storeDir pn
+  Control.Monad.void $ simpleOpArgs EnsurePath $ putPath storeDir pn
 
 -- | Find garbage collector roots.
 findRoots :: MonadStore (Map BSL.ByteString StorePath)
@@ -178,7 +184,7 @@ findRoots = do
     getSocketIncremental
     $ getMany
     $ (,)
-      <$> (fromStrict <$> getByteStringLen)
+      <$> (BSL.fromStrict <$> getByteStringLen)
       <*> getPath sd
 
   r <- catRights res
@@ -226,17 +232,17 @@ queryPathInfoUncached path = do
     putPath storeDir path
 
   valid <- sockGetBool
-  unless valid $ error "Path is not valid"
+  Control.Monad.unless valid $ error "Path is not valid"
 
   deriverPath <- sockGetPathMay
 
-  narHashText <- decodeUtf8 <$> sockGetStr
+  narHashText <- Data.Text.Encoding.decodeUtf8 <$> sockGetStr
   let
     narHash =
       case
         decodeDigestWith @SHA256 NixBase32 narHashText
         of
-        Left  e -> error $ fromString e
+        Left  e -> error e
         Right x -> SomeDigest x
 
   references       <- sockGetPaths
@@ -255,7 +261,7 @@ queryPathInfoUncached path = do
         case
           System.Nix.Store.Remote.Parsers.parseContentAddressableAddress caString
           of
-          Left  e -> error $ fromString e
+          Left  e -> error e
           Right x -> Just x
 
       trust = if ultimate then BuiltLocally else BuiltElsewhere
@@ -290,7 +296,8 @@ queryPathFromHashPart :: StorePathHashPart -> MonadStore StorePath
 queryPathFromHashPart storePathHash = do
   runOpArgs QueryPathFromHashPart
     $ putByteStringLen
-    $ encodeUtf8
+    $ Data.ByteString.Lazy.fromStrict
+    $ Data.Text.Encoding.encodeUtf8
     $ encodeWith NixBase32
     $ System.Nix.StorePath.unStorePathHashPart
         storePathHash
@@ -317,10 +324,10 @@ queryMissing ps = do
   pure (willBuild, willSubstitute, unknown, downloadSize', narSize')
 
 optimiseStore :: MonadStore ()
-optimiseStore = void $ simpleOp OptimiseStore
+optimiseStore = Control.Monad.void $ simpleOp OptimiseStore
 
 syncWithGC :: MonadStore ()
-syncWithGC = void $ simpleOp SyncWithGC
+syncWithGC = Control.Monad.void $ simpleOp SyncWithGC
 
 -- returns True on errors
 verifyStore :: CheckFlag -> RepairFlag -> MonadStore Bool
