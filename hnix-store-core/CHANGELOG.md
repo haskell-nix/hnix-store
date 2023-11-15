@@ -5,7 +5,6 @@
      exported. Use respective `mkStorePath..` functions. [#230](https://github.com/haskell-nix/hnix-store/pull/230)
    * `StorePathSet` type alias is no more, use `HashSet StorePath` [#230](https://github.com/haskell-nix/hnix-store/pull/230)
 
-
 * Additions:
    * Added `Arbitrary` instances for (exported by default) [#230](https://github.com/haskell-nix/hnix-store/pull/230)
      * `StorePath`
@@ -15,29 +14,31 @@
 
 # [0.7.0.0](https://github.com/haskell-nix/hnix-store/compare/core-0.6.1.0...core-0.7.0.0) 2023-11-15
 
-* Breaking:
-    * [(link)](https://github.com/haskell-nix/hnix-store/pull/216) `StorePath` no longer carries `storePathRoot` field and we
+* Changes:
+    * `StorePath` no longer carries `storePathRoot` field and we
       have a stand-alone `StoreDir` type instead to be used instead of `FilePath`
-      when store root directory is needed as a context.
+      when store root directory is needed as a context [#216](https://github.com/haskell-nix/hnix-store/pull/216)
 
-* Additional:
-    * [(link)](https://github.com/haskell-nix/hnix-store/pull/218) NAR encoding and decoding now supports case-insensitive filesystems.
+* Fixes:
+    * NAR encoding and decoding now supports case-insensitive filesystems [#218](https://github.com/haskell-nix/hnix-store/pull/218)
       * The "case hack" replicates the behavior of the `use-case-hack` option in Nix, which adds a suffix to conflicting filenames.
         This feature is enabled by default on macOS (darwin).
-      * `data NarOptions` has been added to configure NAR encoding and decoding. The `optUseCaseHack` field can be used to enable or disable the case hack.
-      * New `streamNarIOWithOptions` and `runParserWithOptions` functions have been added to `System.Nix.Nar` to support the new configurable options.
+
+* Additions:
+      * `data NarOptions` has been added to configure NAR encoding and decoding. The `optUseCaseHack` field can be used to enable or disable the case hack [#218](https://github.com/haskell-nix/hnix-store/pull/218)
+      * New `streamNarIOWithOptions` and `runParserWithOptions` functions have been added to `System.Nix.Nar` to support the new configurable options [#218](https://github.com/haskell-nix/hnix-store/pull/218)
 
 # [0.6.1.0](https://github.com/haskell-nix/hnix-store/compare/core-0.6.0.0...core-0.6.1.0) 2023-01-02
 
-* Fixed:
+* Fixes:
 
-    * [(link)](https://github.com/haskell-nix/hnix-store/pull/201) [(link)](https://github.com/haskell-nix/hnix-store/pull/203) NAR serialization compatibility (symlinks, directory symlinks, UTF-8 handling)
+    * NAR serialization compatibility (symlinks, directory symlinks, UTF-8 handling) [#201](https://github.com/haskell-nix/hnix-store/pull/201) [#203](https://github.com/haskell-nix/hnix-store/pull/203)
 
 # [0.6.0.0](https://github.com/haskell-nix/hnix-store/compare/core-0.5.0.0...core-0.6.0.0) 2022-06-06
 
 * Breaking:
 
-    * [(link)](https://github.com/haskell-nix/hnix-store/pull/177) `streamNarIO` changes type and returns `NarSource m`
+    * `streamNarIO` changes type and returns `NarSource m` [#177](https://github.com/haskell-nix/hnix-store/pull/177)
       * `FilePath` can turn to `NarSource m` using `dumpPath`
       * `ByteString` can turn to `NarSource m` using `dumpString`
 
@@ -46,31 +47,29 @@
 * Breaking:
 
   * `System.Nix.Hash`:
-    * [(link)](https://github.com/haskell-nix/hnix-store/pull/157/commits/97146b41cc87327625e02b81971aeb2fd7d66a3f) Migration from packages `cryptohash-` -> `cryptonite`:
+    * Migration from packages `cryptohash-` -> `cryptonite` [#157](https://github.com/haskell-nix/hnix-store/pull/157/commits/97146b41cc87327625e02b81971aeb2fd7d66a3f)
       * rm `newtype Digest` in favour of `cryptonite: newtype Digest`
       * rm `data HashAlgorithm` in favour of `cryptonite: class HashAlgorithm`
       * rm `class ValidAlgo` in favour of `cryptonite: class HashAlgorithm`.
       * `class NamedAlgo` removed `hashSize` in favour of `cryptonite: class HashAlgorithm: hashDigestSize`. Former became a subclass of the latter.
       * rm `hash` in favour of `cryptonite: hash`
       * rm `hashLazy` in favour of `cryptonite: hashlazy`
-    * [(link)](https://github.com/haskell-nix/hnix-store/pull/157/commits/2af74986de8aef1a13dbfc955886f9935ca246a3) Base encoding/decoding function for hashes (digests) changed (due to changes in type system & separation of specially truncated Nix Store hasing):
+    * Base encoding/decoding function for hashes (digests) changed (due to changes in type system & separation of specially truncated Nix Store hasing) [#157](https://github.com/haskell-nix/hnix-store/pull/157/commits/2af74986de8aef1a13dbfc955886f9935ca246a3)
       * `encode(InBase -> DigestWith)`
       * `decode(Base -> DigestWith)`
-  * [(link)](https://github.com/haskell-nix/hnix-store/pull/157/commits/2af74986de8aef1a13dbfc955886f9935ca246a3) `System.Nix.StorePath`:
+  * `System.Nix.StorePath` [#157](https://github.com/haskell-nix/hnix-store/pull/157/commits/2af74986de8aef1a13dbfc955886f9935ca246a3)
     * rm `type StorePathHashAlgo = 'Truncated 20 'SHA256` in favour of `StorePathHashPart` & `mkStorePathHashPart`.
     * rm `unStorePathName`, please use `GHC: coerce` for `StorePathName <-> Text`, `StorePathName` data constructor is provided.
   * `Internal` modules now have export lists, if something, please contact.
 
-
 * Additional:
 
-  * [(link)](https://github.com/haskell-nix/hnix-store/pull/157/commits/97146b41cc87327625e02b81971aeb2fd7d66a3f) Support of GHC 9.0.
-
-  * [(link)](https://github.com/haskell-nix/hnix-store/pull/157/commits/2af74986de8aef1a13dbfc955886f9935ca246a3) `System.Nix.StorePath`:
+  * Support of GHC 9.0 [#157](https://github.com/haskell-nix/hnix-store/pull/157/commits/97146b41cc87327625e02b81971aeb2fd7d66a3f)
+  * `System.Nix.StorePath` [#157](https://github.com/haskell-nix/hnix-store/pull/157/commits/2af74986de8aef1a13dbfc955886f9935ca246a3)
     * exposed `StorePathName` data constructor to API.
     * added `newtype StorePathHashPart = StorePathHashPart ByteString`.
       * added builder `mkStorePathHashPart :: ByteString -> StorePathHashPart`
-  * [(link)](https://github.com/haskell-nix/hnix-store/pull/157/commits/2af74986de8aef1a13dbfc955886f9935ca246a3) `System.Nix.Hash`:
+  * `System.Nix.Hash` [#157](https://github.com/haskell-nix/hnix-store/pull/157/commits/2af74986de8aef1a13dbfc955886f9935ca246a3)
     * Nix store (which are specially truncated) hashes are now handled separately from other hashes:
       * add `mkStorePathHash` - a function to create a content into Nix storepath-style hash:
         `mkStorePathHash :: HashAlgorithm a => ByteString -> ByteString`
@@ -79,23 +78,18 @@
 # [0.4.3.0](https://github.com/haskell-nix/hnix-store/compare/0.4.2.0...0.4.3.0) 2021-05-30
 
 * Additional:
-  * [(link)](https://github.com/haskell-nix/hnix-store/commit/b85f7c875fe6b0bca939ffbcd8b9bd0ab1598aa0) `System.Nix.ReadonlyStore`: add a readonly `computeStorePathForPath`
-  * [(link)](https://github.com/haskell-nix/hnix-store/commit/db71ecea3109c0ba270fa98a9041a8556e35217f) `System.Nix.ReadonlyStore`: `computeStorePathForPath`: force SHA256 as it's the only valid choice
-  * [(link)](https://github.com/haskell-nix/hnix-store/commit/5fddf3c66ba1bcabb72c4d6b6e09fb41a7acd62c): `makeTextPath`: order the references
+  * `System.Nix.ReadonlyStore`: add a readonly `computeStorePathForPath` [b85f7c8](https://github.com/haskell-nix/hnix-store/commit/b85f7c875fe6b0bca939ffbcd8b9bd0ab1598aa0)
+  * `System.Nix.ReadonlyStore`: `computeStorePathForPath`: force SHA256 as it's the only valid choice [db71ece](https://github.com/haskell-nix/hnix-store/commit/db71ecea3109c0ba270fa98a9041a8556e35217f)
+  * `makeTextPath`: order the references [5fddf3c](https://github.com/haskell-nix/hnix-store/commit/5fddf3c66ba1bcabb72c4d6b6e09fb41a7acd62c)
 
 # [0.4.2.0](https://github.com/haskell-nix/hnix-store/compare/0.4.1.0...0.4.2.0) 2021-03-12
 
 * Additional:
-
-  * [(link)](https://github.com/haskell-nix/hnix-store/commit/5d03ffc43cde9448df05e84838ece70cc83b1b6c) Cabal now properly states `tasty-discover` as `build-tool-depends`.
-
-  * [(link)](https://github.com/haskell-nix/hnix-store/commit/b5ad38573d27e0732d0fadfebd98de1f753b4f07) added explicit `hie.yml` cradle description for `cabal` to help Haskell Language Server to work with monorepo.
-
-  * [(link)](https://github.com/haskell-nix/hnix-store/commit/a5b7a614c0e0e11147a93b9a197c2a443afa3244) rm vacuous `Setup.hs`, it was throwing-off HLS, and anyway file is vacuous and gets deprecated by Cabal itself.
-
-  * [(link)](https://github.com/haskell-nix/hnix-store/commit/cf04083aba98ad40d183d1e26251101816cc07ae) Nix dev env: removed GHC 8.6.5 support, afaik it is not even in Nixpkgs anymore.
-
-  * [(link)](https://github.com/haskell-nix/hnix-store/commit/2a897ab581c0501587ce04da6d6e3a6f543b1d72) Test suite: fixed nar test for the envs without `/proc` (test suite now works on `macOS`).
+  * Cabal now properly states `tasty-discover` as `build-tool-depends` [5d03ffc](https://github.com/haskell-nix/hnix-store/commit/5d03ffc4cde9448df05e84838ece70cc83b1b6c) 
+  * Added explicit `hie.yml` cradle description for `cabal` to help Haskell Language Server to work with monorepo [5bad385](https://github.com/haskell-nix/hnix-store/commit/b5ad38573d27e0732d0fadfebd98de1f753b4f07)
+  * Removed vacuous `Setup.hs`, it was throwing-off HLS, and anyway file is vacuous and gets deprecated by Cabal itself [a5b7a61](https://github.com/haskell-nix/hnix-store/commit/a5b7a614c0e0e11147a93b9a197c2a443afa3244)
+  * Nix dev env: removed GHC 8.6.5 support, afaik it is not even in Nixpkgs anymore [cf04083](https://github.com/haskell-nix/hnix-store/commit/cf04083aba98ad40d183d1e26251101816cc07ae)
+  * Test suite: fixed nar test for the envs without `/proc` (test suite now works on `macOS`) [2a897ab](https://github.com/haskell-nix/hnix-store/commit/2a897ab581c0501587ce04da6d6e3a6f543b1d72)
 
 
 # [0.4.1.0](https://github.com/haskell-nix/hnix-store/compare/0.4.0.0...0.4.1.0) 2021-01-16
