@@ -36,6 +36,8 @@ data BuildStatus =
   | DependencyFailed
   | LogLimitExceeded
   | NotDeterministic
+  | ResolvesToAlreadyValid
+  | NoSubstituters
   deriving (Eq, Generic, Ord, Enum, Show)
   deriving Arbitrary via GenericArbitrary BuildStatus
 

@@ -115,16 +115,18 @@ spec_buildMode =
       it' "Check"  System.Nix.Build.Check  2
 
     describe "BuildStatus enum order matches Nix" $ do
-      it' "Built"            System.Nix.Build.Built             0
-      it' "Substituted"      System.Nix.Build.Substituted       1
-      it' "AlreadyValid"     System.Nix.Build.AlreadyValid      2
-      it' "PermanentFailure" System.Nix.Build.PermanentFailure  3
-      it' "InputRejected"    System.Nix.Build.InputRejected     4
-      it' "OutputRejected"   System.Nix.Build.OutputRejected    5
-      it' "TransientFailure" System.Nix.Build.TransientFailure  6
-      it' "CachedFailure"    System.Nix.Build.CachedFailure     7
-      it' "TimedOut"         System.Nix.Build.TimedOut          8
-      it' "MiscFailure"      System.Nix.Build.MiscFailure       9
-      it' "DependencyFailed" System.Nix.Build.DependencyFailed 10
-      it' "LogLimitExceeded" System.Nix.Build.LogLimitExceeded 11
-      it' "NotDeterministic" System.Nix.Build.NotDeterministic 12
+      it' "Built"                  System.Nix.Build.Built                   0
+      it' "Substituted"            System.Nix.Build.Substituted             1
+      it' "AlreadyValid"           System.Nix.Build.AlreadyValid            2
+      it' "PermanentFailure"       System.Nix.Build.PermanentFailure        3
+      it' "InputRejected"          System.Nix.Build.InputRejected           4
+      it' "OutputRejected"         System.Nix.Build.OutputRejected          5
+      it' "TransientFailure"       System.Nix.Build.TransientFailure        6
+      it' "CachedFailure"          System.Nix.Build.CachedFailure           7
+      it' "TimedOut"               System.Nix.Build.TimedOut                8
+      it' "MiscFailure"            System.Nix.Build.MiscFailure             9
+      it' "DependencyFailed"       System.Nix.Build.DependencyFailed       10
+      it' "LogLimitExceeded"       System.Nix.Build.LogLimitExceeded       11
+      it' "NotDeterministic"       System.Nix.Build.NotDeterministic       12
+      it' "ResolvesToAlreadyValid" System.Nix.Build.ResolvesToAlreadyValid 13
+      it' "NoSubstituters"         System.Nix.Build.NoSubstituters         14

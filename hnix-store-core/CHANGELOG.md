@@ -8,6 +8,7 @@
    * `BuildResult`s `timesBuild` field changes type from `Integer` to `Int` [#231](https://github.com/haskell-nix/hnix-store/pull/231)
 
 * Additions:
+   * `BuildStatus` grows `NoSubstituters` and `ResolvesToAlreadyValid` constructors [#231](https://github.com/haskell-nix/hnix-store/pull/231)
    * `InvalidPathError` replacing previous stringy error [#231](https://github.com/haskell-nix/hnix-store/pull/231)
    * Added `Arbitrary` instances for (exported by default) [#230](https://github.com/haskell-nix/hnix-store/pull/230)
      * `StorePath`
