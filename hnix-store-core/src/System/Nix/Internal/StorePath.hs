@@ -2,8 +2,8 @@
 Description : Representation of Nix store paths.
 -}
 {-# language ConstraintKinds #-}
+{-# language DeriveAnyClass #-}
 {-# language RecordWildCards #-}
-{-# language GeneralizedNewtypeDeriving #-}
 {-# language ScopedTypeVariables #-}
 {-# language AllowAmbiguousTypes #-}
 {-# language DataKinds #-}
@@ -20,6 +20,8 @@ module System.Nix.Internal.StorePath
   , -- * Manipulating 'StorePathName'
     makeStorePathName
   , validStorePathName
+    -- * Reason why a path is not valid
+  , InvalidPathError(..)
   , -- * Rendering out 'StorePath's
     storePathToFilePath
   , storePathToRawFilePath
@@ -88,7 +90,7 @@ instance Arbitrary StorePath where
 newtype StorePathName = StorePathName
   { -- | Extract the contents of the name.
     unStorePathName :: Text
-  } deriving (Eq, Hashable, Ord, Show)
+  } deriving (Eq, Generic, Hashable, Ord, Show)
 
 instance Arbitrary StorePathName where
   arbitrary = StorePathName . toText <$> ((:) <$> s1 <*> listOf sn)
@@ -102,7 +104,7 @@ newtype StorePathHashPart = StorePathHashPart
   { -- | Extract the contents of the hash.
     unStorePathHashPart :: ByteString
   }
-  deriving (Eq, Hashable, Ord, Show)
+  deriving (Eq, Generic, Hashable, Ord, Show)
 
 instance Arbitrary StorePathHashPart where
   arbitrary = mkStorePathHashPart @SHA256 . Bytes.Char8.pack <$> arbitrary
@@ -112,7 +114,7 @@ mkStorePathHashPart
    . HashAlgorithm hashAlgo
   => ByteString
   -> StorePathHashPart
-mkStorePathHashPart = coerce . mkStorePathHash @hashAlgo
+mkStorePathHashPart = StorePathHashPart . mkStorePathHash @hashAlgo
 
 -- | An address for a content-addressable store path, i.e. one whose
 -- store path hash is purely a function of its contents (as opposed to
@@ -144,18 +146,31 @@ data NarHashMode
     -- file if so desired.
     Recursive
 
-makeStorePathName :: Text -> Either String StorePathName
+-- | Reason why a path is not valid
+data InvalidPathError =
+    EmptyName
+  | PathTooLong
+  | LeadingDot
+  | InvalidCharacter
+  | HashDecodingFailure String
+  | RootDirMismatch
+      { rdMismatchExpected :: StoreDir
+      , rdMismatchGot      :: StoreDir
+      }
+  deriving (Eq, Generic, Hashable, Ord, Show)
+
+makeStorePathName :: Text -> Either InvalidPathError StorePathName
 makeStorePathName n =
   if validStorePathName n
     then pure $ StorePathName n
     else Left $ reasonInvalid n
 
-reasonInvalid :: Text -> String
+reasonInvalid :: Text -> InvalidPathError
 reasonInvalid n
-  | n == ""          = "Empty name"
-  | Text.length n > 211 = "Path too long"
-  | Text.head n == '.'  = "Leading dot"
-  | otherwise        = "Invalid character"
+  | n == ""             = EmptyName
+  | Text.length n > 211 = PathTooLong
+  | Text.head n == '.'  = LeadingDot
+  | otherwise           = InvalidCharacter
 
 validStorePathName :: Text -> Bool
 validStorePathName n =
@@ -183,7 +198,7 @@ type RawFilePath = ByteString
 -- do not know their own store dir by design.
 newtype StoreDir = StoreDir {
     unStoreDir :: RawFilePath
-  } deriving (Eq, Hashable, Ord, Show)
+  } deriving (Eq, Generic, Hashable, Ord, Show)
 
 instance Arbitrary StoreDir where
   arbitrary = StoreDir . ("/" <>) . Bytes.Char8.pack <$> arbitrary
@@ -212,12 +227,18 @@ storePathToNarInfo StorePath{..} =
 
 -- | Parse `StorePath` from `Bytes.Char8.ByteString`, checking
 -- that store directory matches `expectedRoot`.
-parsePath :: StoreDir -> Bytes.Char8.ByteString -> Either String StorePath
+parsePath
+  :: StoreDir
+  -> Bytes.Char8.ByteString
+  -> Either InvalidPathError StorePath
 parsePath expectedRoot x =
   let
     (rootDir, fname) = FilePath.splitFileName . Bytes.Char8.unpack $ x
     (storeBasedHashPart, namePart) = Text.breakOn "-" $ toText fname
-    storeHash = decodeWith NixBase32 storeBasedHashPart
+    hashPart = bimap
+      HashDecodingFailure
+      StorePathHashPart
+      $ decodeWith NixBase32 storeBasedHashPart
     name = makeStorePathName . Text.drop 1 $ namePart
     --rootDir' = dropTrailingPathSeparator rootDir
     -- cannot use ^^ as it drops multiple slashes /a/b/// -> /a/b
@@ -226,9 +247,12 @@ parsePath expectedRoot x =
     storeDir =
       if expectedRootS == rootDir'
         then pure rootDir'
-        else Left $ "Root store dir mismatch, expected" <> expectedRootS <> "got" <> rootDir'
+        else Left $ RootDirMismatch
+                      { rdMismatchExpected = expectedRoot
+                      , rdMismatchGot = StoreDir $ Bytes.Char8.pack rootDir
+                      }
   in
-    either Left (pure $ StorePath <$> coerce storeHash <*> name) storeDir
+    either Left (pure $ StorePath <$> hashPart <*> name) storeDir
 
 pathParser :: StoreDir -> Parser StorePath
 pathParser expectedRoot = do
@@ -257,8 +281,12 @@ pathParser expectedRoot = do
       <?> "Path name contains invalid character"
 
   let name = makeStorePathName $ Text.cons c0 rest
+      hashPart = bimap
+        HashDecodingFailure
+        StorePathHashPart
+        digest
 
   either
-    fail
+    (fail . show)
     pure
-    (StorePath <$> coerce digest <*> name)
+    (StorePath <$> hashPart <*> name)

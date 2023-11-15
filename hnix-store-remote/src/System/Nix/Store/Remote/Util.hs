@@ -69,7 +69,7 @@ sockGetPath = do
   sd  <- getStoreDir
   pth <- getSocketIncremental (getPath sd)
   either
-    throwError
+    (throwError . show)
     pure
     pth
 
@@ -106,7 +106,7 @@ putText = putByteStringLen . textToBSL
 putTexts :: [Text] -> Put
 putTexts = putByteStrings . fmap textToBSL
 
-getPath :: StoreDir -> Get (Either String StorePath)
+getPath :: StoreDir -> Get (Either InvalidPathError StorePath)
 getPath sd = parsePath sd <$> getByteStringLen
 
 getPaths :: StoreDir -> Get (HashSet StorePath)

@@ -8,7 +8,7 @@ import Data.Fixed (Uni)
 import Data.Serialize.Get (Get)
 import Data.Serialize.Put (Putter)
 import Data.Time (NominalDiffTime, UTCTime)
-import System.Nix.StorePath (StoreDir, StorePath)
+import System.Nix.StorePath (StoreDir, StorePath, InvalidPathError)
 
 import qualified Data.HashSet
 import qualified Data.Serialize.Get
@@ -144,7 +144,7 @@ putTexts = putByteStrings . fmap encodeUtf8
 
 -- | Deserialize @StorePath@, checking
 -- that @StoreDir@ matches expected value
-getPath :: StoreDir -> Get (Either String StorePath)
+getPath :: StoreDir -> Get (Either InvalidPathError StorePath)
 getPath sd =
   System.Nix.StorePath.parsePath sd <$> getByteString
 
@@ -155,7 +155,7 @@ putPath storeDir =
   . System.Nix.StorePath.storePathToRawFilePath storeDir
 
 -- | Deserialize a @HashSet@ of @StorePath@s
-getPaths :: StoreDir -> Get (HashSet (Either String StorePath))
+getPaths :: StoreDir -> Get (HashSet (Either InvalidPathError StorePath))
 getPaths sd =
   Data.HashSet.fromList
   . fmap (System.Nix.StorePath.parsePath sd)

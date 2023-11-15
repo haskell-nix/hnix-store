@@ -50,6 +50,7 @@ import           System.Nix.Hash                ( NamedAlgo(..)
 import           System.Nix.StorePath           ( StorePath
                                                 , StorePathName
                                                 , StorePathHashPart
+                                                , InvalidPathError
                                                 )
 import           System.Nix.StorePathMetadata   ( StorePathMetadata(..)
                                                 , StorePathTrust(..)
@@ -183,12 +184,12 @@ findRoots = do
   r <- catRights res
   pure $ Data.Map.Strict.fromList r
  where
-  catRights :: [(a, Either String b)] -> MonadStore [(a, b)]
+  catRights :: [(a, Either InvalidPathError b)] -> MonadStore [(a, b)]
   catRights = mapM ex
 
-  ex :: (a, Either [Char] b) -> MonadStore (a, b)
+  ex :: (a, Either InvalidPathError b) -> MonadStore (a, b)
   ex (x , Right y) = pure (x, y)
-  ex (_x, Left e ) = error $ "Unable to decode root: " <> fromString e
+  ex (_x, Left e ) = error $ "Unable to decode root: " <> show e
 
 isValidPathUncached :: StorePath -> MonadStore Bool
 isValidPathUncached p = do

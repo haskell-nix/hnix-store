@@ -4,8 +4,11 @@
    * Constructors of `StorePathName` and `StorePathHashPart` are no longer
      exported. Use respective `mkStorePath..` functions. [#230](https://github.com/haskell-nix/hnix-store/pull/230)
    * `StorePathSet` type alias is no more, use `HashSet StorePath` [#230](https://github.com/haskell-nix/hnix-store/pull/230)
+   * `makeStorePath` and `parsePath` now returns `Either InvalidPathError StorePath` [#231](https://github.com/haskell-nix/hnix-store/pull/231)
+
 
 * Additions:
+   * `InvalidPathError` replacing previous stringy error [#231](https://github.com/haskell-nix/hnix-store/pull/231)
    * Added `Arbitrary` instances for (exported by default) [#230](https://github.com/haskell-nix/hnix-store/pull/230)
      * `StorePath`
      * `StorePathName`

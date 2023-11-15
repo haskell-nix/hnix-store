@@ -15,6 +15,8 @@ module System.Nix.StorePath
     makeStorePathName
   , unStorePathName
   , validStorePathName
+    -- * Reason why a path is not valid
+  , InvalidPathError(..)
   , -- * Rendering out 'StorePath's
     storePathToFilePath
   , storePathToRawFilePath
