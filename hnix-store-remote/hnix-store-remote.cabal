@@ -58,7 +58,7 @@ library
     , nix-derivation >= 1.1.1 && <2
     , mtl
     , unordered-containers
-    , hnix-store-core >= 0.6 && <0.7
+    , hnix-store-core >= 0.7 && <0.8
     , transformers
   mixins:
       base hiding (Prelude)
