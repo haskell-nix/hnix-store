@@ -19,6 +19,7 @@ extra-source-files:
   , README.md
   , tests/samples/example0.drv
   , tests/samples/example1.drv
+  , tests/fixtures/case-conflict.nar
 
 Common commons
   if impl(ghc >= 8.10)
