@@ -5,8 +5,11 @@ Maintainer  : srk <srk@48.io>
 |-}
 module System.Nix.Store.Remote.Serialize where
 
-import Data.Text
 import Data.Serialize (Serialize(..))
+import Data.Text (Text)
+
+import qualified Data.Bool
+import qualified Data.Text
 
 import System.Nix.Build (BuildMode(..), BuildStatus(..), BuildResult(..))
 import System.Nix.Store.Remote.Serialize.Prim
@@ -24,13 +27,23 @@ instance Serialize BuildStatus where
   put = putEnum
 
 instance Serialize BuildResult where
-  get =
-    BuildResult
+  get = do
+    status <- get
+    errorMessage <-
+      (\em -> Data.Bool.bool (Just em) Nothing (Data.Text.null em)) 
       <$> get
-      -- TODO(srk): fishy
-      <*> (Just <$> get)
-      <*> getInt
-      <*> getBool
-      <*> getTime
-      <*> getTime
-  put = undefined
+    timesBuilt <- getInt
+    isNonDeterministic <- getBool
+    startTime <- getTime
+    stopTime <- getTime
+    pure $ BuildResult{..}
+
+  put BuildResult{..} = do
+    put status
+    case errorMessage of
+      Just err -> putText err
+      Nothing -> putText mempty
+    putInt timesBuilt
+    putBool isNonDeterministic
+    putTime startTime
+    putTime stopTime

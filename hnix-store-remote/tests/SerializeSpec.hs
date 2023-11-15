@@ -102,11 +102,26 @@ prop_Text = roundTripS
 prop_buildMode :: BuildMode -> Property
 prop_buildMode = roundTripS
 
+-- ** BuildStatus
+
 prop_buildStatus :: BuildStatus -> Property
 prop_buildStatus = roundTripS
 
-spec_buildMode :: Spec
-spec_buildMode =
+-- ** BuildResult
+
+prop_buildResult :: Property
+prop_buildResult =
+  forAll (arbitrary `suchThat` ((/= Just "") . System.Nix.Build.errorMessage))
+  $ \br ->
+      roundTripS
+        $ br { System.Nix.Build.startTime = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
+             , System.Nix.Build.stopTime  = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
+             }
+
+-- ** Enums
+
+spec_buildEnums :: Spec
+spec_buildEnums =
   let it' name constr value = it name $ runPut (put constr) `shouldBe` runPut (putInt value)
   in do
     describe "Build enum order matches Nix" $ do
