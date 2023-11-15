@@ -46,7 +46,7 @@ data BuildResult = BuildResult
   , -- | possible build error message
     errorMessage       :: !(Maybe Text)
   , -- | How many times this build was performed
-    timesBuilt         :: !Integer
+    timesBuilt         :: !Int
   , -- | If timesBuilt > 1, whether some builds did not produce the same result
     isNonDeterministic :: !Bool
   ,  -- Start time of this build

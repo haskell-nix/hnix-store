@@ -29,7 +29,7 @@ instance Serialize BuildResult where
       <$> get
       -- TODO(srk): fishy
       <*> (Just <$> get)
-      <*> (fromIntegral <$> getInt)
+      <*> getInt
       <*> getBool
       <*> getTime
       <*> getTime
