@@ -3,8 +3,6 @@ Description : Representation of Nix store paths.
 -}
 {-# language ConstraintKinds #-}
 {-# language DeriveAnyClass #-}
-{-# language RecordWildCards #-}
-{-# language ScopedTypeVariables #-}
 {-# language AllowAmbiguousTypes #-}
 {-# language DataKinds #-}
 

@@ -1,4 +1,3 @@
-{-# language RecordWildCards #-}
 {-|
 Description : Build related types
 Maintainer  : srk <srk@48.io>

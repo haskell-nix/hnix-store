@@ -92,6 +92,8 @@ library
     , FlexibleContexts
     , FlexibleInstances
     , StandaloneDeriving
+    , ScopedTypeVariables
+    , RecordWildCards
     , TypeApplications
     , TypeSynonymInstances
     , InstanceSigs
