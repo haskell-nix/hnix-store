@@ -11,7 +11,10 @@ maintainer:          srk@48.io
 copyright:           2018 Richard Marko
 category:            Nix
 build-type:          Simple
-extra-source-files:  ChangeLog.md, README.md
+extra-source-files:
+    CHANGELOG.md
+  , README.md
+  , README.lhs
 
 common commons
   if impl(ghc >= 8.10)

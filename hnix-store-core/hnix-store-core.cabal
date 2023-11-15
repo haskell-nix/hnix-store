@@ -15,7 +15,7 @@ copyright:           2018 Shea Levy
 category:            Nix
 build-type:          Simple
 extra-source-files:
-    ChangeLog.md
+    CHANGELOG.md
   , README.md
   , tests/samples/example0.drv
   , tests/samples/example1.drv
