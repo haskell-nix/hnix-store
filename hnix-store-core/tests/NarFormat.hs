@@ -561,16 +561,16 @@ sampleLinkToDirectoryBaseline = B64.decodeLenient $ BSL.concat
 getBigFileSize :: IO Int64
 getBigFileSize = fromMaybe 5000000 . readMaybe <$> (getEnv "HNIX_BIG_FILE_SIZE" <|> pure "")
 
-
+-- TODO: implement and use in generator #232
 -- | Add a link to a FileSystemObject. This is useful
 --   when creating Arbitrary FileSystemObjects. It
 --   isn't implemented yet
-mkLink
+_mkLink
   :: FilePath -- ^ Target
   -> FilePath -- ^ Link
   -> FileSystemObject -- ^ FileSystemObject to add link to
   -> FileSystemObject
-mkLink = undefined -- TODO
+_mkLink = undefined
 
 mkBigFile :: FilePath -> IO ()
 mkBigFile path = do
