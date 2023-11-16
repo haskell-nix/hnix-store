@@ -23,7 +23,7 @@ import qualified Crypto.Saltine.Internal.ByteSizes as NaClSizes
 
 -- | A NaCl signature.
 newtype Signature = Signature ByteString
-  deriving (Eq, Ord)
+  deriving (Eq, Generic, Ord, Show)
 
 instance IsEncoding Signature where
   decode s
@@ -42,4 +42,4 @@ data NarSignature = NarSignature
   , -- | The archive's signature.
     sig       :: Signature
   }
-  deriving (Eq, Ord)
+  deriving (Eq, Generic, Ord, Show)

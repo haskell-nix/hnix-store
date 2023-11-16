@@ -8,6 +8,8 @@
    * `BuildResult`s `timesBuild` field changes type from `Integer` to `Int` [#231](https://github.com/haskell-nix/hnix-store/pull/231)
 
 * Additions:
+   * Added `Generic` and `Show` instances for
+     `Signature` and `NarSignature` [#231](https://github.com/haskell-nix/hnix-store/pull/231)
    * Added `Eq` and `Ord` instances for `SomeNamedDigest` [#231](https://github.com/haskell-nix/hnix-store/pull/231)
    * `BuildStatus` grows `NoSubstituters` and `ResolvesToAlreadyValid` constructors [#231](https://github.com/haskell-nix/hnix-store/pull/231)
    * `InvalidPathError` replacing previous stringy error [#231](https://github.com/haskell-nix/hnix-store/pull/231)
