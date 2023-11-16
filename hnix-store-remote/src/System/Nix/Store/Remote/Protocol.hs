@@ -22,6 +22,7 @@ import           Control.Monad.Except
 import           Control.Monad.Reader (asks, runReaderT)
 import           Control.Monad.State.Strict
 
+import Data.Default.Class (Default(def))
 import qualified Data.Bool
 import           Data.Binary.Get
 import           Data.Binary.Put
@@ -168,7 +169,7 @@ runOpArgsIO op encoder = do
     throwError $ Data.ByteString.Char8.unpack msg
 
 runStore :: MonadStore a -> IO (Either String a, [Logger])
-runStore = runStoreOpts defaultSockPath $ StoreDir "/nix/store"
+runStore = runStoreOpts defaultSockPath def
 
 runStoreOpts
   :: FilePath -> StoreDir -> MonadStore a -> IO (Either String a, [Logger])

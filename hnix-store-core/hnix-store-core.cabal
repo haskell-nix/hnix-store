@@ -60,6 +60,7 @@ library
     , case-insensitive
     , cereal
     , containers
+    , data-default-class
     , generic-arbitrary < 1.1
     -- Required for cryptonite low-level type convertion
     , memory
@@ -140,6 +141,7 @@ test-suite format-tests
     , bytestring
     , containers
     , cryptonite
+    , data-default-class
     , directory
     , filepath
     , process

@@ -32,6 +32,7 @@ module System.Nix.Internal.StorePath
   )
 where
 
+import Data.Default.Class (Default(def))
 import qualified Relude.Unsafe as Unsafe
 import           System.Nix.Internal.Hash
 import           System.Nix.Internal.Base
@@ -203,6 +204,9 @@ newtype StoreDir = StoreDir {
 
 instance Arbitrary StoreDir where
   arbitrary = StoreDir . ("/" <>) . Bytes.Char8.pack <$> arbitrary
+
+instance Default StoreDir where
+  def = StoreDir "/nix/store"
 
 -- | Render a 'StorePath' as a 'RawFilePath'.
 storePathToRawFilePath :: StoreDir -> StorePath -> RawFilePath

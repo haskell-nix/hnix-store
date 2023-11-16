@@ -9,6 +9,7 @@
    * `BuildResult`s `timesBuild` field changes type from `Integer` to `Int` [#231](https://github.com/haskell-nix/hnix-store/pull/231)
 
 * Additions:
+   * `Default StoreDir` instance [#231](https://github.com/haskell-nix/hnix-store/pull/231)
    * `System.Nix.StorePath.storePathHashPartToText` [#231](https://github.com/haskell-nix/hnix-store/pull/231)
    * Added `Generic` and `Show` instances for
      `Signature` and `NarSignature` [#231](https://github.com/haskell-nix/hnix-store/pull/231)

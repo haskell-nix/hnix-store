@@ -13,6 +13,7 @@ import           System.Nix.Derivation          ( parseDerivation
                                                 , buildDerivation
                                                 )
 
+import Data.Default.Class (Default(def))
 import qualified Data.Attoparsec.Text
 import qualified Data.Text.IO
 import qualified Data.Text.Lazy
@@ -27,10 +28,10 @@ processDerivation source dest = do
     (Data.Text.IO.writeFile dest
       . toText
       . Data.Text.Lazy.Builder.toLazyText
-      . buildDerivation (StoreDir "/nix/store")
+      . buildDerivation def
     )
     (Data.Attoparsec.Text.parseOnly
-      (parseDerivation $ StoreDir "/nix/store")
+      (parseDerivation def)
       contents
     )
 

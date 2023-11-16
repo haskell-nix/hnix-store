@@ -85,6 +85,7 @@ library
     , cereal
     , containers
     , cryptonite
+    , data-default-class
     , text
     , time
     , network
