@@ -25,6 +25,7 @@ module System.Nix.Internal.StorePath
   , storePathToRawFilePath
   , storePathToText
   , storePathToNarInfo
+  , storePathHashPartToText
   , -- * Parsing 'StorePath's
     parsePath
   , pathParser
@@ -208,7 +209,7 @@ storePathToRawFilePath :: StoreDir -> StorePath -> RawFilePath
 storePathToRawFilePath storeDir StorePath{..} =
   unStoreDir storeDir <> "/" <> hashPart <> "-" <> name
  where
-  hashPart = encodeUtf8 $ encodeWith NixBase32 $ coerce storePathHash
+  hashPart = encodeUtf8 $ storePathHashPartToText storePathHash
   name     = encodeUtf8 $ unStorePathName storePathName
 
 -- | Render a 'StorePath' as a 'FilePath'.
@@ -224,6 +225,12 @@ storePathToText storeDir = toText . Bytes.Char8.unpack . storePathToRawFilePath 
 storePathToNarInfo :: StorePath -> Bytes.Char8.ByteString
 storePathToNarInfo StorePath{..} =
   encodeUtf8 $ encodeWith NixBase32 (coerce storePathHash) <> ".narinfo"
+
+-- | Render a 'StorePathHashPart' as a 'Text'.
+-- This is used by remote store / database
+-- via queryPathFromHashPart
+storePathHashPartToText :: StorePathHashPart -> Text
+storePathHashPartToText = encodeWith NixBase32 . unStorePathHashPart
 
 -- | Parse `StorePath` from `Bytes.Char8.ByteString`, checking
 -- that store directory matches `expectedRoot`.

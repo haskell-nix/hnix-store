@@ -22,6 +22,7 @@ module System.Nix.StorePath
   , storePathToRawFilePath
   , storePathToText
   , storePathToNarInfo
+  , storePathHashPartToText
   , -- * Parsing 'StorePath's
     parsePath
   , pathParser

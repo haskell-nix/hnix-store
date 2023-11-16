@@ -39,7 +39,6 @@ import Data.HashSet (HashSet)
 import Data.Map (Map)
 import Data.Text (Text)
 import qualified Control.Monad
-import qualified Data.ByteString.Lazy
 import qualified Data.Text.Encoding
 --
 import qualified Data.ByteString.Lazy          as BSL
@@ -61,7 +60,6 @@ import           System.Nix.StorePath           ( StorePath
 import           System.Nix.StorePathMetadata   ( Metadata(..)
                                                 , StorePathTrust(..)
                                                 )
-import           System.Nix.Internal.Base       ( encodeWith )
 
 import qualified Data.Binary.Put
 import qualified Data.Map.Strict
@@ -295,12 +293,8 @@ queryDerivationOutputNames p = do
 queryPathFromHashPart :: StorePathHashPart -> MonadStore StorePath
 queryPathFromHashPart storePathHash = do
   runOpArgs QueryPathFromHashPart
-    $ putByteStringLen
-    $ Data.ByteString.Lazy.fromStrict
-    $ Data.Text.Encoding.encodeUtf8
-    $ encodeWith NixBase32
-    $ System.Nix.StorePath.unStorePathHashPart
-        storePathHash
+    $ putText
+    $ System.Nix.StorePath.storePathHashPartToText storePathHash
   sockGetPath
 
 queryMissing
