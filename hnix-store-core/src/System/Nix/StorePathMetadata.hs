@@ -1,27 +1,29 @@
 {-|
 Description : Metadata about Nix store paths.
 -}
-module System.Nix.StorePathMetadata where
+module System.Nix.StorePathMetadata
+  ( Metadata(..)
+  , StorePathTrust(..)
+  ) where
 
-import           System.Nix.StorePath           ( StorePath
-                                                , ContentAddressableAddress
-                                                )
-import           System.Nix.Hash                ( SomeNamedDigest )
-import           Data.Time                      ( UTCTime )
-import           System.Nix.Signature           ( NarSignature )
+import Data.Time (UTCTime)
 
--- | Metadata about a 'StorePath'
-data StorePathMetadata = StorePathMetadata
+import System.Nix.Hash (SomeNamedDigest)
+import System.Nix.Signature (NarSignature)
+import System.Nix.StorePath (ContentAddressableAddress)
+
+-- | Metadata (typically about a 'StorePath')
+data Metadata a = Metadata
   { -- | The path this metadata is about
-    path :: !StorePath
+    path :: !a
   , -- | The path to the derivation file that built this path, if any
     -- and known.
-    deriverPath :: !(Maybe StorePath)
+    deriverPath :: !(Maybe a)
   , -- TODO should this be optional?
     -- | The hash of the nar serialization of the path.
     narHash :: !SomeNamedDigest
   , -- | The paths that this path directly references
-    references :: !(HashSet StorePath)
+    references :: !(HashSet a)
   , -- | When was this path registered valid in the store?
     registrationTime :: !UTCTime
   , -- | The size of the nar serialization of the path, in bytes.
@@ -38,7 +40,7 @@ data StorePathMetadata = StorePathMetadata
     -- There is no guarantee from this type alone that this address
     -- is actually correct for this store path.
     contentAddressableAddress :: !(Maybe ContentAddressableAddress)
-  }
+  } deriving (Eq, Generic, Ord, Show)
 
 -- | How much do we trust the path, based on its provenance?
 data StorePathTrust
@@ -47,4 +49,4 @@ data StorePathTrust
   | -- | It was built elsewhere (and substituted or similar) and so
     -- is less trusted
     BuiltElsewhere
-  deriving (Show, Eq, Ord)
+  deriving (Eq, Enum, Generic, Ord, Show)

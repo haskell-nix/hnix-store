@@ -1,6 +1,7 @@
 # Next
 
 * Changes:
+   * `StorePathMetadata` converted to `Metadata a` [#231](https://github.com/haskell-nix/hnix-store/pull/231)
    * Constructors of `StorePathName` and `StorePathHashPart` are no longer
      exported. Use respective `mkStorePath..` functions. [#230](https://github.com/haskell-nix/hnix-store/pull/230)
    * `StorePathSet` type alias is no more, use `HashSet StorePath` [#230](https://github.com/haskell-nix/hnix-store/pull/230)

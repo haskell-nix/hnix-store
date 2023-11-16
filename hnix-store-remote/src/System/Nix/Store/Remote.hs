@@ -58,7 +58,7 @@ import           System.Nix.StorePath           ( StorePath
                                                 , StorePathHashPart
                                                 , InvalidPathError
                                                 )
-import           System.Nix.StorePathMetadata   ( StorePathMetadata(..)
+import           System.Nix.StorePathMetadata   ( Metadata(..)
                                                 , StorePathTrust(..)
                                                 )
 import           System.Nix.Internal.Base       ( encodeWith )
@@ -225,7 +225,7 @@ querySubstitutablePaths ps = do
   runOpArgs QuerySubstitutablePaths $ putPaths storeDir ps
   sockGetPaths
 
-queryPathInfoUncached :: StorePath -> MonadStore StorePathMetadata
+queryPathInfoUncached :: StorePath -> MonadStore (Metadata StorePath)
 queryPathInfoUncached path = do
   storeDir <- getStoreDir
   runOpArgs QueryPathInfo $ do
@@ -266,7 +266,7 @@ queryPathInfoUncached path = do
 
       trust = if ultimate then BuiltLocally else BuiltElsewhere
 
-  pure $ StorePathMetadata{..}
+  pure $ Metadata{..}
 
 queryReferrers :: StorePath -> MonadStore (HashSet StorePath)
 queryReferrers p = do
