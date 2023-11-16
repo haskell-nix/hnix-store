@@ -144,6 +144,7 @@ data NarHashMode
   | -- | Hash an arbitrary nar, including a non-executable regular
     -- file if so desired.
     Recursive
+  deriving (Eq, Enum, Generic, Hashable, Ord, Show)
 
 -- | Reason why a path is not valid
 data InvalidPathError =
