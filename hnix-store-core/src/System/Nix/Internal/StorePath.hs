@@ -132,6 +132,7 @@ data ContentAddressableAddress
     -- addToStore. It is addressed according to some hash algorithm
     -- applied to the nar serialization via some 'NarHashMode'.
     Fixed !NarHashMode !SomeNamedDigest
+  deriving (Eq, Generic, Ord, Show)
 
 -- | Schemes for hashing a Nix archive.
 --
