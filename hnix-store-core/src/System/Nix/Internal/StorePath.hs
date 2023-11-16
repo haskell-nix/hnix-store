@@ -68,7 +68,7 @@ data StorePath = StorePath
     -- hello-1.2.3).
     storePathName :: !StorePathName
   }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 instance Hashable StorePath where
   hashWithSalt s StorePath{..} =
