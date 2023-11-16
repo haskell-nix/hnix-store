@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
 {-|
 Description : Representation of Nix store paths.
 -}
@@ -14,6 +15,9 @@ module System.Nix.Internal.StorePath
   , StorePathHashPart(..)
   , mkStorePathHashPart
   , ContentAddressableAddress(..)
+  , contentAddressableAddressBuilder
+  , contentAddressableAddressParser
+  , digestBuilder
   , NarHashMode(..)
   , -- * Manipulating 'StorePathName'
     makeStorePathName
@@ -33,7 +37,9 @@ module System.Nix.Internal.StorePath
 where
 
 import Data.Default.Class (Default(def))
+import Data.Text.Lazy.Builder (Builder)
 import qualified Relude.Unsafe as Unsafe
+import qualified System.Nix.Hash
 import           System.Nix.Internal.Hash
 import           System.Nix.Internal.Base
 import qualified System.Nix.Internal.Base32    as Nix.Base32
@@ -41,17 +47,23 @@ import qualified System.Nix.Internal.Base32    as Nix.Base32
 import qualified Data.ByteString.Char8         as Bytes.Char8
 import qualified Data.Char                     as Char
 import qualified Data.Text                     as Text
+import qualified Data.Text.Encoding
+import qualified Data.Text.Lazy.Builder
 import           Data.Attoparsec.Text.Lazy      ( Parser
                                                 , (<?>)
                                                 )
+import qualified Data.Attoparsec.ByteString.Char8
 import qualified Data.Attoparsec.Text.Lazy     as Parser.Text.Lazy
 import qualified System.FilePath               as FilePath
 import           Crypto.Hash                    ( SHA256
                                                 , Digest
                                                 , HashAlgorithm
+                                                , hash
                                                 )
 
-import Test.QuickCheck
+import Test.QuickCheck (Arbitrary(arbitrary), listOf, elements)
+import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
+import Test.QuickCheck.Instances ()
 
 -- | A path in a Nix store.
 --
@@ -116,6 +128,7 @@ mkStorePathHashPart
   -> StorePathHashPart
 mkStorePathHashPart = StorePathHashPart . mkStorePathHash @hashAlgo
 
+-- TODO(srk): split into its own module + .Builder/.Parser
 -- | An address for a content-addressable store path, i.e. one whose
 -- store path hash is purely a function of its contents (as opposed to
 -- paths that are derivation outputs, whose hashes are a function of
@@ -136,6 +149,66 @@ data ContentAddressableAddress
     Fixed !NarHashMode !SomeNamedDigest
   deriving (Eq, Generic, Ord, Show)
 
+-- TODO(srk): extend to all hash types
+instance Arbitrary (Digest SHA256) where
+  arbitrary = hash @ByteString <$> arbitrary
+
+instance Arbitrary SomeNamedDigest where
+  arbitrary = SomeDigest @SHA256 <$> arbitrary
+
+deriving via GenericArbitrary ContentAddressableAddress
+  instance Arbitrary ContentAddressableAddress
+
+-- | Builder for `ContentAddressableAddress`
+contentAddressableAddressBuilder :: ContentAddressableAddress -> Builder
+contentAddressableAddressBuilder (Text digest) =
+  "text:"
+  <> digestBuilder digest
+contentAddressableAddressBuilder (Fixed narHashMode (SomeDigest (digest :: Digest hashAlgo))) =
+  "fixed:"
+  <> (if narHashMode == Recursive then "r:" else mempty)
+--  <> Data.Text.Lazy.Builder.fromText (System.Nix.Hash.algoName @hashAlgo)
+  <> digestBuilder digest
+
+-- | Builder for @Digest@s
+digestBuilder :: forall hashAlgo . (NamedAlgo hashAlgo) => Digest hashAlgo -> Builder
+digestBuilder digest =
+  Data.Text.Lazy.Builder.fromText (System.Nix.Hash.algoName @hashAlgo)
+  <> ":"
+  <> Data.Text.Lazy.Builder.fromText (encodeDigestWith NixBase32 digest)
+
+-- | Parser for content addressable field
+contentAddressableAddressParser :: Data.Attoparsec.ByteString.Char8.Parser ContentAddressableAddress
+contentAddressableAddressParser = caText <|> caFixed
+  where
+  -- | Parser for @text:sha256:<h>@
+  --caText :: Parser ContentAddressableAddress
+  caText = do
+    _      <- "text:sha256:"
+    digest <- decodeDigestWith @SHA256 NixBase32 <$> parseHash
+    either fail pure $ Text <$> digest
+
+  -- | Parser for @fixed:<r?>:<ht>:<h>@
+  --caFixed :: Parser ContentAddressableAddress
+  caFixed = do
+    _           <- "fixed:"
+    narHashMode <- (Recursive <$ "r:") <|> (RegularFile <$ "")
+    digest      <- parseTypedDigest
+    either fail pure $ Fixed narHashMode <$> digest
+
+  --parseTypedDigest :: Parser (Either String SomeNamedDigest)
+  parseTypedDigest = mkNamedDigest <$> parseHashType <*> parseHash
+
+  --parseHashType :: Parser Text
+  parseHashType =
+    Data.Text.Encoding.decodeUtf8
+    <$> ("sha256" <|> "sha512" <|> "sha1" <|> "md5") <* (":" <|> "-")
+
+  --parseHash :: Parser Text
+  parseHash =
+    Data.Text.Encoding.decodeUtf8
+    <$> Data.Attoparsec.ByteString.Char8.takeWhile1 (/= ':')
+
 -- | Schemes for hashing a Nix archive.
 --
 -- For backwards-compatibility reasons, there are two different modes
@@ -147,6 +220,9 @@ data NarHashMode
     -- file if so desired.
     Recursive
   deriving (Eq, Enum, Generic, Hashable, Ord, Show)
+
+deriving via GenericArbitrary NarHashMode
+  instance Arbitrary NarHashMode
 
 -- | Reason why a path is not valid
 data InvalidPathError =

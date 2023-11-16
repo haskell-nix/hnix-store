@@ -71,9 +71,7 @@ library
     , System.Nix.Store.Remote.Binary
     , System.Nix.Store.Remote.Serialize
     , System.Nix.Store.Remote.Serialize.Prim
-    , System.Nix.Store.Remote.Builders
     , System.Nix.Store.Remote.Logger
-    , System.Nix.Store.Remote.Parsers
     , System.Nix.Store.Remote.Protocol
     , System.Nix.Store.Remote.Types
     , System.Nix.Store.Remote.Util

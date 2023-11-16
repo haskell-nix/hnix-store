@@ -10,6 +10,9 @@ module System.Nix.StorePath
   , mkStorePathHashPart
   , unStorePathHashPart
   , ContentAddressableAddress(..)
+  , contentAddressableAddressBuilder
+  , contentAddressableAddressParser
+  , digestBuilder
   , NarHashMode(..)
   , -- * Manipulating 'StorePathName'
     makeStorePathName

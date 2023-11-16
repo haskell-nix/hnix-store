@@ -39,6 +39,7 @@ import Data.HashSet (HashSet)
 import Data.Map (Map)
 import Data.Text (Text)
 import qualified Control.Monad
+import qualified Data.Attoparsec.ByteString.Char8
 import qualified Data.Text.Encoding
 --
 import qualified Data.ByteString.Lazy          as BSL
@@ -66,7 +67,6 @@ import qualified Data.Map.Strict
 import qualified Data.Set
 
 import qualified System.Nix.StorePath
-import qualified System.Nix.Store.Remote.Parsers
 
 import           System.Nix.Store.Remote.Binary
 import           System.Nix.Store.Remote.Types
@@ -257,7 +257,9 @@ queryPathInfoUncached path = do
 
       contentAddressableAddress =
         case
-          System.Nix.Store.Remote.Parsers.parseContentAddressableAddress caString
+          Data.Attoparsec.ByteString.Char8.parseOnly
+            System.Nix.StorePath.contentAddressableAddressParser
+            caString
           of
           Left  e -> error e
           Right x -> Just x
