@@ -1,4 +1,3 @@
-{-# LANGUAGE RecordWildCards     #-}
 module System.Nix.Store.Remote.Util where
 
 import           Control.Monad.Except (throwError)

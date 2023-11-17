@@ -22,7 +22,8 @@ common commons
   else
     ghc-options:  -Wall
   default-extensions:
-      DeriveGeneric
+      DataKinds
+    , DeriveGeneric
     , DeriveDataTypeable
     , DeriveFunctor
     , DeriveFoldable
