@@ -42,8 +42,6 @@ common commons
     , LambdaCase
     , BangPatterns
     , ViewPatterns
-  build-depends:
-      base >=4.12 && <5
   default-language: Haskell2010
 
 common tests
@@ -77,6 +75,7 @@ library
     , System.Nix.Store.Remote.Util
 
   build-depends:
+      base >=4.12 && <5
     , attoparsec
     , binary
     , bytestring
@@ -117,7 +116,8 @@ test-suite remote
   other-modules:
       SerializeSpec
   build-depends:
-      hnix-store-core
+      base >=4.12 && <5
+    , hnix-store-core
     , hnix-store-remote
     , nix-derivation
     , bytestring
@@ -146,7 +146,8 @@ test-suite remote-io
       NixDaemon
     , Spec
   build-depends:
-      hnix-store-core
+      base >=4.12 && <5
+    , hnix-store-core
     , hnix-store-remote
     , bytestring
     , containers
