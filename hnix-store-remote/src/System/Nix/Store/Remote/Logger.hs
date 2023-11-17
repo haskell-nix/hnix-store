@@ -1,4 +1,4 @@
-{-# language RankNTypes #-}
+{-# LANGUAGE RankNTypes #-}
 
 module System.Nix.Store.Remote.Logger
   ( Logger(..)

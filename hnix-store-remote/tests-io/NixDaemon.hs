@@ -1,4 +1,4 @@
-{-# language DataKinds           #-}
+{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE OverloadedStrings   #-}
 
 module NixDaemon where

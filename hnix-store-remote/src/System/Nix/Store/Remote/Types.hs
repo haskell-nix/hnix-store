@@ -1,6 +1,6 @@
-{-# language DataKinds #-}
-{-# language KindSignatures #-}
-{-# language ScopedTypeVariables #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module System.Nix.Store.Remote.Types
   ( MonadStore
   , StoreConfig(..)

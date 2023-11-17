@@ -1,11 +1,11 @@
-{-# language AllowAmbiguousTypes #-}
-{-# language KindSignatures      #-}
-{-# language RankNTypes          #-}
-{-# language ScopedTypeVariables #-}
-{-# language DataKinds           #-}
-{-# language OverloadedStrings   #-}
-{-# language RecordWildCards     #-}
-{-# language LiberalTypeSynonyms #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE KindSignatures      #-}
+{-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE LiberalTypeSynonyms #-}
 
 module System.Nix.Store.Remote
   ( addToStore

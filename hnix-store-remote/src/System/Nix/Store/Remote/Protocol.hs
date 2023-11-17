@@ -1,6 +1,6 @@
-{-# language OverloadedStrings #-}
-{-# language DataKinds #-}
-{-# language ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE LambdaCase #-}
 module System.Nix.Store.Remote.Protocol
   ( WorkerOp(..)
