@@ -1,6 +1,3 @@
-{-# language ScopedTypeVariables #-}
-{-# language DataKinds           #-}
-
 module System.Nix.Hash.Truncation
   ( truncateInNixWay
   ) where

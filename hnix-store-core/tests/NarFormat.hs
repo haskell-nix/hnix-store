@@ -1,5 +1,5 @@
-{-# LANGUAGE CPP                 #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module NarFormat where
 

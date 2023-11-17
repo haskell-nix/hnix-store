@@ -1,7 +1,7 @@
+{-# LANGUAGE CPP #-}
 {-|
 Description : Nix-relevant interfaces to NaCl signatures.
 -}
-{-# language CPP #-}
 
 module System.Nix.Signature
   ( Signature

@@ -3,9 +3,6 @@ Description : Generating and consuming NAR files
 Maintainer  : Shea Levy <shea@shealevy.com>
 -}
 
-{-# language ScopedTypeVariables #-}
-{-# language TypeFamilies        #-}
-
 module System.Nix.Nar
   (
   -- * Encoding and Decoding NAR archives

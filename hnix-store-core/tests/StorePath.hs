@@ -1,7 +1,3 @@
-{-# language DataKinds           #-}
-{-# language ScopedTypeVariables #-}
-{-# language OverloadedStrings   #-}
-
 module StorePath where
 
 import qualified Data.Attoparsec.Text

@@ -1,9 +1,6 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 -- | A streaming parser for the NAR format
-
-{-# language GeneralizedNewtypeDeriving #-}
-{-# language ScopedTypeVariables        #-}
-{-# language TypeFamilies               #-}
-{-# language TypeOperators              #-}
 
 module System.Nix.Nar.Parser
   ( runParser

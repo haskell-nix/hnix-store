@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module System.Nix.Nar.Options
   ( NarOptions(..)
   , defaultNarOptions

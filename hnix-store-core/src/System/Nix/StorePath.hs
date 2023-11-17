@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-|
 Description : Representation of Nix store paths.

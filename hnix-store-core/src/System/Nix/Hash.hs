@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-|
 Description : Cryptographic hashing interface for hnix-store, on top
               of the cryptohash family of libraries.

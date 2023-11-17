@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 
 module System.Nix.ReadonlyStore where
 
