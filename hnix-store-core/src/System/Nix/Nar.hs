@@ -50,7 +50,7 @@ import qualified System.Nix.Internal.Nar.Streamer  as Nar
 
 
 -- For a description of the NAR format, see Eelco's thesis
--- https://nixos.org/%7Eeelco/pubs/phd-thesis.pdf
+-- https://nixos.org/~eelco/pubs/phd-thesis.pdf
 
 
 -- | Pack the filesystem object at @FilePath@ into a NAR and stream it into the
