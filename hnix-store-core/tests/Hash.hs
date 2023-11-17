@@ -13,7 +13,7 @@ import           Test.Tasty.QuickCheck
 
 import           System.Nix.Hash
 import           System.Nix.StorePath
-import           System.Nix.Internal.Base
+import           System.Nix.Base
 import           Crypto.Hash                ( MD5
                                             , SHA1
                                             , SHA256

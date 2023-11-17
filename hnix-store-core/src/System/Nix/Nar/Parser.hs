@@ -5,14 +5,13 @@
 {-# language TypeFamilies               #-}
 {-# language TypeOperators              #-}
 
-module System.Nix.Internal.Nar.Parser
+module System.Nix.Nar.Parser
   ( runParser
   , runParserWithOptions
   , parseNar
   , testParser
   , testParser'
-  )
-where
+  ) where
 
 import qualified Relude.Unsafe as Unsafe
 import qualified Algebra.Graph                   as Graph
@@ -37,9 +36,8 @@ import qualified System.Directory                as Directory
 import           System.FilePath                 as FilePath
 import qualified System.IO                       as IO
 
-import qualified System.Nix.Internal.Nar.Effects as Nar
-import qualified System.Nix.Internal.Nar.Options as Nar
-
+import qualified System.Nix.Nar.Effects as Nar
+import qualified System.Nix.Nar.Options as Nar
 
 -- | NarParser is a monad for parsing a Nar file as a byte stream
 --   and reconstructing the file system objects inside
@@ -62,20 +60,16 @@ newtype NarParser m a = NarParser
            , Reader.MonadReader (ParserEnv m)
            )
 
-
 data ParserEnv m = ParserEnv
   { envNarEffects :: Nar.NarEffects m
   , envNarOptions :: Nar.NarOptions
   }
 
-
 getNarEffects :: Monad m => NarParser m (Nar.NarEffects m)
 getNarEffects = fmap envNarEffects ask
 
-
 getNarEffect :: Monad m => (Nar.NarEffects m -> a) -> NarParser m a
 getNarEffect eff = fmap eff getNarEffects
-
 
 getNarOptions :: Monad m => NarParser m Nar.NarOptions
 getNarOptions = fmap envNarOptions ask
@@ -145,10 +139,8 @@ runParserWithOptions opts effs (NarParser action) h target = do
         isDir
     ) effs target
 
-
 instance Trans.MonadTrans NarParser where
   lift act = NarParser $ (lift . lift . lift) act
-
 
 data ParserState = ParserState
   { tokenStack     :: ![Text]
@@ -167,7 +159,6 @@ data ParserState = ParserState
     -- ^ A map of case-insensitive files paths to the number of collisions encountered.
     -- See @Nar.NarOptions.optUseCaseHack@ for details.
   }
-
 
 ------------------------------------------------------------------------------
 -- * Parsers for NAR components
@@ -191,7 +182,6 @@ parseFSO = do
     , ("directory", parseDirectory)
     ]
 
-
 -- | Parse a symlink from a NAR, storing the link details in the parser state
 --   We remember links rather than immediately creating file system objects
 --   from them, because we might encounter a link in the NAR before we
@@ -214,7 +204,6 @@ parseSymlink = do
     dirStack <- State.gets directoryStack
     pure (List.foldr1 (</>) (List.reverse $ drop 1 dirStack), Unsafe.head dirStack)
 
-
 -- | Internal data type representing symlinks encountered in the NAR
 data LinkInfo = LinkInfo
   { linkTarget :: String
@@ -225,7 +214,6 @@ data LinkInfo = LinkInfo
     -- ^ directory in which to create the link (relative to unpacking root)
   }
   deriving Show
-
 
 -- | When the NAR includes a file, we read from the NAR handle in chunks and
 --   write the target in chunks. This lets us avoid reading the full contents
@@ -281,7 +269,6 @@ parseFile = do
 
   expectRawString (Bytes.replicate (padLen $ fromIntegral fSize) 0)
 
-
 -- | Parse a NAR encoded directory, being careful not to hold onto file
 --   handles for target files longer than needed
 parseDirectory :: (IO.MonadIO m, Fail.MonadFail m) => NarParser m ()
@@ -331,11 +318,8 @@ parseDirectory = do
       else
         fName
 
-
-
 ------------------------------------------------------------------------------
 -- * Utility parsers
-
 
 -- | Short strings guiding the NAR parsing are prefixed with their
 --   length, then encoded in ASCII, and padded to 8 bytes. @parseStr@
@@ -352,7 +336,6 @@ parseStr = do
         (Bytes.replicate (fromIntegral $ padLen $ fromIntegral len) 0)
       pure $ decodeUtf8 strBytes
 
-
 -- | Get an Int64 describing the length of the upcoming string,
 --   according to NAR's encoding of ints
 parseLength :: (IO.MonadIO m, Fail.MonadFail m) => NarParser m Int64
@@ -362,7 +345,6 @@ parseLength = do
     (\e -> Fail.fail $ "parseLength failed to decode int64: " <> e)
     pure
     (Serialize.runGet Serialize.getInt64le eightBytes)
-
 
 -- | Consume a NAR string and assert that it matches an expectation
 expectStr :: (IO.MonadIO m, Fail.MonadFail m) => Text -> NarParser m ()
@@ -377,7 +359,6 @@ expectStr expected = do
         t
         (Text.take 10 t <> "...")
         (Text.length t > 10)
-
 
 -- | Consume a raw string and assert that it equals some expectation.
 --   This is usually used when consuming padding 0's
@@ -399,7 +380,6 @@ expectRawString expected = do
         (Bytes.take 10 bs <> "...")
         (Bytes.length bs > 10)
 
-
 -- | Consume a NAR string, and dispatch to a parser depending on which string
 --   matched
 matchStr
@@ -414,7 +394,6 @@ matchStr parsers = do
     Nothing ->
       Fail.fail $ "Expected one of " <> show (fst <$> parsers) <> " found " <> show str
 
-
 -- | Wrap any parser in NAR formatted parentheses
 --   (a parenthesis is a NAR string, so it needs length encoding and padding)
 parens :: (IO.MonadIO m, Fail.MonadFail m) => NarParser m a -> NarParser m a
@@ -423,7 +402,6 @@ parens act = do
   r <- act
   expectStr ")"
   pure r
-
 
 -- | Sort links in the symlink stack according to their connectivity
 --   (Targets must be created before the links that target them)
@@ -465,7 +443,6 @@ createLinks = do
         in
           pure $ catMaybes sortedLinks
 
-
 ------------------------------------------------------------------------------
 -- * State manipulation
 
@@ -485,7 +462,6 @@ consume n = do
     <> show n <> " got " <> show (Bytes.length newBytes)
   pure newBytes
 
-
 -- | Pop a string off the token stack
 popStr :: Monad m => NarParser m (Maybe Text)
 popStr = do
@@ -496,25 +472,21 @@ popStr = do
       State.put $ s { tokenStack = xs }
       pure $ Just x
 
-
 -- | Push a string onto the token stack
 pushStr :: Monad m => Text -> NarParser m ()
 pushStr str =
   State.modify $ \s -> -- s { loadedBytes = strBytes <> loadedBytes s }
     s { tokenStack = str : tokenStack s }
 
-
 -- | Push a level onto the directory stack
 pushFileName :: Monad m => FilePath -> NarParser m ()
 pushFileName fName =
   State.modify (\s -> s { directoryStack = fName : directoryStack s })
 
-
 -- | Go to the parent level in the directory stack
 popFileName :: Monad m => NarParser m ()
 popFileName =
   State.modify (\s -> s { directoryStack = List.drop 1 (directoryStack s )})
-
 
 -- | Convert the current directory stack into a filepath by interspersing
 --   the path components with "/"
@@ -523,11 +495,9 @@ currentFile = do
   dirStack <- State.gets directoryStack
   pure $ List.foldr1 (</>) $ List.reverse dirStack
 
-
 -- | Add a link to the collection of encountered symlinks
 pushLink :: Monad m => LinkInfo -> NarParser m ()
 pushLink linkInfo = State.modify (\s -> s { links = linkInfo : links s })
-
 
 -- | Add a file path to the collection of encountered file paths
 recordFilePath :: Monad m => FilePath -> NarParser m ()

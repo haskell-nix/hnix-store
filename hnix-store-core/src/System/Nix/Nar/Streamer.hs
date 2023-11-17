@@ -2,15 +2,14 @@
 
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module System.Nix.Internal.Nar.Streamer
+module System.Nix.Nar.Streamer
   ( NarSource
   , dumpString
   , dumpPath
   , streamNarIO
   , streamNarIOWithOptions
   , IsExecutable(..)
-  )
-where
+  ) where
 
 import qualified Control.Monad.IO.Class          as IO
 import qualified Data.ByteString                 as Bytes
@@ -21,9 +20,8 @@ import qualified Data.Text.Encoding              as TE (encodeUtf8)
 import qualified System.Directory                as Directory
 import           System.FilePath                 ((</>))
 
-import qualified System.Nix.Internal.Nar.Effects as Nar
-import qualified System.Nix.Internal.Nar.Options as Nar
-
+import qualified System.Nix.Nar.Effects as Nar
+import qualified System.Nix.Nar.Options as Nar
 
 -- | NarSource
 -- The source to provide nar to the handler `(ByteString -> m ())`.
@@ -31,7 +29,6 @@ import qualified System.Nix.Internal.Nar.Options as Nar
 -- if the result is meant to be m ().
 -- It is done in CPS style so IO can be chunks.
 type NarSource m =  (ByteString -> m ()) -> m ()
-
 
 -- | dumpString
 -- dump a string to nar in CPS style. The function takes in a `ByteString`,
@@ -43,7 +40,6 @@ dumpString
 dumpString text yield = traverse_ (yield . str)
   ["nix-archive-1", "(", "type" , "regular", "contents", text, ")"]
 
-
 -- | dumpPath
 -- shorthand
 -- build a Source that turn file path to nar using the default narEffectsIO.
@@ -52,7 +48,6 @@ dumpPath
   => FilePath -- ^ path for the file you want to dump to nar
   -> NarSource m -- ^ the nar result in CPS style
 dumpPath = streamNarIO Nar.narEffectsIO
-
 
 -- | This implementation of Nar encoding takes an arbitrary @yield@
 --   function from any streaming library, and repeatedly calls

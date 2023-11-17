@@ -36,8 +36,8 @@ import qualified Test.Tasty.HUnit                 as HU
 import           Test.Tasty.QuickCheck
 import qualified Text.Printf                      as Printf
 
-import qualified System.Nix.Internal.Nar.Streamer as Nar
-import           System.Nix.Nar
+import System.Nix.Nar.Streamer (IsExecutable(Executable, NonExecutable))
+import System.Nix.Nar
 
 -- Without the import, `max_live_bytes` and `getRTSStats` are undefined on some setups.
 #ifdef BOUNDED_MEMORY
@@ -177,24 +177,6 @@ unit_packSelfSrcDir = Temp.withSystemTempDirectory "nar-test" $ \tmpDir -> do
               srcHere
       go "src"
       go "hnix-store-core/src"
--- ||||||| merged common ancestors
---       hnixNar <- runPut . put <$> localPackNar narEffectsIO "src"
---       nixStoreNar <- getNixStoreDump "src"
---       HU.assertEqual
---         "src dir serializes the same between hnix-store and nix-store"
---         hnixNar
---         nixStoreNar
--- =======
---       let narFile = tmpDir </> "src.nar"
---       withFile narFile WriteMode $ \h ->
---         buildNarIO narEffectsIO "src" h
---       hnixNar <- BSL.readFile narFile
---       nixStoreNar <- getNixStoreDump "src"
---       HU.assertEqual
---         "src dir serializes the same between hnix-store and nix-store"
---         hnixNar
---         nixStoreNar
--- >>>>>>> Use streaming to consume and produce NARs
 
 -- passes
 test_streamLargeFileToNar :: TestTree
@@ -394,17 +376,17 @@ getNixStoreDump fp = do
 
 -- | Simple regular text file with contents 'hi'
 sampleRegular :: FileSystemObject
-sampleRegular = Regular Nar.NonExecutable 3 "hi\n"
+sampleRegular = Regular NonExecutable 3 "hi\n"
 
 -- | Simple text file with some c code
 sampleRegular' :: FileSystemObject
-sampleRegular' = Regular Nar.NonExecutable (BSL.length str) str
+sampleRegular' = Regular NonExecutable (BSL.length str) str
   where str =
           "#include <stdio.h>\n\nint main(int argc, char *argv[]){ exit 0; }\n"
 
 -- | Executable file
 sampleExecutable :: FileSystemObject
-sampleExecutable = Regular Nar.Executable (BSL.length str) str
+sampleExecutable = Regular Executable (BSL.length str) str
   where str = "#!/bin/bash\n\ngcc -o hello hello.c\n"
 
 -- | A simple symlink
@@ -425,24 +407,24 @@ sampleDirectory' :: FileSystemObject
 sampleDirectory' = Directory $ Map.fromList [
 
     (FilePathPart "foo", Directory $ Map.fromList [
-        (FilePathPart "foo.txt", Regular Nar.NonExecutable 8 "foo text")
+        (FilePathPart "foo.txt", Regular NonExecutable 8 "foo text")
       , (FilePathPart "tobar"  , SymLink "../bar/bar.txt")
       ])
 
   , (FilePathPart "bar", Directory $ Map.fromList [
-        (FilePathPart "bar.txt", Regular Nar.NonExecutable 8 "bar text")
+        (FilePathPart "bar.txt", Regular NonExecutable 8 "bar text")
       , (FilePathPart "tofoo"  , SymLink "../foo/foo.txt")
       ])
   ]
 
 sampleLargeFile :: Int64 -> FileSystemObject
 sampleLargeFile fSize =
-  Regular Nar.NonExecutable fSize (BSL.take fSize (BSL.cycle "Lorem ipsum "))
+  Regular NonExecutable fSize (BSL.take fSize (BSL.cycle "Lorem ipsum "))
 
 
 sampleLargeFile' :: Int64 -> FileSystemObject
 sampleLargeFile' fSize =
-  Regular Nar.NonExecutable fSize (BSL.take fSize (BSL.cycle "Lorems ipsums "))
+  Regular NonExecutable fSize (BSL.take fSize (BSL.cycle "Lorems ipsums "))
 
 sampleLargeDir :: Int64 -> FileSystemObject
 sampleLargeDir fSize = Directory $ Map.fromList $ [
@@ -450,12 +432,12 @@ sampleLargeDir fSize = Directory $ Map.fromList $ [
   , (FilePathPart "bf2", sampleLargeFile' fSize)
   ]
   <> [ (FilePathPart (BSC.pack $ 'f' : show n),
-        Regular Nar.NonExecutable 10000 (BSL.take 10000 (BSL.cycle "hi ")))
+        Regular NonExecutable 10000 (BSL.take 10000 (BSL.cycle "hi ")))
      | n <- [1..100 :: Int]]
   <> [
   (FilePathPart "d", Directory $ Map.fromList
       [ (FilePathPart (BSC.pack $ "df" <> show n)
-        , Regular Nar.NonExecutable 10000 (BSL.take 10000 (BSL.cycle "subhi ")))
+        , Regular NonExecutable 10000 (BSL.take 10000 (BSL.cycle "subhi ")))
       | n <- [1..100 :: Int]]
      )
   ]
@@ -463,7 +445,7 @@ sampleLargeDir fSize = Directory $ Map.fromList $ [
 sampleLinkToDirectory :: FileSystemObject
 sampleLinkToDirectory = Directory $ Map.fromList [
   (FilePathPart "foo", Directory $ Map.fromList [
-        (FilePathPart "file", Regular Nar.NonExecutable 8 "foo text")
+        (FilePathPart "file", Regular NonExecutable 8 "foo text")
       ])
   , (FilePathPart "linkfoo"  , SymLink "foo")
   ]
@@ -588,7 +570,7 @@ newtype Nar = Nar { narFile :: FileSystemObject }
 
 -- | A FileSystemObject (FSO) is an anonymous entity that can be NAR archived
 data FileSystemObject =
-    Regular Nar.IsExecutable Int64 BSL.ByteString
+    Regular IsExecutable Int64 BSL.ByteString
     -- ^ Reguar file, with its executable state, size (bytes) and contents
   | Directory (Map.Map FilePathPart FileSystemObject)
     -- ^ Directory with mapping of filenames to sub-FSOs
@@ -621,7 +603,7 @@ instance Arbitrary FileSystemObject where
         arbFile = do
           Positive fSize <- arbitrary
           Regular
-            <$> elements [Nar.NonExecutable, Nar.Executable]
+            <$> elements [NonExecutable, Executable]
             <*> pure (fromIntegral fSize)
             <*> oneof  [
                   fmap (BSL.take fSize . BSL.cycle . BSL.pack . getNonEmpty) arbitrary , -- Binary File
@@ -649,7 +631,7 @@ putNar (Nar file) = header <> parens (putFile file)
 
         putFile (Regular isExec fSize contents) =
                strs ["type", "regular"]
-            >> (if isExec == Nar.Executable
+            >> (if isExec == Executable
                then strs ["executable", ""]
                else pass)
             >> putContents fSize contents
@@ -710,11 +692,11 @@ getNar = fmap Nar $ header >> parens getFile
       getRegularFile = do
           assertStr_ "type"
           assertStr_ "regular"
-          mExecutable <- optional $ Nar.Executable <$ (assertStr "executable"
+          mExecutable <- optional $ Executable <$ (assertStr "executable"
                                                        >> assertStr "")
           assertStr_ "contents"
           (fSize, contents) <- sizedStr
-          pure $ Regular (fromMaybe Nar.NonExecutable mExecutable) fSize contents
+          pure $ Regular (fromMaybe NonExecutable mExecutable) fSize contents
 
       getDirectory = do
           assertStr_ "type"

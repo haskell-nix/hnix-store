@@ -1,4 +1,4 @@
-module System.Nix.Internal.Nar.Options 
+module System.Nix.Nar.Options
   ( NarOptions(..)
   , defaultNarOptions
   , caseHackSuffix

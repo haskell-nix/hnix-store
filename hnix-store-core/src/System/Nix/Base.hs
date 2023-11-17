@@ -1,11 +1,10 @@
 {-# language CPP #-}
 
-module System.Nix.Internal.Base
+module System.Nix.Base
   ( BaseEncoding(Base16,NixBase32,Base64)
   , encodeWith
   , decodeWith
-  )
-where
+  ) where
 
 import qualified Data.ByteString.Base16 as Base16
 import qualified System.Nix.Base32      as Base32  -- Nix has own Base32 encoding
@@ -18,7 +17,6 @@ data BaseEncoding
   -- Placed first, since it determines Haskell optimizations of pattern matches, & NixBase seems be the most widely used in Nix.
   | Base16
   | Base64
-
 
 -- | Encode @ByteString@ with @Base@ encoding, produce @Text@.
 encodeWith :: BaseEncoding -> ByteString -> Text

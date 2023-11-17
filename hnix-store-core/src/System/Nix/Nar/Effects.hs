@@ -2,7 +2,7 @@
 {-# language RankNTypes          #-}
 {-# language ScopedTypeVariables #-}
 
-module System.Nix.Internal.Nar.Effects
+module System.Nix.Nar.Effects
   ( NarEffects(..)
   , narEffectsIO
   ) where

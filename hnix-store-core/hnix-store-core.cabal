@@ -21,30 +21,23 @@ extra-source-files:
   , tests/samples/example1.drv
   , tests/fixtures/case-conflict.nar
 
-Common commons
-  if impl(ghc >= 8.10)
-    ghc-options:  -Wall -Wunused-packages
-  else
-    ghc-options:  -Wall
+common commons
+  ghc-options:  -Wall
 
 library
   import: commons
   exposed-modules:
-      System.Nix.Base32
+      System.Nix.Base
+    , System.Nix.Base32
     , System.Nix.Build
     , System.Nix.Derivation
     , System.Nix.Hash
-    , System.Nix.Internal.Base
-    , System.Nix.Internal.Base32
-    , System.Nix.Internal.Truncation
-    , System.Nix.Internal.Hash
-    , System.Nix.Internal.Nar.Parser
-    , System.Nix.Internal.Nar.Streamer
-    , System.Nix.Internal.Nar.Effects
-    , System.Nix.Internal.Nar.Options
-    , System.Nix.Internal.Signature
-    , System.Nix.Internal.StorePath
+    , System.Nix.Hash.Truncation
     , System.Nix.Nar
+    , System.Nix.Nar.Parser
+    , System.Nix.Nar.Streamer
+    , System.Nix.Nar.Effects
+    , System.Nix.Nar.Options
     , System.Nix.ReadonlyStore
     , System.Nix.Signature
     , System.Nix.StorePath
