@@ -60,7 +60,7 @@ flag io-testsuite
 
 flag build-readme
   default:
-    True
+    False
   description:
     Build README.lhs example
 
@@ -97,6 +97,8 @@ library
   ghc-options:         -Wall
 
 executable remote-readme
+  if !flag(build-readme)
+    buildable: False
   build-depends:
       base >=4.12 && <5
     , hnix-store-remote
