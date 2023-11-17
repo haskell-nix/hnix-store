@@ -1,12 +1,16 @@
-{-# language DataKinds #-}
-{-# language ScopedTypeVariables #-}
 
 module System.Nix.ReadonlyStore where
 
+import Control.Monad.State (StateT, execStateT, modify)
+import Data.ByteString (ByteString)
+import Data.HashSet (HashSet)
 
 import qualified Data.ByteString.Char8         as Bytes.Char8
 import qualified Data.ByteString               as BS
 import qualified Data.HashSet                  as HS
+import qualified Data.List
+import qualified Data.Text
+import qualified Data.Text.Encoding
 import           System.Nix.Hash
 import           System.Nix.Nar
 import           System.Nix.StorePath
@@ -34,10 +38,10 @@ makeStorePath storeDir ty h nm = StorePath storeHash nm
   storeHash = mkStorePathHashPart @hashAlgo s
   s =
     BS.intercalate ":" $
-      ty:fmap encodeUtf8
+      ty:fmap Data.Text.Encoding.encodeUtf8
         [ algoName @hashAlgo
         , encodeDigestWith Base16 h
-        , toText . Bytes.Char8.unpack $ unStoreDir storeDir
+        , Data.Text.pack . Bytes.Char8.unpack $ unStoreDir storeDir
         , unStorePathName nm
         ]
 
@@ -46,7 +50,7 @@ makeTextPath
 makeTextPath storeDir nm h refs = makeStorePath storeDir ty h nm
  where
   ty =
-    BS.intercalate ":" $ "text" : sort (storePathToRawFilePath storeDir <$> HS.toList refs)
+    BS.intercalate ":" $ "text" : Data.List.sort (storePathToRawFilePath storeDir <$> HS.toList refs)
 
 makeFixedOutputPath
   :: forall hashAlgo
@@ -64,9 +68,9 @@ makeFixedOutputPath storeDir recursive h =
   h' =
     hash @ByteString @SHA256
       $  "fixed:out:"
-      <> encodeUtf8 (algoName @hashAlgo)
+      <> Data.Text.Encoding.encodeUtf8 (algoName @hashAlgo)
       <> (if recursive then ":r:" else ":")
-      <> encodeUtf8 (encodeDigestWith Base16 h)
+      <> Data.Text.Encoding.encodeUtf8 (encodeDigestWith Base16 h)
       <> ":"
 
 computeStorePathForText

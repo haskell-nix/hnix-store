@@ -7,6 +7,7 @@ module System.Nix.Derivation
   ) where
 
 import Data.Attoparsec.Text.Lazy (Parser)
+import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder)
 import Test.QuickCheck (Arbitrary(..))
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
@@ -16,7 +17,9 @@ import Nix.Derivation (Derivation, DerivationOutput)
 import System.Nix.StorePath (StoreDir, StorePath)
 
 import qualified Data.Attoparsec.Text.Lazy
+import qualified Data.Text
 import qualified Data.Text.Lazy
+import qualified Data.Text.Lazy.Builder
 
 import qualified Nix.Derivation
 import qualified System.Nix.StorePath
@@ -44,5 +47,7 @@ parseDerivation expectedRoot =
 buildDerivation :: StoreDir -> Derivation StorePath Text -> Builder
 buildDerivation storeDir =
   Nix.Derivation.buildDerivationWith
-    (show . System.Nix.StorePath.storePathToText storeDir)
-    show
+    (string . System.Nix.StorePath.storePathToText storeDir)
+    string
+  where
+    string = Data.Text.Lazy.Builder.fromText . Data.Text.pack . show

@@ -9,10 +9,13 @@ module System.Nix.Signature
   )
 where
 
+import Crypto.Saltine.Core.Sign (PublicKey)
+import Crypto.Saltine.Class (IsEncoding(..))
+import Data.ByteString (ByteString)
+import GHC.Generics (Generic)
 
-import qualified Data.ByteString                   as Bytes
-import           Crypto.Saltine.Core.Sign           ( PublicKey )
-import           Crypto.Saltine.Class               ( IsEncoding(..) )
+import qualified Data.ByteString
+import qualified Data.Coerce
 
 --  2021-05-30: NOTE: Please, clean-up these overloads in ~2022
 #if MIN_VERSION_saltine(0,2,0)
@@ -28,12 +31,12 @@ newtype Signature = Signature ByteString
 instance IsEncoding Signature where
   decode s
 #if MIN_VERSION_saltine(0,2,0)
-    | Bytes.length s == NaClSizes.sign_bytes = Just $ Signature s
+    | Data.ByteString.length s == NaClSizes.sign_bytes = Just $ Signature s
 #else
-    | Bytes.length s == NaClSizes.sign = Just $ Signature s
+    | Data.ByteString.length s == NaClSizes.sign = Just $ Signature s
 #endif
     | otherwise = Nothing
-  encode = coerce
+  encode = Data.Coerce.coerce
 
 -- | A detached NaCl signature attesting to a nix archive's validity.
 data NarSignature = NarSignature

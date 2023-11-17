@@ -1,11 +1,9 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-|
 Description : Representation of Nix store paths.
 -}
-{-# language ConstraintKinds #-}
-{-# language DeriveAnyClass #-}
-{-# language AllowAmbiguousTypes #-}
-{-# language DataKinds #-}
 
 module System.Nix.StorePath
   ( -- * Basic store path types
@@ -36,19 +34,24 @@ module System.Nix.StorePath
   )
 where
 
+import Control.Applicative
+import Data.ByteString (ByteString)
 import Data.Default.Class (Default(def))
+import Data.Hashable (Hashable(hashWithSalt))
+import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder)
+import GHC.Generics (Generic)
 
 import System.Nix.Base (BaseEncoding(NixBase32))
 import System.Nix.Hash (NamedAlgo, SomeNamedDigest(SomeDigest))
-import qualified Relude.Unsafe as Unsafe
 import qualified System.Nix.Base
 import qualified System.Nix.Hash
 import qualified System.Nix.Base32    as Nix.Base32
 
+import qualified Data.Bifunctor
 import qualified Data.ByteString.Char8         as Bytes.Char8
-import qualified Data.Char                     as Char
-import qualified Data.Text                     as Text
+import qualified Data.Char
+import qualified Data.Text
 import qualified Data.Text.Encoding
 import qualified Data.Text.Lazy.Builder
 import           Data.Attoparsec.Text.Lazy      ( Parser
@@ -107,7 +110,7 @@ newtype StorePathName = StorePathName
   } deriving (Eq, Generic, Hashable, Ord, Show)
 
 instance Arbitrary StorePathName where
-  arbitrary = StorePathName . toText <$> ((:) <$> s1 <*> listOf sn)
+  arbitrary = StorePathName . Data.Text.pack <$> ((:) <$> s1 <*> listOf sn)
    where
     alphanum = ['a' .. 'z'] <> ['A' .. 'Z'] <> ['0' .. '9']
     s1       = elements $ alphanum <> "+-_?="
@@ -252,24 +255,24 @@ makeStorePathName n =
 
 reasonInvalid :: Text -> InvalidPathError
 reasonInvalid n
-  | n == ""             = EmptyName
-  | Text.length n > 211 = PathTooLong
-  | Text.head n == '.'  = LeadingDot
-  | otherwise           = InvalidCharacter
+  | n == ""                  = EmptyName
+  | Data.Text.length n > 211 = PathTooLong
+  | Data.Text.head n == '.'  = LeadingDot
+  | otherwise                = InvalidCharacter
 
 validStorePathName :: Text -> Bool
 validStorePathName n =
   n /= ""
-  && Text.length n <= 211
-  && Text.head n /= '.'
-  && Text.all validStorePathNameChar n
+  && Data.Text.length n <= 211
+  && Data.Text.head n /= '.'
+  && Data.Text.all validStorePathNameChar n
 
 validStorePathNameChar :: Char -> Bool
 validStorePathNameChar c =
   any ($ c)
-    [ Char.isAsciiLower -- 'a'..'z', isAscii..er probably faster then putting it out
-    , Char.isAsciiUpper -- 'A'..'Z'
-    , Char.isDigit
+    [ Data.Char.isAsciiLower -- 'a'..'z', isAscii..er probably faster then putting it out
+    , Data.Char.isAsciiUpper -- 'A'..'Z'
+    , Data.Char.isDigit
     , (`elem` ("+-._?=" :: String))
     ]
 
@@ -296,8 +299,8 @@ storePathToRawFilePath :: StoreDir -> StorePath -> RawFilePath
 storePathToRawFilePath storeDir StorePath{..} =
   unStoreDir storeDir <> "/" <> hashPart <> "-" <> name
  where
-  hashPart = encodeUtf8 $ storePathHashPartToText storePathHash
-  name     = encodeUtf8 $ unStorePathName storePathName
+  hashPart = Data.Text.Encoding.encodeUtf8 $ storePathHashPartToText storePathHash
+  name     = Data.Text.Encoding.encodeUtf8 $ unStorePathName storePathName
 
 -- | Render a 'StorePath' as a 'FilePath'.
 storePathToFilePath :: StoreDir -> StorePath -> FilePath
@@ -305,13 +308,18 @@ storePathToFilePath storeDir = Bytes.Char8.unpack . storePathToRawFilePath store
 
 -- | Render a 'StorePath' as a 'Text'.
 storePathToText :: StoreDir -> StorePath -> Text
-storePathToText storeDir = toText . Bytes.Char8.unpack . storePathToRawFilePath storeDir
+storePathToText storeDir =
+  Data.Text.pack
+  . Bytes.Char8.unpack
+  . storePathToRawFilePath storeDir
 
 -- | Build `narinfo` suffix from `StorePath` which
 -- can be used to query binary caches.
-storePathToNarInfo :: StorePath -> Bytes.Char8.ByteString
+storePathToNarInfo :: StorePath -> ByteString
 storePathToNarInfo StorePath{..} =
-  encodeUtf8 $ System.Nix.Base.encodeWith NixBase32 (coerce storePathHash) <> ".narinfo"
+  Data.Text.Encoding.encodeUtf8
+  $ System.Nix.Base.encodeWith NixBase32
+      (unStorePathHashPart storePathHash) <> ".narinfo"
 
 -- | Render a 'StorePathHashPart' as a 'Text'.
 -- This is used by remote store / database
@@ -329,15 +337,15 @@ parsePath
 parsePath expectedRoot x =
   let
     (rootDir, fname) = FilePath.splitFileName . Bytes.Char8.unpack $ x
-    (storeBasedHashPart, namePart) = Text.breakOn "-" $ toText fname
-    hashPart = bimap
+    (storeBasedHashPart, namePart) = Data.Text.breakOn "-" $ Data.Text.pack fname
+    hashPart = Data.Bifunctor.bimap
       HashDecodingFailure
       StorePathHashPart
       $ System.Nix.Base.decodeWith NixBase32 storeBasedHashPart
-    name = makeStorePathName . Text.drop 1 $ namePart
+    name = makeStorePathName . Data.Text.drop 1 $ namePart
     --rootDir' = dropTrailingPathSeparator rootDir
     -- cannot use ^^ as it drops multiple slashes /a/b/// -> /a/b
-    rootDir' = Unsafe.init rootDir
+    rootDir' = init rootDir
     expectedRootS = Bytes.Char8.unpack (unStoreDir expectedRoot)
     storeDir =
       if expectedRootS == rootDir'
@@ -354,7 +362,7 @@ pathParser expectedRoot = do
   let expectedRootS = Bytes.Char8.unpack (unStoreDir expectedRoot)
 
   _ <-
-    Parser.Text.Lazy.string (toText expectedRootS)
+    Parser.Text.Lazy.string (Data.Text.pack expectedRootS)
       <?> "Store root mismatch" -- e.g. /nix/store
 
   _ <- Parser.Text.Lazy.char '/'
@@ -375,8 +383,8 @@ pathParser expectedRoot = do
     Parser.Text.Lazy.takeWhile validStorePathNameChar
       <?> "Path name contains invalid character"
 
-  let name = makeStorePathName $ Text.cons c0 rest
-      hashPart = bimap
+  let name = makeStorePathName $ Data.Text.cons c0 rest
+      hashPart = Data.Bifunctor.bimap
         HashDecodingFailure
         StorePathHashPart
         digest

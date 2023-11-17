@@ -6,7 +6,11 @@ module System.Nix.StorePathMetadata
   , StorePathTrust(..)
   ) where
 
+import Data.HashSet (HashSet)
+import Data.Set (Set)
 import Data.Time (UTCTime)
+import Data.Word (Word64)
+import GHC.Generics (Generic)
 
 import System.Nix.Hash (SomeNamedDigest)
 import System.Nix.Signature (NarSignature)

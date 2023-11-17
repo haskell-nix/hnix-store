@@ -5,8 +5,13 @@ module System.Nix.Hash.Truncation
   ( truncateInNixWay
   ) where
 
+import Data.Word (Word8)
 import Data.ByteString (ByteString)
+
 import qualified Data.ByteString
+import qualified Data.Bits
+import qualified Data.Bool
+import qualified Data.List
 
 -- | Bytewise truncation of a 'Digest'.
 --
@@ -25,15 +30,15 @@ truncateInNixWay n c =
   where
 
     truncOutputByte :: Int -> Word8
-    truncOutputByte i = foldl' (aux i) 0 [0 .. Data.ByteString.length c - 1]
+    truncOutputByte i = Data.List.foldl' (aux i) 0 [0 .. Data.ByteString.length c - 1]
 
     inputByte :: Int -> Word8
     inputByte j = Data.ByteString.index c j
 
     aux :: Int -> Word8 -> Int -> Word8
     aux i x j =
-      bool
+      Data.Bool.bool
         id
-        (`xor` inputByte j)
+        (`Data.Bits.xor` inputByte j)
         (j `mod` n == i)
         x

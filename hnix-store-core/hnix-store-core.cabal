@@ -44,7 +44,6 @@ library
     , System.Nix.StorePathMetadata
   build-depends:
       base >=4.12 && <5
-    , relude >= 1.0
     , attoparsec
     , algebraic-graphs >= 0.5 && < 0.8
     , base16-bytestring
@@ -73,12 +72,10 @@ library
     , unix
     , unordered-containers
     , vector
-  mixins:
-      base hiding (Prelude)
-    , relude (Relude as Prelude)
-    , relude
   default-extensions:
       OverloadedStrings
+    , ConstraintKinds
+    , DataKinds
     , DeriveGeneric
     , DeriveDataTypeable
     , DeriveFunctor
@@ -87,14 +84,18 @@ library
     , DeriveLift
     , DerivingStrategies
     , DerivingVia
+    , ExistentialQuantification
     , FlexibleContexts
     , FlexibleInstances
     , StandaloneDeriving
     , ScopedTypeVariables
+    , StandaloneDeriving
     , RecordWildCards
     , TypeApplications
+    , TypeFamilies
     , TypeSynonymInstances
     , InstanceSigs
+    , KindSignatures
     , MultiParamTypeClasses
     , TupleSections
     , LambdaCase
@@ -128,7 +129,6 @@ test-suite format-tests
       hnix-store-core
     , attoparsec
     , base
-    , relude
     , base16-bytestring
     , base64-bytestring
     , binary
@@ -149,10 +149,6 @@ test-suite format-tests
     , temporary
     , text
     , unix
-  mixins:
-      base hiding (Prelude)
-    , relude (Relude as Prelude)
-    , relude
   default-extensions:
       OverloadedStrings
     , DeriveGeneric

@@ -1,13 +1,9 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE CPP #-}
 {-|
 Description : Cryptographic hashing interface for hnix-store, on top
               of the cryptohash family of libraries.
 -}
-{-# language AllowAmbiguousTypes #-}
-{-# language TypeFamilies        #-}
-{-# language ScopedTypeVariables #-}
-{-# language DataKinds           #-}
-{-# language ExistentialQuantification #-}
-{-# language CPP #-}
 
 module System.Nix.Hash
   ( NamedAlgo(..)
@@ -19,34 +15,34 @@ module System.Nix.Hash
   , System.Nix.Base.BaseEncoding(..)
   , encodeDigestWith
   , decodeDigestWith
-  )
-where
+  ) where
 
-import Crypto.Hash (Digest)
+import Crypto.Hash (Digest, HashAlgorithm, MD5(..), SHA1(..), SHA256(..), SHA512(..))
+import Data.ByteString (ByteString)
+import Data.Text (Text)
 import System.Nix.Base (BaseEncoding(..))
-import qualified Text.Show
-import qualified Crypto.Hash            as C
-import qualified Data.ByteString        as BS
-import qualified Data.Text              as T
+
+import qualified Crypto.Hash
+import qualified Data.ByteArray
+import qualified Data.Text
 import qualified System.Nix.Base
-import           Data.ByteArray
-import           System.Nix.Hash.Truncation
+import qualified System.Nix.Hash.Truncation
 
 -- | A 'HashAlgorithm' with a canonical name, for serialization
 -- purposes (e.g. SRI hashes)
-class C.HashAlgorithm a => NamedAlgo a where
+class HashAlgorithm a => NamedAlgo a where
   algoName :: Text
 
-instance NamedAlgo C.MD5 where
+instance NamedAlgo MD5 where
   algoName = "md5"
 
-instance NamedAlgo C.SHA1 where
+instance NamedAlgo SHA1 where
   algoName = "sha1"
 
-instance NamedAlgo C.SHA256 where
+instance NamedAlgo SHA256 where
   algoName = "sha256"
 
-instance NamedAlgo C.SHA512 where
+instance NamedAlgo SHA512 where
   algoName = "sha512"
 
 -- | A digest whose 'NamedAlgo' is not known at compile time.
@@ -54,7 +50,12 @@ data SomeNamedDigest = forall a . NamedAlgo a => SomeDigest (Digest a)
 
 instance Show SomeNamedDigest where
   show sd = case sd of
-    SomeDigest (digest :: Digest hashType) -> toString $ "SomeDigest " <> algoName @hashType <> ":" <> encodeDigestWith NixBase32 digest
+    SomeDigest (digest :: Digest hashType) ->
+      Data.Text.unpack $ "SomeDigest"
+      <> " "
+      <> algoName @hashType
+      <> ":"
+      <> encodeDigestWith NixBase32 digest
 
 instance Eq SomeNamedDigest where
   (==) (SomeDigest (a :: Digest aType))
@@ -70,42 +71,72 @@ instance Ord SomeNamedDigest where
 
 mkNamedDigest :: Text -> Text -> Either String SomeNamedDigest
 mkNamedDigest name sriHash =
-  let (sriName, h) = T.breakOnEnd "-" sriHash in
+  let (sriName, h) = Data.Text.breakOnEnd "-" sriHash in
     if sriName == "" || sriName == name <> "-"
     then mkDigest h
-    else Left $ toString $ "Sri hash method " <> sriName <> " does not match the required hash type " <> name
+    else
+      Left
+      $ Data.Text.unpack
+      $ "Sri hash method"
+      <> " "
+      <> sriName
+      <> " "
+      <> "does not match the required hash type"
+      <> " "
+      <> name
  where
   mkDigest h = case name of
-    "md5"    -> SomeDigest <$> decodeGo C.MD5    h
-    "sha1"   -> SomeDigest <$> decodeGo C.SHA1   h
-    "sha256" -> SomeDigest <$> decodeGo C.SHA256 h
-    "sha512" -> SomeDigest <$> decodeGo C.SHA512 h
-    _        -> Left $ "Unknown hash name: " <> toString name
-  decodeGo :: forall a . NamedAlgo a => a -> Text -> Either String (C.Digest a)
+    "md5"    -> SomeDigest <$> decodeGo MD5    h
+    "sha1"   -> SomeDigest <$> decodeGo SHA1   h
+    "sha256" -> SomeDigest <$> decodeGo SHA256 h
+    "sha512" -> SomeDigest <$> decodeGo SHA512 h
+    _        -> Left $ "Unknown hash name: " <> Data.Text.unpack name
+  decodeGo :: forall a . NamedAlgo a => a -> Text -> Either String (Digest a)
   decodeGo a h
     | size == base16Len = decodeDigestWith Base16 h
     | size == base32Len = decodeDigestWith NixBase32 h
     | size == base64Len = decodeDigestWith Base64 h
-    | otherwise = Left $ toString sriHash <> " is not a valid " <> toString name <> " hash. Its length (" <> show size <> ") does not match any of " <> show [base16Len, base32Len, base64Len]
+    | otherwise =
+        Left
+        $ Data.Text.unpack
+        $ sriHash
+        <> " "
+        <> "is not a valid"
+        <> " "
+        <> name
+        <> " "
+        <> "hash. Its length ("
+        <> Data.Text.pack (show size)
+        <> ") does not match any of"
+        <> " "
+        <> Data.Text.pack (show [base16Len, base32Len, base64Len])
    where
-    size = T.length h
-    hsize = C.hashDigestSize a
+    size = Data.Text.length h
+    hsize = Crypto.Hash.hashDigestSize a
     base16Len = hsize * 2
     base32Len = ((hsize * 8 - 1) `div` 5) + 1;
     base64Len = ((4 * hsize `div` 3) + 3) `div` 4 * 4;
 
-
-mkStorePathHash :: forall a . C.HashAlgorithm a => BS.ByteString -> BS.ByteString
+mkStorePathHash
+  :: forall a
+   . HashAlgorithm a
+  => ByteString
+  -> ByteString
 mkStorePathHash bs =
-  truncateInNixWay 20 $ convert $ C.hash @BS.ByteString @a bs
+  System.Nix.Hash.Truncation.truncateInNixWay 20
+  $ Data.ByteArray.convert
+  $ Crypto.Hash.hash @ByteString @a bs
 
 -- | Take BaseEncoding type of the output -> take the Digeest as input -> encode Digest
-encodeDigestWith :: BaseEncoding -> C.Digest a -> T.Text
-encodeDigestWith b = System.Nix.Base.encodeWith b . convert
-
+encodeDigestWith :: BaseEncoding -> Digest a -> Text
+encodeDigestWith b = System.Nix.Base.encodeWith b . Data.ByteArray.convert
 
 -- | Take BaseEncoding type of the input -> take the input itself -> decodeBase into Digest
-decodeDigestWith :: C.HashAlgorithm a => BaseEncoding -> T.Text -> Either String (C.Digest a)
+decodeDigestWith
+  :: HashAlgorithm a
+  => BaseEncoding
+  -> Text
+  -> Either String (Digest a)
 decodeDigestWith b x =
   do
     bs <- System.Nix.Base.decodeWith b x
@@ -113,4 +144,9 @@ decodeDigestWith b x =
       toEither =
         maybeToRight
           ("Cryptonite was not able to convert '(ByteString -> Digest a)' for: '" <> show bs <>"'.")
-    (toEither . C.digestFromByteString) bs
+    (toEither . Crypto.Hash.digestFromByteString) bs
+  where
+    -- To not depend on @extra@
+    maybeToRight :: b -> Maybe a -> Either b a
+    maybeToRight _ (Just r) = pure r
+    maybeToRight y Nothing  = Left y

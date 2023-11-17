@@ -12,6 +12,8 @@ module System.Nix.Build
   ) where
 
 import Data.Time (UTCTime)
+import Data.Text (Text)
+import GHC.Generics (Generic)
 import Test.QuickCheck (Arbitrary(..))
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
 import Test.QuickCheck.Instances ()

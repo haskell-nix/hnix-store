@@ -1,6 +1,7 @@
 
 module Derivation where
 
+import Data.Text (Text)
 import           Test.Tasty                     ( TestTree
                                                 , testGroup
                                                 )
@@ -24,9 +25,8 @@ processDerivation source dest = do
   contents <- Data.Text.IO.readFile source
   either
     fail
-    -- It seems to be derivation.
     (Data.Text.IO.writeFile dest
-      . toText
+      . Data.Text.Lazy.toStrict
       . Data.Text.Lazy.Builder.toLazyText
       . buildDerivation def
     )

@@ -1,32 +1,34 @@
-{-# language KindSignatures      #-}
-{-# language RankNTypes          #-}
-{-# language ScopedTypeVariables #-}
+{-# LANGUAGE RankNTypes #-}
 
 module System.Nix.Nar.Effects
   ( NarEffects(..)
   , narEffectsIO
   ) where
 
-import Data.Kind ()
-import qualified Data.ByteString             as Bytes
+import Control.Monad.Trans.Control (MonadBaseControl)
+import Control.Monad.IO.Class (MonadIO(liftIO))
+import Data.ByteString (ByteString)
+import Data.Int (Int64)
+import Data.Kind (Type)
+import System.IO (Handle, IOMode(WriteMode))
+
+import qualified Control.Monad
+import qualified Data.ByteString
 import qualified Data.ByteString.Lazy        as Bytes.Lazy
 import qualified System.Directory            as Directory
 import           System.Posix.Files          ( createSymbolicLink
-                                        , fileSize
-                                        , getFileStatus
-                                        , isDirectory
-                                        , readSymbolicLink
-                                        )
+                                             , fileSize
+                                             , getFileStatus
+                                             , isDirectory
+                                             , readSymbolicLink
+                                             )
 import qualified System.IO                   as IO
-import qualified Control.Monad.IO.Class      as IO
-import           Control.Monad.Trans.Control (MonadBaseControl)
 import qualified Control.Exception.Lifted    as Exception.Lifted
-import qualified Control.Monad.Fail          as MonadFail
 
 data NarEffects (m :: Type -> Type) = NarEffects {
     narReadFile   :: FilePath -> m Bytes.Lazy.ByteString
   , narWriteFile  :: FilePath -> Bytes.Lazy.ByteString -> m ()
-  , narStreamFile :: FilePath -> m (Maybe Bytes.ByteString) -> m ()
+  , narStreamFile :: FilePath -> m (Maybe ByteString) -> m ()
   , narListDir    :: FilePath -> m [FilePath]
   , narCreateDir  :: FilePath -> m ()
   , narCreateLink :: FilePath -> FilePath -> m ()
@@ -40,59 +42,59 @@ data NarEffects (m :: Type -> Type) = NarEffects {
   , narDeleteFile :: FilePath -> m ()
 }
 
-
 -- | A particular @NarEffects@ that uses regular POSIX for file manipulation
 --   You would replace this with your own @NarEffects@ if you wanted a
 --   different backend
 narEffectsIO
-  :: (IO.MonadIO m,
-      MonadFail.MonadFail m,
-      MonadBaseControl IO m
-     ) => NarEffects m
+  :: ( MonadIO m
+     , MonadFail m
+     , MonadBaseControl IO m
+     )
+  => NarEffects m
 narEffectsIO = NarEffects {
-    narReadFile   = IO.liftIO . Bytes.Lazy.readFile
-  , narWriteFile  = \a -> IO.liftIO . Bytes.Lazy.writeFile a
+    narReadFile   = liftIO . Bytes.Lazy.readFile
+  , narWriteFile  = \a -> liftIO . Bytes.Lazy.writeFile a
   , narStreamFile = streamStringOutIO
-  , narListDir    = IO.liftIO . Directory.listDirectory
-  , narCreateDir  = IO.liftIO . Directory.createDirectory
-  , narCreateLink = \f -> IO.liftIO . createSymbolicLink f
-  , narGetPerms   = IO.liftIO . Directory.getPermissions
-  , narSetPerms   = \f -> IO.liftIO . Directory.setPermissions f
-  , narIsDir      = fmap isDirectory . IO.liftIO . getFileStatus
-  , narIsSymLink  = IO.liftIO . Directory.pathIsSymbolicLink
-  , narFileSize   = fmap (fromIntegral . fileSize) . IO.liftIO . getFileStatus
-  , narReadLink   = IO.liftIO . readSymbolicLink
-  , narDeleteDir  = IO.liftIO . Directory.removeDirectoryRecursive
-  , narDeleteFile = IO.liftIO . Directory.removeFile
+  , narListDir    = liftIO . Directory.listDirectory
+  , narCreateDir  = liftIO . Directory.createDirectory
+  , narCreateLink = \f -> liftIO . createSymbolicLink f
+  , narGetPerms   = liftIO . Directory.getPermissions
+  , narSetPerms   = \f -> liftIO . Directory.setPermissions f
+  , narIsDir      = fmap isDirectory . liftIO . getFileStatus
+  , narIsSymLink  = liftIO . Directory.pathIsSymbolicLink
+  , narFileSize   = fmap (fromIntegral . fileSize) . liftIO . getFileStatus
+  , narReadLink   = liftIO . readSymbolicLink
+  , narDeleteDir  = liftIO . Directory.removeDirectoryRecursive
+  , narDeleteFile = liftIO . Directory.removeFile
   }
 
-
--- | This default implementation for @narStreamFile@ requires @IO.MonadIO@
+-- | This default implementation for @narStreamFile@ requires @MonadIO@
 streamStringOutIO
   :: forall m
-  .(IO.MonadIO m,
-    MonadFail.MonadFail m,
-    MonadBaseControl IO m
-  ) => FilePath
-  -> m (Maybe Bytes.ByteString)
+   . ( MonadIO m
+     , MonadFail m
+     , MonadBaseControl IO m
+     )
+  => FilePath
+  -> m (Maybe ByteString)
   -> m ()
 streamStringOutIO f getChunk =
   Exception.Lifted.bracket
-    (IO.liftIO $ IO.openFile f WriteMode)
-    (IO.liftIO . IO.hClose)
+    (liftIO $ IO.openFile f WriteMode)
+    (liftIO . IO.hClose)
     go
   `Exception.Lifted.catch`
     cleanupException
  where
-  go :: IO.Handle -> m ()
+  go :: Handle -> m ()
   go handle = do
     chunk <- getChunk
     case chunk of
-      Nothing -> pass
+      Nothing -> pure ()
       Just c  -> do
-        IO.liftIO $ Bytes.hPut handle c
+        liftIO $ Data.ByteString.hPut handle c
         go handle
   cleanupException (e :: Exception.Lifted.SomeException) = do
-    IO.liftIO $ Directory.removeFile f
-    MonadFail.fail $
+    liftIO $ Directory.removeFile f
+    Control.Monad.fail $
       "Failed to stream string to " <> f <> ": " <> show e

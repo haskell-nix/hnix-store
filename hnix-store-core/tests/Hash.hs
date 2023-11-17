@@ -4,9 +4,16 @@
 
 module Hash where
 
+import Data.ByteString (ByteString)
+import Data.Text (Text)
+
+import qualified Data.Bifunctor
 import qualified Data.ByteString.Base16      as B16
 import qualified System.Nix.Base32           as B32
 import qualified Data.ByteString.Base64.Lazy as B64
+import qualified Data.ByteString.Char8       as BSC
+import qualified Data.ByteString.Lazy        as BSL
+import           Data.Foldable               ( traverse_ )
 
 import           Test.Hspec
 import           Test.Tasty.QuickCheck
@@ -47,7 +54,7 @@ spec_hash = do
 -- | Test that Nix-like base32 encoding roundtrips
 prop_nixBase32Roundtrip :: Property
 prop_nixBase32Roundtrip = forAllShrink nonEmptyString genericShrink $
-  \x -> pure (encodeUtf8 x) === (B32.decode . B32.encode . encodeUtf8 $ x)
+  \x -> pure (BSC.pack x) === (B32.decode . B32.encode . BSC.pack $ x)
   where
     nonEmptyString :: Gen String
     nonEmptyString = listOf1 genSafeChar
@@ -73,15 +80,15 @@ spec_nixhash = do
 
     cmp
       "b64 encoded . b32 decoded should equal original b64"
-      (B64.encode . fromStrict) B32.decode b32s b64s
+      (B64.encode . BSL.fromStrict) B32.decode b32s b64s
 
     cmp
       "b32 encoded . b64 decoded should equal original b32"
-      (B32.encode . toStrict) B64.decode b64s b32s
+      (B32.encode . BSL.toStrict) B64.decode b64s b32s
 
     cmp
       "b16 encoded . b64 decoded should equal original b16"
-      (B16.encode . toStrict) B64.decode b64s b16s
+      (B16.encode . BSL.toStrict) B64.decode b64s b16s
 
 #if MIN_VERSION_base16_bytestring(1,0,0)
     cmp
@@ -90,13 +97,13 @@ spec_nixhash = do
 
     cmp
       "b64 encoded . b16 decoded should equal original b64"
-      (B64.encode . fromStrict) B16.decode b16s b64s
+      (B64.encode . BSL.fromStrict) B16.decode b16s b64s
 #else
     it "b32 encoded . b16 decoded should equal original b32" $
       traverse_ (\ b -> shouldBe (B32.encode $ fst $ B16.decode $ fst b) (snd b)) $ zip b16s b32s
 
     it "b64 encoded . b16 decoded should equal original b64" $
-      traverse_ (\ b -> shouldBe (B64.encode . fromStrict $ fst $ B16.decode $ fst b) (snd b)) $ zip b16s b64s
+      traverse_ (\ b -> shouldBe (B64.encode . BSL.fromStrict $ fst $ B16.decode $ fst b) (snd b)) $ zip b16s b64s
 #endif
 
  where
@@ -110,7 +117,7 @@ spec_nixhash = do
     -> [c]
     -> [b]
     -> SpecWith ()
-  cmp s f1 f2 b1 b2 = it s $ traverse_ (uncurry shouldBe . bimap (fmap f1 . f2) pure) $ zip b1 b2
+  cmp s f1 f2 b1 b2 = it s $ traverse_ (uncurry shouldBe . Data.Bifunctor.bimap (fmap f1 . f2) pure) $ zip b1 b2
 
   b16s = takeAxis (\(a,_,_) -> a)
   b32s = takeAxis (\(_,b,_) -> b)

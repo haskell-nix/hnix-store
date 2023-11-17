@@ -4,6 +4,7 @@ module System.Nix.Nar.Options
   , caseHackSuffix
   ) where
 
+import Data.Text (Text)
 import qualified System.Info
 
 -- | Options for configuring how NAR files are encoded and decoded.
