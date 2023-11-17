@@ -3,5 +3,5 @@ packages:
   ./hnix-store-remote/hnix-store-remote.cabal
 
 package hnix-store-remote
-  flags: +build-readme
+  flags: +build-readme +io-testsuite
 
