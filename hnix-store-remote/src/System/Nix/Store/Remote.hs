@@ -3,6 +3,7 @@
 {-# language RankNTypes          #-}
 {-# language ScopedTypeVariables #-}
 {-# language DataKinds           #-}
+{-# language OverloadedStrings   #-}
 {-# language RecordWildCards     #-}
 {-# language LiberalTypeSynonyms #-}
 

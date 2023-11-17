@@ -22,8 +22,7 @@ common commons
   else
     ghc-options:  -Wall
   default-extensions:
-      OverloadedStrings
-    , DeriveGeneric
+      DeriveGeneric
     , DeriveDataTypeable
     , DeriveFunctor
     , DeriveFoldable
