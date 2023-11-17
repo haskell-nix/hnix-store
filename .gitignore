@@ -7,3 +7,5 @@ cabal.project.local
 attic
 TAGS
 tags
+result
+result-*
