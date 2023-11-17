@@ -17,10 +17,7 @@ extra-source-files:
   , README.lhs
 
 common commons
-  if impl(ghc >= 8.10)
-    ghc-options:  -Wall -Wunused-packages
-  else
-    ghc-options:  -Wall
+  ghc-options:  -Wall
   default-extensions:
       DataKinds
     , DeriveGeneric
