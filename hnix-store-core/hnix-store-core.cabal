@@ -60,6 +60,8 @@ library
     , case-insensitive
     , cereal
     , containers
+    , data-default-class
+    , generic-arbitrary < 1.1
     -- Required for cryptonite low-level type convertion
     , memory
     , cryptonite
@@ -71,6 +73,7 @@ library
     , mtl
     , nix-derivation >= 1.1.1 && <2
     , QuickCheck
+    , quickcheck-instances
     , saltine
     , time
     , text
@@ -89,9 +92,13 @@ library
     , DeriveFoldable
     , DeriveTraversable
     , DeriveLift
+    , DerivingStrategies
+    , DerivingVia
     , FlexibleContexts
     , FlexibleInstances
     , StandaloneDeriving
+    , ScopedTypeVariables
+    , RecordWildCards
     , TypeApplications
     , TypeSynonymInstances
     , InstanceSigs
@@ -116,6 +123,7 @@ test-suite format-tests
   main-is: Driver.hs
   other-modules:
     Derivation
+    ContentAddressableAddress
     NarFormat
     Hash
     StorePath
@@ -134,9 +142,11 @@ test-suite format-tests
     , bytestring
     , containers
     , cryptonite
+    , data-default-class
     , directory
     , filepath
     , process
+    , nix-derivation >= 1.1.1 && <2
     , tasty
     , tasty-golden
     , hspec

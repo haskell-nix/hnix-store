@@ -19,6 +19,7 @@ module System.Nix.Internal.Hash
   )
 where
 
+import Crypto.Hash (Digest)
 import qualified Text.Show
 import qualified Crypto.Hash            as C
 import qualified Data.ByteString        as BS
@@ -45,11 +46,23 @@ instance NamedAlgo C.SHA512 where
   algoName = "sha512"
 
 -- | A digest whose 'NamedAlgo' is not known at compile time.
-data SomeNamedDigest = forall a . NamedAlgo a => SomeDigest (C.Digest a)
+data SomeNamedDigest = forall a . NamedAlgo a => SomeDigest (Digest a)
 
 instance Show SomeNamedDigest where
   show sd = case sd of
-    SomeDigest (digest :: C.Digest hashType) -> toString $ "SomeDigest " <> algoName @hashType <> ":" <> encodeDigestWith NixBase32 digest
+    SomeDigest (digest :: Digest hashType) -> toString $ "SomeDigest " <> algoName @hashType <> ":" <> encodeDigestWith NixBase32 digest
+
+instance Eq SomeNamedDigest where
+  (==) (SomeDigest (a :: Digest aType))
+       (SomeDigest (b :: Digest bType))
+    = algoName @aType == algoName @bType
+      && encodeDigestWith NixBase32 a == encodeDigestWith NixBase32 b
+
+instance Ord SomeNamedDigest where
+  (<=) (SomeDigest (a :: Digest aType))
+       (SomeDigest (b :: Digest bType))
+    = algoName @aType <= algoName @bType
+      && encodeDigestWith NixBase32 a <= encodeDigestWith NixBase32 b
 
 mkNamedDigest :: Text -> Text -> Either String SomeNamedDigest
 mkNamedDigest name sriHash =

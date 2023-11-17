@@ -1,4 +1,5 @@
-{-# language RecordWildCards #-}
+-- due to recent generic-arbitrary
+{-# OPTIONS_GHC -fconstraint-solver-iterations=0 #-}
 {-|
 Description : Build related types
 Maintainer  : srk <srk@48.io>
@@ -8,15 +9,18 @@ module System.Nix.Build
   , BuildStatus(..)
   , BuildResult(..)
   , buildSuccess
-  )
-where
+  ) where
 
-import           Data.Time                      ( UTCTime )
+import Data.Time (UTCTime)
+import Test.QuickCheck (Arbitrary(..))
+import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
+import Test.QuickCheck.Instances ()
 
 -- keep the order of these Enums to match enums from reference implementations
 -- src/libstore/store-api.hh
 data BuildMode = Normal | Repair | Check
-  deriving (Eq, Ord, Enum, Show)
+  deriving (Eq, Generic, Ord, Enum, Show)
+  deriving Arbitrary via GenericArbitrary BuildMode
 
 data BuildStatus =
     Built
@@ -32,8 +36,10 @@ data BuildStatus =
   | DependencyFailed
   | LogLimitExceeded
   | NotDeterministic
-  deriving (Eq, Ord, Enum, Show)
-
+  | ResolvesToAlreadyValid
+  | NoSubstituters
+  deriving (Eq, Generic, Ord, Enum, Show)
+  deriving Arbitrary via GenericArbitrary BuildStatus
 
 -- | Result of the build
 data BuildResult = BuildResult
@@ -42,7 +48,7 @@ data BuildResult = BuildResult
   , -- | possible build error message
     errorMessage       :: !(Maybe Text)
   , -- | How many times this build was performed
-    timesBuilt         :: !Integer
+    timesBuilt         :: !Int
   , -- | If timesBuilt > 1, whether some builds did not produce the same result
     isNonDeterministic :: !Bool
   ,  -- Start time of this build
@@ -50,7 +56,8 @@ data BuildResult = BuildResult
   ,  -- Stop time of this build
     stopTime           :: !UTCTime
   }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Generic, Ord, Show)
+  deriving Arbitrary via GenericArbitrary BuildResult
 
 buildSuccess :: BuildResult -> Bool
 buildSuccess BuildResult {..} =

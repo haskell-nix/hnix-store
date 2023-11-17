@@ -1,7 +1,5 @@
 tests: True
 
-flags: +io-testsuite
-
 package hnix-store-core
   ghc-options: -Wunused-packages -Wall
 

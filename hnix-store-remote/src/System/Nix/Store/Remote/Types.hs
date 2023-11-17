@@ -33,12 +33,20 @@ module System.Nix.Store.Remote.Types
   )
 where
 
-import           Control.Monad.Trans.State.Strict (mapStateT)
-import           Control.Monad.Trans.Except (mapExceptT)
+import Control.Monad.Except (ExceptT)
+import Control.Monad.Reader (ReaderT, asks)
+import Control.Monad.State.Strict (StateT, gets, modify)
+import Data.ByteString (ByteString)
+import Network.Socket (Socket)
+
 import qualified Data.ByteString.Lazy          as BSL
-import           Network.Socket                 ( Socket )
+
+import Control.Monad.Trans.State.Strict (mapStateT)
+import Control.Monad.Trans.Except (mapExceptT)
+import Control.Monad.Trans.Reader (withReaderT)
 
 import           System.Nix.StorePath          ( StoreDir )
+
 
 data StoreConfig = StoreConfig
   { storeDir    :: StoreDir

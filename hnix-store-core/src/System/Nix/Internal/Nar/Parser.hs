@@ -47,7 +47,7 @@ import qualified System.Nix.Internal.Nar.Options as Nar
 --   of the actions the parser can take, and @ParserState@ for the
 --   internals of the parser
 newtype NarParser m a = NarParser
-  { runNarParser ::
+  { _runNarParser ::
       State.StateT
         ParserState
         (Except.ExceptT
@@ -554,15 +554,12 @@ testParser' :: (m ~ IO) => FilePath -> IO (Either String ())
 testParser' fp =
   withFile fp ReadMode $ \h -> runParser Nar.narEffectsIO parseNar h "tmp"
 
-
-
-
 -- | Distance to the next multiple of 8
 padLen :: Int -> Int
 padLen n = (8 - n) `mod` 8
 
-
-dbgState :: IO.MonadIO m => NarParser m ()
-dbgState = do
+-- | Debugging helper
+_dbgState :: IO.MonadIO m => NarParser m ()
+_dbgState = do
   s <- State.get
   IO.liftIO $ print (tokenStack s, directoryStack s)

@@ -1,32 +1,48 @@
+-- due to recent generic-arbitrary
+{-# OPTIONS_GHC -Wno-orphans -fconstraint-solver-iterations=0 #-}
 
 module System.Nix.Derivation
   ( parseDerivation
   , buildDerivation
-  )
-where
+  ) where
 
-import qualified Data.Text.Lazy.Builder        as Text.Lazy
-                                                ( Builder )
-import qualified Data.Attoparsec.Text.Lazy     as Text.Lazy
-                                                ( Parser )
-import           Nix.Derivation                 ( Derivation )
-import qualified Nix.Derivation                as Derivation
-import           System.Nix.StorePath           ( StoreDir
-                                                , StorePath
-                                                , storePathToFilePath
-                                                )
-import qualified System.Nix.StorePath          as StorePath
+import Data.Attoparsec.Text.Lazy (Parser)
+import Data.Text.Lazy.Builder (Builder)
+import Test.QuickCheck (Arbitrary(..))
+import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
+import Test.QuickCheck.Instances ()
 
+import Nix.Derivation (Derivation, DerivationOutput)
+import System.Nix.StorePath (StoreDir, StorePath)
 
+import qualified Data.Attoparsec.Text.Lazy
+import qualified Data.Text.Lazy
 
-parseDerivation :: StoreDir -> Text.Lazy.Parser (Derivation StorePath Text)
+import qualified Nix.Derivation
+import qualified System.Nix.StorePath
+
+deriving via GenericArbitrary (Derivation StorePath Text)
+  instance Arbitrary (Derivation StorePath Text)
+deriving via GenericArbitrary (DerivationOutput StorePath Text)
+  instance Arbitrary (DerivationOutput StorePath Text)
+
+parseDerivation :: StoreDir -> Parser (Derivation StorePath Text)
 parseDerivation expectedRoot =
-  Derivation.parseDerivationWith
-    ("\"" *> StorePath.pathParser expectedRoot <* "\"")
-    Derivation.textParser
+  Nix.Derivation.parseDerivationWith
+    pathParser
+    Nix.Derivation.textParser
+  where
+    pathParser = do
+      text <- Nix.Derivation.textParser
+      case Data.Attoparsec.Text.Lazy.parseOnly
+            (System.Nix.StorePath.pathParser expectedRoot)
+            (Data.Text.Lazy.fromStrict text)
+        of
+          Right p -> pure p
+          Left e -> fail e
 
-buildDerivation :: StoreDir -> Derivation StorePath Text -> Text.Lazy.Builder
+buildDerivation :: StoreDir -> Derivation StorePath Text -> Builder
 buildDerivation storeDir =
-  Derivation.buildDerivationWith
-    (show . storePathToFilePath storeDir)
+  Nix.Derivation.buildDerivationWith
+    (show . System.Nix.StorePath.storePathToText storeDir)
     show

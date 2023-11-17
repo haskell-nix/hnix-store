@@ -42,6 +42,14 @@ common commons
     , LambdaCase
     , BangPatterns
     , ViewPatterns
+  build-depends:
+      base >=4.12 && <5
+  default-language: Haskell2010
+
+common tests
+  import: commons
+  build-tool-depends:
+      tasty-discover:tasty-discover
 
 flag io-testsuite
   default:
@@ -52,7 +60,7 @@ flag io-testsuite
 
 flag build-readme
   default:
-    True
+    False
   description:
     Build README.lhs example
 
@@ -61,21 +69,21 @@ library
   exposed-modules:
       System.Nix.Store.Remote
     , System.Nix.Store.Remote.Binary
-    , System.Nix.Store.Remote.Builders
+    , System.Nix.Store.Remote.Serialize
+    , System.Nix.Store.Remote.Serialize.Prim
     , System.Nix.Store.Remote.Logger
-    , System.Nix.Store.Remote.Parsers
     , System.Nix.Store.Remote.Protocol
     , System.Nix.Store.Remote.Types
     , System.Nix.Store.Remote.Util
 
   build-depends:
-      base >=4.12 && <5
-    , relude >= 1.0
     , attoparsec
     , binary
     , bytestring
+    , cereal
     , containers
     , cryptonite
+    , data-default-class
     , text
     , time
     , network
@@ -84,15 +92,13 @@ library
     , unordered-containers
     , hnix-store-core >= 0.7 && <0.8
     , transformers
-  mixins:
-      base hiding (Prelude)
-    , relude (Relude as Prelude)
-    , relude
+    , vector
   hs-source-dirs:      src
-  default-language:    Haskell2010
   ghc-options:         -Wall
 
 executable remote-readme
+  if !flag(build-readme)
+    buildable: False
   build-depends:
       base >=4.12 && <5
     , hnix-store-remote
@@ -102,45 +108,58 @@ executable remote-readme
   main-is: README.lhs
   ghc-options: -pgmL markdown-unlit -Wall
 
+test-suite remote
+  import: tests
+  type:              exitcode-stdio-1.0
+  main-is:           Driver.hs
+  hs-source-dirs:    tests
+  ghc-options:       -Wall
+  other-modules:
+      SerializeSpec
+  build-depends:
+      hnix-store-core
+    , hnix-store-remote
+    , nix-derivation
+    , bytestring
+    , cereal
+    , text
+    , time
+    , hspec
+    , tasty
+    , tasty-hspec
+    , tasty-quickcheck
+    , quickcheck-instances
+    , unordered-containers
+
 test-suite remote-io
-  import: commons
+  import: tests
 
   if !flag(io-testsuite) || os(darwin)
     buildable: False
 
   type:              exitcode-stdio-1.0
   main-is:           Driver.hs
+  hs-source-dirs:    tests-io
   -- See https://github.com/redneb/hs-linux-namespaces/issues/3
   ghc-options:       -rtsopts -fprof-auto "-with-rtsopts -V0"
   other-modules:
       NixDaemon
     , Spec
-  hs-source-dirs:    tests-io
   build-depends:
-      base
-    , bytestring
-    , relude
-    , hnix-store-core >= 0.3
+      hnix-store-core
     , hnix-store-remote
+    , bytestring
     , containers
     , cryptonite
     , directory
     , process
     , filepath
     , hspec-expectations-lifted
-    , quickcheck-text
+    , text
     , tasty
     , hspec
     , tasty-hspec
-    , tasty-quickcheck
     , linux-namespaces
     , temporary
     , unix
     , unordered-containers
-  build-tool-depends:
-      tasty-discover:tasty-discover
-  mixins:
-      base hiding (Prelude)
-    , relude (Relude as Prelude)
-    , relude
-  default-language: Haskell2010

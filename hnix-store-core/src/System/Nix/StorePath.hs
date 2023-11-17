@@ -10,16 +10,22 @@ module System.Nix.StorePath
   , mkStorePathHashPart
   , unStorePathHashPart
   , ContentAddressableAddress(..)
+  , contentAddressableAddressBuilder
+  , contentAddressableAddressParser
+  , digestBuilder
   , NarHashMode(..)
   , -- * Manipulating 'StorePathName'
     makeStorePathName
   , unStorePathName
   , validStorePathName
+    -- * Reason why a path is not valid
+  , InvalidPathError(..)
   , -- * Rendering out 'StorePath's
     storePathToFilePath
   , storePathToRawFilePath
   , storePathToText
   , storePathToNarInfo
+  , storePathHashPartToText
   , -- * Parsing 'StorePath's
     parsePath
   , pathParser

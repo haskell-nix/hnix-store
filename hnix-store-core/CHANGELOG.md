@@ -1,16 +1,32 @@
 # Next
 
 * Changes:
+   * `StorePathMetadata` converted to `Metadata a` [#231](https://github.com/haskell-nix/hnix-store/pull/231)
    * Constructors of `StorePathName` and `StorePathHashPart` are no longer
      exported. Use respective `mkStorePath..` functions. [#230](https://github.com/haskell-nix/hnix-store/pull/230)
    * `StorePathSet` type alias is no more, use `HashSet StorePath` [#230](https://github.com/haskell-nix/hnix-store/pull/230)
+   * `makeStorePath` and `parsePath` now returns `Either InvalidPathError StorePath` [#231](https://github.com/haskell-nix/hnix-store/pull/231)
+   * `BuildResult`s `timesBuild` field changes type from `Integer` to `Int` [#231](https://github.com/haskell-nix/hnix-store/pull/231)
 
 * Additions:
+   * `Default StoreDir` instance [#231](https://github.com/haskell-nix/hnix-store/pull/231)
+   * `System.Nix.StorePath.storePathHashPartToText` [#231](https://github.com/haskell-nix/hnix-store/pull/231)
+   * Added `Generic` and `Show` instances for
+     `Signature` and `NarSignature` [#231](https://github.com/haskell-nix/hnix-store/pull/231)
+   * Added `Eq` and `Ord` instances for `SomeNamedDigest` [#231](https://github.com/haskell-nix/hnix-store/pull/231)
+   * `BuildStatus` grows `NoSubstituters` and `ResolvesToAlreadyValid` constructors [#231](https://github.com/haskell-nix/hnix-store/pull/231)
+   * `InvalidPathError` replacing previous stringy error [#231](https://github.com/haskell-nix/hnix-store/pull/231)
    * Added `Arbitrary` instances for (exported by default) [#230](https://github.com/haskell-nix/hnix-store/pull/230)
      * `StorePath`
      * `StorePathName`
      * `StorePathHashPart`
      * `StoreDir`
+   * Added `Arbitrary` instances for [#231](https://github.com/haskell-nix/hnix-store/pull/231)
+     * `BuildMode`
+     * `BuildStatus`
+     * `BuildResult`
+     * `Derivation StorePath Text`
+     * `DerivationOutput StorePath Text`
 
 # [0.7.0.0](https://github.com/haskell-nix/hnix-store/compare/core-0.6.1.0...core-0.7.0.0) 2023-11-15
 

@@ -1,9 +1,17 @@
 {-# language DataKinds           #-}
-{-# language ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings   #-}
 
 module NixDaemon where
 
-import qualified System.Environment            as Env
+import Data.Text (Text)
+import           Data.Either                    ( isRight
+                                                , isLeft
+                                                )
+import           Data.Bool                      ( bool )
+import           Control.Monad                  ( void )
+import           Control.Monad.IO.Class         ( liftIO )
+
+import qualified System.Environment
 import           Control.Exception              ( bracket )
 import           Control.Concurrent             ( threadDelay )
 import qualified Data.ByteString.Char8         as BSC
@@ -34,7 +42,7 @@ import           System.Nix.Nar                 ( dumpPath )
 
 createProcessEnv :: FilePath -> String -> [String] -> IO P.ProcessHandle
 createProcessEnv fp proc args = do
-  mPath         <- Env.lookupEnv "PATH"
+  mPath         <- System.Environment.lookupEnv "PATH"
 
   (_, _, _, ph) <-
     P.createProcess (P.proc proc args)
@@ -44,13 +52,13 @@ createProcessEnv fp proc args = do
   pure ph
 
 mockedEnv :: Maybe String -> FilePath -> [(String, FilePath)]
-mockedEnv mEnvPath fp = (fp </>) <<$>>
-  [ ("NIX_STORE_DIR"     , "store")
-  , ("NIX_LOCALSTATE_DIR", "var")
-  , ("NIX_LOG_DIR"       , "var" </> "log")
-  , ("NIX_STATE_DIR"     , "var" </> "nix")
-  , ("NIX_CONF_DIR"      , "etc")
-  , ("HOME"              , "home")
+mockedEnv mEnvPath fp =
+  [ ("NIX_STORE_DIR"     , fp </> "store")
+  , ("NIX_LOCALSTATE_DIR", fp </> "var")
+  , ("NIX_LOG_DIR"       , fp </> "var" </> "log")
+  , ("NIX_STATE_DIR"     , fp </> "var" </> "nix")
+  , ("NIX_CONF_DIR"      , fp </> "etc")
+  , ("HOME"              , fp </> "home")
 --  , ("NIX_REMOTE", "daemon")
     ] <> foldMap (\x -> [("PATH", x)]) mEnvPath
 
@@ -60,12 +68,12 @@ waitSocket fp x = do
   ex <- doesFileExist fp
   bool
     (threadDelay 100000 >> waitSocket fp (x - 1))
-    pass
+    (pure ())
     ex
 
 writeConf :: FilePath -> IO ()
 writeConf fp =
-  writeFileText fp $ unlines
+  writeFile fp $ unlines
     [ "build-users-group = "
     , "trusted-users = root"
     , "allowed-users = *"
@@ -136,7 +144,7 @@ it
   -> (a -> Bool)
   -> Hspec.SpecWith (m () -> IO (a, b))
 it name action check =
-  Hspec.it name $ \run -> run (action >> pass) `checks` check
+  Hspec.it name $ \run -> run (void $ action) `checks` check
 
 itRights
   :: (Show a, Show b, Show c, Monad m)
