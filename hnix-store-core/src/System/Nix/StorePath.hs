@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# OPTIONS_GHC -Wno-orphans #-}
 {-|
 Description : Representation of Nix store paths.
 -}
@@ -64,7 +63,6 @@ import qualified System.FilePath               as FilePath
 import           Crypto.Hash                    ( SHA256
                                                 , Digest
                                                 , HashAlgorithm
-                                                , hash
                                                 )
 
 import Test.QuickCheck (Arbitrary(arbitrary), listOf, elements)
@@ -158,13 +156,6 @@ data ContentAddressableAddress
     -- applied to the nar serialization via some 'NarHashMode'.
     Fixed !NarHashMode !SomeNamedDigest
   deriving (Eq, Generic, Ord, Show)
-
--- TODO(srk): extend to all hash types
-instance Arbitrary (Digest SHA256) where
-  arbitrary = hash @ByteString <$> arbitrary
-
-instance Arbitrary SomeNamedDigest where
-  arbitrary = SomeDigest @SHA256 <$> arbitrary
 
 deriving via GenericArbitrary ContentAddressableAddress
   instance Arbitrary ContentAddressableAddress

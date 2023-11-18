@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 {-|
 Description : Cryptographic hashing interface for hnix-store, on top
               of the cryptohash family of libraries.
@@ -22,6 +23,8 @@ import Crypto.Hash (Digest, HashAlgorithm, MD5(..), SHA1(..), SHA256(..), SHA512
 import Data.ByteString (ByteString)
 import Data.Text (Text)
 import System.Nix.Base (BaseEncoding(..))
+import Test.QuickCheck (Arbitrary(arbitrary), oneof)
+import Test.QuickCheck.Instances ()
 
 import qualified Crypto.Hash
 import qualified Data.ByteArray
@@ -46,8 +49,30 @@ instance NamedAlgo SHA256 where
 instance NamedAlgo SHA512 where
   algoName = "sha512"
 
+-- * Arbitrary @Digest@s
+
+instance Arbitrary (Digest MD5) where
+  arbitrary = Crypto.Hash.hash @ByteString <$> arbitrary
+
+instance Arbitrary (Digest SHA1) where
+  arbitrary = Crypto.Hash.hash @ByteString <$> arbitrary
+
+instance Arbitrary (Digest SHA256) where
+  arbitrary = Crypto.Hash.hash @ByteString <$> arbitrary
+
+instance Arbitrary (Digest SHA512) where
+  arbitrary = Crypto.Hash.hash @ByteString <$> arbitrary
+
 -- | A digest whose 'NamedAlgo' is not known at compile time.
 data SomeNamedDigest = forall a . NamedAlgo a => SomeDigest (Digest a)
+
+instance Arbitrary SomeNamedDigest where
+  arbitrary = oneof
+    [ SomeDigest @MD5 <$> arbitrary
+    , SomeDigest @SHA1 <$> arbitrary
+    , SomeDigest @SHA256 <$> arbitrary
+    , SomeDigest @SHA512 <$> arbitrary
+    ]
 
 instance Show SomeNamedDigest where
   show sd = case sd of
@@ -70,7 +95,12 @@ instance Ord SomeNamedDigest where
     = algoName @aType <= algoName @bType
       && encodeDigestWith NixBase32 a <= encodeDigestWith NixBase32 b
 
-mkNamedDigest :: Text -> Text -> Either String SomeNamedDigest
+-- | Make @SomeNamedDigest@ based on provided SRI hash name
+-- and its encoded form
+mkNamedDigest
+  :: Text -- ^ SRI name
+  -> Text -- ^ base encoded hash
+  -> Either String SomeNamedDigest
 mkNamedDigest name sriHash =
   let (sriName, h) = Data.Text.breakOnEnd "-" sriHash in
     if sriName == "" || sriName == name <> "-"
