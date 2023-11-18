@@ -6,8 +6,7 @@ Description : Nix-relevant interfaces to NaCl signatures.
 module System.Nix.Signature
   ( Signature
   , NarSignature(..)
-  )
-where
+  ) where
 
 import Crypto.Saltine.Core.Sign (PublicKey)
 import Crypto.Saltine.Class (IsEncoding(..))

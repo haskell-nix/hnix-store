@@ -3,9 +3,7 @@ module System.Nix.Store.Remote.Logger
   ( Logger(..)
   , Field(..)
   , processOutput
-  )
-where
-
+  ) where
 
 import           Control.Monad.Except           ( throwError )
 import Control.Monad.IO.Class (liftIO)

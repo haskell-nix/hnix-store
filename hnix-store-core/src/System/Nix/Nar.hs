@@ -31,8 +31,7 @@ module System.Nix.Nar
 
   -- * Type
   , Nar.NarSource
-  )
-where
+  ) where
 
 import qualified Control.Concurrent                as Concurrent
 import qualified Data.ByteString                   as BS

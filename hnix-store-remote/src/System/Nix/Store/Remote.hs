@@ -28,8 +28,7 @@ module System.Nix.Store.Remote
   , syncWithGC
   , verifyStore
   , module System.Nix.Store.Remote.Types
-  )
-where
+  ) where
 
 import Data.HashSet (HashSet)
 import Data.Map (Map)

@@ -27,8 +27,7 @@ module System.Nix.Store.Remote.Types
   , getError
   , setData
   , clearData
-  )
-where
+  ) where
 
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (ReaderT, asks)

@@ -28,8 +28,7 @@ module System.Nix.StorePath
     parsePath
   , parsePathFromText
   , pathParser
-  )
-where
+  ) where
 
 #if !MIN_VERSION_base(4,18,0)
 import Control.Applicative (liftA2)
