@@ -1,26 +1,51 @@
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module System.Nix.ContentAddress (
     ContentAddress
   , contentAddressBuilder
   , contentAddressParser
+  , buildContentAddress
+  , parseContentAddress
   ) where
 
 import Control.Applicative
-import Crypto.Hash (Digest, SHA256)
-import Data.Hashable (Hashable)
+import Crypto.Hash (Digest)
+import Data.Attoparsec.Text (Parser)
+import Data.Dependent.Sum (DSum)
+import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder)
 import GHC.Generics (Generic)
-import System.Nix.Base (BaseEncoding(NixBase32))
-import System.Nix.Hash (SomeNamedDigest(SomeDigest))
+import System.Nix.Hash (HashAlgo)
 import Test.QuickCheck (Arbitrary)
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
 import Test.QuickCheck.Instances ()
 
-import qualified Data.Attoparsec.ByteString.Char8
-import qualified Data.Text.Encoding
+import qualified Data.Attoparsec.Text
+import qualified Data.Text.Lazy
+import qualified Data.Text.Lazy.Builder
 import qualified System.Nix.Hash
+
+data FileIngestionMethod
+  = Flat
+  | FileRecursive
+  deriving (Eq, Bounded, Generic, Enum, Ord, Show)
+
+deriving via GenericArbitrary FileIngestionMethod
+  instance Arbitrary FileIngestionMethod
+
+data ContentAddressMethod
+  = FileIngestionMethod !FileIngestionMethod
+  -- ^ The path was added to the store via makeFixedOutputPath or
+  -- addToStore. It is addressed according to some hash algorithm
+  -- applied to the nar serialization via some 'NarHashMode'.
+  | TextIngestionMethod
+  -- ^ The path is a plain file added via makeTextPath or
+  -- addTextToStore. It is addressed according to a sha256sum of the
+  -- file contents.
+  deriving (Eq, Generic, Ord, Show)
+
+deriving via GenericArbitrary ContentAddressMethod
+  instance Arbitrary ContentAddressMethod
 
 -- | An address for a content-addressable store path, i.e. one whose
 -- store path hash is purely a function of its contents (as opposed to
@@ -31,74 +56,63 @@ import qualified System.Nix.Hash
 -- encodable in multiple ways, depending on the method used to add the
 -- path to the store. These unfortunately result in separate store
 -- paths.
-data ContentAddress
-  = -- | The path is a plain file added via makeTextPath or
-    -- addTextToStore. It is addressed according to a sha256sum of the
-    -- file contents.
-    Text !(Digest SHA256)
-  | -- | The path was added to the store via makeFixedOutputPath or
-    -- addToStore. It is addressed according to some hash algorithm
-    -- applied to the nar serialization via some 'NarHashMode'.
-    Fixed !NarHashMode !SomeNamedDigest
+data ContentAddress = ContentAddress
+  ContentAddressMethod
+  (DSum HashAlgo Digest)
   deriving (Eq, Generic, Ord, Show)
 
 deriving via GenericArbitrary ContentAddress
   instance Arbitrary ContentAddress
 
--- | Builder for `ContentAddress`
+-- | Marshall `ContentAddressableAddress` to `Text`
+-- in form suitable for remote protocol usage.
+buildContentAddress :: ContentAddress -> Text
+buildContentAddress =
+  Data.Text.Lazy.toStrict
+  . Data.Text.Lazy.Builder.toLazyText
+  . contentAddressBuilder
+
 contentAddressBuilder :: ContentAddress -> Builder
-contentAddressBuilder (Text digest) =
-  "text:"
-  <> System.Nix.Hash.digestBuilder digest
-contentAddressBuilder (Fixed narHashMode (SomeDigest (digest :: Digest hashAlgo))) =
-  "fixed:"
-  <> (if narHashMode == Recursive then "r:" else mempty)
---  <> Data.Text.Lazy.Builder.fromText (System.Nix.Hash.algoName @hashAlgo)
-  <> System.Nix.Hash.digestBuilder digest
+contentAddressBuilder (ContentAddress method digest) = case method of
+  TextIngestionMethod ->
+    "text:"
+    <> System.Nix.Hash.algoDigestBuilder digest
+  FileIngestionMethod r ->
+    "fixed:"
+    <> fileIngestionMethodBuilder r
+    <> System.Nix.Hash.algoDigestBuilder digest
+
+fileIngestionMethodBuilder :: FileIngestionMethod -> Builder
+fileIngestionMethodBuilder = \case
+  Flat -> ""
+  FileRecursive -> "r:"
+
+-- | Parse `ContentAddressableAddress` from `ByteString`
+parseContentAddress
+  :: Text -> Either String ContentAddress
+parseContentAddress =
+  Data.Attoparsec.Text.parseOnly contentAddressParser
 
 -- | Parser for content addressable field
-contentAddressParser :: Data.Attoparsec.ByteString.Char8.Parser ContentAddress
-contentAddressParser = caText <|> caFixed
+contentAddressParser :: Parser ContentAddress
+contentAddressParser = do
+  method <- parseContentAddressMethod
+  digest <- parseTypedDigest
+  case digest of
+    Left e -> fail e
+    Right x -> return $ ContentAddress method x
+
+parseContentAddressMethod :: Parser ContentAddressMethod
+parseContentAddressMethod =
+      TextIngestionMethod <$ "text:"
+  <|> FileIngestionMethod <$ "fixed:" <*> (FileRecursive <$ "r:" <|> pure Flat)
+
+parseTypedDigest :: Parser (Either String (DSum HashAlgo Digest))
+parseTypedDigest = System.Nix.Hash.mkNamedDigest <$> parseHashType <*> parseHash
   where
-  -- | Parser for @text:sha256:<h>@
-  --caText :: Parser ContentAddress
-  caText = do
-    _      <- "text:sha256:"
-    digest <- System.Nix.Hash.decodeDigestWith @SHA256 NixBase32 <$> parseHash
-    either fail pure $ Text <$> digest
+    parseHashType :: Parser Text
+    parseHashType =
+      ("sha256" <|> "sha512" <|> "sha1" <|> "md5") <* (":" <|> "-")
 
-  -- | Parser for @fixed:<r?>:<ht>:<h>@
-  --caFixed :: Parser ContentAddress
-  caFixed = do
-    _           <- "fixed:"
-    narHashMode <- (Recursive <$ "r:") <|> (RegularFile <$ "")
-    digest      <- parseTypedDigest
-    either fail pure $ Fixed narHashMode <$> digest
-
-  --parseTypedDigest :: Parser (Either String SomeNamedDigest)
-  parseTypedDigest = System.Nix.Hash.mkNamedDigest <$> parseHashType <*> parseHash
-
-  --parseHashType :: Parser Text
-  parseHashType =
-    Data.Text.Encoding.decodeUtf8
-    <$> ("sha256" <|> "sha512" <|> "sha1" <|> "md5") <* (":" <|> "-")
-
-  --parseHash :: Parser Text
-  parseHash =
-    Data.Text.Encoding.decodeUtf8
-    <$> Data.Attoparsec.ByteString.Char8.takeWhile1 (/= ':')
-
--- | Schemes for hashing a Nix archive.
---
--- For backwards-compatibility reasons, there are two different modes
--- here, even though 'Recursive' should be able to cover both.
-data NarHashMode
-  = -- | Require the nar to represent a non-executable regular file.
-    RegularFile
-  | -- | Hash an arbitrary nar, including a non-executable regular
-    -- file if so desired.
-    Recursive
-  deriving (Eq, Enum, Generic, Hashable, Ord, Show)
-
-deriving via GenericArbitrary NarHashMode
-  instance Arbitrary NarHashMode
+    parseHash :: Parser Text
+    parseHash = Data.Attoparsec.Text.takeWhile1 (/= ':')

@@ -35,7 +35,7 @@ import Data.HashSet (HashSet)
 import Data.Map (Map)
 import Data.Text (Text)
 import qualified Control.Monad
-import qualified Data.Attoparsec.ByteString.Char8
+import qualified Data.Attoparsec.Text
 import qualified Data.Text.Encoding
 import qualified System.Nix.Hash
 --
@@ -246,7 +246,7 @@ queryPathInfoUncached path = do
   ultimate         <- sockGetBool
 
   _sigStrings      <- fmap bsToText <$> sockGetStrings
-  caString         <- sockGetStr
+  caString         <- bsToText <$> sockGetStr
 
   let
       -- XXX: signatures need pubkey from config
@@ -254,7 +254,7 @@ queryPathInfoUncached path = do
 
       contentAddress =
         case
-          Data.Attoparsec.ByteString.Char8.parseOnly
+          Data.Attoparsec.Text.parseOnly
             System.Nix.ContentAddress.contentAddressParser
             caString
           of
