@@ -64,6 +64,7 @@ library
     , System.Nix.Build
     , System.Nix.ContentAddress
     , System.Nix.Derivation
+    , System.Nix.DerivedPath
     , System.Nix.Hash
     , System.Nix.Hash.Truncation
     , System.Nix.Nar
