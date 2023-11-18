@@ -33,9 +33,7 @@ data StorePathTrust
 -- | Metadata (typically about a 'StorePath')
 -- This type corresponds to Nix-es `ValidPathInfo`
 data Metadata a = Metadata
-  { -- | The path this metadata is about
-    path :: !a
-  , -- | The path to the derivation file that built this path, if any
+  { -- | The path to the derivation file that built this path, if any
     -- and known.
     deriverPath :: !(Maybe a)
   , -- TODO should this be optional?
