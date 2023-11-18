@@ -11,6 +11,11 @@ prop_storePathRoundtrip :: StoreDir -> StorePath -> Property
 prop_storePathRoundtrip storeDir x =
   parsePath storeDir (storePathToRawFilePath storeDir x) === pure x
 
+-- | Test @StorePath@ roundtrips using @parsePathFromText@
+prop_storePathFromTextRoundtrip :: StoreDir -> StorePath -> Property
+prop_storePathFromTextRoundtrip storeDir x =
+  parsePathFromText storeDir (storePathToText storeDir x) === pure x
+
 -- | Test @StorePath@ roundtrips using @pathParser@
 prop_storePathRoundtripParser :: StoreDir -> StorePath -> Property
 prop_storePathRoundtripParser storeDir x =

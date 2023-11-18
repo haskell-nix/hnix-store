@@ -26,6 +26,7 @@ module System.Nix.StorePath
   , storePathHashPartToText
   , -- * Parsing 'StorePath's
     parsePath
+  , parsePathFromText
   , pathParser
   )
 where
@@ -223,15 +224,14 @@ storePathHashPartToText :: StorePathHashPart -> Text
 storePathHashPartToText =
   System.Nix.Base.encodeWith NixBase32 . unStorePathHashPart
 
--- | Parse `StorePath` from `ByteString`, checking
--- that store directory matches `expectedRoot`.
-parsePath
+-- | Parse `StorePath` from `String`, internal
+parsePath'
   :: StoreDir
-  -> ByteString
+  -> String
   -> Either InvalidPathError StorePath
-parsePath expectedRoot x =
+parsePath' expectedRoot stringyPath =
   let
-    (rootDir, fname) = System.FilePath.splitFileName . Data.ByteString.Char8.unpack $ x
+    (rootDir, fname) = System.FilePath.splitFileName stringyPath
     (storeBasedHashPart, namePart) = Data.Text.breakOn "-" $ Data.Text.pack fname
     hashPart = Data.Bifunctor.bimap
       HashDecodingFailure
@@ -251,6 +251,22 @@ parsePath expectedRoot x =
                       }
   in
     either Left (pure $ StorePath <$> hashPart <*> name) storeDir
+
+-- | Parse `StorePath` from `ByteString`, checking
+-- that store directory matches `expectedRoot`.
+parsePath
+  :: StoreDir -- ^ expected @StoreDir@
+  -> ByteString
+  -> Either InvalidPathError StorePath
+parsePath sd = parsePath' sd . Data.ByteString.Char8.unpack
+
+-- | Parse `StorePath` from `Text`, checking
+-- that store directory matches `expectedRoot`.
+parsePathFromText
+  :: StoreDir -- ^ expected @StoreDir@
+  -> Text
+  -> Either InvalidPathError StorePath
+parsePathFromText sd = parsePath' sd . Data.Text.unpack
 
 -- | Attoparsec @StorePath@ @Parser@
 pathParser :: StoreDir -> Parser StorePath
