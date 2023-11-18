@@ -9,6 +9,8 @@ Description : Representation of Nix store paths.
 module System.Nix.StorePath
   ( -- * Basic store path types
     StoreDir(..)
+  , HasStoreDir(..)
+  , getStoreDir
   , StorePath(..)
   , StorePathName(..)
   , StorePathHashPart(..)
@@ -33,6 +35,7 @@ module System.Nix.StorePath
 #if !MIN_VERSION_base(4,18,0)
 import Control.Applicative (liftA2)
 #endif
+import Control.Monad.Reader.Class (MonadReader, asks)
 import Crypto.Hash (HashAlgorithm, SHA256)
 import Data.Attoparsec.Text.Lazy (Parser, (<?>))
 import Data.ByteString (ByteString)
@@ -188,6 +191,13 @@ instance Arbitrary StoreDir where
 
 instance Default StoreDir where
   def = StoreDir "/nix/store"
+
+class HasStoreDir r where
+  hasStoreDir :: r -> StoreDir
+
+-- | Ask for a @StoreDir@
+getStoreDir :: (HasStoreDir r, MonadReader r m) => m StoreDir
+getStoreDir = asks hasStoreDir
 
 -- | Render a 'StorePath' as a 'RawFilePath'.
 storePathToRawFilePath :: StoreDir -> StorePath -> RawFilePath
