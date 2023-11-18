@@ -30,31 +30,27 @@ module System.Nix.StorePath
 where
 
 import Control.Applicative
+import Crypto.Hash (HashAlgorithm, SHA256)
+import Data.Attoparsec.Text.Lazy (Parser, (<?>))
 import Data.ByteString (ByteString)
 import Data.Default.Class (Default(def))
 import Data.Hashable (Hashable(hashWithSalt))
 import Data.Text (Text)
 import GHC.Generics (Generic)
+import System.Nix.Base (BaseEncoding(NixBase32))
 import Test.QuickCheck (Arbitrary(arbitrary), listOf, elements)
 
-import System.Nix.Base (BaseEncoding(NixBase32))
-import qualified System.Nix.Base
-import qualified System.Nix.Hash
-import qualified System.Nix.Base32    as Nix.Base32
-
 import qualified Data.Bifunctor
-import qualified Data.ByteString.Char8         as Bytes.Char8
+import qualified Data.ByteString.Char8
 import qualified Data.Char
 import qualified Data.Text
 import qualified Data.Text.Encoding
-import           Data.Attoparsec.Text.Lazy      ( Parser
-                                                , (<?>)
-                                                )
-import qualified Data.Attoparsec.Text.Lazy     as Parser.Text.Lazy
-import qualified System.FilePath               as FilePath
-import           Crypto.Hash                    ( SHA256
-                                                , HashAlgorithm
-                                                )
+import qualified Data.Attoparsec.Text.Lazy
+import qualified System.FilePath
+
+import qualified System.Nix.Base
+import qualified System.Nix.Hash
+import qualified System.Nix.Base32
 
 -- | A path in a Nix store.
 --
@@ -112,8 +108,10 @@ newtype StorePathHashPart = StorePathHashPart
 instance Arbitrary StorePathHashPart where
   arbitrary =
     mkStorePathHashPart @SHA256
-    . Bytes.Char8.pack <$> arbitrary
+    . Data.ByteString.Char8.pack <$> arbitrary
 
+-- | Make @StorePathHashPart@ from @ByteString@ (hash part of the @StorePath@)
+-- using specific @HashAlgorithm@
 mkStorePathHashPart
   :: forall hashAlgo
    . HashAlgorithm hashAlgo
@@ -136,6 +134,8 @@ data InvalidPathError =
       }
   deriving (Eq, Generic, Hashable, Ord, Show)
 
+-- | Make @StorePathName@ from @Text@ (name part of the @StorePath@)
+-- or fail with @InvalidPathError@ if it isn't valid
 makeStorePathName :: Text -> Either InvalidPathError StorePathName
 makeStorePathName n =
   if validStorePathName n
@@ -178,7 +178,10 @@ newtype StoreDir = StoreDir {
   } deriving (Eq, Generic, Hashable, Ord, Show)
 
 instance Arbitrary StoreDir where
-  arbitrary = StoreDir . ("/" <>) . Bytes.Char8.pack <$> arbitrary
+  arbitrary =
+    StoreDir
+    . ("/" <>) -- TODO(srk): nasty, see #237
+    . Data.ByteString.Char8.pack <$> arbitrary
 
 instance Default StoreDir where
   def = StoreDir "/nix/store"
@@ -193,13 +196,13 @@ storePathToRawFilePath storeDir StorePath{..} =
 
 -- | Render a 'StorePath' as a 'FilePath'.
 storePathToFilePath :: StoreDir -> StorePath -> FilePath
-storePathToFilePath storeDir = Bytes.Char8.unpack . storePathToRawFilePath storeDir
+storePathToFilePath storeDir = Data.ByteString.Char8.unpack . storePathToRawFilePath storeDir
 
 -- | Render a 'StorePath' as a 'Text'.
 storePathToText :: StoreDir -> StorePath -> Text
 storePathToText storeDir =
   Data.Text.pack
-  . Bytes.Char8.unpack
+  . Data.ByteString.Char8.unpack
   . storePathToRawFilePath storeDir
 
 -- | Build `narinfo` suffix from `StorePath` which
@@ -217,15 +220,15 @@ storePathHashPartToText :: StorePathHashPart -> Text
 storePathHashPartToText =
   System.Nix.Base.encodeWith NixBase32 . unStorePathHashPart
 
--- | Parse `StorePath` from `Bytes.Char8.ByteString`, checking
+-- | Parse `StorePath` from `ByteString`, checking
 -- that store directory matches `expectedRoot`.
 parsePath
   :: StoreDir
-  -> Bytes.Char8.ByteString
+  -> ByteString
   -> Either InvalidPathError StorePath
 parsePath expectedRoot x =
   let
-    (rootDir, fname) = FilePath.splitFileName . Bytes.Char8.unpack $ x
+    (rootDir, fname) = System.FilePath.splitFileName . Data.ByteString.Char8.unpack $ x
     (storeBasedHashPart, namePart) = Data.Text.breakOn "-" $ Data.Text.pack fname
     hashPart = Data.Bifunctor.bimap
       HashDecodingFailure
@@ -235,41 +238,48 @@ parsePath expectedRoot x =
     --rootDir' = dropTrailingPathSeparator rootDir
     -- cannot use ^^ as it drops multiple slashes /a/b/// -> /a/b
     rootDir' = init rootDir
-    expectedRootS = Bytes.Char8.unpack (unStoreDir expectedRoot)
+    expectedRootS = Data.ByteString.Char8.unpack (unStoreDir expectedRoot)
     storeDir =
       if expectedRootS == rootDir'
         then pure rootDir'
         else Left $ RootDirMismatch
                       { rdMismatchExpected = expectedRoot
-                      , rdMismatchGot = StoreDir $ Bytes.Char8.pack rootDir
+                      , rdMismatchGot = StoreDir $ Data.ByteString.Char8.pack rootDir
                       }
   in
     either Left (pure $ StorePath <$> hashPart <*> name) storeDir
 
+-- | Attoparsec @StorePath@ @Parser@
 pathParser :: StoreDir -> Parser StorePath
 pathParser expectedRoot = do
-  let expectedRootS = Bytes.Char8.unpack (unStoreDir expectedRoot)
+  let expectedRootT =
+          Data.Text.pack
+        . Data.ByteString.Char8.unpack
+        $ unStoreDir expectedRoot
 
-  _ <-
-    Parser.Text.Lazy.string (Data.Text.pack expectedRootS)
+  _ <- Data.Attoparsec.Text.Lazy.string expectedRootT
       <?> "Store root mismatch" -- e.g. /nix/store
 
-  _ <- Parser.Text.Lazy.char '/'
+  _ <- Data.Attoparsec.Text.Lazy.char '/'
       <?> "Expecting path separator"
 
   digest <-
     System.Nix.Base.decodeWith NixBase32
-    <$> Parser.Text.Lazy.takeWhile1 (`elem` Nix.Base32.digits32)
+    <$> Data.Attoparsec.Text.Lazy.takeWhile1
+      (`elem` System.Nix.Base32.digits32)
       <?> "Invalid Base32 part"
 
-  _  <- Parser.Text.Lazy.char '-' <?> "Expecting dash (path name separator)"
+  _  <- Data.Attoparsec.Text.Lazy.char '-'
+      <?> "Expecting dash (path name separator)"
 
   c0 <-
-    Parser.Text.Lazy.satisfy (\c -> c /= '.' && validStorePathNameChar c)
+    Data.Attoparsec.Text.Lazy.satisfy
+      (\c -> c /= '.' && validStorePathNameChar c)
       <?> "Leading path name character is a dot or invalid character"
 
   rest <-
-    Parser.Text.Lazy.takeWhile validStorePathNameChar
+    Data.Attoparsec.Text.Lazy.takeWhile
+    validStorePathNameChar
       <?> "Path name contains invalid character"
 
   let name = makeStorePathName $ Data.Text.cons c0 rest
