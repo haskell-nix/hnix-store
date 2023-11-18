@@ -53,7 +53,7 @@ import           System.Nix.StorePath           ( StorePath
                                                 , StorePathHashPart
                                                 , InvalidPathError
                                                 )
-import           System.Nix.StorePathMetadata   ( Metadata(..)
+import           System.Nix.StorePath.Metadata  ( Metadata(..)
                                                 , StorePathTrust(..)
                                                 )
 

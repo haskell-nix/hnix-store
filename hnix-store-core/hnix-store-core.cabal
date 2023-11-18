@@ -74,7 +74,7 @@ library
     , System.Nix.ReadonlyStore
     , System.Nix.Signature
     , System.Nix.StorePath
-    , System.Nix.StorePathMetadata
+    , System.Nix.StorePath.Metadata
   build-depends:
       base >=4.12 && <5
     , attoparsec

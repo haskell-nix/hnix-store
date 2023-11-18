@@ -1,7 +1,7 @@
 {-|
 Description : Metadata about Nix store paths.
 -}
-module System.Nix.StorePathMetadata
+module System.Nix.StorePath.Metadata
   ( Metadata(..)
   , StorePathTrust(..)
   ) where
