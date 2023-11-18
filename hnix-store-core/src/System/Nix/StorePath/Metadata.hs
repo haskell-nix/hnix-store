@@ -6,13 +6,15 @@ module System.Nix.StorePath.Metadata
   , StorePathTrust(..)
   ) where
 
+import Crypto.Hash (Digest)
+import Data.Dependent.Sum (DSum)
 import Data.HashSet (HashSet)
 import Data.Set (Set)
 import Data.Time (UTCTime)
 import Data.Word (Word64)
 import GHC.Generics (Generic)
 
-import System.Nix.Hash (SomeNamedDigest)
+import System.Nix.Hash (HashAlgo)
 import System.Nix.Signature (NarSignature)
 import System.Nix.ContentAddress (ContentAddress)
 
@@ -38,7 +40,7 @@ data Metadata a = Metadata
     deriverPath :: !(Maybe a)
   , -- TODO should this be optional?
     -- | The hash of the nar serialization of the path.
-    narHash :: !SomeNamedDigest
+    narHash :: !(DSum HashAlgo Digest)
   , -- | The paths that this path directly references
     references :: !(HashSet a)
   , -- | When was this path registered valid in the store?

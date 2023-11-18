@@ -13,7 +13,6 @@ module System.Nix.Hash
   , NamedAlgo(..)
   , algoToText
   , textToAlgo
-  , SomeNamedDigest(..)
   , mkNamedDigest
 
   , mkStorePathHash
@@ -22,6 +21,7 @@ module System.Nix.Hash
   , encodeDigestWith
   , decodeDigestWith
 
+  , algoDigestBuilder
   , digestBuilder
   ) where
 
@@ -29,6 +29,9 @@ import Crypto.Hash (Digest, HashAlgorithm, MD5(..), SHA1(..), SHA256(..), SHA512
 import Data.ByteString (ByteString)
 import Data.Constraint.Extras (Has(has))
 import Data.Constraint.Extras.TH (deriveArgDict)
+import Data.Dependent.Sum (DSum((:=>)))
+import Data.GADT.Compare.TH (deriveGEq, deriveGCompare)
+import Data.GADT.Show.TH (deriveGShow)
 import Data.Kind (Type)
 import Data.Some (Some(Some))
 import Data.Text (Text)
@@ -81,13 +84,16 @@ data HashAlgo :: Type -> Type where
   HashAlgo_SHA256 :: HashAlgo SHA256
   HashAlgo_SHA512 :: HashAlgo SHA512
 
+deriveGEq ''HashAlgo
+deriveGCompare ''HashAlgo
+deriveGShow ''HashAlgo
 deriveArgDict ''HashAlgo
 
 algoToText :: forall t. HashAlgo t -> Text
 algoToText x = has @NamedAlgo x (algoName @t)
 
-_hashAlgoValue :: HashAlgo a -> a
-_hashAlgoValue = \case
+hashAlgoValue :: HashAlgo a -> a
+hashAlgoValue = \case
   HashAlgo_MD5 -> MD5
   HashAlgo_SHA1 -> SHA1
   HashAlgo_SHA256 -> SHA256
@@ -101,44 +107,20 @@ textToAlgo = \case
     "sha512" -> Right $ Some HashAlgo_SHA512
     name     -> Left $ "Unknown hash name: " <> Data.Text.unpack name
 
--- | A digest whose 'NamedAlgo' is not known at compile time.
-data SomeNamedDigest = forall a . NamedAlgo a => SomeDigest (Digest a)
-
-instance Arbitrary SomeNamedDigest where
+instance Arbitrary (DSum HashAlgo Digest)  where
   arbitrary = oneof
-    [ SomeDigest @MD5 <$> arbitrary
-    , SomeDigest @SHA1 <$> arbitrary
-    , SomeDigest @SHA256 <$> arbitrary
-    , SomeDigest @SHA512 <$> arbitrary
+    [ (HashAlgo_MD5 :=>)    <$> arbitrary
+    , (HashAlgo_SHA1 :=>)   <$> arbitrary
+    , (HashAlgo_SHA256 :=>) <$> arbitrary
+    , (HashAlgo_SHA512 :=>) <$> arbitrary
     ]
 
-instance Show SomeNamedDigest where
-  show sd = case sd of
-    SomeDigest (digest :: Digest hashType) ->
-      Data.Text.unpack $ "SomeDigest"
-      <> " "
-      <> algoName @hashType
-      <> ":"
-      <> encodeDigestWith NixBase32 digest
-
-instance Eq SomeNamedDigest where
-  (==) (SomeDigest (a :: Digest aType))
-       (SomeDigest (b :: Digest bType))
-    = algoName @aType == algoName @bType
-      && encodeDigestWith NixBase32 a == encodeDigestWith NixBase32 b
-
-instance Ord SomeNamedDigest where
-  (<=) (SomeDigest (a :: Digest aType))
-       (SomeDigest (b :: Digest bType))
-    = algoName @aType <= algoName @bType
-      && encodeDigestWith NixBase32 a <= encodeDigestWith NixBase32 b
-
--- | Make @SomeNamedDigest@ based on provided SRI hash name
+-- | Make @DSum HashAlgo Digest@ based on provided SRI hash name
 -- and its encoded form
 mkNamedDigest
   :: Text -- ^ SRI name
   -> Text -- ^ base encoded hash
-  -> Either String SomeNamedDigest
+  -> Either String (DSum HashAlgo Digest)
 mkNamedDigest name sriHash =
   let (sriName, h) = Data.Text.breakOnEnd "-" sriHash in
     if sriName == "" || sriName == name <> "-"
@@ -154,13 +136,10 @@ mkNamedDigest name sriHash =
       <> " "
       <> name
  where
-  mkDigest h = case name of
-    "md5"    -> SomeDigest <$> decodeGo MD5    h
-    "sha1"   -> SomeDigest <$> decodeGo SHA1   h
-    "sha256" -> SomeDigest <$> decodeGo SHA256 h
-    "sha512" -> SomeDigest <$> decodeGo SHA512 h
-    _        -> Left $ "Unknown hash name: " <> Data.Text.unpack name
-  decodeGo :: forall a . NamedAlgo a => a -> Text -> Either String (Digest a)
+  mkDigest h =
+    textToAlgo name
+    >>= \(Some a) -> has @HashAlgorithm a $ fmap (a :=>) $ decodeGo a h
+  decodeGo :: HashAlgorithm a => HashAlgo a -> Text -> Either String (Digest a)
   decodeGo a h
     | size == base16Len = decodeDigestWith Base16 h
     | size == base32Len = decodeDigestWith NixBase32 h
@@ -181,7 +160,7 @@ mkNamedDigest name sriHash =
         <> Data.Text.pack (show [base16Len, base32Len, base64Len])
    where
     size = Data.Text.length h
-    hsize = Crypto.Hash.hashDigestSize a
+    hsize = Crypto.Hash.hashDigestSize (hashAlgoValue a)
     base16Len = hsize * 2
     base32Len = ((hsize * 8 - 1) `div` 5) + 1;
     base64Len = ((4 * hsize `div` 3) + 3) `div` 4 * 4;
@@ -227,3 +206,10 @@ digestBuilder digest =
   <> ":"
   <> Data.Text.Lazy.Builder.fromText
       (System.Nix.Hash.encodeDigestWith NixBase32 digest)
+
+-- | Builder for @DSum HashAlgo Digest@s
+algoDigestBuilder :: DSum HashAlgo Digest -> Builder
+algoDigestBuilder (a :=> d) =
+  Data.Text.Lazy.Builder.fromText (System.Nix.Hash.algoToText a)
+  <> ":"
+  <> Data.Text.Lazy.Builder.fromText (encodeDigestWith NixBase32 d)

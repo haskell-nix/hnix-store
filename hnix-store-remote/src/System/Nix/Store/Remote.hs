@@ -30,12 +30,14 @@ module System.Nix.Store.Remote
   , module System.Nix.Store.Remote.Types
   ) where
 
+import Data.Dependent.Sum (DSum((:=>)))
 import Data.HashSet (HashSet)
 import Data.Map (Map)
 import Data.Text (Text)
 import qualified Control.Monad
 import qualified Data.Attoparsec.ByteString.Char8
 import qualified Data.Text.Encoding
+import qualified System.Nix.Hash
 --
 import qualified Data.ByteString.Lazy          as BSL
 
@@ -44,7 +46,6 @@ import           System.Nix.Build               ( BuildMode
                                                 , BuildResult
                                                 )
 import           System.Nix.Hash                ( NamedAlgo(..)
-                                                , SomeNamedDigest(..)
                                                 , BaseEncoding(NixBase32)
                                                 , decodeDigestWith
                                                 )
@@ -237,7 +238,7 @@ queryPathInfoUncached path = do
         decodeDigestWith @SHA256 NixBase32 narHashText
         of
         Left  e -> error e
-        Right x -> SomeDigest x
+        Right d -> System.Nix.Hash.HashAlgo_SHA256 :=> d
 
   references       <- sockGetPaths
   registrationTime <- sockGet getTime

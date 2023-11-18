@@ -80,10 +80,11 @@ library
     , containers
     , cryptonite
     , data-default-class
+    , dependent-sum > 0.7 && < 1
     , text
     , time
     , network
-    , nix-derivation >= 1.1.1 && <2
+    , nix-derivation >= 1.1.1 && < 2
     , mtl
     , unordered-containers
     , hnix-store-core >= 0.7 && <0.8
