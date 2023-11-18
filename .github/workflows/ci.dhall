@@ -11,8 +11,7 @@ in    haskellCi.generalCi
                     defSteps.extraSteps.pre
                   # [ haskellCi.installCachixStep "hnix-store"
                     , haskellCi.BuildStep.NameIf
-                        { name =
-                            "Install libsodium"
+                        { name = "Install libsodium"
                         , run = "sudo apt install libsodium-dev"
                         , `if` = "matrix.os == 'ubuntu-latest'"
                         }
@@ -21,7 +20,11 @@ in    haskellCi.generalCi
         )
         haskellCi.DhallMatrix::{
         , ghc =
-          [ haskellCi.GHC.GHC963, haskellCi.GHC.GHC947, haskellCi.GHC.GHC902 ]
+          [ haskellCi.GHC.GHC963
+          , haskellCi.GHC.GHC947
+          , haskellCi.GHC.GHC902
+          , haskellCi.GHC.GHC8107
+          ]
         , os = [ haskellCi.OS.Ubuntu, haskellCi.OS.MacOS ]
         }
     : haskellCi.CI.Type
