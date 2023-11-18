@@ -60,6 +60,7 @@ library
       System.Nix.Base
     , System.Nix.Base32
     , System.Nix.Build
+    , System.Nix.ContentAddress
     , System.Nix.Derivation
     , System.Nix.Hash
     , System.Nix.Hash.Truncation
@@ -117,7 +118,7 @@ test-suite format-tests
   main-is: Driver.hs
   other-modules:
     Derivation
-    ContentAddressableAddress
+    ContentAddress
     NarFormat
     Hash
     StorePath

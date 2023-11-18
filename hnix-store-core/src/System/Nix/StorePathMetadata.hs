@@ -14,7 +14,7 @@ import GHC.Generics (Generic)
 
 import System.Nix.Hash (SomeNamedDigest)
 import System.Nix.Signature (NarSignature)
-import System.Nix.StorePath (ContentAddressableAddress)
+import System.Nix.ContentAddress (ContentAddress)
 
 -- | Metadata (typically about a 'StorePath')
 data Metadata a = Metadata
@@ -43,7 +43,7 @@ data Metadata a = Metadata
     --
     -- There is no guarantee from this type alone that this address
     -- is actually correct for this store path.
-    contentAddressableAddress :: !(Maybe ContentAddressableAddress)
+    contentAddress :: !(Maybe ContentAddress)
   } deriving (Eq, Generic, Ord, Show)
 
 -- | How much do we trust the path, based on its provenance?

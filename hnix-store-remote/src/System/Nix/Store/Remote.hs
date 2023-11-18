@@ -62,6 +62,7 @@ import qualified Data.Binary.Put
 import qualified Data.Map.Strict
 import qualified Data.Set
 
+import qualified System.Nix.ContentAddress
 import qualified System.Nix.StorePath
 
 import           System.Nix.Store.Remote.Binary
@@ -251,10 +252,10 @@ queryPathInfoUncached path = do
       -- XXX: signatures need pubkey from config
       sigs = Data.Set.empty
 
-      contentAddressableAddress =
+      contentAddress =
         case
           Data.Attoparsec.ByteString.Char8.parseOnly
-            System.Nix.StorePath.contentAddressableAddressParser
+            System.Nix.ContentAddress.contentAddressParser
             caString
           of
           Left  e -> error e
