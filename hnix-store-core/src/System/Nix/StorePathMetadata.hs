@@ -16,6 +16,18 @@ import System.Nix.Hash (SomeNamedDigest)
 import System.Nix.Signature (NarSignature)
 import System.Nix.ContentAddress (ContentAddress)
 
+-- | How much do we trust the path, based on its provenance?
+-- This is called `Ultimate` in Nix, where Ultimate = True
+-- means that the path is ultimately trusted, which
+-- corresponds to our @BuiltLocally@
+data StorePathTrust
+  = -- | It was built locally and thus ultimately trusted
+    BuiltLocally
+  | -- | It was built elsewhere (and substituted or similar) and so
+    -- is less trusted
+    BuiltElsewhere
+  deriving (Eq, Enum, Generic, Ord, Show)
+
 -- | Metadata (typically about a 'StorePath')
 data Metadata a = Metadata
   { -- | The path this metadata is about
@@ -32,7 +44,7 @@ data Metadata a = Metadata
     registrationTime :: !UTCTime
   , -- | The size of the nar serialization of the path, in bytes.
     narBytes :: !(Maybe Word64)
-  , -- | How much we trust this path.
+  , -- | How much we trust this path. Nix-es ultimate
     trust :: !StorePathTrust
   , -- | A set of cryptographic attestations of this path's validity.
     --
@@ -45,12 +57,3 @@ data Metadata a = Metadata
     -- is actually correct for this store path.
     contentAddress :: !(Maybe ContentAddress)
   } deriving (Eq, Generic, Ord, Show)
-
--- | How much do we trust the path, based on its provenance?
-data StorePathTrust
-  = -- | It was built locally and thus ultimately trusted
-    BuiltLocally
-  | -- | It was built elsewhere (and substituted or similar) and so
-    -- is less trusted
-    BuiltElsewhere
-  deriving (Eq, Enum, Generic, Ord, Show)
