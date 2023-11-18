@@ -29,6 +29,7 @@ data StorePathTrust
   deriving (Eq, Enum, Generic, Ord, Show)
 
 -- | Metadata (typically about a 'StorePath')
+-- This type corresponds to Nix-es `ValidPathInfo`
 data Metadata a = Metadata
   { -- | The path this metadata is about
     path :: !a
