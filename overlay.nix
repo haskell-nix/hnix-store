@@ -3,6 +3,14 @@ let
   lib = pkgs.lib;
 in
 {
+  # srk 2023-11-18: this is pinned in nixpkgs unstable to 1.0.5
+  # causing trouble with ghc963
+  some = helf.callHackageDirect
+    { pkg = "some";
+      ver = "1.0.6";
+      sha256 = "sha256-AnjaUzSlsLi3lIURrEfs92Jo5FzX49RyNdfDSfFV3Kk=";
+    } {};
+
   hnix-store-core =
     lib.pipe
       (helf.callCabal2nix "hnix-store-core" ./hnix-store-core {})
