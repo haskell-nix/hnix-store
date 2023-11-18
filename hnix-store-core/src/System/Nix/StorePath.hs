@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-|
@@ -29,7 +30,9 @@ module System.Nix.StorePath
   )
 where
 
-import Control.Applicative
+#if !MIN_VERSION_base(4,18,0)
+import Control.Applicative (liftA2)
+#endif
 import Crypto.Hash (HashAlgorithm, SHA256)
 import Data.Attoparsec.Text.Lazy (Parser, (<?>))
 import Data.ByteString (ByteString)
