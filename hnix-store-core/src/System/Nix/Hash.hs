@@ -17,11 +17,14 @@ module System.Nix.Hash
   , System.Nix.Base.BaseEncoding(..)
   , encodeDigestWith
   , decodeDigestWith
+
+  , digestBuilder
   ) where
 
 import Crypto.Hash (Digest, HashAlgorithm, MD5(..), SHA1(..), SHA256(..), SHA512(..))
 import Data.ByteString (ByteString)
 import Data.Text (Text)
+import Data.Text.Lazy.Builder (Builder)
 import System.Nix.Base (BaseEncoding(..))
 import Test.QuickCheck (Arbitrary(arbitrary), oneof)
 import Test.QuickCheck.Instances ()
@@ -29,6 +32,7 @@ import Test.QuickCheck.Instances ()
 import qualified Crypto.Hash
 import qualified Data.ByteArray
 import qualified Data.Text
+import qualified Data.Text.Lazy.Builder
 import qualified System.Nix.Base
 import qualified System.Nix.Hash.Truncation
 
@@ -181,3 +185,11 @@ decodeDigestWith b x =
     maybeToRight :: b -> Maybe a -> Either b a
     maybeToRight _ (Just r) = pure r
     maybeToRight y Nothing  = Left y
+
+-- | Builder for @Digest@s
+digestBuilder :: forall hashAlgo . (NamedAlgo hashAlgo) => Digest hashAlgo -> Builder
+digestBuilder digest =
+  Data.Text.Lazy.Builder.fromText (System.Nix.Hash.algoName @hashAlgo)
+  <> ":"
+  <> Data.Text.Lazy.Builder.fromText
+      (System.Nix.Hash.encodeDigestWith NixBase32 digest)
