@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-|
 Description : Cryptographic hashing interface for hnix-store, on top
@@ -8,7 +9,10 @@ Description : Cryptographic hashing interface for hnix-store, on top
 -}
 
 module System.Nix.Hash
-  ( NamedAlgo(..)
+  ( HashAlgo(..)
+  , NamedAlgo(..)
+  , algoToText
+  , textToAlgo
   , SomeNamedDigest(..)
   , mkNamedDigest
 
@@ -23,6 +27,10 @@ module System.Nix.Hash
 
 import Crypto.Hash (Digest, HashAlgorithm, MD5(..), SHA1(..), SHA256(..), SHA512(..))
 import Data.ByteString (ByteString)
+import Data.Constraint.Extras (Has(has))
+import Data.Constraint.Extras.TH (deriveArgDict)
+import Data.Kind (Type)
+import Data.Some (Some(Some))
 import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder)
 import System.Nix.Base (BaseEncoding(..))
@@ -66,6 +74,32 @@ instance Arbitrary (Digest SHA256) where
 
 instance Arbitrary (Digest SHA512) where
   arbitrary = Crypto.Hash.hash @ByteString <$> arbitrary
+
+data HashAlgo :: Type -> Type where
+  HashAlgo_MD5 :: HashAlgo MD5
+  HashAlgo_SHA1 :: HashAlgo SHA1
+  HashAlgo_SHA256 :: HashAlgo SHA256
+  HashAlgo_SHA512 :: HashAlgo SHA512
+
+deriveArgDict ''HashAlgo
+
+algoToText :: forall t. HashAlgo t -> Text
+algoToText x = has @NamedAlgo x (algoName @t)
+
+_hashAlgoValue :: HashAlgo a -> a
+_hashAlgoValue = \case
+  HashAlgo_MD5 -> MD5
+  HashAlgo_SHA1 -> SHA1
+  HashAlgo_SHA256 -> SHA256
+  HashAlgo_SHA512 -> SHA512
+
+textToAlgo :: Text -> Either String (Some HashAlgo)
+textToAlgo = \case
+    "md5"    -> Right $ Some HashAlgo_MD5
+    "sha1"   -> Right $ Some HashAlgo_SHA1
+    "sha256" -> Right $ Some HashAlgo_SHA256
+    "sha512" -> Right $ Some HashAlgo_SHA512
+    name     -> Left $ "Unknown hash name: " <> Data.Text.unpack name
 
 -- | A digest whose 'NamedAlgo' is not known at compile time.
 data SomeNamedDigest = forall a . NamedAlgo a => SomeDigest (Digest a)

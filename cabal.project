@@ -4,4 +4,3 @@ packages:
 
 package hnix-store-remote
   flags: +build-readme +io-testsuite
-

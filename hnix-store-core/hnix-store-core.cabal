@@ -37,6 +37,7 @@ common commons
     , ExistentialQuantification
     , FlexibleContexts
     , FlexibleInstances
+    , GADTs
     , StandaloneDeriving
     , ScopedTypeVariables
     , StandaloneDeriving
@@ -48,6 +49,7 @@ common commons
     , InstanceSigs
     , KindSignatures
     , MultiParamTypeClasses
+    , MultiWayIf
     , TupleSections
     , LambdaCase
     , BangPatterns
@@ -83,6 +85,7 @@ library
     , case-insensitive
     , cereal
     , containers
+    , constraints-extras
     , data-default-class
     , generic-arbitrary < 1.1
     -- Required for cryptonite low-level type convertion
@@ -97,7 +100,8 @@ library
     , nix-derivation >= 1.1.1 && <2
     , QuickCheck
     , quickcheck-instances
-    , saltine
+    , saltine >= 0.2 && < 0.3
+    , some > 1.0.5 && < 2
     , time
     , text
     , unix
