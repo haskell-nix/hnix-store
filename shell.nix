@@ -23,7 +23,7 @@ let
           packages));
   metaPackage =
     haskellPackages.mkDerivation
-      { pname = "hnix-store-core";
+      { pname = "hnix-store-shell";
         version = "0.0.0.0";
         libraryHaskellDepends = external-inputs;
         license = pkgs.stdenv.lib.licenses.asl20;};
