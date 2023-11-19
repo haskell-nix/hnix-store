@@ -31,9 +31,9 @@ in
   # - some weird interaction in unstable as this builds
   # with cabal and 0.2.0.0
   dependent-sum-template =
-    if compiler == "ghc963"
-    then hsuper.dependent-sum-template
-    else hsuper.dependent-sum-template_0_2_0_0;
+    if compiler == "ghc8107" || compiler == "ghc902" || compiler == "ghc928"
+    then hsuper.dependent-sum-template_0_2_0_0
+    else hsuper.dependent-sum-template;
 
   # srk 2023-11-19: wider unix bound via CPP
   # Required for ghc963 since linux-namespaces is pinned
