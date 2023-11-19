@@ -89,7 +89,7 @@ library
     , constraints-extras
     , data-default-class
     , dependent-sum > 0.7
-    , dependent-sum-template > 0.1.1 && < 0.2
+    , dependent-sum-template > 0.1.1 && < 0.3
     , generic-arbitrary < 1.1
     -- Required for cryptonite low-level type convertion
     , memory
