@@ -76,7 +76,7 @@ parseDerivedPath root p =
            <$> (convertError $ System.Nix.StorePath.parsePathFromText root s)
       else DerivedPath_Built
            <$> (convertError $ System.Nix.StorePath.parsePathFromText root s)
-           <*> parseOutputsSpec (Data.Text.tail r)
+           <*> parseOutputsSpec (Data.Text.drop (Data.Text.length "!") r)
 
 derivedPathToText :: StoreDir -> DerivedPath -> Text
 derivedPathToText root = \case
