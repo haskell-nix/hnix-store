@@ -2,7 +2,7 @@
 , compiler ? null
 }:
 let
-  overlay = import ./overlay.nix pkgs pkgs.haskell.lib;
+  overlay = import ./overlay.nix pkgs compiler;
   overrideHaskellPackages = orig: {
     buildHaskellPackages =
       orig.buildHaskellPackages.override overrideHaskellPackages;
