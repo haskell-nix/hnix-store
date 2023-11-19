@@ -46,7 +46,7 @@ jobs:
     - name: haddock all
       run: cabal haddock all
     - name: Build with Nix
-      run: "nix-build"
+      run: "nix-build --argstr compiler $(echo ghc${{ matrix.ghc }} | tr -d '.')"
     strategy:
       matrix:
         cabal:
