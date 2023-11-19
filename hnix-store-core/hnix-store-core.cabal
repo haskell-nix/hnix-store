@@ -125,6 +125,7 @@ test-suite format-tests
   main-is: Driver.hs
   other-modules:
     Derivation
+    DerivedPath
     ContentAddress
     NarFormat
     Hash
