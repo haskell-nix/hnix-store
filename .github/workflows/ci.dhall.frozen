@@ -1,0 +1,31 @@
+let haskellCi =
+      https://raw.githubusercontent.com/sorki/github-actions-dhall/main/haskell-ci.dhall
+        sha256:9e49c0d57a38ab766825b3d2de6656d998b15eec873982db97d590ef58298601
+
+let defSteps = haskellCi.defaultCabalSteps
+
+in    haskellCi.generalCi
+        ( haskellCi.withNix
+            ( defSteps
+              with extraSteps.pre
+                   =
+                    defSteps.extraSteps.pre
+                  # [ haskellCi.installCachixStep "hnix-store"
+                    , haskellCi.BuildStep.NameIf
+                        { name = "Install libsodium"
+                        , run = "sudo apt install libsodium-dev"
+                        , `if` = "matrix.os == 'ubuntu-latest'"
+                        }
+                    ]
+            )
+        )
+        haskellCi.DhallMatrix::{
+        , ghc =
+          [ haskellCi.GHC.GHC963
+          , haskellCi.GHC.GHC947
+          , haskellCi.GHC.GHC902
+          , haskellCi.GHC.GHC8107
+          ]
+        , os = [ haskellCi.OS.Ubuntu, haskellCi.OS.MacOS ]
+        }
+    : haskellCi.CI.Type
