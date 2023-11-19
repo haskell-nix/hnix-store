@@ -73,7 +73,7 @@ library
 
   build-depends:
       base >=4.12 && <5
-    , hnix-store-core >= 0.7 && <0.8
+    , hnix-store-core >= 0.8 && <0.9
     , attoparsec
     , binary
     , bytestring

@@ -44,7 +44,7 @@ library
     , System.Nix.Arbitrary.StorePath
   build-depends:
       base >=4.12 && <5
-    , hnix-store-core
+    , hnix-store-core >= 0.8
     , bytestring
     , cryptonite
     , dependent-sum > 0.7

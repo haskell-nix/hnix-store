@@ -72,13 +72,13 @@ library
 
   build-depends:
       base >=4.10 && <5
+    , hnix-store-core >= 0.8
     , attoparsec
     , bytestring
     , bytestring
     , data-default-class
     , text
     , time
-    , hnix-store-core
     , esqueleto >= 3.5.10 && < 3.6
     , persistent >= 2.14.5 && < 2.15
     , persistent-sqlite >= 2.13.1 && < 2.14
