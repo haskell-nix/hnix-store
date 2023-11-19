@@ -23,6 +23,7 @@ in    haskellCi.generalCi
         , ghc =
           [ haskellCi.GHC.GHC963
           , haskellCi.GHC.GHC947
+          , haskellCi.GHC.GHC928
           , haskellCi.GHC.GHC902
           , haskellCi.GHC.GHC8107
           ]
