@@ -36,8 +36,7 @@ data Metadata a = Metadata
   { -- | The path to the derivation file that built this path, if any
     -- and known.
     deriverPath :: !(Maybe a)
-  , -- TODO should this be optional?
-    -- | The hash of the nar serialization of the path.
+  , -- | The hash of the nar serialization of the path.
     narHash :: !(DSum HashAlgo Digest)
   , -- | The paths that this path directly references
     references :: !(HashSet a)
