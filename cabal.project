@@ -2,6 +2,7 @@ packages:
   ./hnix-store-core/hnix-store-core.cabal
   ./hnix-store-db/hnix-store-db.cabal
   ./hnix-store-remote/hnix-store-remote.cabal
+  ./hnix-store-tests/hnix-store-tests.cabal
 
 -- till https://github.com/obsidiansystems/dependent-sum/pull/80
 allow-newer:

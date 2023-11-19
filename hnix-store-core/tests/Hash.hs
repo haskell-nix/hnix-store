@@ -6,23 +6,17 @@ module Hash where
 import Data.ByteString (ByteString)
 
 import Control.Monad
+import Crypto.Hash (MD5, SHA1, SHA256, hash)
 import qualified Data.ByteString.Base16      as B16
 import qualified System.Nix.Base32           as B32
 import qualified Data.ByteString.Base64.Lazy as B64
-import qualified Data.ByteString.Char8       as BSC
 import qualified Data.ByteString.Lazy        as BSL
 
-import           Test.Hspec
-import           Test.Tasty.QuickCheck
 
-import           System.Nix.Hash
-import           System.Nix.StorePath
-import           System.Nix.Base
-import           Crypto.Hash                ( MD5
-                                            , SHA1
-                                            , SHA256
-                                            , hash
-                                            )
+import System.Nix.Base
+import System.Nix.Hash
+import System.Nix.StorePath
+import Test.Hspec
 
 spec_hash :: Spec
 spec_hash = do
@@ -44,22 +38,6 @@ spec_hash = do
     it "produces same base32 as nix pill flat file example" $ do
       shouldBe (encodeWith NixBase32 $ unStorePathHashPart $ mkStorePathHashPart @SHA256 "source:sha256:2bfef67de873c54551d884fdab3055d84d573e654efa79db3c0d7b98883f9ee3:/nix/store:myfile")
         "xv2iccirbrvklck36f1g7vldn5v58vck"
-
--- | Test that Nix-like base32 encoding roundtrips
-prop_nixBase32Roundtrip :: Property
-prop_nixBase32Roundtrip = forAllShrink nonEmptyString genericShrink $
-  \x -> pure (BSC.pack x) === (B32.decode . B32.encode . BSC.pack $ x)
-  where
-    nonEmptyString :: Gen String
-    nonEmptyString = listOf1 genSafeChar
-
-    genSafeChar :: Gen Char
-    genSafeChar = choose ('\1', '\127') -- ASCII without \NUL
-
--- | API variants
-prop_nixBase16Roundtrip :: StorePathHashPart -> Property
-prop_nixBase16Roundtrip x =
-  pure (unStorePathHashPart x) === decodeWith Base16 (encodeWith Base16 $ unStorePathHashPart x)
 
 -- | Hash encoding conversion ground-truth.
 -- Similiar to nix/tests/hash.sh

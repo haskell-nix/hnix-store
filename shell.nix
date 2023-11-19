@@ -7,6 +7,7 @@ let
     "hnix-store-core"
     "hnix-store-db"
     "hnix-store-remote"
+    "hnix-store-tests"
   ];
   extract-external-inputs = p:
     builtins.filter

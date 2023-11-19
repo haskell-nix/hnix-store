@@ -8,3 +8,6 @@ package hnix-store-db
 
 package hnix-store-remote
   ghc-options: -Wunused-packages -Wall -Werror
+
+package hnix-store-tests
+  ghc-options: -Wunused-packages -Wall -Werror

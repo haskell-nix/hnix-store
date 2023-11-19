@@ -14,8 +14,6 @@ import GHC.Generics (Generic)
 import Data.Set (Set)
 import Data.Text (Text)
 import System.Nix.StorePath (StoreDir, StorePath, StorePathName, InvalidPathError)
-import Test.QuickCheck (Arbitrary)
-import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
 
 import qualified Data.Set
 import qualified Data.Text
@@ -26,16 +24,10 @@ data OutputsSpec =
   | OutputsSpec_Names (Set StorePathName)
   deriving (Eq, Generic, Ord, Show)
 
-deriving via GenericArbitrary OutputsSpec
-  instance Arbitrary OutputsSpec
-
 data DerivedPath =
     DerivedPath_Opaque StorePath
   | DerivedPath_Built StorePath OutputsSpec
   deriving (Eq, Generic, Ord, Show)
-
-deriving via GenericArbitrary DerivedPath
-  instance Arbitrary DerivedPath
 
 data ParseOutputsError =
     ParseOutputsError_InvalidPath InvalidPathError

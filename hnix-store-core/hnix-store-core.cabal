@@ -89,7 +89,6 @@ library
     , data-default-class
     , dependent-sum > 0.7
     , dependent-sum-template > 0.1.1 && < 0.3
-    , generic-arbitrary < 1.1
     -- Required for cryptonite low-level type convertion
     , memory
     , cryptonite
@@ -100,8 +99,6 @@ library
     , monad-control
     , mtl
     , nix-derivation >= 1.1.1 && <2
-    , QuickCheck
-    , quickcheck-instances
     , saltine >= 0.2 && < 0.3
     , some > 1.0.5 && < 2
     , time
@@ -124,11 +121,8 @@ test-suite format-tests
   main-is: Driver.hs
   other-modules:
     Derivation
-    DerivedPath
-    ContentAddress
     NarFormat
     Hash
-    StorePath
   hs-source-dirs:
     tests
   build-tool-depends:
@@ -147,7 +141,6 @@ test-suite format-tests
     , directory
     , filepath
     , process
-    , nix-derivation >= 1.1.1 && <2
     , tasty
     , tasty-golden
     , hspec

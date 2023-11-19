@@ -20,6 +20,7 @@ import qualified Data.HashSet
 import qualified Data.Time.Clock.POSIX
 import qualified System.Nix.Build
 
+import System.Nix.Arbitrary ()
 import System.Nix.Build (BuildMode, BuildStatus)
 import System.Nix.Derivation (Derivation(..))
 import System.Nix.StorePath (StoreDir, StorePath)

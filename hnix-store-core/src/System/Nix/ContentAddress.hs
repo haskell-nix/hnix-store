@@ -2,6 +2,8 @@
 
 module System.Nix.ContentAddress (
     ContentAddress
+  , ContentAddressMethod
+  , FileIngestionMethod
   , contentAddressBuilder
   , contentAddressParser
   , buildContentAddress
@@ -16,9 +18,6 @@ import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder)
 import GHC.Generics (Generic)
 import System.Nix.Hash (HashAlgo)
-import Test.QuickCheck (Arbitrary)
-import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
-import Test.QuickCheck.Instances ()
 
 import qualified Data.Attoparsec.Text
 import qualified Data.Text.Lazy
@@ -30,9 +29,6 @@ data FileIngestionMethod
   | FileRecursive
   deriving (Eq, Bounded, Generic, Enum, Ord, Show)
 
-deriving via GenericArbitrary FileIngestionMethod
-  instance Arbitrary FileIngestionMethod
-
 data ContentAddressMethod
   = FileIngestionMethod !FileIngestionMethod
   -- ^ The path was added to the store via makeFixedOutputPath or
@@ -43,9 +39,6 @@ data ContentAddressMethod
   -- addTextToStore. It is addressed according to a sha256sum of the
   -- file contents.
   deriving (Eq, Generic, Ord, Show)
-
-deriving via GenericArbitrary ContentAddressMethod
-  instance Arbitrary ContentAddressMethod
 
 -- | An address for a content-addressable store path, i.e. one whose
 -- store path hash is purely a function of its contents (as opposed to
@@ -60,9 +53,6 @@ data ContentAddress = ContentAddress
   ContentAddressMethod
   (DSum HashAlgo Digest)
   deriving (Eq, Generic, Ord, Show)
-
-deriving via GenericArbitrary ContentAddress
-  instance Arbitrary ContentAddress
 
 -- | Marshall `ContentAddressableAddress` to `Text`
 -- in form suitable for remote protocol usage.
