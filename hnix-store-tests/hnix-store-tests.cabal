@@ -42,6 +42,7 @@ library
     , System.Nix.Arbitrary.DerivedPath
     , System.Nix.Arbitrary.Hash
     , System.Nix.Arbitrary.StorePath
+    , Test.Hspec.Nix
   build-depends:
       base >=4.12 && <5
     , hnix-store-core >= 0.8
@@ -49,6 +50,7 @@ library
     , cryptonite
     , dependent-sum > 0.7
     , generic-arbitrary < 1.1
+    , hspec
     , QuickCheck
     , quickcheck-instances
     , text
@@ -73,7 +75,6 @@ test-suite props
     , hnix-store-core
     , hnix-store-tests
     , attoparsec
-    , bytestring
     , containers
     , data-default-class
     , QuickCheck

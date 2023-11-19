@@ -1,21 +1,16 @@
 module ContentAddressSpec where
 
-import Test.Hspec (Spec, describe, shouldBe)
+import Test.Hspec (Spec, describe)
 import Test.Hspec.QuickCheck (prop)
+import Test.Hspec.Nix (roundtrips)
 import System.Nix.Arbitrary ()
-
-import qualified Data.Attoparsec.Text.Lazy
-import qualified Data.Text.Lazy.Builder
 
 import qualified System.Nix.ContentAddress
 
 spec :: Spec
 spec = do
   describe "ContentAddress" $ do
-    prop "roundtrips" $ \caAddr ->
-      Data.Attoparsec.Text.Lazy.parseOnly
-        System.Nix.ContentAddress.contentAddressParser
-          (Data.Text.Lazy.Builder.toLazyText
-            (System.Nix.ContentAddress.contentAddressBuilder caAddr))
-      `shouldBe` pure caAddr
-
+    prop "roundtrips" $
+      roundtrips
+        System.Nix.ContentAddress.buildContentAddress
+        System.Nix.ContentAddress.parseContentAddress

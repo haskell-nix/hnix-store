@@ -112,19 +112,18 @@ test-suite remote
   ghc-options:       -Wall
   other-modules:
       SerializeSpec
+  build-tool-depends:
+    hspec-discover:hspec-discover
   build-depends:
       base >=4.12 && <5
     , hnix-store-core
     , hnix-store-remote
     , hnix-store-tests
-    , bytestring
     , cereal
     , text
     , time
     , hspec
-    , tasty
-    , tasty-hspec
-    , tasty-quickcheck
+    , QuickCheck
     , quickcheck-instances
     , unordered-containers
 
@@ -142,6 +141,8 @@ test-suite remote-io
   other-modules:
       NixDaemon
     , Spec
+  build-tool-depends:
+    tasty-discover:tasty-discover
   build-depends:
       base >=4.12 && <5
     , hnix-store-core

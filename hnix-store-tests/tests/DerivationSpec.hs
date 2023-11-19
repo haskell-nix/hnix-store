@@ -1,7 +1,8 @@
 module DerivationSpec where
 
-import Test.Hspec (Spec, describe, shouldBe)
+import Test.Hspec (Spec, describe)
 import Test.Hspec.QuickCheck (xprop)
+import Test.Hspec.Nix (roundtrips)
 
 import System.Nix.Arbitrary ()
 import System.Nix.Derivation (parseDerivation, buildDerivation)
@@ -17,11 +18,10 @@ import qualified Data.Text.Lazy.Builder
 spec :: Spec
 spec = do
   describe "Derivation" $ do
-    xprop "roundtrips via Text" $ \sd drv ->
-      Data.Attoparsec.Text.parseOnly (parseDerivation sd)
-       ( Data.Text.Lazy.toStrict
-       $ Data.Text.Lazy.Builder.toLazyText
-       $ buildDerivation sd drv
-       )
-      `shouldBe` pure drv
-
+    xprop "roundtrips via Text" $ \sd ->
+      roundtrips
+        ( Data.Text.Lazy.toStrict
+        . Data.Text.Lazy.Builder.toLazyText
+        . buildDerivation sd
+        )
+        (Data.Attoparsec.Text.parseOnly (parseDerivation sd))
