@@ -2,6 +2,7 @@
 , compiler ? null
 }:
 let
+  lib = pkgs.lib;
   overlay = import ./overlay.nix pkgs compiler;
   overrideHaskellPackages = orig: {
     buildHaskellPackages =
@@ -18,7 +19,9 @@ let
 
   haskellPackages = packageSet.override overrideHaskellPackages;
 in {
-  inherit (haskellPackages) hnix-store-core hnix-store-remote;
-  inherit haskellPackages;
-  inherit pkgs;
+  inherit (haskellPackages)
+    hnix-store-core
+    hnix-store-remote;
+  haskellPackages = lib.dontRecurseIntoAttrs haskellPackages;
+  pkgs = lib.dontRecurseIntoAttrs pkgs;
 }
