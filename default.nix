@@ -21,6 +21,7 @@ let
 in {
   inherit (haskellPackages)
     hnix-store-core
+    hnix-store-db
     hnix-store-remote;
   haskellPackages = lib.dontRecurseIntoAttrs haskellPackages;
   pkgs = lib.dontRecurseIntoAttrs pkgs;

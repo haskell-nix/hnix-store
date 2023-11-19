@@ -1,10 +1,14 @@
 packages:
   ./hnix-store-core/hnix-store-core.cabal
+  ./hnix-store-db/hnix-store-db.cabal
   ./hnix-store-remote/hnix-store-remote.cabal
 
 -- till https://github.com/obsidiansystems/dependent-sum/pull/80
 allow-newer:
   dependent-sum:some
+
+package hnix-store-db
+  flags: +build-readme +build-bench
 
 package hnix-store-remote
   flags: +build-readme +io-testsuite

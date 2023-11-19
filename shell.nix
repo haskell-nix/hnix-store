@@ -3,7 +3,11 @@ let
   inherit (import ./. attrs) pkgs haskellPackages;
   hlib = pkgs.haskell.lib;
 
-  packages = [ "hnix-store-core" "hnix-store-remote" ];
+  packages = [
+    "hnix-store-core"
+    "hnix-store-db"
+    "hnix-store-remote"
+  ];
   extract-external-inputs = p:
     builtins.filter
       (dep: !(builtins.elem dep packages))
