@@ -50,6 +50,12 @@ in
       [
         haskellLib.compose.buildFromSdist
       ];
+  hnix-store-db =
+    lib.pipe
+      (hself.callCabal2nix "hnix-store-db" ./hnix-store-db {})
+      [
+        haskellLib.compose.buildFromSdist
+      ];
   hnix-store-remote =
     lib.pipe
       # enable -fio-testsuite for Linux systems as
