@@ -3,6 +3,7 @@
 module System.Nix.DerivedPath (
     OutputsSpec(..)
   , DerivedPath(..)
+  , ParseOutputsError(..)
   , parseOutputsSpec
   , outputsSpecToText
   , parseDerivedPath
