@@ -41,7 +41,7 @@ import qualified System.Nix.Hash
 --
 import qualified Data.ByteString.Lazy          as BSL
 
-import           Nix.Derivation                 ( Derivation )
+import System.Nix.Derivation (Derivation)
 import           System.Nix.Build               ( BuildMode
                                                 , BuildResult
                                                 )

@@ -4,6 +4,9 @@
 module System.Nix.Derivation
   ( parseDerivation
   , buildDerivation
+  -- Re-exports
+  , Derivation(..)
+  , DerivationOutput(..)
   ) where
 
 import Data.Attoparsec.Text.Lazy (Parser)
@@ -13,7 +16,7 @@ import Test.QuickCheck (Arbitrary(..))
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
 import Test.QuickCheck.Instances ()
 
-import Nix.Derivation (Derivation, DerivationOutput)
+import Nix.Derivation (Derivation(..), DerivationOutput(..))
 import System.Nix.StorePath (StoreDir, StorePath)
 
 import qualified Data.Attoparsec.Text.Lazy

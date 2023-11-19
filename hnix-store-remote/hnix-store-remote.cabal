@@ -73,6 +73,7 @@ library
 
   build-depends:
       base >=4.12 && <5
+    , hnix-store-core >= 0.7 && <0.8
     , attoparsec
     , binary
     , bytestring
@@ -84,10 +85,8 @@ library
     , text
     , time
     , network
-    , nix-derivation >= 1.1.1 && < 2
     , mtl
     , unordered-containers
-    , hnix-store-core >= 0.7 && <0.8
     , transformers
     , vector
   hs-source-dirs:      src
@@ -117,7 +116,6 @@ test-suite remote
       base >=4.12 && <5
     , hnix-store-core
     , hnix-store-remote
-    , nix-derivation
     , bytestring
     , cereal
     , text

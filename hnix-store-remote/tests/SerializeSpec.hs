@@ -20,9 +20,8 @@ import qualified Data.HashSet
 import qualified Data.Time.Clock.POSIX
 import qualified System.Nix.Build
 
-import Nix.Derivation (Derivation(..))
 import System.Nix.Build (BuildMode, BuildStatus)
-import System.Nix.Derivation ()
+import System.Nix.Derivation (Derivation(..))
 import System.Nix.StorePath (StoreDir, StorePath)
 import System.Nix.Store.Remote.Serialize (getDerivation, putDerivation)
 import System.Nix.Store.Remote.Serialize.Prim
