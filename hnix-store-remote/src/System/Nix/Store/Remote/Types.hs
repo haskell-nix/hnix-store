@@ -1,6 +1,3 @@
-{-# language DataKinds #-}
-{-# language KindSignatures #-}
-{-# language ScopedTypeVariables #-}
 module System.Nix.Store.Remote.Types
   ( MonadStore
   , StoreConfig(..)
@@ -30,8 +27,7 @@ module System.Nix.Store.Remote.Types
   , getError
   , setData
   , clearData
-  )
-where
+  ) where
 
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (ReaderT, asks)

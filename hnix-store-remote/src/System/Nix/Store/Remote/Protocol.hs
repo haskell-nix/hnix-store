@@ -1,7 +1,5 @@
-{-# language OverloadedStrings #-}
-{-# language DataKinds #-}
-{-# language ScopedTypeVariables #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module System.Nix.Store.Remote.Protocol
   ( WorkerOp(..)
   , simpleOp
@@ -13,8 +11,7 @@ module System.Nix.Store.Remote.Protocol
   , runStoreOpts
   , runStoreOptsTCP
   , runStoreOpts'
-  )
-where
+  ) where
 
 import qualified Control.Monad
 import           Control.Exception              ( bracket )

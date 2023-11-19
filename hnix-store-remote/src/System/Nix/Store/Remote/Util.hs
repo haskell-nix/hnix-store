@@ -1,4 +1,3 @@
-{-# language RecordWildCards     #-}
 module System.Nix.Store.Remote.Util where
 
 import           Control.Monad.Except (throwError)
@@ -26,7 +25,7 @@ import           Network.Socket.ByteString      ( recv
 import           Nix.Derivation
 
 import           System.Nix.Build
-import           System.Nix.StorePath
+import           System.Nix.StorePath (StoreDir, StorePath, InvalidPathError, parsePath, storePathToRawFilePath)
 import           System.Nix.Store.Remote.Binary
 import           System.Nix.Store.Remote.Types
 

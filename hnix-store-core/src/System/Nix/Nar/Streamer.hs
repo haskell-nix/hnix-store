@@ -1,29 +1,36 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- | Stream out a NAR file from a regular file
 
-{-# LANGUAGE ScopedTypeVariables #-}
-
-module System.Nix.Internal.Nar.Streamer
+module System.Nix.Nar.Streamer
   ( NarSource
   , dumpString
   , dumpPath
   , streamNarIO
   , streamNarIOWithOptions
   , IsExecutable(..)
-  )
-where
+  ) where
 
+import Data.ByteString (ByteString)
+import Data.Int (Int64)
+import Data.Text (Text)
+
+import           Control.Monad                    ( forM_
+                                                  , when
+                                                  )
 import qualified Control.Monad.IO.Class          as IO
+import           Data.Bool                        ( bool )
 import qualified Data.ByteString                 as Bytes
 import qualified Data.ByteString.Lazy            as Bytes.Lazy
+import qualified Data.Foldable
+import qualified Data.List
 import qualified Data.Serialize                  as Serial
 import qualified Data.Text                       as T (pack, breakOn)
 import qualified Data.Text.Encoding              as TE (encodeUtf8)
 import qualified System.Directory                as Directory
 import           System.FilePath                 ((</>))
 
-import qualified System.Nix.Internal.Nar.Effects as Nar
-import qualified System.Nix.Internal.Nar.Options as Nar
-
+import qualified System.Nix.Nar.Effects as Nar
+import qualified System.Nix.Nar.Options as Nar
 
 -- | NarSource
 -- The source to provide nar to the handler `(ByteString -> m ())`.
@@ -32,36 +39,46 @@ import qualified System.Nix.Internal.Nar.Options as Nar
 -- It is done in CPS style so IO can be chunks.
 type NarSource m =  (ByteString -> m ()) -> m ()
 
-
 -- | dumpString
 -- dump a string to nar in CPS style. The function takes in a `ByteString`,
 -- and build a `NarSource m`.
 dumpString
-  :: forall m. IO.MonadIO m
+  :: forall m
+   . IO.MonadIO m
   => ByteString -- ^ the string you want to dump
   -> NarSource m -- ^ The nar result in CPS style
-dumpString text yield = traverse_ (yield . str)
+dumpString text yield = Data.Foldable.traverse_ (yield . str)
   ["nix-archive-1", "(", "type" , "regular", "contents", text, ")"]
-
 
 -- | dumpPath
 -- shorthand
 -- build a Source that turn file path to nar using the default narEffectsIO.
 dumpPath
-  :: forall m . IO.MonadIO m
+  :: forall m
+   . IO.MonadIO m
   => FilePath -- ^ path for the file you want to dump to nar
   -> NarSource m -- ^ the nar result in CPS style
 dumpPath = streamNarIO Nar.narEffectsIO
 
-
 -- | This implementation of Nar encoding takes an arbitrary @yield@
 --   function from any streaming library, and repeatedly calls
 --   it while traversing the filesystem object to Nar encode
-streamNarIO :: forall m . IO.MonadIO m => Nar.NarEffects IO -> FilePath -> NarSource m
+streamNarIO
+  :: forall m
+   . IO.MonadIO m
+  => Nar.NarEffects IO
+  -> FilePath
+  -> NarSource m
 streamNarIO effs basePath yield =
   streamNarIOWithOptions Nar.defaultNarOptions effs basePath yield
 
-streamNarIOWithOptions :: forall m . IO.MonadIO m => Nar.NarOptions -> Nar.NarEffects IO -> FilePath -> NarSource m
+streamNarIOWithOptions
+  :: forall m
+   . IO.MonadIO m
+  => Nar.NarOptions
+  -> Nar.NarEffects IO
+  -> FilePath
+  -> NarSource m
 streamNarIOWithOptions opts effs basePath yield = do
   yield $ str "nix-archive-1"
   parens $ go basePath
@@ -78,7 +95,7 @@ streamNarIOWithOptions opts effs basePath yield = do
         if isDir then do
           fs <- IO.liftIO (Nar.narListDir effs path)
           yield $ strs ["type", "directory"]
-          forM_ (sort fs) $ \f -> do
+          forM_ (Data.List.sort fs) $ \f -> do
             yield $ str "entry"
             parens $ do
               let fullName = path </> f
@@ -113,7 +130,11 @@ streamNarIOWithOptions opts effs basePath yield = do
 data IsExecutable = NonExecutable | Executable
   deriving (Eq, Show)
 
-isExecutable :: Functor m => Nar.NarEffects m -> FilePath -> m IsExecutable
+isExecutable
+  :: Functor m
+  => Nar.NarEffects m
+  -> FilePath
+  -> m IsExecutable
 isExecutable effs fp =
   bool
     NonExecutable

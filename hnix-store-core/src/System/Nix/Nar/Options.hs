@@ -1,9 +1,11 @@
-module System.Nix.Internal.Nar.Options 
+{-# LANGUAGE OverloadedStrings #-}
+module System.Nix.Nar.Options
   ( NarOptions(..)
   , defaultNarOptions
   , caseHackSuffix
   ) where
 
+import Data.Text (Text)
 import qualified System.Info
 
 -- | Options for configuring how NAR files are encoded and decoded.

@@ -1,18 +1,215 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 {-|
-Description : Cryptographic hashes for hnix-store.
+Description : Cryptographic hashing interface for hnix-store, on top
+              of the cryptohash family of libraries.
 -}
+
 module System.Nix.Hash
-  ( Hash.mkStorePathHash
-  , Hash.NamedAlgo(..)
-  , Hash.SomeNamedDigest(..)
+  ( HashAlgo(..)
+  , NamedAlgo(..)
+  , algoToText
+  , textToAlgo
+  , mkNamedDigest
 
-  , Hash.mkNamedDigest
+  , mkStorePathHash
 
-  , Base.BaseEncoding(..)
-  , Hash.encodeDigestWith
-  , Hash.decodeDigestWith
-  )
-where
+  , System.Nix.Base.BaseEncoding(..)
+  , encodeDigestWith
+  , decodeDigestWith
 
-import qualified System.Nix.Internal.Hash      as Hash
-import qualified System.Nix.Internal.Base      as Base
+  , algoDigestBuilder
+  , digestBuilder
+  ) where
+
+import Crypto.Hash (Digest, HashAlgorithm, MD5(..), SHA1(..), SHA256(..), SHA512(..))
+import Data.ByteString (ByteString)
+import Data.Constraint.Extras (Has(has))
+import Data.Constraint.Extras.TH (deriveArgDict)
+import Data.Dependent.Sum (DSum((:=>)))
+import Data.GADT.Compare.TH (deriveGEq, deriveGCompare)
+import Data.GADT.Show.TH (deriveGShow)
+import Data.Kind (Type)
+import Data.Some (Some(Some))
+import Data.Text (Text)
+import Data.Text.Lazy.Builder (Builder)
+import System.Nix.Base (BaseEncoding(..))
+import Test.QuickCheck (Arbitrary(arbitrary), oneof)
+import Test.QuickCheck.Instances ()
+
+import qualified Crypto.Hash
+import qualified Data.ByteArray
+import qualified Data.Text
+import qualified Data.Text.Lazy.Builder
+import qualified System.Nix.Base
+import qualified System.Nix.Hash.Truncation
+
+-- | A 'HashAlgorithm' with a canonical name, for serialization
+-- purposes (e.g. SRI hashes)
+class HashAlgorithm a => NamedAlgo a where
+  algoName :: Text
+
+instance NamedAlgo MD5 where
+  algoName = "md5"
+
+instance NamedAlgo SHA1 where
+  algoName = "sha1"
+
+instance NamedAlgo SHA256 where
+  algoName = "sha256"
+
+instance NamedAlgo SHA512 where
+  algoName = "sha512"
+
+-- * Arbitrary @Digest@s
+
+instance Arbitrary (Digest MD5) where
+  arbitrary = Crypto.Hash.hash @ByteString <$> arbitrary
+
+instance Arbitrary (Digest SHA1) where
+  arbitrary = Crypto.Hash.hash @ByteString <$> arbitrary
+
+instance Arbitrary (Digest SHA256) where
+  arbitrary = Crypto.Hash.hash @ByteString <$> arbitrary
+
+instance Arbitrary (Digest SHA512) where
+  arbitrary = Crypto.Hash.hash @ByteString <$> arbitrary
+
+data HashAlgo :: Type -> Type where
+  HashAlgo_MD5 :: HashAlgo MD5
+  HashAlgo_SHA1 :: HashAlgo SHA1
+  HashAlgo_SHA256 :: HashAlgo SHA256
+  HashAlgo_SHA512 :: HashAlgo SHA512
+
+deriveGEq ''HashAlgo
+deriveGCompare ''HashAlgo
+deriveGShow ''HashAlgo
+deriveArgDict ''HashAlgo
+
+algoToText :: forall t. HashAlgo t -> Text
+algoToText x = has @NamedAlgo x (algoName @t)
+
+hashAlgoValue :: HashAlgo a -> a
+hashAlgoValue = \case
+  HashAlgo_MD5 -> MD5
+  HashAlgo_SHA1 -> SHA1
+  HashAlgo_SHA256 -> SHA256
+  HashAlgo_SHA512 -> SHA512
+
+textToAlgo :: Text -> Either String (Some HashAlgo)
+textToAlgo = \case
+    "md5"    -> Right $ Some HashAlgo_MD5
+    "sha1"   -> Right $ Some HashAlgo_SHA1
+    "sha256" -> Right $ Some HashAlgo_SHA256
+    "sha512" -> Right $ Some HashAlgo_SHA512
+    name     -> Left $ "Unknown hash name: " <> Data.Text.unpack name
+
+instance Arbitrary (DSum HashAlgo Digest)  where
+  arbitrary = oneof
+    [ (HashAlgo_MD5 :=>)    <$> arbitrary
+    , (HashAlgo_SHA1 :=>)   <$> arbitrary
+    , (HashAlgo_SHA256 :=>) <$> arbitrary
+    , (HashAlgo_SHA512 :=>) <$> arbitrary
+    ]
+
+-- | Make @DSum HashAlgo Digest@ based on provided SRI hash name
+-- and its encoded form
+mkNamedDigest
+  :: Text -- ^ SRI name
+  -> Text -- ^ base encoded hash
+  -> Either String (DSum HashAlgo Digest)
+mkNamedDigest name sriHash =
+  let (sriName, h) = Data.Text.breakOnEnd "-" sriHash in
+    if sriName == "" || sriName == name <> "-"
+    then mkDigest h
+    else
+      Left
+      $ Data.Text.unpack
+      $ "Sri hash method"
+      <> " "
+      <> sriName
+      <> " "
+      <> "does not match the required hash type"
+      <> " "
+      <> name
+ where
+  mkDigest h =
+    textToAlgo name
+    >>= \(Some a) -> has @HashAlgorithm a $ fmap (a :=>) $ decodeGo a h
+  decodeGo :: HashAlgorithm a => HashAlgo a -> Text -> Either String (Digest a)
+  decodeGo a h
+    | size == base16Len = decodeDigestWith Base16 h
+    | size == base32Len = decodeDigestWith NixBase32 h
+    | size == base64Len = decodeDigestWith Base64 h
+    | otherwise =
+        Left
+        $ Data.Text.unpack
+        $ sriHash
+        <> " "
+        <> "is not a valid"
+        <> " "
+        <> name
+        <> " "
+        <> "hash. Its length ("
+        <> Data.Text.pack (show size)
+        <> ") does not match any of"
+        <> " "
+        <> Data.Text.pack (show [base16Len, base32Len, base64Len])
+   where
+    size = Data.Text.length h
+    hsize = Crypto.Hash.hashDigestSize (hashAlgoValue a)
+    base16Len = hsize * 2
+    base32Len = ((hsize * 8 - 1) `div` 5) + 1;
+    base64Len = ((4 * hsize `div` 3) + 3) `div` 4 * 4;
+
+mkStorePathHash
+  :: forall a
+   . HashAlgorithm a
+  => ByteString
+  -> ByteString
+mkStorePathHash bs =
+  System.Nix.Hash.Truncation.truncateInNixWay 20
+  $ Data.ByteArray.convert
+  $ Crypto.Hash.hash @ByteString @a bs
+
+-- | Take BaseEncoding type of the output -> take the Digeest as input -> encode Digest
+encodeDigestWith :: BaseEncoding -> Digest a -> Text
+encodeDigestWith b = System.Nix.Base.encodeWith b . Data.ByteArray.convert
+
+-- | Take BaseEncoding type of the input -> take the input itself -> decodeBase into Digest
+decodeDigestWith
+  :: HashAlgorithm a
+  => BaseEncoding
+  -> Text
+  -> Either String (Digest a)
+decodeDigestWith b x =
+  do
+    bs <- System.Nix.Base.decodeWith b x
+    let
+      toEither =
+        maybeToRight
+          ("Cryptonite was not able to convert '(ByteString -> Digest a)' for: '" <> show bs <>"'.")
+    (toEither . Crypto.Hash.digestFromByteString) bs
+  where
+    -- To not depend on @extra@
+    maybeToRight :: b -> Maybe a -> Either b a
+    maybeToRight _ (Just r) = pure r
+    maybeToRight y Nothing  = Left y
+
+-- | Builder for @Digest@s
+digestBuilder :: forall hashAlgo . (NamedAlgo hashAlgo) => Digest hashAlgo -> Builder
+digestBuilder digest =
+  Data.Text.Lazy.Builder.fromText (System.Nix.Hash.algoName @hashAlgo)
+  <> ":"
+  <> Data.Text.Lazy.Builder.fromText
+      (System.Nix.Hash.encodeDigestWith NixBase32 digest)
+
+-- | Builder for @DSum HashAlgo Digest@s
+algoDigestBuilder :: DSum HashAlgo Digest -> Builder
+algoDigestBuilder (a :=> d) =
+  Data.Text.Lazy.Builder.fromText (System.Nix.Hash.algoToText a)
+  <> ":"
+  <> Data.Text.Lazy.Builder.fromText (encodeDigestWith NixBase32 d)

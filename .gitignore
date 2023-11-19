@@ -1,3 +1,11 @@
 dist
 dist-newstyle
 .ghc.environment*
+.direnv
+cabal.project.local~
+cabal.project.local
+attic
+TAGS
+tags
+result
+result-*

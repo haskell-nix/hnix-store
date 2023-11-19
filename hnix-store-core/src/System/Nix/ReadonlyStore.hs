@@ -1,25 +1,30 @@
-{-# language DataKinds #-}
-{-# language ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings #-}
 
-module System.Nix.ReadonlyStore where
+module System.Nix.ReadonlyStore
+  ( makeStorePath
+  , makeTextPath
+  , makeFixedOutputPath
+  , computeStorePathForText
+  , computeStorePathForPath
+  ) where
 
+import Control.Monad.State (StateT, execStateT, modify)
+import Crypto.Hash (Context, Digest, SHA256)
+import Data.ByteString (ByteString)
+import Data.HashSet (HashSet)
+import System.Nix.Hash (BaseEncoding(Base16), NamedAlgo(algoName))
+import System.Nix.StorePath (StoreDir, StorePath(StorePath), StorePathName)
 
-import qualified Data.ByteString.Char8         as Bytes.Char8
-import qualified Data.ByteString               as BS
-import qualified Data.HashSet                  as HS
-import           System.Nix.Hash
-import           System.Nix.Nar
-import           System.Nix.StorePath
-import           Crypto.Hash                    ( Context
-                                                , Digest
-                                                , hash
-                                                , hashlazy
-                                                , hashInit
-                                                , hashUpdate
-                                                , hashFinalize
-                                                , SHA256
-                                                )
-
+import qualified Crypto.Hash
+import qualified Data.ByteString.Char8
+import qualified Data.ByteString
+import qualified Data.HashSet
+import qualified Data.List
+import qualified Data.Text
+import qualified Data.Text.Encoding
+import qualified System.Nix.Hash
+import qualified System.Nix.Nar
+import qualified System.Nix.StorePath
 
 makeStorePath
   :: forall hashAlgo
@@ -31,22 +36,31 @@ makeStorePath
   -> StorePath
 makeStorePath storeDir ty h nm = StorePath storeHash nm
  where
-  storeHash = mkStorePathHashPart @hashAlgo s
+  storeHash = System.Nix.StorePath.mkStorePathHashPart @hashAlgo s
   s =
-    BS.intercalate ":" $
-      ty:fmap encodeUtf8
+    Data.ByteString.intercalate ":" $
+      ty:fmap Data.Text.Encoding.encodeUtf8
         [ algoName @hashAlgo
-        , encodeDigestWith Base16 h
-        , toText . Bytes.Char8.unpack $ unStoreDir storeDir
-        , unStorePathName nm
+        , System.Nix.Hash.encodeDigestWith Base16 h
+        , Data.Text.pack . Data.ByteString.Char8.unpack $ System.Nix.StorePath.unStoreDir storeDir
+        , System.Nix.StorePath.unStorePathName nm
         ]
 
 makeTextPath
-  :: StoreDir -> StorePathName -> Digest SHA256 -> HashSet StorePath -> StorePath
+  :: StoreDir
+  -> StorePathName
+  -> Digest SHA256
+  -> HashSet StorePath
+  -> StorePath
 makeTextPath storeDir nm h refs = makeStorePath storeDir ty h nm
  where
   ty =
-    BS.intercalate ":" $ "text" : sort (storePathToRawFilePath storeDir <$> HS.toList refs)
+    Data.ByteString.intercalate
+      ":"
+      $ "text"
+      : Data.List.sort
+          (System.Nix.StorePath.storePathToRawFilePath storeDir
+           <$> Data.HashSet.toList refs)
 
 makeFixedOutputPath
   :: forall hashAlgo
@@ -62,16 +76,21 @@ makeFixedOutputPath storeDir recursive h =
     else makeStorePath storeDir "output:out" h'
  where
   h' =
-    hash @ByteString @SHA256
+    Crypto.Hash.hash @ByteString @SHA256
       $  "fixed:out:"
-      <> encodeUtf8 (algoName @hashAlgo)
+      <> Data.Text.Encoding.encodeUtf8 (algoName @hashAlgo)
       <> (if recursive then ":r:" else ":")
-      <> encodeUtf8 (encodeDigestWith Base16 h)
+      <> Data.Text.Encoding.encodeUtf8 (System.Nix.Hash.encodeDigestWith Base16 h)
       <> ":"
 
 computeStorePathForText
-  :: StoreDir -> StorePathName -> ByteString -> (HashSet StorePath -> StorePath)
-computeStorePathForText storeDir nm = makeTextPath storeDir nm . hash
+  :: StoreDir
+  -> StorePathName
+  -> ByteString
+  -> (HashSet StorePath -> StorePath)
+computeStorePathForText storeDir nm =
+  makeTextPath storeDir nm
+  . Crypto.Hash.hash
 
 computeStorePathForPath
   :: StoreDir
@@ -86,9 +105,20 @@ computeStorePathForPath storeDir name pth recursive _pathFilter _repair = do
   pure $ makeFixedOutputPath storeDir recursive selectedHash name
  where
   recursiveContentHash :: IO (Digest SHA256)
-  recursiveContentHash = hashFinalize <$> execStateT streamNarUpdate (hashInit @SHA256)
+  recursiveContentHash =
+    Crypto.Hash.hashFinalize
+    <$> execStateT streamNarUpdate (Crypto.Hash.hashInit @SHA256)
+
   streamNarUpdate :: StateT (Context SHA256) IO ()
-  streamNarUpdate = streamNarIO narEffectsIO pth (modify . flip (hashUpdate @ByteString @SHA256))
+  streamNarUpdate =
+    System.Nix.Nar.streamNarIO
+      System.Nix.Nar.narEffectsIO
+      pth
+      (modify . flip (Crypto.Hash.hashUpdate @ByteString @SHA256))
 
   flatContentHash :: IO (Digest SHA256)
-  flatContentHash = hashlazy <$> narReadFile narEffectsIO pth
+  flatContentHash =
+    Crypto.Hash.hashlazy
+    <$> System.Nix.Nar.narReadFile
+          System.Nix.Nar.narEffectsIO
+          pth

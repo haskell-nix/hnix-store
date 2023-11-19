@@ -1,7 +1,3 @@
-{-# language DataKinds           #-}
-{-# language ScopedTypeVariables #-}
-{-# language OverloadedStrings   #-}
-
 module StorePath where
 
 import qualified Data.Attoparsec.Text
@@ -14,6 +10,11 @@ import           System.Nix.StorePath
 prop_storePathRoundtrip :: StoreDir -> StorePath -> Property
 prop_storePathRoundtrip storeDir x =
   parsePath storeDir (storePathToRawFilePath storeDir x) === pure x
+
+-- | Test @StorePath@ roundtrips using @parsePathFromText@
+prop_storePathFromTextRoundtrip :: StoreDir -> StorePath -> Property
+prop_storePathFromTextRoundtrip storeDir x =
+  parsePathFromText storeDir (storePathToText storeDir x) === pure x
 
 -- | Test @StorePath@ roundtrips using @pathParser@
 prop_storePathRoundtripParser :: StoreDir -> StorePath -> Property

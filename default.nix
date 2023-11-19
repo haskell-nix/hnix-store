@@ -1,7 +1,9 @@
 { pkgs ? import <nixpkgs> {}
+, compiler ? null
 }:
 let
-  overlay = import ./overlay.nix pkgs pkgs.haskell.lib;
+  lib = pkgs.lib;
+  overlay = import ./overlay.nix pkgs compiler;
   overrideHaskellPackages = orig: {
     buildHaskellPackages =
       orig.buildHaskellPackages.override overrideHaskellPackages;
@@ -9,10 +11,17 @@ let
       then pkgs.lib.composeExtensions orig.overrides overlay
       else overlay;
   };
-  haskellPackages =
-    pkgs.haskellPackages.override overrideHaskellPackages;
+
+  packageSet =
+    if compiler == null
+    then pkgs.haskellPackages
+    else pkgs.haskell.packages.${compiler};
+
+  haskellPackages = packageSet.override overrideHaskellPackages;
 in {
-  inherit (haskellPackages) hnix-store-core hnix-store-remote;
-  inherit haskellPackages;
-  inherit pkgs;
+  inherit (haskellPackages)
+    hnix-store-core
+    hnix-store-remote;
+  haskellPackages = lib.dontRecurseIntoAttrs haskellPackages;
+  pkgs = lib.dontRecurseIntoAttrs pkgs;
 }

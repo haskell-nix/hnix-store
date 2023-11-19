@@ -1,10 +1,6 @@
-{-# language AllowAmbiguousTypes #-}
-{-# language KindSignatures      #-}
-{-# language RankNTypes          #-}
-{-# language ScopedTypeVariables #-}
-{-# language DataKinds           #-}
-{-# language RecordWildCards     #-}
-{-# language LiberalTypeSynonyms #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE LiberalTypeSynonyms #-}
+{-# LANGUAGE OverloadedStrings   #-}
 
 module System.Nix.Store.Remote
   ( addToStore
@@ -32,15 +28,16 @@ module System.Nix.Store.Remote
   , syncWithGC
   , verifyStore
   , module System.Nix.Store.Remote.Types
-  )
-where
+  ) where
 
+import Data.Dependent.Sum (DSum((:=>)))
 import Data.HashSet (HashSet)
 import Data.Map (Map)
 import Data.Text (Text)
 import qualified Control.Monad
-import qualified Data.Attoparsec.ByteString.Char8
+import qualified Data.Attoparsec.Text
 import qualified Data.Text.Encoding
+import qualified System.Nix.Hash
 --
 import qualified Data.ByteString.Lazy          as BSL
 
@@ -49,7 +46,6 @@ import           System.Nix.Build               ( BuildMode
                                                 , BuildResult
                                                 )
 import           System.Nix.Hash                ( NamedAlgo(..)
-                                                , SomeNamedDigest(..)
                                                 , BaseEncoding(NixBase32)
                                                 , decodeDigestWith
                                                 )
@@ -58,7 +54,7 @@ import           System.Nix.StorePath           ( StorePath
                                                 , StorePathHashPart
                                                 , InvalidPathError
                                                 )
-import           System.Nix.StorePathMetadata   ( Metadata(..)
+import           System.Nix.StorePath.Metadata  ( Metadata(..)
                                                 , StorePathTrust(..)
                                                 )
 
@@ -66,6 +62,7 @@ import qualified Data.Binary.Put
 import qualified Data.Map.Strict
 import qualified Data.Set
 
+import qualified System.Nix.ContentAddress
 import qualified System.Nix.StorePath
 
 import           System.Nix.Store.Remote.Binary
@@ -241,7 +238,7 @@ queryPathInfoUncached path = do
         decodeDigestWith @SHA256 NixBase32 narHashText
         of
         Left  e -> error e
-        Right x -> SomeDigest x
+        Right d -> System.Nix.Hash.HashAlgo_SHA256 :=> d
 
   references       <- sockGetPaths
   registrationTime <- sockGet getTime
@@ -249,16 +246,16 @@ queryPathInfoUncached path = do
   ultimate         <- sockGetBool
 
   _sigStrings      <- fmap bsToText <$> sockGetStrings
-  caString         <- sockGetStr
+  caString         <- bsToText <$> sockGetStr
 
   let
       -- XXX: signatures need pubkey from config
       sigs = Data.Set.empty
 
-      contentAddressableAddress =
+      contentAddress =
         case
-          Data.Attoparsec.ByteString.Char8.parseOnly
-            System.Nix.StorePath.contentAddressableAddressParser
+          Data.Attoparsec.Text.parseOnly
+            System.Nix.ContentAddress.contentAddressParser
             caString
           of
           Left  e -> error e

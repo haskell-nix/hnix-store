@@ -2,10 +2,10 @@
 
 Core effects for interacting with the Nix store.
 
-See `NarEffects` in [System.Nix.Internal.Nar.Effects] and the [System.Nix.StorePath] for the available operations
+See `NarEffects` in [System.Nix.Nar.Effects] and the [System.Nix.StorePath] for the available operations
 on the store.
 
-[System.Nix.Internal.Nar.Effects]: ./src/System/Nix/Internal/Nar/Effects.hs
+[System.Nix.Nar.Effects]: ./src/System/Nix/Nar/Effects.hs
 [System.Nix.StorePath]: ./src/System/Nix/StorePath.hs
 
 

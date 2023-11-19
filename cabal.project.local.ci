@@ -1,7 +1,7 @@
 tests: True
 
 package hnix-store-core
-  ghc-options: -Wunused-packages -Wall
+  ghc-options: -Wunused-packages -Wall -Werror
 
 package hnix-store-remote
-  ghc-options: -Wunused-packages -Wall
+  ghc-options: -Wunused-packages -Wall -Werror

@@ -1,12 +1,14 @@
-{-# language ScopedTypeVariables #-}
-{-# language DataKinds           #-}
-
-module System.Nix.Internal.Truncation
+module System.Nix.Hash.Truncation
   ( truncateInNixWay
-  )
-where
+  ) where
 
-import qualified Data.ByteString        as Bytes
+import Data.Word (Word8)
+import Data.ByteString (ByteString)
+
+import qualified Data.ByteString
+import qualified Data.Bits
+import qualified Data.Bool
+import qualified Data.List
 
 -- | Bytewise truncation of a 'Digest'.
 --
@@ -16,24 +18,24 @@ import qualified Data.ByteString        as Bytes
 -- (leftover part), right-pads the leftovers with 0 to the truncation
 -- length, and combines the two strings bytewise with 'xor'.
 truncateInNixWay
-  :: Int -> Bytes.ByteString -> Bytes.ByteString
+  :: Int -> ByteString -> ByteString
 --  2021-06-07: NOTE: Renamed function, since truncation can be done in a lot of ways, there is no practice of truncting hashes this way, moreover:
 -- 1. <https://crypto.stackexchange.com/questions/56337/strength-of-hash-obtained-by-xor-of-parts-of-sha3>
 -- 2. <https://www.reddit.com/r/crypto/comments/6olqfm/ways_to_truncated_hash/>
 truncateInNixWay n c =
-    Bytes.pack $ fmap truncOutputByte [0 .. n-1]
+    Data.ByteString.pack $ fmap truncOutputByte [0 .. n-1]
   where
 
     truncOutputByte :: Int -> Word8
-    truncOutputByte i = foldl' (aux i) 0 [0 .. Bytes.length c - 1]
+    truncOutputByte i = Data.List.foldl' (aux i) 0 [0 .. Data.ByteString.length c - 1]
 
     inputByte :: Int -> Word8
-    inputByte j = Bytes.index c j
+    inputByte j = Data.ByteString.index c j
 
     aux :: Int -> Word8 -> Int -> Word8
     aux i x j =
-      bool
+      Data.Bool.bool
         id
-        (`xor` inputByte j)
+        (`Data.Bits.xor` inputByte j)
         (j `mod` n == i)
         x

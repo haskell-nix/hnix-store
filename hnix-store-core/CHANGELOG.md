@@ -1,7 +1,9 @@
 # Next
 
 * Changes:
+   * `System.Nix.Internal` namespaces was removed [#236](https://github.com/haskell-nix/hnix-store/pull/236)
    * `StorePathMetadata` converted to `Metadata a` [#231](https://github.com/haskell-nix/hnix-store/pull/231)
+     * Moved to `System.Nix.StorePath.Metadata` [#236](https://github.com/haskell-nix/hnix-store/pull/236)
    * Constructors of `StorePathName` and `StorePathHashPart` are no longer
      exported. Use respective `mkStorePath..` functions. [#230](https://github.com/haskell-nix/hnix-store/pull/230)
    * `StorePathSet` type alias is no more, use `HashSet StorePath` [#230](https://github.com/haskell-nix/hnix-store/pull/230)
@@ -9,6 +11,7 @@
    * `BuildResult`s `timesBuild` field changes type from `Integer` to `Int` [#231](https://github.com/haskell-nix/hnix-store/pull/231)
 
 * Additions:
+   * `System.Nix.StorePath.parsePathFromText` [#236](https://github.com/haskell-nix/hnix-store/pull/236)
    * `Default StoreDir` instance [#231](https://github.com/haskell-nix/hnix-store/pull/231)
    * `System.Nix.StorePath.storePathHashPartToText` [#231](https://github.com/haskell-nix/hnix-store/pull/231)
    * Added `Generic` and `Show` instances for

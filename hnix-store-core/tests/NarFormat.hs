@@ -1,23 +1,30 @@
-{-# language CPP                 #-}
-{-# language ScopedTypeVariables #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module NarFormat where
 
+import           Control.Applicative              (many, optional, (<|>))
 import qualified Control.Concurrent               as Concurrent
-import           Control.Exception                (try)
+import           Control.Exception                (SomeException, try)
+import           Control.Monad                    (replicateM, void, forM_, when)
 import           Data.Binary                      (Binary(..), decodeFile)
 import           Data.Binary.Get                  (Get, getByteString,
                                                    getInt64le,
                                                    getLazyByteString, runGet)
 import           Data.Binary.Put                  (Put, putInt64le,
                                                    putLazyByteString, runPut)
+import           Data.Bool                        (bool)
 import qualified Data.ByteString                  as BS
 import qualified Data.ByteString.Base64.Lazy      as B64
 import qualified Data.ByteString.Char8            as BSC
 import qualified Data.ByteString.Lazy             as BSL
 import qualified Data.ByteString.Lazy.Char8       as BSLC
+import           Data.Int                         ( Int64 )
 import qualified Data.Map                         as Map
+import           Data.Maybe                       (fromMaybe)
 import qualified Data.Text                        as T
+import qualified Data.Text.Encoding               as E
+import           GHC.Generics                     ( Generic )
 import           System.Directory                 ( doesDirectoryExist
                                                   , doesPathExist
                                                   , removeDirectoryRecursive
@@ -35,9 +42,10 @@ import           Test.Hspec
 import qualified Test.Tasty.HUnit                 as HU
 import           Test.Tasty.QuickCheck
 import qualified Text.Printf                      as Printf
+import           Text.Read                        (readMaybe)
 
-import qualified System.Nix.Internal.Nar.Streamer as Nar
-import           System.Nix.Nar
+import System.Nix.Nar.Streamer (IsExecutable(Executable, NonExecutable))
+import System.Nix.Nar
 
 -- Without the import, `max_live_bytes` and `getRTSStats` are undefined on some setups.
 #ifdef BOUNDED_MEMORY
@@ -50,7 +58,7 @@ withBytesAsHandle bytes act = do
   Temp.withSystemTempFile "nar-test-file-XXXXX" $ \tmpFile h -> do
     IO.hClose h
     BSL.writeFile tmpFile bytes
-    withFile tmpFile ReadMode act
+    IO.withFile tmpFile IO.ReadMode act
 
 spec_narEncoding :: Spec
 spec_narEncoding = do
@@ -69,7 +77,7 @@ spec_narEncoding = do
 
         res <- withBytesAsHandle (runPut (putNar n)) $ \h -> do
           unpackNarIO narEffectsIO h packageFilePath
-        res `shouldBe` pass
+        res `shouldBe` Right ()
 
         e' <- doesPathExist packageFilePath
         e' `shouldBe` True
@@ -163,9 +171,9 @@ unit_packSelfSrcDir = Temp.withSystemTempDirectory "nar-test" $ \tmpDir -> do
       let go dir = do
             srcHere <- doesDirectoryExist dir
             bool
-              pass
+              (pure ())
               (do
-                withFile narFilePath WriteMode $ \h ->
+                IO.withFile narFilePath IO.WriteMode $ \h ->
                   buildNarIO narEffectsIO "src" h
                 hnixNar <- BSL.readFile narFilePath
                 nixStoreNar <- getNixStoreDump "src"
@@ -177,24 +185,6 @@ unit_packSelfSrcDir = Temp.withSystemTempDirectory "nar-test" $ \tmpDir -> do
               srcHere
       go "src"
       go "hnix-store-core/src"
--- ||||||| merged common ancestors
---       hnixNar <- runPut . put <$> localPackNar narEffectsIO "src"
---       nixStoreNar <- getNixStoreDump "src"
---       HU.assertEqual
---         "src dir serializes the same between hnix-store and nix-store"
---         hnixNar
---         nixStoreNar
--- =======
---       let narFile = tmpDir </> "src.nar"
---       withFile narFile WriteMode $ \h ->
---         buildNarIO narEffectsIO "src" h
---       hnixNar <- BSL.readFile narFile
---       nixStoreNar <- getNixStoreDump "src"
---       HU.assertEqual
---         "src dir serializes the same between hnix-store and nix-store"
---         hnixNar
---         nixStoreNar
--- >>>>>>> Use streaming to consume and produce NARs
 
 -- passes
 test_streamLargeFileToNar :: TestTree
@@ -205,7 +195,7 @@ test_streamLargeFileToNar = HU.testCaseSteps "streamLargeFileToNar" $ \step -> d
   -- BSL.writeFile narFileName =<< buildNarIO narEffectsIO bigFileName
   --
   step "create nar file"
-  withFile narFileName WriteMode $ \h ->
+  IO.withFile narFileName IO.WriteMode $ \h ->
     buildNarIO narEffectsIO bigFileName h
 
   step "assert bounded memory"
@@ -234,7 +224,7 @@ test_streamManyFilesToNar = HU.testCaseSteps "streamManyFilesToNar" $ \step ->
 
       _run =  do
         filesPrecount <- countProcessFiles
-        withFile "hnar" WriteMode $ \h ->
+        IO.withFile "hnar" IO.WriteMode $ \h ->
           buildNarIO narEffectsIO narFilePath h
         filesPostcount <- countProcessFiles
         pure $ (-) <$> filesPostcount <*> filesPrecount
@@ -248,18 +238,18 @@ test_streamManyFilesToNar = HU.testCaseSteps "streamManyFilesToNar" $ \step ->
     filesPrecount <- countProcessFiles
 
     step "pack nar"
-    withFile narFilePath WriteMode $ \h ->
+    IO.withFile narFilePath IO.WriteMode $ \h ->
       buildNarIO narEffectsIO packagePath h
 
     step "unpack nar"
-    r <- withFile narFilePath ReadMode $ \h ->
+    r <- IO.withFile narFilePath IO.ReadMode $ \h ->
       unpackNarIO narEffectsIO h packagePath'
-    r `shouldBe` pass
+    r `shouldBe` pure ()
 
     step "check constant file usage"
     filesPostcount <- countProcessFiles
     case (-) <$> filesPostcount <*> filesPrecount of
-      Nothing -> pass
+      Nothing -> pure ()
       Just c -> c `shouldSatisfy` (< 50)
 
     -- step "check file exists"
@@ -283,7 +273,7 @@ filesystemNixStore testErrorName n = do
   ver <- try (P.readProcess "nix-store" ["--version"] "")
   case ver of
     -- Left is not an error - testing machine simply doesn't have
-    -- `nix-store` executable, so pass
+    -- `nix-store` executable, so pure ()
     Left  (_ :: SomeException) -> print ("No nix-store on system" :: String)
     Right _ -> Temp.withSystemTempDirectory "hnix-store" $ \baseDir -> do
 
@@ -307,7 +297,7 @@ filesystemNixStore testErrorName n = do
       assertExists nixNarFile
 
       -- hnix converts those files to nar
-      withFile hnixNarFile WriteMode $ \h ->
+      IO.withFile hnixNarFile IO.WriteMode $ \h ->
         buildNarIO narEffectsIO testFile h
       assertExists hnixNarFile
 
@@ -324,7 +314,7 @@ assertBoundedMemory = do
       bytes <- max_live_bytes <$> getRTSStats
       bytes < 100 * 1000 * 1000 `shouldBe` True
 #else
-      pass
+      pure ()
 #endif
 
 
@@ -357,16 +347,16 @@ packThenExtract testName setup =
 
         step $ "Build NAR from " <> narFilePath <> " to " <> hnixNarFile
         -- narBS <- buildNarIO narEffectsIO narFile
-        withFile hnixNarFile WriteMode $ \h ->
+        IO.withFile hnixNarFile IO.WriteMode $ \h ->
           buildNarIO narEffectsIO narFilePath h
 
         -- BSL.writeFile hnixNarFile narBS
 
         step $ "Unpack NAR to " <> outputFile
-        _narHandle <- withFile nixNarFile ReadMode $ \h ->
+        _narHandle <- IO.withFile nixNarFile IO.ReadMode $ \h ->
           unpackNarIO narEffectsIO h outputFile
 
-        pass
+        pure ()
 
 -- | Count file descriptors owned by the current process
 countProcessFiles :: IO (Maybe Int)
@@ -377,7 +367,7 @@ countProcessFiles = do
     then pure Nothing
     else do
       let fdDir = "/proc/" <> show pid <> "/fd"
-      fds  <- toText <$> P.readProcess "ls" [fdDir] ""
+      fds  <- P.readProcess "ls" [fdDir] ""
       pure $ pure $ length $ words fds
 
 
@@ -394,17 +384,17 @@ getNixStoreDump fp = do
 
 -- | Simple regular text file with contents 'hi'
 sampleRegular :: FileSystemObject
-sampleRegular = Regular Nar.NonExecutable 3 "hi\n"
+sampleRegular = Regular NonExecutable 3 "hi\n"
 
 -- | Simple text file with some c code
 sampleRegular' :: FileSystemObject
-sampleRegular' = Regular Nar.NonExecutable (BSL.length str) str
+sampleRegular' = Regular NonExecutable (BSL.length str) str
   where str =
           "#include <stdio.h>\n\nint main(int argc, char *argv[]){ exit 0; }\n"
 
 -- | Executable file
 sampleExecutable :: FileSystemObject
-sampleExecutable = Regular Nar.Executable (BSL.length str) str
+sampleExecutable = Regular Executable (BSL.length str) str
   where str = "#!/bin/bash\n\ngcc -o hello hello.c\n"
 
 -- | A simple symlink
@@ -425,24 +415,24 @@ sampleDirectory' :: FileSystemObject
 sampleDirectory' = Directory $ Map.fromList [
 
     (FilePathPart "foo", Directory $ Map.fromList [
-        (FilePathPart "foo.txt", Regular Nar.NonExecutable 8 "foo text")
+        (FilePathPart "foo.txt", Regular NonExecutable 8 "foo text")
       , (FilePathPart "tobar"  , SymLink "../bar/bar.txt")
       ])
 
   , (FilePathPart "bar", Directory $ Map.fromList [
-        (FilePathPart "bar.txt", Regular Nar.NonExecutable 8 "bar text")
+        (FilePathPart "bar.txt", Regular NonExecutable 8 "bar text")
       , (FilePathPart "tofoo"  , SymLink "../foo/foo.txt")
       ])
   ]
 
 sampleLargeFile :: Int64 -> FileSystemObject
 sampleLargeFile fSize =
-  Regular Nar.NonExecutable fSize (BSL.take fSize (BSL.cycle "Lorem ipsum "))
+  Regular NonExecutable fSize (BSL.take fSize (BSL.cycle "Lorem ipsum "))
 
 
 sampleLargeFile' :: Int64 -> FileSystemObject
 sampleLargeFile' fSize =
-  Regular Nar.NonExecutable fSize (BSL.take fSize (BSL.cycle "Lorems ipsums "))
+  Regular NonExecutable fSize (BSL.take fSize (BSL.cycle "Lorems ipsums "))
 
 sampleLargeDir :: Int64 -> FileSystemObject
 sampleLargeDir fSize = Directory $ Map.fromList $ [
@@ -450,12 +440,12 @@ sampleLargeDir fSize = Directory $ Map.fromList $ [
   , (FilePathPart "bf2", sampleLargeFile' fSize)
   ]
   <> [ (FilePathPart (BSC.pack $ 'f' : show n),
-        Regular Nar.NonExecutable 10000 (BSL.take 10000 (BSL.cycle "hi ")))
+        Regular NonExecutable 10000 (BSL.take 10000 (BSL.cycle "hi ")))
      | n <- [1..100 :: Int]]
   <> [
   (FilePathPart "d", Directory $ Map.fromList
       [ (FilePathPart (BSC.pack $ "df" <> show n)
-        , Regular Nar.NonExecutable 10000 (BSL.take 10000 (BSL.cycle "subhi ")))
+        , Regular NonExecutable 10000 (BSL.take 10000 (BSL.cycle "subhi ")))
       | n <- [1..100 :: Int]]
      )
   ]
@@ -463,7 +453,7 @@ sampleLargeDir fSize = Directory $ Map.fromList $ [
 sampleLinkToDirectory :: FileSystemObject
 sampleLinkToDirectory = Directory $ Map.fromList [
   (FilePathPart "foo", Directory $ Map.fromList [
-        (FilePathPart "file", Regular Nar.NonExecutable 8 "foo text")
+        (FilePathPart "file", Regular NonExecutable 8 "foo text")
       ])
   , (FilePathPart "linkfoo"  , SymLink "foo")
   ]
@@ -588,7 +578,7 @@ newtype Nar = Nar { narFile :: FileSystemObject }
 
 -- | A FileSystemObject (FSO) is an anonymous entity that can be NAR archived
 data FileSystemObject =
-    Regular Nar.IsExecutable Int64 BSL.ByteString
+    Regular IsExecutable Int64 BSL.ByteString
     -- ^ Reguar file, with its executable state, size (bytes) and contents
   | Directory (Map.Map FilePathPart FileSystemObject)
     -- ^ Directory with mapping of filenames to sub-FSOs
@@ -621,7 +611,7 @@ instance Arbitrary FileSystemObject where
         arbFile = do
           Positive fSize <- arbitrary
           Regular
-            <$> elements [Nar.NonExecutable, Nar.Executable]
+            <$> elements [NonExecutable, Executable]
             <*> pure (fromIntegral fSize)
             <*> oneof  [
                   fmap (BSL.take fSize . BSL.cycle . BSL.pack . getNonEmpty) arbitrary , -- Binary File
@@ -649,13 +639,13 @@ putNar (Nar file) = header <> parens (putFile file)
 
         putFile (Regular isExec fSize contents) =
                strs ["type", "regular"]
-            >> (if isExec == Nar.Executable
+            >> (if isExec == Executable
                then strs ["executable", ""]
-               else pass)
+               else pure ())
             >> putContents fSize contents
 
         putFile (SymLink target) =
-               strs ["type", "symlink", "target", fromStrict $ encodeUtf8 target]
+               strs ["type", "symlink", "target", BSL.fromStrict $ E.encodeUtf8 target]
 
         -- toList sorts the entries by FilePathPart before serializing
         putFile (Directory entries) =
@@ -666,7 +656,7 @@ putNar (Nar file) = header <> parens (putFile file)
             str "entry"
             parens $ do
               str "name"
-              str (fromStrict name)
+              str (BSL.fromStrict name)
               str "node"
               parens (putFile fso)
 
@@ -710,11 +700,11 @@ getNar = fmap Nar $ header >> parens getFile
       getRegularFile = do
           assertStr_ "type"
           assertStr_ "regular"
-          mExecutable <- optional $ Nar.Executable <$ (assertStr "executable"
+          mExecutable <- optional $ Executable <$ (assertStr "executable"
                                                        >> assertStr "")
           assertStr_ "contents"
           (fSize, contents) <- sizedStr
-          pure $ Regular (fromMaybe Nar.NonExecutable mExecutable) fSize contents
+          pure $ Regular (fromMaybe NonExecutable mExecutable) fSize contents
 
       getDirectory = do
           assertStr_ "type"
@@ -726,7 +716,7 @@ getNar = fmap Nar $ header >> parens getFile
           assertStr_ "type"
           assertStr_ "symlink"
           assertStr_ "target"
-          fmap (SymLink . decodeUtf8) str
+          fmap (SymLink . E.decodeUtf8 . BSL.toStrict) str
 
       getEntry = do
           assertStr_ "entry"
@@ -737,7 +727,7 @@ getNar = fmap Nar $ header >> parens getFile
               file <- parens getFile
               maybe (fail $ "Bad FilePathPart: " <> show name)
                     (pure . (,file))
-                    (filePathPart $ toStrict name)
+                    (filePathPart $ BSLC.toStrict name)
 
       -- Fetch a length-prefixed, null-padded string
       str = fmap snd sizedStr
