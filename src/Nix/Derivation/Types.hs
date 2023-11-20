@@ -1,7 +1,7 @@
-{-# LANGUAGE DeriveGeneric  #-}
-{-# LANGUAGE DeriveFunctor  #-}
-{-# LANGUAGE FlexibleInstances  #-}
-{-# LANGUAGE KindSignatures  #-}
+{-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE KindSignatures    #-}
+{-# LANGUAGE RecordWildCards   #-}
 
 -- | Shared types
 
@@ -12,6 +12,7 @@ module Nix.Derivation.Types
     ) where
 
 import Control.DeepSeq (NFData)
+import Data.Bifunctor (Bifunctor(bimap))
 import Data.Map (Map)
 import Data.Set (Set)
 import Data.Vector (Vector)
@@ -50,3 +51,17 @@ data DerivationOutput fp txt = DerivationOutput
     } deriving (Eq, Generic, Ord, Show)
 
 instance (NFData a, NFData b) => NFData (DerivationOutput a b)
+
+instance Functor (DerivationOutput fp) where
+  fmap f DerivationOutput{..} = DerivationOutput
+    { path = path
+    , hashAlgo = f hashAlgo
+    , hash = f hash
+    }
+
+instance Bifunctor DerivationOutput where
+  bimap f g DerivationOutput{..} = DerivationOutput
+    { path = f path
+    , hashAlgo = g hashAlgo
+    , hash = g hash
+    }
