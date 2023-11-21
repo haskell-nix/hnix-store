@@ -7,6 +7,7 @@ let
     "hnix-store-core"
     "hnix-store-db"
     "hnix-store-remote"
+    "hnix-store-tests"
   ];
   extract-external-inputs = p:
     builtins.filter
@@ -23,7 +24,7 @@ let
           packages));
   metaPackage =
     haskellPackages.mkDerivation
-      { pname = "hnix-store-core";
+      { pname = "hnix-store-shell";
         version = "0.0.0.0";
         libraryHaskellDepends = external-inputs;
         license = pkgs.stdenv.lib.licenses.asl20;};

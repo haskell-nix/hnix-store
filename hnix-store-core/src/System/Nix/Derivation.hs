@@ -1,19 +1,16 @@
--- due to recent generic-arbitrary
-{-# OPTIONS_GHC -Wno-orphans -fconstraint-solver-iterations=0 #-}
-
 module System.Nix.Derivation
   ( parseDerivation
   , buildDerivation
+  -- Re-exports
+  , Derivation(..)
+  , DerivationOutput(..)
   ) where
 
 import Data.Attoparsec.Text.Lazy (Parser)
 import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder)
-import Test.QuickCheck (Arbitrary(..))
-import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
-import Test.QuickCheck.Instances ()
 
-import Nix.Derivation (Derivation, DerivationOutput)
+import Nix.Derivation (Derivation(..), DerivationOutput(..))
 import System.Nix.StorePath (StoreDir, StorePath)
 
 import qualified Data.Attoparsec.Text.Lazy
@@ -23,11 +20,6 @@ import qualified Data.Text.Lazy.Builder
 
 import qualified Nix.Derivation
 import qualified System.Nix.StorePath
-
-deriving via GenericArbitrary (Derivation StorePath Text)
-  instance Arbitrary (Derivation StorePath Text)
-deriving via GenericArbitrary (DerivationOutput StorePath Text)
-  instance Arbitrary (DerivationOutput StorePath Text)
 
 parseDerivation :: StoreDir -> Parser (Derivation StorePath Text)
 parseDerivation expectedRoot =

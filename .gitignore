@@ -1,7 +1,10 @@
 dist
 dist-newstyle
 .ghc.environment*
+.ghci
+.ghci_history
 .direnv
+.envrc
 cabal.project.local~
 cabal.project.local
 attic

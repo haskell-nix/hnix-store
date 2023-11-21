@@ -37,8 +37,6 @@ import Data.Some (Some(Some))
 import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder)
 import System.Nix.Base (BaseEncoding(..))
-import Test.QuickCheck (Arbitrary(arbitrary), oneof)
-import Test.QuickCheck.Instances ()
 
 import qualified Crypto.Hash
 import qualified Data.ByteArray
@@ -63,20 +61,6 @@ instance NamedAlgo SHA256 where
 
 instance NamedAlgo SHA512 where
   algoName = "sha512"
-
--- * Arbitrary @Digest@s
-
-instance Arbitrary (Digest MD5) where
-  arbitrary = Crypto.Hash.hash @ByteString <$> arbitrary
-
-instance Arbitrary (Digest SHA1) where
-  arbitrary = Crypto.Hash.hash @ByteString <$> arbitrary
-
-instance Arbitrary (Digest SHA256) where
-  arbitrary = Crypto.Hash.hash @ByteString <$> arbitrary
-
-instance Arbitrary (Digest SHA512) where
-  arbitrary = Crypto.Hash.hash @ByteString <$> arbitrary
 
 data HashAlgo :: Type -> Type where
   HashAlgo_MD5 :: HashAlgo MD5
@@ -106,14 +90,6 @@ textToAlgo = \case
     "sha256" -> Right $ Some HashAlgo_SHA256
     "sha512" -> Right $ Some HashAlgo_SHA512
     name     -> Left $ "Unknown hash name: " <> Data.Text.unpack name
-
-instance Arbitrary (DSum HashAlgo Digest)  where
-  arbitrary = oneof
-    [ (HashAlgo_MD5 :=>)    <$> arbitrary
-    , (HashAlgo_SHA1 :=>)   <$> arbitrary
-    , (HashAlgo_SHA256 :=>) <$> arbitrary
-    , (HashAlgo_SHA512 :=>) <$> arbitrary
-    ]
 
 -- | Make @DSum HashAlgo Digest@ based on provided SRI hash name
 -- and its encoded form

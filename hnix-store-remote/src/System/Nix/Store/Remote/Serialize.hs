@@ -16,7 +16,7 @@ import qualified Data.Set
 import qualified Data.Text
 import qualified Data.Vector
 
-import Nix.Derivation (Derivation(..), DerivationOutput(..))
+import System.Nix.Derivation (Derivation(..), DerivationOutput(..))
 import System.Nix.Build (BuildMode(..), BuildStatus(..), BuildResult(..))
 import System.Nix.StorePath (StoreDir, StorePath)
 import System.Nix.Store.Remote.Serialize.Prim

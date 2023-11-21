@@ -76,4 +76,10 @@ in
           ];
         }))
       ];
+  hnix-store-tests =
+    lib.pipe
+      (hself.callCabal2nix "hnix-store-tests" ./hnix-store-tests {})
+      [
+        haskellLib.compose.buildFromSdist
+      ];
 }

@@ -1,5 +1,4 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-|
@@ -32,11 +31,8 @@ module System.Nix.StorePath
   , pathParser
   ) where
 
-#if !MIN_VERSION_base(4,18,0)
-import Control.Applicative (liftA2)
-#endif
 import Control.Monad.Reader.Class (MonadReader, asks)
-import Crypto.Hash (HashAlgorithm, SHA256)
+import Crypto.Hash (HashAlgorithm)
 import Data.Attoparsec.Text.Lazy (Parser, (<?>))
 import Data.ByteString (ByteString)
 import Data.Default.Class (Default(def))
@@ -44,7 +40,6 @@ import Data.Hashable (Hashable(hashWithSalt))
 import Data.Text (Text)
 import GHC.Generics (Generic)
 import System.Nix.Base (BaseEncoding(NixBase32))
-import Test.QuickCheck (Arbitrary(arbitrary), listOf, elements)
 
 import qualified Data.Bifunctor
 import qualified Data.ByteString.Char8
@@ -81,12 +76,6 @@ instance Hashable StorePath where
   hashWithSalt s StorePath{..} =
     s `hashWithSalt` storePathHash `hashWithSalt` storePathName
 
-instance Arbitrary StorePath where
-  arbitrary =
-    liftA2 StorePath
-      arbitrary
-      arbitrary
-
 -- | The name portion of a Nix path.
 --
 -- 'unStorePathName' must only contain a-zA-Z0-9+._?=-, can't start
@@ -97,24 +86,12 @@ newtype StorePathName = StorePathName
     unStorePathName :: Text
   } deriving (Eq, Generic, Hashable, Ord, Show)
 
-instance Arbitrary StorePathName where
-  arbitrary = StorePathName . Data.Text.pack <$> ((:) <$> s1 <*> listOf sn)
-   where
-    alphanum = ['a' .. 'z'] <> ['A' .. 'Z'] <> ['0' .. '9']
-    s1       = elements $ alphanum <> "+-_?="
-    sn       = elements $ alphanum <> "+-._?="
-
 -- | The hash algorithm used for store path hashes.
 newtype StorePathHashPart = StorePathHashPart
   { -- | Extract the contents of the hash.
     unStorePathHashPart :: ByteString
   }
   deriving (Eq, Generic, Hashable, Ord, Show)
-
-instance Arbitrary StorePathHashPart where
-  arbitrary =
-    mkStorePathHashPart @SHA256
-    . Data.ByteString.Char8.pack <$> arbitrary
 
 -- | Make @StorePathHashPart@ from @ByteString@ (hash part of the @StorePath@)
 -- using specific @HashAlgorithm@
@@ -182,12 +159,6 @@ type RawFilePath = ByteString
 newtype StoreDir = StoreDir {
     unStoreDir :: RawFilePath
   } deriving (Eq, Generic, Hashable, Ord, Show)
-
-instance Arbitrary StoreDir where
-  arbitrary =
-    StoreDir
-    . ("/" <>) -- TODO(srk): nasty, see #237
-    . Data.ByteString.Char8.pack <$> arbitrary
 
 instance Default StoreDir where
   def = StoreDir "/nix/store"

@@ -1,36 +1,26 @@
 
 module Derivation where
 
-import Data.Text (Text)
-import           Test.Tasty                     ( TestTree
-                                                , testGroup
-                                                )
-import           Test.Tasty.Golden              ( goldenVsFile )
-import           Test.Tasty.QuickCheck
+import Test.Tasty (TestTree, testGroup)
+import Test.Tasty.Golden (goldenVsFile)
 
-import           Nix.Derivation                 ( Derivation )
-import           System.Nix.StorePath           ( StoreDir(..), StorePath )
-import           System.Nix.Derivation          ( parseDerivation
-                                                , buildDerivation
-                                                )
+import System.Nix.Derivation (parseDerivation, buildDerivation)
 
 import Data.Default.Class (Default(def))
-import qualified Data.Attoparsec.Text
-import qualified Data.Text.IO
-import qualified Data.Text.Lazy
+import qualified Data.Attoparsec.Text.Lazy
+import qualified Data.Text.Lazy.IO
 import qualified Data.Text.Lazy.Builder
 
 processDerivation :: FilePath -> FilePath -> IO ()
 processDerivation source dest = do
-  contents <- Data.Text.IO.readFile source
+  contents <- Data.Text.Lazy.IO.readFile source
   either
     fail
-    (Data.Text.IO.writeFile dest
-      . Data.Text.Lazy.toStrict
+    (Data.Text.Lazy.IO.writeFile dest
       . Data.Text.Lazy.Builder.toLazyText
       . buildDerivation def
     )
-    (Data.Attoparsec.Text.parseOnly
+    (Data.Attoparsec.Text.Lazy.parseOnly
       (parseDerivation def)
       contents
     )
@@ -50,17 +40,3 @@ test_derivation =
     drv = fp <> show n <> ".drv"
     act = fp <> show n <> ".actual"
     fp  = "tests/samples/example"
-
--- TODO(srk): this won't roundtrip as Arbitrary Text
--- contains wild stuff like control characters and UTF8 sequences.
--- Either fix in nix-derivation or use wrapper type
--- (but we use Nix.Derivation.textParser so we need Text for now)
-xprop_derivationRoundTrip :: StoreDir -> Derivation StorePath Text -> Property
-xprop_derivationRoundTrip = \sd drv ->
-  Data.Attoparsec.Text.parseOnly (parseDerivation sd)
-   ( Data.Text.Lazy.toStrict
-   $ Data.Text.Lazy.Builder.toLazyText
-   $ buildDerivation sd drv
-   )
-  === pure drv
-
