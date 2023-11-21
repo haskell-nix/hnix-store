@@ -10,4 +10,7 @@ cradle:
       component: "lib:hnix-store-remote"
 
     - path: "./hnix-store-remote/tests"
-      component: "hnix-store-remote:test:hnix-store-remote-tests"
+      component: "hnix-store-remote:test:remote"
+
+    - path: "./hnix-store-remote/tests-io"
+      component: "hnix-store-remote:test:remote-io"
