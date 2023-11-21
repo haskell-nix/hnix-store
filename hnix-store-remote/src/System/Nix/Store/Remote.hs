@@ -34,6 +34,7 @@ import Data.Dependent.Sum (DSum((:=>)))
 import Data.HashSet (HashSet)
 import Data.Map (Map)
 import Data.Text (Text)
+import qualified Data.Text
 import qualified Control.Monad
 import qualified Data.Attoparsec.Text
 import qualified Data.Text.Encoding
@@ -253,6 +254,7 @@ queryPathInfoUncached path = do
       sigs = Data.Set.empty
 
       contentAddress =
+        if Data.Text.null caString then Nothing else
         case
           Data.Attoparsec.Text.parseOnly
             System.Nix.ContentAddress.contentAddressParser
