@@ -33,6 +33,7 @@ import           System.FilePath
 
 import           System.Nix.Build
 import           System.Nix.StorePath
+import           System.Nix.StorePath.Metadata
 import           System.Nix.Store.Remote
 import           System.Nix.Store.Remote.Protocol
 
@@ -217,7 +218,9 @@ spec_protocol = Hspec.around withNixDaemon $
         queryAllValidPaths `shouldReturn` HS.fromList [path]
 
     context "queryPathInfoUncached" $
-      itRights "queries path info" $ withPath queryPathInfoUncached
+      itRights "queries path info" $ withPath $ \path -> do
+        meta <- queryPathInfoUncached path
+        references meta `shouldSatisfy` HS.null
 
     context "ensurePath" $
       itRights "simple ensure" $ withPath ensurePath
