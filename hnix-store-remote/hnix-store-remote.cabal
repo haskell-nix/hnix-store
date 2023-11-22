@@ -85,10 +85,10 @@ library
     , dependent-sum > 0.7 && < 1
     , text
     , time
+    , transformers
     , network
     , mtl
     , unordered-containers
-    , transformers
     , vector
   hs-source-dirs:      src
   ghc-options:         -Wall
@@ -153,14 +153,14 @@ test-suite remote-io
     , containers
     , crypton
     , directory
-    , process
     , filepath
-    , hspec-expectations-lifted
-    , text
-    , tasty
     , hspec
-    , tasty-hspec
+    , hspec-expectations-lifted
     , linux-namespaces
+    , process
+    , tasty
+    , tasty-hspec
     , temporary
+    , text
     , unix
     , unordered-containers
