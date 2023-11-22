@@ -6,8 +6,8 @@ module System.Nix.Store.Remote.Binary where
 
 import Control.Monad
 import Data.ByteString (ByteString)
-import           Data.Binary.Get
-import           Data.Binary.Put
+import Data.Binary.Get
+import Data.Binary.Put
 import qualified Data.ByteString.Lazy          as BSL
 
 putInt :: Integral a => a -> Put

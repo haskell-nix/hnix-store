@@ -3,42 +3,35 @@
 module NixDaemon where
 
 import Data.Text (Text)
-import           Data.Either                    ( isRight
-                                                , isLeft
-                                                )
-import           Data.Bool                      ( bool )
-import           Control.Monad                  ( void )
-import           Control.Monad.IO.Class         ( liftIO )
+import Data.Either (isRight, isLeft)
+import Data.Bool (bool)
+import Control.Monad (void)
+import Control.Monad.IO.Class (liftIO)
 
 import qualified System.Environment
-import           Control.Exception              ( bracket )
-import           Control.Concurrent             ( threadDelay )
-import qualified Data.ByteString.Char8         as BSC
+import Control.Exception (bracket)
+import Control.Concurrent (threadDelay)
+import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Either
-import qualified Data.HashSet                  as HS
-import qualified Data.Map.Strict               as M
-import           System.Directory
-import           System.IO.Temp
-import qualified System.Process                as P
-import           System.Posix.User             as U
-import           System.Linux.Namespaces       as NS
-import           Test.Hspec                     ( Spec
-                                                , describe
-                                                , context
-                                                )
-import qualified Test.Hspec                    as Hspec
-import           Test.Hspec.Expectations.Lifted
+import qualified Data.HashSet as HS
+import qualified Data.Map.Strict as M
+import System.Directory
+import System.IO.Temp
+import qualified System.Process as P
+import System.Posix.User as U
+import System.Linux.Namespaces as NS
+import Test.Hspec (Spec, describe, context)
+import qualified Test.Hspec as Hspec
+import Test.Hspec.Expectations.Lifted
+import System.FilePath
+import System.Nix.Build
+import System.Nix.StorePath
+import System.Nix.StorePath.Metadata
+import System.Nix.Store.Remote
+import System.Nix.Store.Remote.Protocol
 
-import           System.FilePath
-
-import           System.Nix.Build
-import           System.Nix.StorePath
-import           System.Nix.StorePath.Metadata
-import           System.Nix.Store.Remote
-import           System.Nix.Store.Remote.Protocol
-
-import           Crypto.Hash                    ( SHA256 )
-import           System.Nix.Nar                 ( dumpPath )
+import Crypto.Hash (SHA256)
+import System.Nix.Nar (dumpPath)
 
 createProcessEnv :: FilePath -> String -> [String] -> IO P.ProcessHandle
 createProcessEnv fp proc args = do

@@ -1,32 +1,30 @@
 module System.Nix.Store.Remote.Util where
 
-import           Control.Monad.Except (throwError)
-import           Control.Monad.Reader (asks)
-import           Control.Monad.IO.Class (MonadIO(..))
+import Control.Monad.Except (throwError)
+import Control.Monad.Reader (asks)
+import Control.Monad.IO.Class (MonadIO(..))
 import Data.ByteString (ByteString)
 import Data.HashSet (HashSet)
 import Data.Text (Text)
 import Data.Either (rights)
 
-import           Data.Binary.Get
-import           Data.Binary.Put
-import qualified Data.Text.Encoding            as T
-import qualified Data.Text.Lazy                as TL
-import qualified Data.Text.Lazy.Encoding       as TL
-import           Data.Time
-import           Data.Time.Clock.POSIX
-import qualified Data.ByteString.Char8         as BSC
-import qualified Data.ByteString.Lazy          as BSL
+import Data.Binary.Get
+import Data.Binary.Put
+import qualified Data.Text.Encoding as T
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.Encoding as TL
+import Data.Time
+import Data.Time.Clock.POSIX
+import qualified Data.ByteString.Char8 as BSC
+import qualified Data.ByteString.Lazy as BSL
 
-import           Network.Socket.ByteString      ( recv
-                                                , sendAll
-                                                )
+import Network.Socket.ByteString (recv, sendAll)
 
-import           System.Nix.Build
-import           System.Nix.Derivation
-import           System.Nix.StorePath (StoreDir, StorePath, InvalidPathError, parsePath, storePathToRawFilePath)
-import           System.Nix.Store.Remote.Binary
-import           System.Nix.Store.Remote.Types
+import System.Nix.Build
+import System.Nix.Derivation
+import System.Nix.StorePath (StoreDir, StorePath, InvalidPathError, parsePath, storePathToRawFilePath)
+import System.Nix.Store.Remote.Binary
+import System.Nix.Store.Remote.Types
 
 import qualified Data.HashSet
 import qualified Data.Map

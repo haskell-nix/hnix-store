@@ -30,7 +30,7 @@ import Control.Monad.State.Strict (StateT, gets, modify)
 import Data.ByteString (ByteString)
 import Network.Socket (Socket)
 
-import qualified Data.ByteString.Lazy          as BSL
+import qualified Data.ByteString.Lazy as BSL
 
 import Control.Monad.Trans.State.Strict (mapStateT)
 import Control.Monad.Trans.Except (mapExceptT)

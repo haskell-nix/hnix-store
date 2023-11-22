@@ -45,21 +45,10 @@ import qualified Data.ByteString.Lazy          as BSL
 
 import System.Nix.Derivation (Derivation)
 import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
-import           System.Nix.Build               ( BuildMode
-                                                , BuildResult
-                                                )
-import           System.Nix.Hash                ( NamedAlgo(..)
-                                                , BaseEncoding(Base16)
-                                                , decodeDigestWith
-                                                )
-import           System.Nix.StorePath           ( StorePath
-                                                , StorePathName
-                                                , StorePathHashPart
-                                                , InvalidPathError
-                                                )
-import           System.Nix.StorePath.Metadata  ( Metadata(..)
-                                                , StorePathTrust(..)
-                                                )
+import System.Nix.Build (BuildMode, BuildResult)
+import System.Nix.Hash (NamedAlgo(..), BaseEncoding(Base16), decodeDigestWith)
+import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart, InvalidPathError)
+import System.Nix.StorePath.Metadata  (Metadata(..), StorePathTrust(..))
 
 import qualified Data.Binary.Put
 import qualified Data.Map.Strict
@@ -67,15 +56,14 @@ import qualified Data.Set
 
 import qualified System.Nix.ContentAddress
 import qualified System.Nix.StorePath
-
-import           System.Nix.Store.Remote.Binary
-import           System.Nix.Store.Remote.Types
-import           System.Nix.Store.Remote.Protocol
-import           System.Nix.Store.Remote.Util
 import qualified System.Nix.Signature
-import           Crypto.Hash                    ( SHA256 )
-import           System.Nix.Nar                 ( NarSource )
 
+import System.Nix.Store.Remote.Binary
+import System.Nix.Store.Remote.Types
+import System.Nix.Store.Remote.Protocol
+import System.Nix.Store.Remote.Util
+import Crypto.Hash (SHA256)
+import System.Nix.Nar (NarSource)
 
 -- | Pack `Nar` and add it to the store.
 addToStore

@@ -5,18 +5,15 @@ module System.Nix.Store.Remote.Logger
   , processOutput
   ) where
 
-import           Control.Monad.Except           ( throwError )
+import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (asks)
 import Control.Monad.State.Strict (get)
-import           Data.Binary.Get
-
-import           Network.Socket.ByteString      ( recv )
-
-import           System.Nix.Store.Remote.Binary
-import           System.Nix.Store.Remote.Types
-import           System.Nix.Store.Remote.Util
-
+import Data.Binary.Get
+import Network.Socket.ByteString (recv)
+import System.Nix.Store.Remote.Binary
+import System.Nix.Store.Remote.Types
+import System.Nix.Store.Remote.Util
 
 import qualified Control.Monad
 

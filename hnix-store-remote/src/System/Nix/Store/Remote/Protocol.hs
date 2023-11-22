@@ -16,30 +16,28 @@ module System.Nix.Store.Remote.Protocol
   ) where
 
 import qualified Control.Monad
-import           Control.Exception              ( bracket )
-import           Control.Monad.Except
-import           Control.Monad.Reader (asks, runReaderT)
-import           Control.Monad.State.Strict
+import Control.Exception              ( bracket )
+import Control.Monad.Except
+import Control.Monad.Reader (asks, runReaderT)
+import Control.Monad.State.Strict
 
 import Data.Default.Class (Default(def))
 import qualified Data.Bool
-import           Data.Binary.Get
-import           Data.Binary.Put
+import Data.Binary.Get
+import Data.Binary.Put
 import qualified Data.ByteString
 import qualified Data.ByteString.Char8
 import qualified Data.ByteString.Lazy
 
-import           Network.Socket                 ( SockAddr(SockAddrUnix) )
-import qualified Network.Socket                 as S
-import           Network.Socket.ByteString      ( recv
-                                                , sendAll
-                                                )
+import Network.Socket (SockAddr(SockAddrUnix))
+import qualified Network.Socket as S
+import Network.Socket.ByteString (recv, sendAll)
 
-import           System.Nix.StorePath           ( StoreDir(..) )
-import           System.Nix.Store.Remote.Binary
-import           System.Nix.Store.Remote.Logger
-import           System.Nix.Store.Remote.Types hiding (protoVersion)
-import           System.Nix.Store.Remote.Util
+import System.Nix.StorePath (StoreDir(..))
+import System.Nix.Store.Remote.Binary
+import System.Nix.Store.Remote.Logger
+import System.Nix.Store.Remote.Types hiding (protoVersion)
+import System.Nix.Store.Remote.Util
 
 protoVersion :: Int
 protoVersion = 0x115
