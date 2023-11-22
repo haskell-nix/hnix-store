@@ -13,6 +13,7 @@ module System.Nix.Store.Remote.Types
   , Field(..)
   , mapStoreDir
   , getStoreDir
+  , getStoreDir'
   , getLog
   , flushLog
   , gotError
@@ -23,6 +24,7 @@ module System.Nix.Store.Remote.Types
 
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (ReaderT, asks)
+import Control.Monad.Reader.Class (MonadReader)
 import Control.Monad.State.Strict (StateT, gets, modify)
 import Data.ByteString (ByteString)
 import Network.Socket (Socket)
@@ -33,7 +35,7 @@ import Control.Monad.Trans.State.Strict (mapStateT)
 import Control.Monad.Trans.Except (mapExceptT)
 import Control.Monad.Trans.Reader (withReaderT)
 
-import           System.Nix.StorePath          ( StoreDir )
+import System.Nix.StorePath (HasStoreDir(..), StoreDir)
 
 
 data StoreConfig = StoreConfig
@@ -56,6 +58,10 @@ newtype SubstituteFlag = SubstituteFlag { unSubstituteFlag :: Bool }
 doSubstitute, dontSubstitute :: SubstituteFlag
 doSubstitute = SubstituteFlag True
 dontSubstitute = SubstituteFlag False
+
+-- | Ask for a @StoreDir@
+getStoreDir' :: (HasStoreDir r, MonadReader r m) => m StoreDir
+getStoreDir' = asks hasStoreDir
 
 type MonadStore a
   = ExceptT

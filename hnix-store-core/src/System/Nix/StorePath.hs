@@ -9,7 +9,6 @@ module System.Nix.StorePath
   ( -- * Basic store path types
     StoreDir(..)
   , HasStoreDir(..)
-  , getStoreDir
   , StorePath
   , storePathHash
   , storePathName
@@ -37,7 +36,6 @@ module System.Nix.StorePath
   , unsafeMakeStorePath
   ) where
 
-import Control.Monad.Reader.Class (MonadReader, asks)
 import Crypto.Hash (HashAlgorithm)
 import Data.Attoparsec.Text.Lazy (Parser, (<?>))
 import Data.ByteString (ByteString)
@@ -177,10 +175,6 @@ instance Default StoreDir where
 
 class HasStoreDir r where
   hasStoreDir :: r -> StoreDir
-
--- | Ask for a @StoreDir@
-getStoreDir :: (HasStoreDir r, MonadReader r m) => m StoreDir
-getStoreDir = asks hasStoreDir
 
 -- | Render a 'StorePath' as a 'RawFilePath'.
 storePathToRawFilePath :: StoreDir -> StorePath -> RawFilePath
