@@ -76,14 +76,14 @@ library
     , bytestring
     , containers
     , constraints-extras
+    , cryptonite
     , data-default-class
     , dependent-sum > 0.7
     , dependent-sum-template > 0.1.1 && < 0.3
-    -- Required for cryptonite low-level type convertion
-    , memory
-    , cryptonite
     , filepath
     , hashable
+    -- Required for cryptonite low-level type convertion
+    , memory
     , mtl
     , nix-derivation >= 1.1.1 && <2
     , saltine >= 0.2 && < 0.3
@@ -114,8 +114,8 @@ test-suite core
     , bytestring
     , cryptonite
     , data-default-class
+    , hspec
     , tasty
     , tasty-golden
-    , hspec
     , tasty-hspec
     , text
