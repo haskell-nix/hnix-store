@@ -162,14 +162,14 @@ itLefts name action = it name action isLeft
 
 withPath :: (StorePath -> MonadStore a) -> MonadStore a
 withPath action = do
-  path <- addTextToStore "hnix-store" "test" mempty dontRepair
+  path <- addTextToStore "hnix-store" "test" mempty RepairMode_DontRepair
   action path
 
 -- | dummy path, adds <tmp>/dummpy with "Hello World" contents
 dummy :: MonadStore StorePath
 dummy = do
   let name = Data.Either.fromRight (error "impossible") $ makeStorePathName "dummy"
-  addToStore @SHA256 name (dumpPath "dummy") addNonRecursive dontRepair
+  addToStore @SHA256 name (dumpPath "dummy") FileIngestionMethod_Flat RepairMode_DontRepair
 
 invalidPath :: StorePath
 invalidPath =
@@ -178,7 +178,7 @@ invalidPath =
 
 withBuilder :: (StorePath -> MonadStore a) -> MonadStore a
 withBuilder action = do
-  path <- addTextToStore "builder" builderSh mempty dontRepair
+  path <- addTextToStore "builder" builderSh mempty RepairMode_DontRepair
   action path
 
 builderSh :: Text
@@ -194,14 +194,14 @@ spec_protocol = Hspec.around withNixDaemon $
 
     context "verifyStore" $ do
       itRights "check=False repair=False" $
-        verifyStore dontCheck dontRepair `shouldReturn` False
+        verifyStore dontCheck RepairMode_DontRepair `shouldReturn` False
 
       itRights "check=True repair=False" $
-        verifyStore doCheck dontRepair `shouldReturn` False
+        verifyStore doCheck RepairMode_DontRepair `shouldReturn` False
 
       --privileged
       itRights "check=True repair=True" $
-        verifyStore doCheck doRepair `shouldReturn` False
+        verifyStore doCheck RepairMode_DoRepair `shouldReturn` False
 
     context "addTextToStore" $
       itRights "adds text to store" $ withPath pure
@@ -262,7 +262,7 @@ spec_protocol = Hspec.around withNixDaemon $
       itRights "adds file to store" $ do
         fp <- liftIO $ writeSystemTempFile "addition" "lal"
         let name = Data.Either.fromRight (error "impossible") $ makeStorePathName "tmp-addition"
-        res <- addToStore @SHA256 name (dumpPath fp) FileIngestionMethod_Flat dontRepair
+        res <- addToStore @SHA256 name (dumpPath fp) FileIngestionMethod_Flat RepairMode_DontRepair
         liftIO $ print res
 
     context "with dummy" $ do

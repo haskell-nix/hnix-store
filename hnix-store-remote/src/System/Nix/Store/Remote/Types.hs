@@ -5,10 +5,6 @@ module System.Nix.Store.Remote.Types
   , doCheck
   , dontCheck
   , unCheckFlag
-  , RepairFlag
-  , doRepair
-  , dontRepair
-  , unRepairFlag
   , SubstituteFlag
   , doSubstitute
   , dontSubstitute
@@ -52,15 +48,6 @@ newtype CheckFlag = CheckFlag { unCheckFlag :: Bool }
 doCheck, dontCheck :: CheckFlag
 doCheck = CheckFlag True
 dontCheck = CheckFlag False
-
--- | Repair flag, used by @addToStore@, @addTextToStore@
--- and @verifyStore@
-newtype RepairFlag = RepairFlag { unRepairFlag :: Bool }
-  deriving (Eq, Ord, Show)
-
-doRepair, dontRepair :: RepairFlag
-doRepair = RepairFlag True
-dontRepair = RepairFlag False
 
 -- | Substitute flag, used by @queryValidPaths@
 newtype SubstituteFlag = SubstituteFlag { unSubstituteFlag :: Bool }

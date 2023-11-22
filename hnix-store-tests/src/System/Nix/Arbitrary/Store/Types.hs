@@ -10,3 +10,6 @@ import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
 
 deriving via GenericArbitrary FileIngestionMethod
   instance Arbitrary FileIngestionMethod
+
+deriving via GenericArbitrary RepairMode
+  instance Arbitrary RepairMode

@@ -27,6 +27,7 @@ module System.Nix.Store.Remote
   , runStore
   , syncWithGC
   , verifyStore
+  , module System.Nix.Store.Types
   , module System.Nix.Store.Remote.Types
   ) where
 
@@ -43,7 +44,7 @@ import qualified System.Nix.Hash
 import qualified Data.ByteString.Lazy          as BSL
 
 import System.Nix.Derivation (Derivation)
-import System.Nix.Store.Types (FileIngestionMethod(..))
+import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
 import           System.Nix.Build               ( BuildMode
                                                 , BuildResult
                                                 )
@@ -82,10 +83,10 @@ addToStore
   => StorePathName        -- ^ Name part of the newly created `StorePath`
   -> NarSource MonadStore -- ^ provide nar stream
   -> FileIngestionMethod  -- ^ Add target directory recursively
-  -> RepairFlag           -- ^ Only used by local store backend
+  -> RepairMode           -- ^ Only used by local store backend
   -> MonadStore StorePath
 addToStore name source recursive repair = do
-  Control.Monad.when (unRepairFlag repair)
+  Control.Monad.when (repair == RepairMode_DoRepair)
     $ error "repairing is not supported when building through the Nix daemon"
 
   runOpArgsIO AddToStore $ \yield -> do
@@ -108,10 +109,11 @@ addTextToStore
   :: Text              -- ^ Name of the text
   -> Text              -- ^ Actual text to add
   -> HashSet StorePath -- ^ Set of `StorePath`s that the added text references
-  -> RepairFlag        -- ^ Repair flag, must be `False` in case of remote backend
+  -> RepairMode        -- ^ Repair mode, must be `RepairMode_DontRepair` for remote backend
+                       --   (only valid for local store)
   -> MonadStore StorePath
 addTextToStore name text references' repair = do
-  Control.Monad.when (unRepairFlag repair)
+  Control.Monad.when (repair == RepairMode_DoRepair)
     $ error "repairing is not supported when building through the Nix daemon"
 
   storeDir <- getStoreDir
@@ -329,7 +331,7 @@ syncWithGC :: MonadStore ()
 syncWithGC = Control.Monad.void $ simpleOp SyncWithGC
 
 -- returns True on errors
-verifyStore :: CheckFlag -> RepairFlag -> MonadStore Bool
+verifyStore :: CheckFlag -> RepairMode -> MonadStore Bool
 verifyStore check repair = simpleOpArgs VerifyStore $ do
   putBool $ unCheckFlag check
-  putBool $ unRepairFlag repair
+  putBool $ repair == RepairMode_DoRepair
