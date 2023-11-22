@@ -11,9 +11,11 @@ module System.Nix.StorePath
   , HasStoreDir(..)
   , getStoreDir
   , StorePath(..)
-  , StorePathName(..)
-  , StorePathHashPart(..)
+  , StorePathName
+  , unStorePathName
+  , StorePathHashPart
   , mkStorePathHashPart
+  , unStorePathHashPart
   , -- * Manipulating 'StorePathName'
     makeStorePathName
   , validStorePathName
