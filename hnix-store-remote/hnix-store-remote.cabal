@@ -69,6 +69,7 @@ library
     , System.Nix.Store.Remote.Logger
     , System.Nix.Store.Remote.Protocol
     , System.Nix.Store.Remote.Types
+    , System.Nix.Store.Remote.Types.ProtoVersion
     , System.Nix.Store.Remote.Util
 
   build-depends:

@@ -11,6 +11,8 @@ module System.Nix.Store.Remote.Protocol
   , runStoreOpts
   , runStoreOptsTCP
   , runStoreOpts'
+
+  , ourProtoVersion
   ) where
 
 import qualified Control.Monad
@@ -36,14 +38,19 @@ import           Network.Socket.ByteString      ( recv
 import           System.Nix.StorePath           ( StoreDir(..) )
 import           System.Nix.Store.Remote.Binary
 import           System.Nix.Store.Remote.Logger
-import           System.Nix.Store.Remote.Types
+import           System.Nix.Store.Remote.Types hiding (protoVersion)
 import           System.Nix.Store.Remote.Util
-
 
 protoVersion :: Int
 protoVersion = 0x115
 -- major protoVersion & 0xFF00
 -- minor ..           & 0x00FF
+
+ourProtoVersion :: ProtoVersion
+ourProtoVersion = ProtoVersion
+  { protoVersion_major = 1
+  , protoVersion_minor = 35
+  }
 
 workerMagic1 :: Int
 workerMagic1 = 0x6e697863
