@@ -123,6 +123,7 @@ test-suite format-tests
     Derivation
     NarFormat
     Hash
+    ReadOnly
   hs-source-dirs:
     tests
   build-tool-depends:
@@ -150,3 +151,4 @@ test-suite format-tests
     , temporary
     , text
     , unix
+    , unordered-containers
