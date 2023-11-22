@@ -11,9 +11,9 @@ import Crypto.Hash (SHA256)
 import qualified Data.ByteString.Char8
 import qualified Data.Text
 import System.Nix.StorePath (StoreDir(..)
-  , StorePath(..)
-  , StorePathName(..)
-  , StorePathHashPart(..)
+  , StorePath
+  , StorePathName
+  , StorePathHashPart
   )
 import qualified System.Nix.StorePath
 
@@ -27,12 +27,15 @@ instance Arbitrary StoreDir where
 
 instance Arbitrary StorePath where
   arbitrary =
-    liftA2 StorePath
+    liftA2 System.Nix.StorePath.unsafeMakeStorePath
       arbitrary
       arbitrary
 
 instance Arbitrary StorePathName where
-  arbitrary = StorePathName . Data.Text.pack <$> ((:) <$> s1 <*> listOf sn)
+  arbitrary =
+      either undefined id
+    . System.Nix.StorePath.makeStorePathName
+    . Data.Text.pack <$> ((:) <$> s1 <*> listOf sn)
    where
     alphanum = ['a' .. 'z'] <> ['A' .. 'Z'] <> ['0' .. '9']
     s1       = elements $ alphanum <> "+-_?="

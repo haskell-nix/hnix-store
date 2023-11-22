@@ -1,16 +1,25 @@
 # Next
 
 * Changes:
+   * `System.Nix.ReadOnlyStore` moved to `hnix-store-readonly` package
+     and renamed to `System.Nix.Store.ReadOnly` [#247](https://github.com/haskell-nix/hnix-store/pull/247)
+   * `System.Nix.Nar*` moved to `hnix-store-nar` package [#247](https://github.com/haskell-nix/hnix-store/pull/247)
+   * `Arbitrary` instances moved to `hnix-store-tests` package [#241](https://github.com/haskell-nix/hnix-store/pull/241)
    * `System.Nix.Internal` namespaces was removed [#236](https://github.com/haskell-nix/hnix-store/pull/236)
    * `StorePathMetadata` converted to `Metadata a` [#231](https://github.com/haskell-nix/hnix-store/pull/231)
      * Moved to `System.Nix.StorePath.Metadata` [#236](https://github.com/haskell-nix/hnix-store/pull/236)
    * Constructors of `StorePathName` and `StorePathHashPart` are no longer
      exported. Use respective `mkStorePath..` functions. [#230](https://github.com/haskell-nix/hnix-store/pull/230)
+   * `StorePath` constructor is no longer exported.
+     Prefer `parsePath` or `parsePathFromText`.
+     If needed to construct a path directly, use `unsafeMakeStorePath` [#247](https://github.com/haskell-nix/hnix-store/pull/247)
    * `StorePathSet` type alias is no more, use `HashSet StorePath` [#230](https://github.com/haskell-nix/hnix-store/pull/230)
    * `makeStorePath` and `parsePath` now returns `Either InvalidPathError StorePath` [#231](https://github.com/haskell-nix/hnix-store/pull/231)
    * `BuildResult`s `timesBuild` field changes type from `Integer` to `Int` [#231](https://github.com/haskell-nix/hnix-store/pull/231)
 
 * Additions:
+   * `System.Nix.Store.Types` with `FileIngestionMethod`, `PathFilter`, `RepairMode` types  [#247](https://github.com/haskell-nix/hnix-store/pull/247)
+     `FileIngestionMethod` was previously called `NarHashMode`
    * `System.Nix.StorePath.parsePathFromText` [#236](https://github.com/haskell-nix/hnix-store/pull/236)
    * `Default StoreDir` instance [#231](https://github.com/haskell-nix/hnix-store/pull/231)
    * `System.Nix.StorePath.storePathHashPartToText` [#231](https://github.com/haskell-nix/hnix-store/pull/231)

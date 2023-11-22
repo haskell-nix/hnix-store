@@ -56,6 +56,18 @@ in
       [
         haskellLib.compose.buildFromSdist
       ];
+  hnix-store-nar =
+    lib.pipe
+      (hself.callCabal2nix "hnix-store-nar" ./hnix-store-nar {})
+      [
+        haskellLib.compose.buildFromSdist
+      ];
+  hnix-store-readonly =
+    lib.pipe
+      (hself.callCabal2nix "hnix-store-readonly" ./hnix-store-readonly {})
+      [
+        haskellLib.compose.buildFromSdist
+      ];
   hnix-store-remote =
     lib.pipe
       # enable -fio-testsuite for Linux systems as

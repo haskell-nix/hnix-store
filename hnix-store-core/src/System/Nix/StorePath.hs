@@ -9,11 +9,14 @@ module System.Nix.StorePath
   ( -- * Basic store path types
     StoreDir(..)
   , HasStoreDir(..)
-  , getStoreDir
-  , StorePath(..)
-  , StorePathName(..)
-  , StorePathHashPart(..)
+  , StorePath
+  , storePathHash
+  , storePathName
+  , StorePathName
+  , unStorePathName
+  , StorePathHashPart
   , mkStorePathHashPart
+  , unStorePathHashPart
   , -- * Manipulating 'StorePathName'
     makeStorePathName
   , validStorePathName
@@ -29,9 +32,10 @@ module System.Nix.StorePath
     parsePath
   , parsePathFromText
   , pathParser
+    -- * Utilities for tests
+  , unsafeMakeStorePath
   ) where
 
-import Control.Monad.Reader.Class (MonadReader, asks)
 import Crypto.Hash (HashAlgorithm)
 import Data.Attoparsec.Text.Lazy (Parser, (<?>))
 import Data.ByteString (ByteString)
@@ -70,11 +74,17 @@ data StorePath = StorePath
     -- hello-1.2.3).
     storePathName :: !StorePathName
   }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, Ord)
 
 instance Hashable StorePath where
   hashWithSalt s StorePath{..} =
     s `hashWithSalt` storePathHash `hashWithSalt` storePathName
+
+instance Show StorePath where
+  show s =
+    "StorePath"
+    <> " "
+    <> storePathToFilePath (StoreDir mempty) s
 
 -- | The name portion of a Nix path.
 --
@@ -165,10 +175,6 @@ instance Default StoreDir where
 
 class HasStoreDir r where
   hasStoreDir :: r -> StoreDir
-
--- | Ask for a @StoreDir@
-getStoreDir :: (HasStoreDir r, MonadReader r m) => m StoreDir
-getStoreDir = asks hasStoreDir
 
 -- | Render a 'StorePath' as a 'RawFilePath'.
 storePathToRawFilePath :: StoreDir -> StorePath -> RawFilePath
@@ -291,3 +297,13 @@ pathParser expectedRoot = do
     (fail . show)
     pure
     (StorePath <$> hashPart <*> name)
+
+-- * Utilities for tests
+
+-- | Paths rarely need to be constructed directly.
+-- Prefer @parsePath@ or @parsePathFromText@
+unsafeMakeStorePath
+  :: StorePathHashPart
+  -> StorePathName
+  -> StorePath
+unsafeMakeStorePath = StorePath

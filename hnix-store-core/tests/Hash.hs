@@ -5,7 +5,7 @@ module Hash where
 
 import Data.ByteString (ByteString)
 
-import Control.Monad
+import Control.Monad (forM_)
 import Crypto.Hash (MD5, SHA1, SHA256, hash)
 import qualified Data.ByteString.Base16      as B16
 import qualified System.Nix.Base32           as B32

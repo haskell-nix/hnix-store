@@ -5,22 +5,15 @@ module System.Nix.Store.Remote.Types
   , doCheck
   , dontCheck
   , unCheckFlag
-  , RepairFlag
-  , doRepair
-  , dontRepair
-  , unRepairFlag
   , SubstituteFlag
   , doSubstitute
   , dontSubstitute
   , unSubstituteFlag
-  , Recursive
-  , addRecursive
-  , addNonRecursive
-  , unRecursive
   , Logger(..)
   , Field(..)
   , mapStoreDir
   , getStoreDir
+  , getStoreDir'
   , getLog
   , flushLog
   , gotError
@@ -31,6 +24,7 @@ module System.Nix.Store.Remote.Types
 
 import Control.Monad.Except (ExceptT)
 import Control.Monad.Reader (ReaderT, asks)
+import Control.Monad.Reader.Class (MonadReader)
 import Control.Monad.State.Strict (StateT, gets, modify)
 import Data.ByteString (ByteString)
 import Network.Socket (Socket)
@@ -41,7 +35,7 @@ import Control.Monad.Trans.State.Strict (mapStateT)
 import Control.Monad.Trans.Except (mapExceptT)
 import Control.Monad.Trans.Reader (withReaderT)
 
-import           System.Nix.StorePath          ( StoreDir )
+import System.Nix.StorePath (HasStoreDir(..), StoreDir)
 
 
 data StoreConfig = StoreConfig
@@ -57,15 +51,6 @@ doCheck, dontCheck :: CheckFlag
 doCheck = CheckFlag True
 dontCheck = CheckFlag False
 
--- | Repair flag, used by @addToStore@, @addTextToStore@
--- and @verifyStore@
-newtype RepairFlag = RepairFlag { unRepairFlag :: Bool }
-  deriving (Eq, Ord, Show)
-
-doRepair, dontRepair :: RepairFlag
-doRepair = RepairFlag True
-dontRepair = RepairFlag False
-
 -- | Substitute flag, used by @queryValidPaths@
 newtype SubstituteFlag = SubstituteFlag { unSubstituteFlag :: Bool }
   deriving (Eq, Ord, Show)
@@ -74,15 +59,9 @@ doSubstitute, dontSubstitute :: SubstituteFlag
 doSubstitute = SubstituteFlag True
 dontSubstitute = SubstituteFlag False
 
--- | Recursive, used by @addToStore@
-newtype Recursive = Recursive { unRecursive :: Bool }
-  deriving (Eq, Ord, Show)
-
-addRecursive, addNonRecursive :: Recursive
--- | Add target directory recursively
-addRecursive = Recursive True
--- | Add target directory non-recursively
-addNonRecursive = Recursive False
+-- | Ask for a @StoreDir@
+getStoreDir' :: (HasStoreDir r, MonadReader r m) => m StoreDir
+getStoreDir' = asks hasStoreDir
 
 type MonadStore a
   = ExceptT

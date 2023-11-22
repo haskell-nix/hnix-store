@@ -18,16 +18,12 @@ import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder)
 import GHC.Generics (Generic)
 import System.Nix.Hash (HashAlgo)
+import System.Nix.Store.Types (FileIngestionMethod(..))
 
 import qualified Data.Attoparsec.Text
 import qualified Data.Text.Lazy
 import qualified Data.Text.Lazy.Builder
 import qualified System.Nix.Hash
-
-data FileIngestionMethod
-  = Flat
-  | FileRecursive
-  deriving (Eq, Bounded, Generic, Enum, Ord, Show)
 
 data ContentAddressMethod
   = FileIngestionMethod !FileIngestionMethod
@@ -74,8 +70,8 @@ contentAddressBuilder (ContentAddress method digest) = case method of
 
 fileIngestionMethodBuilder :: FileIngestionMethod -> Builder
 fileIngestionMethodBuilder = \case
-  Flat -> ""
-  FileRecursive -> "r:"
+  FileIngestionMethod_Flat -> ""
+  FileIngestionMethod_FileRecursive -> "r:"
 
 -- | Parse `ContentAddressableAddress` from `ByteString`
 parseContentAddress
@@ -95,7 +91,9 @@ contentAddressParser = do
 parseContentAddressMethod :: Parser ContentAddressMethod
 parseContentAddressMethod =
       TextIngestionMethod <$ "text:"
-  <|> FileIngestionMethod <$ "fixed:" <*> (FileRecursive <$ "r:" <|> pure Flat)
+  <|> FileIngestionMethod <$ "fixed:"
+  <*> (FileIngestionMethod_FileRecursive <$ "r:" 
+       <|> pure FileIngestionMethod_Flat)
 
 parseTypedDigest :: Parser (Either String (DSum HashAlgo Digest))
 parseTypedDigest = System.Nix.Hash.mkNamedDigest <$> parseHashType <*> parseHash

@@ -4,7 +4,25 @@ cradle:
       component: "lib:hnix-store-core"
 
     - path: "./hnix-store-core/tests"
-      component: "hnix-store-core:test:format-tests"
+      component: "hnix-store-core:test:core"
+
+    - path: "./hnix-store-db/src"
+      component: "lib:hnix-store-db"
+
+    - path: "./hnix-store-db/tests"
+      component: "hnix-store-db:test:db"
+
+    - path: "./hnix-store-nar/src"
+      component: "lib:hnix-store-nar"
+
+    - path: "./hnix-store-nar/tests"
+      component: "hnix-store-nar:test:nar"
+
+    - path: "./hnix-store-readonly/src"
+      component: "lib:hnix-store-readonly"
+
+    - path: "./hnix-store-readonly/tests"
+      component: "hnix-store-readonly:test:readonly"
 
     - path: "./hnix-store-remote/src"
       component: "lib:hnix-store-remote"
@@ -14,3 +32,9 @@ cradle:
 
     - path: "./hnix-store-remote/tests-io"
       component: "hnix-store-remote:test:remote-io"
+
+    - path: "./hnix-store-tests/src"
+      component: "lib:hnix-store-tests"
+
+    - path: "./hnix-store-tests/tests"
+      component: "hnix-store-tests:test:props"

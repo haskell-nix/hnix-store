@@ -74,6 +74,7 @@ library
   build-depends:
       base >=4.12 && <5
     , hnix-store-core >= 0.8 && <0.9
+    , hnix-store-nar >= 0.1
     , attoparsec
     , binary
     , bytestring
@@ -146,6 +147,7 @@ test-suite remote-io
   build-depends:
       base >=4.12 && <5
     , hnix-store-core
+    , hnix-store-nar
     , hnix-store-remote
     , bytestring
     , containers
