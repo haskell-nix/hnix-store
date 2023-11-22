@@ -13,7 +13,7 @@ import Crypto.Hash (Context, Digest, SHA256)
 import Data.ByteString (ByteString)
 import Data.HashSet (HashSet)
 import System.Nix.Hash (BaseEncoding(Base16), NamedAlgo(algoName))
-import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode)
+import System.Nix.Store.Types (FileIngestionMethod(..), PathFilter, RepairMode)
 import System.Nix.StorePath (StoreDir, StorePath(StorePath), StorePathName)
 
 import qualified Crypto.Hash
@@ -99,7 +99,7 @@ computeStorePathForPath
   -> StorePathName        -- ^ Name part of the newly created `StorePath`
   -> FilePath             -- ^ Local `FilePath` to add
   -> FileIngestionMethod  -- ^ Add target directory recursively
-  -> (FilePath -> Bool)   -- ^ Path filter function
+  -> PathFilter           -- ^ Path filter function
   -> RepairMode           -- ^ Only used by local store backend
   -> IO StorePath
 computeStorePathForPath storeDir name pth recursive _pathFilter _repair = do
