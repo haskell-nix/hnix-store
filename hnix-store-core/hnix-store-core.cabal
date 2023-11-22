@@ -9,7 +9,7 @@ homepage:            https://github.com/haskell-nix/hnix-store
 license:             Apache-2.0
 license-file:        LICENSE
 author:              Shea Levy
-maintainer:          shea@shealevy.com
+maintainer:          srk@48.io
 copyright:           2018 Shea Levy
 category:            Nix
 build-type:          Simple
