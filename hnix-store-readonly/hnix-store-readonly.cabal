@@ -31,6 +31,7 @@ library
   build-depends:
       base >=4.12 && <5
     , hnix-store-core >= 0.8
+    , hnix-store-nar >= 0.1
     , bytestring
     , cryptonite
     , mtl

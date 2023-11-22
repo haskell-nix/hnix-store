@@ -6,6 +6,9 @@ package hnix-store-core
 package hnix-store-db
   ghc-options: -Wunused-packages -Wall -Werror
 
+package hnix-store-nar
+  ghc-options: -Wunused-packages -Wall -Werror
+
 package hnix-store-readonly
   ghc-options: -Wunused-packages -Wall -Werror
 
