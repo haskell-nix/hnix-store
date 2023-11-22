@@ -12,6 +12,12 @@ cradle:
     - path: "./hnix-store-db/tests"
       component: "hnix-store-db:test:db"
 
+    - path: "./hnix-store-readonly/src"
+      component: "lib:hnix-store-readonly"
+
+    - path: "./hnix-store-readonly/tests"
+      component: "hnix-store-readonly:test:readonly"
+
     - path: "./hnix-store-remote/src"
       component: "lib:hnix-store-remote"
 

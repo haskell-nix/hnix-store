@@ -1,0 +1,59 @@
+cabal-version:       2.2
+name:                hnix-store-readonly
+version:             0.1.0.0
+synopsis:            Read-only Nix store
+description:
+  Path computation without interaction with the actual Nix store
+homepage:            https://github.com/haskell-nix/hnix-store
+license:             Apache-2.0
+license-file:        LICENSE
+author:              Shea Levy
+maintainer:          srk@48.io
+copyright:           2018 Shea Levy
+category:            Nix
+build-type:          Simple
+extra-source-files:
+    CHANGELOG.md
+  , README.md
+
+common commons
+  ghc-options:  -Wall
+  default-extensions:
+      Rank2Types
+    , ScopedTypeVariables
+    , TypeApplications
+  default-language: Haskell2010
+
+library
+  import: commons
+  exposed-modules:
+      System.Nix.Store.ReadOnly
+  build-depends:
+      base >=4.12 && <5
+    , hnix-store-core >= 0.8
+    , bytestring
+    , cryptonite
+    , mtl
+    , text
+    , unordered-containers
+  hs-source-dirs:      src
+
+test-suite readonly
+  import: commons
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+    ReadOnlySpec
+  hs-source-dirs:
+    tests
+  build-tool-depends:
+    hspec-discover:hspec-discover
+  build-depends:
+      base
+    , hnix-store-core
+    , hnix-store-readonly
+    , bytestring
+    , cryptonite
+    , data-default-class
+    , hspec
+    , unordered-containers

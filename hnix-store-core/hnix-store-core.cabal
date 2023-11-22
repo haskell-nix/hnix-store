@@ -71,7 +71,6 @@ library
     , System.Nix.Nar.Streamer
     , System.Nix.Nar.Effects
     , System.Nix.Nar.Options
-    , System.Nix.ReadonlyStore
     , System.Nix.Signature
     , System.Nix.Store.Types
     , System.Nix.StorePath
@@ -124,7 +123,6 @@ test-suite format-tests
     Derivation
     NarFormat
     Hash
-    ReadOnly
   hs-source-dirs:
     tests
   build-tool-depends:
@@ -152,4 +150,3 @@ test-suite format-tests
     , temporary
     , text
     , unix
-    , unordered-containers

@@ -56,6 +56,12 @@ in
       [
         haskellLib.compose.buildFromSdist
       ];
+  hnix-store-readonly =
+    lib.pipe
+      (hself.callCabal2nix "hnix-store-readonly" ./hnix-store-readonly {})
+      [
+        haskellLib.compose.buildFromSdist
+      ];
   hnix-store-remote =
     lib.pipe
       # enable -fio-testsuite for Linux systems as

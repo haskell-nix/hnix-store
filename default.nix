@@ -22,6 +22,7 @@ in {
   inherit (haskellPackages)
     hnix-store-core
     hnix-store-db
+    hnix-store-readonly
     hnix-store-remote
     hnix-store-tests;
   haskellPackages = lib.dontRecurseIntoAttrs haskellPackages;

@@ -6,6 +6,7 @@ let
   packages = [
     "hnix-store-core"
     "hnix-store-db"
+    "hnix-store-readonly"
     "hnix-store-remote"
     "hnix-store-tests"
   ];

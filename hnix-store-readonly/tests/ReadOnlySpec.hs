@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module ReadOnly where
+module ReadOnlySpec where
 
 import Data.Default.Class (Default(def))
-import Test.Hspec (Spec, describe, it, shouldBe)
+import Test.Hspec (Spec, describe, it, shouldBe, pendingWith)
 
 import Crypto.Hash (hash, Digest, SHA256(..))
 import Data.ByteString (ByteString)
@@ -13,7 +13,7 @@ import System.Nix.Store.Types (FileIngestionMethod(..))
 import qualified Data.HashSet
 import qualified System.Nix.StorePath
 
-import System.Nix.ReadonlyStore
+import System.Nix.Store.ReadOnly
 
 testDigest :: Digest SHA256
 testDigest = Crypto.Hash.hash @ByteString "testDigest"
@@ -37,8 +37,8 @@ testPath2 =
       def
       "/nix/store/iali40m5597kikibjxw8cx1ssxlqnii3-testFixed"
 
-spec_readOnly :: Spec
-spec_readOnly = do
+spec :: Spec
+spec = do
   describe "ReadOnly" $ do
     it "makeStorePath computes correct StorePath" $
       (pure
@@ -120,6 +120,6 @@ spec_readOnly = do
           def
           "/nix/store/838lq5qh5a88wsalcjpmj33bcnmpz3pc-testFixed"
 
---    describe "computeStorePathForForPath" $ do
---      it "computes correct StorePath" $
---        -- "needs IO and a sample directory to add"
+    describe "computeStorePathForForPath" $ do
+      it "computes correct StorePath" $
+        pendingWith "needs IO and a sample directory to add"

@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module System.Nix.ReadonlyStore
+module System.Nix.Store.ReadOnly
   ( makeStorePath
   , makeTextPath
   , makeFixedOutputPath
