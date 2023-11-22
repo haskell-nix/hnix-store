@@ -70,11 +70,17 @@ data StorePath = StorePath
     -- hello-1.2.3).
     storePathName :: !StorePathName
   }
-  deriving (Eq, Generic, Ord, Show)
+  deriving (Eq, Generic, Ord)
 
 instance Hashable StorePath where
   hashWithSalt s StorePath{..} =
     s `hashWithSalt` storePathHash `hashWithSalt` storePathName
+
+instance Show StorePath where
+  show s =
+    "StorePath"
+    <> " "
+    <> storePathToFilePath (StoreDir mempty) s
 
 -- | The name portion of a Nix path.
 --
