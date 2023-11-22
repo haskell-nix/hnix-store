@@ -94,7 +94,7 @@ library
     , vector
   hs-source-dirs:      src
 
-test-suite format-tests
+test-suite core
   import: commons
   type: exitcode-stdio-1.0
   main-is: Driver.hs

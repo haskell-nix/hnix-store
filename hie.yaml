@@ -4,7 +4,7 @@ cradle:
       component: "lib:hnix-store-core"
 
     - path: "./hnix-store-core/tests"
-      component: "hnix-store-core:test:format-tests"
+      component: "hnix-store-core:test:core"
 
     - path: "./hnix-store-db/src"
       component: "lib:hnix-store-db"
