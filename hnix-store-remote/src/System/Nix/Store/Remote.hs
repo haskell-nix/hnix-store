@@ -43,6 +43,7 @@ import qualified System.Nix.Hash
 import qualified Data.ByteString.Lazy          as BSL
 
 import System.Nix.Derivation (Derivation)
+import System.Nix.Store.Types (FileIngestionMethod(..))
 import           System.Nix.Build               ( BuildMode
                                                 , BuildResult
                                                 )
@@ -80,7 +81,7 @@ addToStore
    . (NamedAlgo a)
   => StorePathName        -- ^ Name part of the newly created `StorePath`
   -> NarSource MonadStore -- ^ provide nar stream
-  -> Recursive            -- ^ Add target directory recursively
+  -> FileIngestionMethod  -- ^ Add target directory recursively
   -> RepairFlag           -- ^ Only used by local store backend
   -> MonadStore StorePath
 addToStore name source recursive repair = do
@@ -90,8 +91,11 @@ addToStore name source recursive repair = do
   runOpArgsIO AddToStore $ \yield -> do
     yield $ BSL.toStrict $ Data.Binary.Put.runPut $ do
       putText $ System.Nix.StorePath.unStorePathName name
-      putBool $ not $ System.Nix.Hash.algoName @a == "sha256" && (unRecursive recursive)
-      putBool (unRecursive recursive)
+      putBool
+        $ not
+        $ System.Nix.Hash.algoName @a == "sha256"
+          && recursive == FileIngestionMethod_FileRecursive
+      putBool (recursive == FileIngestionMethod_FileRecursive)
       putText $ System.Nix.Hash.algoName @a
     source yield
   sockGetPath

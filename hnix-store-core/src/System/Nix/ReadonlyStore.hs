@@ -13,6 +13,7 @@ import Crypto.Hash (Context, Digest, SHA256)
 import Data.ByteString (ByteString)
 import Data.HashSet (HashSet)
 import System.Nix.Hash (BaseEncoding(Base16), NamedAlgo(algoName))
+import System.Nix.Store.Types (FileIngestionMethod(..))
 import System.Nix.StorePath (StoreDir, StorePath(StorePath), StorePathName)
 
 import qualified Crypto.Hash
@@ -66,20 +67,21 @@ makeFixedOutputPath
   :: forall hashAlgo
   .  NamedAlgo hashAlgo
   => StoreDir
-  -> Bool
+  -> FileIngestionMethod
   -> Digest hashAlgo
   -> StorePathName
   -> StorePath
 makeFixedOutputPath storeDir recursive h =
-  if recursive && (algoName @hashAlgo) == "sha256"
-    then makeStorePath storeDir "source" h
-    else makeStorePath storeDir "output:out" h'
+  if recursive == FileIngestionMethod_FileRecursive
+     && (algoName @hashAlgo) == "sha256"
+  then makeStorePath storeDir "source" h
+  else makeStorePath storeDir "output:out" h'
  where
   h' =
     Crypto.Hash.hash @ByteString @SHA256
       $  "fixed:out:"
       <> Data.Text.Encoding.encodeUtf8 (algoName @hashAlgo)
-      <> (if recursive then ":r:" else ":")
+      <> (if recursive == FileIngestionMethod_FileRecursive then ":r:" else ":")
       <> Data.Text.Encoding.encodeUtf8 (System.Nix.Hash.encodeDigestWith Base16 h)
       <> ":"
 
@@ -96,12 +98,15 @@ computeStorePathForPath
   :: StoreDir
   -> StorePathName        -- ^ Name part of the newly created `StorePath`
   -> FilePath             -- ^ Local `FilePath` to add
-  -> Bool                 -- ^ Add target directory recursively
+  -> FileIngestionMethod  -- ^ Add target directory recursively
   -> (FilePath -> Bool)   -- ^ Path filter function
   -> Bool                 -- ^ Only used by local store backend
   -> IO StorePath
 computeStorePathForPath storeDir name pth recursive _pathFilter _repair = do
-  selectedHash <- if recursive then recursiveContentHash else flatContentHash
+  selectedHash <-
+    if recursive == FileIngestionMethod_FileRecursive
+      then recursiveContentHash
+      else flatContentHash
   pure $ makeFixedOutputPath storeDir recursive selectedHash name
  where
   recursiveContentHash :: IO (Digest SHA256)

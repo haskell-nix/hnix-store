@@ -262,7 +262,7 @@ spec_protocol = Hspec.around withNixDaemon $
       itRights "adds file to store" $ do
         fp <- liftIO $ writeSystemTempFile "addition" "lal"
         let name = Data.Either.fromRight (error "impossible") $ makeStorePathName "tmp-addition"
-        res <- addToStore @SHA256 name (dumpPath fp) addNonRecursive dontRepair
+        res <- addToStore @SHA256 name (dumpPath fp) FileIngestionMethod_Flat dontRepair
         liftIO $ print res
 
     context "with dummy" $ do

@@ -73,6 +73,7 @@ library
     , System.Nix.Nar.Options
     , System.Nix.ReadonlyStore
     , System.Nix.Signature
+    , System.Nix.Store.Types
     , System.Nix.StorePath
     , System.Nix.StorePath.Metadata
   build-depends:

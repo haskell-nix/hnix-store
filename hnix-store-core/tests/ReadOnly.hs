@@ -8,6 +8,7 @@ import Test.Hspec (Spec, describe, it, shouldBe)
 import Crypto.Hash (hash, Digest, SHA256(..))
 import Data.ByteString (ByteString)
 import System.Nix.StorePath (StorePath, StorePathName)
+import System.Nix.Store.Types (FileIngestionMethod(..))
 
 import qualified Data.HashSet
 import qualified System.Nix.StorePath
@@ -84,7 +85,7 @@ spec_readOnly = do
         (pure
           $ makeFixedOutputPath
               def
-              True
+              FileIngestionMethod_FileRecursive
               testDigest
               testName
         )
@@ -97,7 +98,7 @@ spec_readOnly = do
         (pure
           $ makeFixedOutputPath
               def
-              False
+              FileIngestionMethod_Flat
               testDigest
               testName
         )
