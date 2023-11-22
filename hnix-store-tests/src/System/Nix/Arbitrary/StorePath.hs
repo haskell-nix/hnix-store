@@ -11,9 +11,9 @@ import Crypto.Hash (SHA256)
 import qualified Data.ByteString.Char8
 import qualified Data.Text
 import System.Nix.StorePath (StoreDir(..)
-  , StorePath(..)
-  , StorePathName(..)
-  , StorePathHashPart(..)
+  , StorePath
+  , StorePathName
+  , StorePathHashPart
   )
 import qualified System.Nix.StorePath
 
@@ -27,7 +27,7 @@ instance Arbitrary StoreDir where
 
 instance Arbitrary StorePath where
   arbitrary =
-    liftA2 StorePath
+    liftA2 System.Nix.StorePath.unsafeMakeStorePath
       arbitrary
       arbitrary
 

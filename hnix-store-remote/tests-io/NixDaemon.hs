@@ -174,7 +174,7 @@ dummy = do
 invalidPath :: StorePath
 invalidPath =
   let name = Data.Either.fromRight (error "impossible") $ makeStorePathName "invalid"
-  in  StorePath (mkStorePathHashPart @SHA256 "invalid") name
+  in  unsafeMakeStorePath (mkStorePathHashPart @SHA256 "invalid") name
 
 withBuilder :: (StorePath -> MonadStore a) -> MonadStore a
 withBuilder action = do

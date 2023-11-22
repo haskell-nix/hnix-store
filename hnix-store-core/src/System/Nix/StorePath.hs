@@ -10,7 +10,9 @@ module System.Nix.StorePath
     StoreDir(..)
   , HasStoreDir(..)
   , getStoreDir
-  , StorePath(..)
+  , StorePath
+  , storePathHash
+  , storePathName
   , StorePathName
   , unStorePathName
   , StorePathHashPart
@@ -31,6 +33,8 @@ module System.Nix.StorePath
     parsePath
   , parsePathFromText
   , pathParser
+    -- * Utilities for tests
+  , unsafeMakeStorePath
   ) where
 
 import Control.Monad.Reader.Class (MonadReader, asks)
@@ -299,3 +303,13 @@ pathParser expectedRoot = do
     (fail . show)
     pure
     (StorePath <$> hashPart <*> name)
+
+-- * Utilities for tests
+
+-- | Paths rarely need to be constructed directly.
+-- Prefer @parsePath@ or @parsePathFromText@
+unsafeMakeStorePath
+  :: StorePathHashPart
+  -> StorePathName
+  -> StorePath
+unsafeMakeStorePath = StorePath

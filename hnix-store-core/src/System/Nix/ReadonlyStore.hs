@@ -14,7 +14,7 @@ import Data.ByteString (ByteString)
 import Data.HashSet (HashSet)
 import System.Nix.Hash (BaseEncoding(Base16), NamedAlgo(algoName))
 import System.Nix.Store.Types (FileIngestionMethod(..), PathFilter, RepairMode)
-import System.Nix.StorePath (StoreDir, StorePath(StorePath), StorePathName)
+import System.Nix.StorePath (StoreDir, StorePath, StorePathName)
 
 import qualified Crypto.Hash
 import qualified Data.ByteString.Char8
@@ -35,7 +35,8 @@ makeStorePath
   -> Digest hashAlgo
   -> StorePathName
   -> StorePath
-makeStorePath storeDir ty h nm = StorePath storeHash nm
+makeStorePath storeDir ty h nm =
+ System.Nix.StorePath.unsafeMakeStorePath storeHash nm
  where
   storeHash = System.Nix.StorePath.mkStorePathHashPart @hashAlgo s
   s =
