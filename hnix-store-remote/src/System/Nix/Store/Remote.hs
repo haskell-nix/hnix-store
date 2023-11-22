@@ -46,7 +46,7 @@ import           System.Nix.Build               ( BuildMode
                                                 , BuildResult
                                                 )
 import           System.Nix.Hash                ( NamedAlgo(..)
-                                                , BaseEncoding(NixBase32)
+                                                , BaseEncoding(Base16)
                                                 , decodeDigestWith
                                                 )
 import           System.Nix.StorePath           ( StorePath
@@ -235,7 +235,7 @@ queryPathInfoUncached path = do
   let
     narHash =
       case
-        decodeDigestWith @SHA256 NixBase32 narHashText
+        decodeDigestWith @SHA256 Base16 narHashText
         of
         Left  e -> error e
         Right d -> System.Nix.Hash.HashAlgo_SHA256 :=> d
