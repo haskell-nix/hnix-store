@@ -85,7 +85,6 @@ library
     -- Required for cryptonite low-level type convertion
     , memory
     , nix-derivation >= 1.1.1 && <2
-    , saltine >= 0.2 && < 0.3
     , some > 1.0.5 && < 2
     , time
     , text
@@ -100,6 +99,7 @@ test-suite core
   other-modules:
     Derivation
     Hash
+    Signature
   hs-source-dirs:
     tests
   build-tool-depends:

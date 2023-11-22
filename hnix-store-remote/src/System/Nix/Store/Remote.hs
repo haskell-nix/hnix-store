@@ -72,6 +72,7 @@ import           System.Nix.Store.Remote.Binary
 import           System.Nix.Store.Remote.Types
 import           System.Nix.Store.Remote.Protocol
 import           System.Nix.Store.Remote.Util
+import qualified System.Nix.Signature
 import           Crypto.Hash                    ( SHA256 )
 import           System.Nix.Nar                 ( NarSource )
 
@@ -252,12 +253,15 @@ queryPathInfoUncached path = do
   narBytes         <- Just <$> sockGetInt
   ultimate         <- sockGetBool
 
-  _sigStrings      <- fmap bsToText <$> sockGetStrings
+  sigStrings       <- fmap bsToText <$> sockGetStrings
   caString         <- bsToText <$> sockGetStr
 
   let
-      -- XXX: signatures need pubkey from config
-      sigs = Data.Set.empty
+      sigs = case
+               Data.Set.fromList <$> mapM (Data.Attoparsec.Text.parseOnly System.Nix.Signature.signatureParser) sigStrings
+               of
+               Left e -> error e
+               Right x -> x
 
       contentAddress =
         if Data.Text.null caString then Nothing else
