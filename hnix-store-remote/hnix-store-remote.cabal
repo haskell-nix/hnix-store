@@ -75,6 +75,7 @@ library
     , System.Nix.Store.Remote.Types.ProtoVersion
     , System.Nix.Store.Remote.Types.StoreConfig
     , System.Nix.Store.Remote.Types.SubstituteMode
+    , System.Nix.Store.Remote.Types.Verbosity
     , System.Nix.Store.Remote.Types.WorkerOp
 
   build-depends:

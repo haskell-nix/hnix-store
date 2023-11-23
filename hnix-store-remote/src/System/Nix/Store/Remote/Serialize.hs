@@ -20,6 +20,7 @@ import System.Nix.Derivation (Derivation(..), DerivationOutput(..))
 import System.Nix.Build (BuildMode(..), BuildStatus(..), BuildResult(..))
 import System.Nix.StorePath (StoreDir, StorePath)
 import System.Nix.Store.Remote.Serialize.Prim
+import System.Nix.Store.Remote.Types.Verbosity (Verbosity)
 
 instance Serialize Text where
   get = getText
@@ -104,3 +105,7 @@ putDerivation storeDir Derivation{..} = do
 
   flip putMany (Data.Map.toList env)
     $ \(a1, a2) -> putText a1 *> putText a2
+
+instance Serialize Verbosity where
+  get = getEnum
+  put = putEnum
