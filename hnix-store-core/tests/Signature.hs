@@ -1,4 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
+-- Inspired by https://cl.tvl.fyi/c/depot/+/10081/1/tvix/nix-compat/src/narinfo/signature.rs
+-- and https://github.com/nix-community/go-nix/pull/93
+-- by @flokli and @zimbatm
 
 module Signature where
 
