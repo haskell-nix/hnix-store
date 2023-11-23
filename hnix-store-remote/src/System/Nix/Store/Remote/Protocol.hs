@@ -35,8 +35,8 @@ import Network.Socket.ByteString (recv, sendAll)
 import System.Nix.StorePath (StoreDir(..))
 import System.Nix.Store.Remote.Serialize.Prim
 import System.Nix.Store.Remote.Logger
+import System.Nix.Store.Remote.Socket
 import System.Nix.Store.Remote.Types hiding (protoVersion)
-import System.Nix.Store.Remote.Util
 
 protoVersion :: Int
 protoVersion = 0x115

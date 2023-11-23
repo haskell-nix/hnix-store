@@ -9,8 +9,8 @@ import Control.Monad.Except (throwError)
 import Control.Monad.State.Strict (get)
 import Data.Serialize.Get (Get, Result(..))
 import System.Nix.Store.Remote.Serialize.Prim
+import System.Nix.Store.Remote.Socket
 import System.Nix.Store.Remote.Types
-import System.Nix.Store.Remote.Util
 
 import qualified Control.Monad
 import qualified Data.Serialize.Get

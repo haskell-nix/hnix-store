@@ -58,13 +58,13 @@ import qualified System.Nix.Signature
 
 import System.Nix.Store.Remote.Types
 import System.Nix.Store.Remote.Protocol
-import System.Nix.Store.Remote.Util
+import System.Nix.Store.Remote.Socket
 import Crypto.Hash (SHA256)
 import System.Nix.Nar (NarSource)
 
 import Data.Serialize (get)
 import qualified Data.Serialize.Put
-import qualified System.Nix.Store.Remote.Serialize as S
+import System.Nix.Store.Remote.Serialize
 import System.Nix.Store.Remote.Serialize.Prim
 
 -- | Pack `Nar` and add it to the store.
@@ -153,7 +153,7 @@ buildDerivation p drv buildMode = do
   storeDir <- getStoreDir
   runOpArgs BuildDerivation $ do
     putPath storeDir p
-    S.putDerivation storeDir drv
+    putDerivation storeDir drv
     putEnum buildMode
     -- XXX: reason for this is unknown
     -- but without it protocol just hangs waiting for

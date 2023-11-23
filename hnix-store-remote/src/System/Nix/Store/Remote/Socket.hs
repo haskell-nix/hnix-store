@@ -1,19 +1,17 @@
-module System.Nix.Store.Remote.Util where
+module System.Nix.Store.Remote.Socket where
 
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (asks)
 import Control.Monad.IO.Class (MonadIO(..))
 import Data.ByteString (ByteString)
 import Data.HashSet (HashSet)
-
 import Data.Serialize.Get (Get, Result(..))
 import Data.Serialize.Put
 import Network.Socket.ByteString (recv, sendAll)
-
 import System.Nix.StorePath (StorePath)
+import System.Nix.Store.Remote.Serialize.Prim
 import System.Nix.Store.Remote.Types
 
-import qualified System.Nix.Store.Remote.Serialize.Prim as P
 import qualified Data.Serialize.Get
 
 genericIncremental
@@ -48,21 +46,21 @@ sockGet :: Get a -> MonadStore a
 sockGet = getSocketIncremental
 
 sockGetInt :: Integral a => MonadStore a
-sockGetInt = fromIntegral <$> getSocketIncremental P.getInt
+sockGetInt = fromIntegral <$> getSocketIncremental getInt
 
 sockGetBool :: MonadStore Bool
 sockGetBool = (== (1 :: Int)) <$> sockGetInt
 
 sockGetStr :: MonadStore ByteString
-sockGetStr = getSocketIncremental P.getByteString
+sockGetStr = getSocketIncremental getByteString
 
 sockGetStrings :: MonadStore [ByteString]
-sockGetStrings = getSocketIncremental P.getByteStrings
+sockGetStrings = getSocketIncremental getByteStrings
 
 sockGetPath :: MonadStore StorePath
 sockGetPath = do
   sd  <- getStoreDir
-  pth <- getSocketIncremental (P.getPath sd)
+  pth <- getSocketIncremental (getPath sd)
   either
     (throwError . show)
     pure
@@ -71,7 +69,7 @@ sockGetPath = do
 sockGetPathMay :: MonadStore (Maybe StorePath)
 sockGetPathMay = do
   sd  <- getStoreDir
-  pth <- getSocketIncremental (P.getPath sd)
+  pth <- getSocketIncremental (getPath sd)
   pure $
     either
       (const Nothing)
@@ -81,4 +79,4 @@ sockGetPathMay = do
 sockGetPaths :: MonadStore (HashSet StorePath)
 sockGetPaths = do
   sd <- getStoreDir
-  getSocketIncremental (P.getPathsOrFail sd)
+  getSocketIncremental (getPathsOrFail sd)
