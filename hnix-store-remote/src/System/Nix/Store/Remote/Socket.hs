@@ -9,6 +9,7 @@ import Data.Serialize.Get (Get, Result(..))
 import Data.Serialize.Put
 import Network.Socket.ByteString (recv, sendAll)
 import System.Nix.StorePath (StorePath)
+import System.Nix.Store.Remote.MonadStore
 import System.Nix.Store.Remote.Serialize.Prim
 import System.Nix.Store.Remote.Types
 

@@ -1,4 +1,3 @@
-
 module System.Nix.Store.Remote.Logger
   ( Logger(..)
   , Field(..)
@@ -10,6 +9,7 @@ import Control.Monad.State.Strict (get)
 import Data.Serialize.Get (Get, Result(..))
 import System.Nix.Store.Remote.Serialize.Prim
 import System.Nix.Store.Remote.Socket
+import System.Nix.Store.Remote.MonadStore
 import System.Nix.Store.Remote.Types
 
 import qualified Control.Monad

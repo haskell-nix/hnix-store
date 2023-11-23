@@ -28,20 +28,17 @@ module System.Nix.Store.Remote
   , syncWithGC
   , verifyStore
   , module System.Nix.Store.Types
+  , module System.Nix.Store.Remote.MonadStore
   , module System.Nix.Store.Remote.Types
   ) where
 
+import Crypto.Hash (SHA256)
 import Data.ByteString (ByteString)
 import Data.Dependent.Sum (DSum((:=>)))
 import Data.HashSet (HashSet)
 import Data.Map (Map)
 import Data.Text (Text)
-import qualified Data.Text
-import qualified Control.Monad
-import qualified Data.Attoparsec.Text
-import qualified Data.Text.Encoding
-import qualified System.Nix.Hash
---
+import System.Nix.Nar (NarSource)
 import System.Nix.Derivation (Derivation)
 import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
 import System.Nix.Build (BuildMode, BuildResult)
@@ -49,24 +46,27 @@ import System.Nix.Hash (NamedAlgo(..), BaseEncoding(Base16), decodeDigestWith)
 import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart, InvalidPathError)
 import System.Nix.StorePath.Metadata  (Metadata(..), StorePathTrust(..))
 
+import qualified Data.Text
+import qualified Control.Monad
+import qualified Data.Attoparsec.Text
+import qualified Data.Text.Encoding
 import qualified Data.Map.Strict
+import qualified Data.Serialize.Put
 import qualified Data.Set
 
 import qualified System.Nix.ContentAddress
-import qualified System.Nix.StorePath
+import qualified System.Nix.Hash
 import qualified System.Nix.Signature
+import qualified System.Nix.StorePath
 
-import System.Nix.Store.Remote.Types
+import System.Nix.Store.Remote.MonadStore
 import System.Nix.Store.Remote.Protocol
 import System.Nix.Store.Remote.Socket
-import Crypto.Hash (SHA256)
-import System.Nix.Nar (NarSource)
+import System.Nix.Store.Remote.Types
 
 import Data.Serialize (get)
 import System.Nix.Store.Remote.Serialize
 import System.Nix.Store.Remote.Serialize.Prim
-
-import qualified Data.Serialize.Put
 
 -- | Pack `Nar` and add it to the store.
 addToStore
