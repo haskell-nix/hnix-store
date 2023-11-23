@@ -37,7 +37,10 @@ putInt = Data.Serialize.Put.putWord64le . fromIntegral
 
 -- | Deserialize @Bool@ from integer
 getBool :: Get Bool
-getBool = (== 1) <$> (getInt :: Get Int)
+getBool = getInt >>= \case
+  0 -> pure False
+  1 -> pure True
+  x -> fail $ "illegal bool value " ++ show x
 
 -- | Serialize @Bool@ into integer
 putBool :: Putter Bool
@@ -48,7 +51,10 @@ putBool False = putInt (0 :: Int)
 
 -- | Deserialize @Enum@ to integer
 getEnum :: Enum a => Get a
-getEnum = toEnum <$> getInt
+getEnum = getInt >>= \case
+  x | x < minBound -> fail $ "enum out of min bound " ++ show x
+  x | x > maxBound -> fail $ "enum out of max bound " ++ show x
+  x | otherwise -> pure $ toEnum x
 
 -- | Serialize @Enum@ to integer
 putEnum :: Enum a => Putter a
