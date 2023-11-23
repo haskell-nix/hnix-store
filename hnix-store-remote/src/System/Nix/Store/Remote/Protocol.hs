@@ -68,8 +68,9 @@ simpleOpArgs op args = do
   Data.Bool.bool
     sockGetBool
     (do
-      Error _num msg <- head <$> getError
-      throwError $ Data.ByteString.Char8.unpack msg
+      -- TODO: errorExitStatus, head
+      Error{..} <- head <$> getError
+      throwError $ Data.ByteString.Char8.unpack errorMessage
     )
     err
 
@@ -97,8 +98,9 @@ runOpArgsIO op encoder = do
   modify (\(a, b) -> (a, b <> out))
   err <- gotError
   Control.Monad.when err $ do
-    Error _num msg <- head <$> getError
-    throwError $ Data.ByteString.Char8.unpack msg
+    -- TODO: errorExitStatus, head
+    Error{..} <- head <$> getError
+    throwError $ Data.ByteString.Char8.unpack errorMessage
 
 runStore :: MonadStore a -> IO (Either String a, [Logger])
 runStore = runStoreOpts defaultSockPath def

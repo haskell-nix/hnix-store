@@ -2,38 +2,54 @@ module System.Nix.Store.Remote.Types.Logger
   ( Field(..)
   , Logger(..)
   , isError
+  , ActivityID(..)
   -- to be nuked/newtyped
-  , ActivityID
-  , ActivityParentID
   , ActivityType
-  , Verbosity
   , ResultType
   ) where
 
 import Data.ByteString (ByteString)
+import GHC.Generics
+import System.Nix.Store.Remote.Types.Verbosity (Verbosity)
 
-type ActivityID = Int
-type ActivityParentID = Int
+newtype ActivityID = ActivityID { unActivityID :: Int }
+  deriving (Eq, Generic, Ord, Show)
+
 type ActivityType = Int
-type Verbosity = Int
 type ResultType = Int
 
-data Field = LogStr ByteString | LogInt Int
-  deriving (Eq, Ord, Show)
+data Field
+  = Field_LogStr ByteString
+  | Field_LogInt Int
+  deriving (Eq, Generic, Ord, Show)
 
 data Logger =
-    Next          ByteString
-  | Read          Int        -- data needed from source
-  | Write         ByteString -- data for sink
+    Next ByteString
+  | Read Int         -- data needed from source
+  | Write ByteString -- data for sink
   | Last
-  | Error         Int ByteString
-  | StartActivity ActivityID Verbosity ActivityType ByteString [Field] ActivityParentID
-  | StopActivity  ActivityID
-  | Result        ActivityID ResultType [Field]
-  deriving (Eq, Ord, Show)
+  | Error
+      { errorExitStatus :: Int
+      , errorMessage :: ByteString
+      }
+  | StartActivity
+      { startActivityID :: ActivityID
+      , startActivityVerbosity :: Verbosity
+      , startActivityType :: ActivityType
+      , startActivityString :: ByteString
+      , startActivityFields :: [Field]
+      , startActivityParentID :: ActivityID
+      }
+  | StopActivity
+      { stopActivityID :: ActivityID
+      }
+  | Result
+      { resultActivityID :: ActivityID
+      , resultType :: ResultType
+      , resultFields :: [Field]
+      }
+  deriving (Eq, Generic, Ord, Show)
 
 isError :: Logger -> Bool
 isError (Error _ _) = True
 isError _           = False
-
-
