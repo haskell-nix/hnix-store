@@ -21,6 +21,7 @@ module System.Nix.Store.Remote.Types
   , setData
   , clearData
   , module System.Nix.Store.Remote.Types.ProtoVersion
+  , module System.Nix.Store.Remote.Types.WorkerOp
   ) where
 
 import Control.Monad.Except (ExceptT)
@@ -35,6 +36,7 @@ import Control.Monad.Trans.Except (mapExceptT)
 import Control.Monad.Trans.Reader (withReaderT)
 
 import System.Nix.Store.Remote.Types.ProtoVersion
+import System.Nix.Store.Remote.Types.WorkerOp
 import System.Nix.StorePath (HasStoreDir(..), StoreDir)
 
 
