@@ -63,9 +63,10 @@ import Crypto.Hash (SHA256)
 import System.Nix.Nar (NarSource)
 
 import Data.Serialize (get)
-import qualified Data.Serialize.Put
 import System.Nix.Store.Remote.Serialize
 import System.Nix.Store.Remote.Serialize.Prim
+
+import qualified Data.Serialize.Put
 
 -- | Pack `Nar` and add it to the store.
 addToStore
@@ -198,13 +199,13 @@ isValidPathUncached p = do
 -- | Query valid paths from set, optionally try to use substitutes.
 queryValidPaths
   :: HashSet StorePath   -- ^ Set of `StorePath`s to query
-  -> SubstituteFlag -- ^ Try substituting missing paths when `True`
+  -> SubstituteMode      -- ^ Try substituting missing paths when `True`
   -> MonadStore (HashSet StorePath)
 queryValidPaths ps substitute = do
   storeDir <- getStoreDir
   runOpArgs QueryValidPaths $ do
     putPaths storeDir ps
-    putBool (unSubstituteFlag substitute)
+    putBool $ substitute == SubstituteMode_DoSubstitute
   sockGetPaths
 
 queryAllValidPaths :: MonadStore (HashSet StorePath)
@@ -325,7 +326,7 @@ syncWithGC :: MonadStore ()
 syncWithGC = Control.Monad.void $ simpleOp SyncWithGC
 
 -- returns True on errors
-verifyStore :: CheckFlag -> RepairMode -> MonadStore Bool
+verifyStore :: CheckMode -> RepairMode -> MonadStore Bool
 verifyStore check repair = simpleOpArgs VerifyStore $ do
-  putBool $ unCheckFlag check
+  putBool $ check == CheckMode_DoCheck
   putBool $ repair == RepairMode_DoRepair

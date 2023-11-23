@@ -69,8 +69,10 @@ library
     , System.Nix.Store.Remote.Protocol
     , System.Nix.Store.Remote.Socket
     , System.Nix.Store.Remote.Types
+    , System.Nix.Store.Remote.Types.CheckMode
     , System.Nix.Store.Remote.Types.ProtoVersion
     , System.Nix.Store.Remote.Types.StoreConfig
+    , System.Nix.Store.Remote.Types.SubstituteMode
     , System.Nix.Store.Remote.Types.WorkerOp
 
   build-depends:

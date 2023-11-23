@@ -187,14 +187,23 @@ spec_protocol = Hspec.around withNixDaemon $
 
     context "verifyStore" $ do
       itRights "check=False repair=False" $
-        verifyStore dontCheck RepairMode_DontRepair `shouldReturn` False
+        verifyStore
+          CheckMode_DontCheck
+          RepairMode_DontRepair
+        `shouldReturn` False
 
       itRights "check=True repair=False" $
-        verifyStore doCheck RepairMode_DontRepair `shouldReturn` False
+        verifyStore
+          CheckMode_DoCheck
+          RepairMode_DontRepair
+        `shouldReturn` False
 
       --privileged
       itRights "check=True repair=True" $
-        verifyStore doCheck RepairMode_DoRepair `shouldReturn` False
+        verifyStore
+          CheckMode_DoCheck
+          RepairMode_DoRepair
+        `shouldReturn` False
 
     context "addTextToStore" $
       itRights "adds text to store" $ withPath pure

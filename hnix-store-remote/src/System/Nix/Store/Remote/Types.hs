@@ -1,14 +1,6 @@
 module System.Nix.Store.Remote.Types
   ( MonadStore
   , StoreConfig(..)
-  , CheckFlag
-  , doCheck
-  , dontCheck
-  , unCheckFlag
-  , SubstituteFlag
-  , doSubstitute
-  , dontSubstitute
-  , unSubstituteFlag
   , Logger(..)
   , Field(..)
   , mapStoreDir
@@ -20,7 +12,9 @@ module System.Nix.Store.Remote.Types
   , getError
   , setData
   , clearData
+  , module System.Nix.Store.Remote.Types.CheckMode
   , module System.Nix.Store.Remote.Types.ProtoVersion
+  , module System.Nix.Store.Remote.Types.SubstituteMode
   , module System.Nix.Store.Remote.Types.WorkerOp
   ) where
 
@@ -34,26 +28,12 @@ import Control.Monad.Trans.State.Strict (mapStateT)
 import Control.Monad.Trans.Except (mapExceptT)
 import Control.Monad.Trans.Reader (withReaderT)
 
+import System.Nix.Store.Remote.Types.CheckMode
 import System.Nix.Store.Remote.Types.ProtoVersion
 import System.Nix.Store.Remote.Types.StoreConfig
+import System.Nix.Store.Remote.Types.SubstituteMode
 import System.Nix.Store.Remote.Types.WorkerOp
 import System.Nix.StorePath (HasStoreDir(..), StoreDir)
-
--- | Check flag, used by @verifyStore@
-newtype CheckFlag = CheckFlag { unCheckFlag :: Bool }
-  deriving (Eq, Ord, Show)
-
-doCheck, dontCheck :: CheckFlag
-doCheck = CheckFlag True
-dontCheck = CheckFlag False
-
--- | Substitute flag, used by @queryValidPaths@
-newtype SubstituteFlag = SubstituteFlag { unSubstituteFlag :: Bool }
-  deriving (Eq, Ord, Show)
-
-doSubstitute, dontSubstitute :: SubstituteFlag
-doSubstitute = SubstituteFlag True
-dontSubstitute = SubstituteFlag False
 
 -- | Ask for a @StoreDir@
 getStoreDir' :: (HasStoreDir r, MonadReader r m) => m StoreDir
