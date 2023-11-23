@@ -33,15 +33,15 @@ genericIncremental getsome parser = do
 
 getSocketIncremental :: Get a -> MonadStore a
 getSocketIncremental = genericIncremental sockGet8
- where
-  sockGet8 :: MonadStore ByteString
-  sockGet8 = do
-    soc <- asks storeSocket
-    liftIO $ recv soc 8
+
+sockGet8 :: MonadStore ByteString
+sockGet8 = do
+  soc <- asks storeConfig_socket
+  liftIO $ recv soc 8
 
 sockPut :: Put -> MonadStore ()
 sockPut p = do
-  soc <- asks storeSocket
+  soc <- asks storeConfig_socket
   liftIO $ sendAll soc $ runPut p
 
 sockGet :: Get a -> MonadStore a

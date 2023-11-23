@@ -69,6 +69,7 @@ library
     , System.Nix.Store.Remote.Protocol
     , System.Nix.Store.Remote.Types
     , System.Nix.Store.Remote.Types.ProtoVersion
+    , System.Nix.Store.Remote.Types.StoreConfig
     , System.Nix.Store.Remote.Types.WorkerOp
     , System.Nix.Store.Remote.Util
 

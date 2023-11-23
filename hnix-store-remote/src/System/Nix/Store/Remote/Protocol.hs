@@ -89,7 +89,7 @@ runOpArgsIO op encoder = do
 
   sockPut $ putEnum op
 
-  soc <- asks storeSocket
+  soc <- asks storeConfig_socket
   encoder (liftIO . sendAll soc)
 
   out <- processOutput
@@ -116,20 +116,21 @@ runStoreOptsTCP host port storeRootDir code = do
 runStoreOpts'
   :: S.Family -> S.SockAddr -> StoreDir -> MonadStore a -> IO (Either String a, [Logger])
 runStoreOpts' sockFamily sockAddr storeRootDir code =
-  bracket open (S.close . storeSocket) run
+  bracket open (S.close . storeConfig_socket) run
 
  where
   open = do
     soc <- S.socket sockFamily S.Stream 0
     S.connect soc sockAddr
     pure StoreConfig
-        { storeSocket = soc
-        , storeDir = storeRootDir
+        { storeConfig_dir = storeRootDir
+        , storeConfig_protoVersion = ourProtoVersion
+        , storeConfig_socket = soc
         }
 
   greet = do
     sockPut $ putInt workerMagic1
-    soc      <- asks storeSocket
+    soc      <- asks storeConfig_socket
     vermagic <- liftIO $ recv soc 16
     let
       eres =

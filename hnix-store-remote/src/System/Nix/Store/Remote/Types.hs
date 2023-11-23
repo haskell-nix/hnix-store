@@ -29,21 +29,15 @@ import Control.Monad.Reader (ReaderT, asks)
 import Control.Monad.Reader.Class (MonadReader)
 import Control.Monad.State.Strict (StateT, gets, modify)
 import Data.ByteString (ByteString)
-import Network.Socket (Socket)
 
 import Control.Monad.Trans.State.Strict (mapStateT)
 import Control.Monad.Trans.Except (mapExceptT)
 import Control.Monad.Trans.Reader (withReaderT)
 
 import System.Nix.Store.Remote.Types.ProtoVersion
+import System.Nix.Store.Remote.Types.StoreConfig
 import System.Nix.Store.Remote.Types.WorkerOp
 import System.Nix.StorePath (HasStoreDir(..), StoreDir)
-
-
-data StoreConfig = StoreConfig
-  { storeDir    :: StoreDir
-  , storeSocket :: Socket
-  }
 
 -- | Check flag, used by @verifyStore@
 newtype CheckFlag = CheckFlag { unCheckFlag :: Bool }
@@ -73,7 +67,8 @@ type MonadStore a
 
 -- | For lying about the store dir in tests
 mapStoreDir :: (StoreDir -> StoreDir) -> (MonadStore a -> MonadStore a)
-mapStoreDir f = mapExceptT . mapStateT . withReaderT $ \c@StoreConfig { storeDir = sd } -> c { storeDir = f sd }
+mapStoreDir f = mapExceptT . mapStateT . withReaderT
+  $ \c@StoreConfig { storeConfig_dir = sd } -> c { storeConfig_dir = f sd }
 
 type ActivityID = Int
 type ActivityParentID = Int
@@ -118,4 +113,4 @@ clearData :: MonadStore ()
 clearData = modify (\(_, b) -> (Nothing, b))
 
 getStoreDir :: MonadStore StoreDir
-getStoreDir = asks storeDir
+getStoreDir = asks storeConfig_dir

@@ -6,12 +6,8 @@ module System.Nix.Store.Remote.Logger
   ) where
 
 import Control.Monad.Except (throwError)
-import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Reader (asks)
 import Control.Monad.State.Strict (get)
-import Data.ByteString (ByteString)
 import Data.Serialize.Get (Get, Result(..))
-import Network.Socket.ByteString (recv)
 import System.Nix.Store.Remote.Serialize.Prim
 import System.Nix.Store.Remote.Types
 import System.Nix.Store.Remote.Util
@@ -45,10 +41,6 @@ processOutput :: MonadStore [Logger]
 processOutput = do
  sockGet8 >>= go . decoder
  where
-  sockGet8 :: MonadStore ByteString
-  sockGet8 = do
-    soc <- asks storeSocket
-    liftIO $ recv soc 8
   decoder = Data.Serialize.Get.runGetPartial controlParser
   go :: Result Logger -> MonadStore [Logger]
   go (Done ctrl _leftover) = do
