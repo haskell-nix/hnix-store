@@ -236,15 +236,15 @@ spec_protocol = Hspec.around withNixDaemon $
     context "buildPaths" $ do
       itRights "build Normal" $ withPath $ \path -> do
         let pathSet = HS.fromList [path]
-        buildPaths pathSet Normal
+        buildPaths pathSet BuildMode_Normal
 
       itRights "build Check" $ withPath $ \path -> do
         let pathSet = HS.fromList [path]
-        buildPaths pathSet Check
+        buildPaths pathSet BuildMode_Check
 
       itLefts "build Repair" $ withPath $ \path -> do
         let pathSet = HS.fromList [path]
-        buildPaths pathSet Repair
+        buildPaths pathSet BuildMode_Repair
 
     context "roots" $ context "findRoots" $ do
         itRights "empty roots" (findRoots `shouldReturn` M.empty)

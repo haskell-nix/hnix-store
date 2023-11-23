@@ -21,7 +21,7 @@ import qualified Data.Time.Clock.POSIX
 import qualified System.Nix.Build
 
 import System.Nix.Arbitrary ()
-import System.Nix.Build (BuildMode, BuildStatus)
+import System.Nix.Build (BuildMode(..), BuildStatus(..))
 import System.Nix.Derivation (Derivation(..))
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serialize (getDerivation, putDerivation)
@@ -114,27 +114,27 @@ spec = do
 
   describe "Enums" $ do
     let it' name constr value = it name $ runPut (put constr) `shouldBe` runPut (putInt value)
-    describe "Build enum order matches Nix" $ do
-      it' "Normal" System.Nix.Build.Normal 0
-      it' "Repair" System.Nix.Build.Repair 1
-      it' "Check"  System.Nix.Build.Check  2
+    describe "BuildMode enum order matches Nix" $ do
+      it' "Normal" BuildMode_Normal 0
+      it' "Repair" BuildMode_Repair 1
+      it' "Check"  BuildMode_Check  2
 
     describe "BuildStatus enum order matches Nix" $ do
-      it' "Built"                  System.Nix.Build.Built                   0
-      it' "Substituted"            System.Nix.Build.Substituted             1
-      it' "AlreadyValid"           System.Nix.Build.AlreadyValid            2
-      it' "PermanentFailure"       System.Nix.Build.PermanentFailure        3
-      it' "InputRejected"          System.Nix.Build.InputRejected           4
-      it' "OutputRejected"         System.Nix.Build.OutputRejected          5
-      it' "TransientFailure"       System.Nix.Build.TransientFailure        6
-      it' "CachedFailure"          System.Nix.Build.CachedFailure           7
-      it' "TimedOut"               System.Nix.Build.TimedOut                8
-      it' "MiscFailure"            System.Nix.Build.MiscFailure             9
-      it' "DependencyFailed"       System.Nix.Build.DependencyFailed       10
-      it' "LogLimitExceeded"       System.Nix.Build.LogLimitExceeded       11
-      it' "NotDeterministic"       System.Nix.Build.NotDeterministic       12
-      it' "ResolvesToAlreadyValid" System.Nix.Build.ResolvesToAlreadyValid 13
-      it' "NoSubstituters"         System.Nix.Build.NoSubstituters         14
+      it' "Built"                  BuildStatus_Built                   0
+      it' "Substituted"            BuildStatus_Substituted             1
+      it' "AlreadyValid"           BuildStatus_AlreadyValid            2
+      it' "PermanentFailure"       BuildStatus_PermanentFailure        3
+      it' "InputRejected"          BuildStatus_InputRejected           4
+      it' "OutputRejected"         BuildStatus_OutputRejected          5
+      it' "TransientFailure"       BuildStatus_TransientFailure        6
+      it' "CachedFailure"          BuildStatus_CachedFailure           7
+      it' "TimedOut"               BuildStatus_TimedOut                8
+      it' "MiscFailure"            BuildStatus_MiscFailure             9
+      it' "DependencyFailed"       BuildStatus_DependencyFailed       10
+      it' "LogLimitExceeded"       BuildStatus_LogLimitExceeded       11
+      it' "NotDeterministic"       BuildStatus_NotDeterministic       12
+      it' "ResolvesToAlreadyValid" BuildStatus_ResolvesToAlreadyValid 13
+      it' "NoSubstituters"         BuildStatus_NoSubstituters         14
 
     describe "Verbosity enum order matches Nix" $ do
       it' "Error"     Verbosity_Error     0
