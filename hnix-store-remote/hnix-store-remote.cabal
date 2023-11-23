@@ -121,7 +121,7 @@ test-suite remote
   type:              exitcode-stdio-1.0
   main-is:           Driver.hs
   hs-source-dirs:    tests
-  ghc-options:       -Wall
+  ghc-options:       -Wall -threaded -rtsopts "-with-rtsopts -N"
   other-modules:
       SerializeSpec
   build-tool-depends:

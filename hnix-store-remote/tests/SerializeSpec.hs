@@ -9,7 +9,7 @@ import Data.Serialize.Get (Get, runGet)
 import Data.Serialize.Put (Putter, runPut)
 import Data.Text (Text)
 import Data.Time (NominalDiffTime)
-import Test.Hspec (Expectation, Spec, describe, it, shouldBe)
+import Test.Hspec (Expectation, Spec, describe, it, parallel, shouldBe)
 import Test.Hspec.QuickCheck (prop)
 import Test.Hspec.Nix (roundtrips)
 import Test.QuickCheck (arbitrary, forAll, suchThat)
@@ -56,7 +56,7 @@ roundtripS =
     (runGet get)
 
 spec :: Spec
-spec = do
+spec = parallel $ do
   describe "Prim" $ do
     prop "Int" $ roundtrips2 putInt getInt
     prop "Bool" $ roundtrips2 putBool getBool
