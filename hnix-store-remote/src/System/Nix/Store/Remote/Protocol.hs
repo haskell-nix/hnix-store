@@ -23,18 +23,17 @@ import Control.Monad.State.Strict
 
 import Data.Default.Class (Default(def))
 import qualified Data.Bool
-import Data.Binary.Get
-import Data.Binary.Put
+import Data.Serialize.Get
+import Data.Serialize.Put
 import qualified Data.ByteString
 import qualified Data.ByteString.Char8
-import qualified Data.ByteString.Lazy
 
 import Network.Socket (SockAddr(SockAddrUnix))
 import qualified Network.Socket as S
 import Network.Socket.ByteString (recv, sendAll)
 
 import System.Nix.StorePath (StoreDir(..))
-import System.Nix.Store.Remote.Binary
+import System.Nix.Store.Remote.Serialize.Prim
 import System.Nix.Store.Remote.Logger
 import System.Nix.Store.Remote.Types hiding (protoVersion)
 import System.Nix.Store.Remote.Util
@@ -134,7 +133,7 @@ runOpArgs :: WorkerOp -> Put -> MonadStore ()
 runOpArgs op args =
   runOpArgsIO
     op
-    (\encode -> encode $ Data.ByteString.Lazy.toStrict $ runPut args)
+    (\encode -> encode $ runPut args)
 
 runOpArgsIO
   :: WorkerOp
@@ -187,12 +186,16 @@ runStoreOpts' sockFamily sockAddr storeRootDir code =
     soc      <- asks storeSocket
     vermagic <- liftIO $ recv soc 16
     let
-      (magic2, _daemonProtoVersion) =
-        flip runGet (Data.ByteString.Lazy.fromStrict vermagic)
+      eres =
+        flip runGet vermagic
           $ (,)
             <$> (getInt :: Get Int)
             <*> (getInt :: Get Int)
-    Control.Monad.unless (magic2 == workerMagic2) $ error "Worker magic 2 mismatch"
+
+    case eres of
+      Left err -> error $ "Error parsing vermagic " ++ err
+      Right (magic2, _daemonProtoVersion) -> do
+        Control.Monad.unless (magic2 == workerMagic2) $ error "Worker magic 2 mismatch"
 
     sockPut $ putInt protoVersion -- clientVersion
     sockPut $ putInt (0 :: Int)   -- affinity

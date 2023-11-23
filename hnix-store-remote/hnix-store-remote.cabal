@@ -63,7 +63,6 @@ library
   import: commons
   exposed-modules:
       System.Nix.Store.Remote
-    , System.Nix.Store.Remote.Binary
     , System.Nix.Store.Remote.Serialize
     , System.Nix.Store.Remote.Serialize.Prim
     , System.Nix.Store.Remote.Logger
@@ -77,7 +76,6 @@ library
     , hnix-store-core >= 0.8 && <0.9
     , hnix-store-nar >= 0.1
     , attoparsec
-    , binary
     , bytestring
     , cereal
     , containers

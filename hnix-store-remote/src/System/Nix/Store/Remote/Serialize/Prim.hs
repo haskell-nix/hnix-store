@@ -14,6 +14,7 @@ import Data.Time (NominalDiffTime, UTCTime)
 import System.Nix.StorePath (StoreDir, StorePath, InvalidPathError)
 
 import qualified Control.Monad
+import qualified Data.Either
 import qualified Data.HashSet
 import qualified Data.Serialize.Get
 import qualified Data.Serialize.Put
@@ -178,6 +179,19 @@ getPaths sd =
   Data.HashSet.fromList
   . fmap (System.Nix.StorePath.parsePath sd)
   <$> getByteStrings
+
+-- | Deserialize @StorePath@, checking
+-- that @StoreDir@ matches expected value
+getPathsOrFail :: StoreDir -> Get (HashSet StorePath)
+getPathsOrFail sd = do
+  eps <-
+    fmap (System.Nix.StorePath.parsePath sd)
+    <$> getByteStrings
+  Control.Monad.when (any Data.Either.isLeft eps)
+    $ fail
+    $ show
+    $ Data.Either.lefts eps
+  pure $ Data.HashSet.fromList $ Data.Either.rights eps
 
 -- | Serialize a @HashSet@ of @StorePath@s
 putPaths :: StoreDir -> Putter (HashSet StorePath)

@@ -37,7 +37,7 @@ instance Serialize BuildResult where
   get = do
     status <- get
     errorMessage <-
-      (\em -> Data.Bool.bool (Just em) Nothing (Data.Text.null em)) 
+      (\em -> Data.Bool.bool (Just em) Nothing (Data.Text.null em))
       <$> get
     timesBuilt <- getInt
     isNonDeterministic <- getBool

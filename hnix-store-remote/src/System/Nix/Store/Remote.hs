@@ -31,6 +31,7 @@ module System.Nix.Store.Remote
   , module System.Nix.Store.Remote.Types
   ) where
 
+import Data.ByteString (ByteString)
 import Data.Dependent.Sum (DSum((:=>)))
 import Data.HashSet (HashSet)
 import Data.Map (Map)
@@ -41,8 +42,6 @@ import qualified Data.Attoparsec.Text
 import qualified Data.Text.Encoding
 import qualified System.Nix.Hash
 --
-import qualified Data.ByteString.Lazy          as BSL
-
 import System.Nix.Derivation (Derivation)
 import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
 import System.Nix.Build (BuildMode, BuildResult)
@@ -50,7 +49,6 @@ import System.Nix.Hash (NamedAlgo(..), BaseEncoding(Base16), decodeDigestWith)
 import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart, InvalidPathError)
 import System.Nix.StorePath.Metadata  (Metadata(..), StorePathTrust(..))
 
-import qualified Data.Binary.Put
 import qualified Data.Map.Strict
 import qualified Data.Set
 
@@ -58,12 +56,16 @@ import qualified System.Nix.ContentAddress
 import qualified System.Nix.StorePath
 import qualified System.Nix.Signature
 
-import System.Nix.Store.Remote.Binary
 import System.Nix.Store.Remote.Types
 import System.Nix.Store.Remote.Protocol
 import System.Nix.Store.Remote.Util
 import Crypto.Hash (SHA256)
 import System.Nix.Nar (NarSource)
+
+import Data.Serialize (get)
+import qualified Data.Serialize.Put
+import qualified System.Nix.Store.Remote.Serialize as S
+import System.Nix.Store.Remote.Serialize.Prim
 
 -- | Pack `Nar` and add it to the store.
 addToStore
@@ -79,7 +81,7 @@ addToStore name source recursive repair = do
     $ error "repairing is not supported when building through the Nix daemon"
 
   runOpArgsIO AddToStore $ \yield -> do
-    yield $ BSL.toStrict $ Data.Binary.Put.runPut $ do
+    yield $ Data.Serialize.Put.runPut $ do
       putText $ System.Nix.StorePath.unStorePathName name
       putBool
         $ not
@@ -112,7 +114,7 @@ addTextToStore name text references' repair = do
     putPaths storeDir references'
   sockGetPath
 
-addSignatures :: StorePath -> [BSL.ByteString] -> MonadStore ()
+addSignatures :: StorePath -> [ByteString] -> MonadStore ()
 addSignatures p signatures = do
   storeDir <- getStoreDir
   Control.Monad.void $ simpleOpArgs AddSignatures $ do
@@ -151,15 +153,15 @@ buildDerivation p drv buildMode = do
   storeDir <- getStoreDir
   runOpArgs BuildDerivation $ do
     putPath storeDir p
-    putDerivation storeDir drv
+    S.putDerivation storeDir drv
     putEnum buildMode
     -- XXX: reason for this is unknown
     -- but without it protocol just hangs waiting for
     -- more data. Needs investigation.
     -- Intentionally the only warning that should pop-up.
-    putInt (0 :: Integer)
+    putInt (0 :: Int)
 
-  getSocketIncremental getBuildResult
+  getSocketIncremental get
 
 ensurePath :: StorePath -> MonadStore ()
 ensurePath pn = do
@@ -167,7 +169,7 @@ ensurePath pn = do
   Control.Monad.void $ simpleOpArgs EnsurePath $ putPath storeDir pn
 
 -- | Find garbage collector roots.
-findRoots :: MonadStore (Map BSL.ByteString StorePath)
+findRoots :: MonadStore (Map ByteString StorePath)
 findRoots = do
   runOp FindRoots
   sd  <- getStoreDir
@@ -175,7 +177,7 @@ findRoots = do
     getSocketIncremental
     $ getMany
     $ (,)
-      <$> (BSL.fromStrict <$> getByteStringLen)
+      <$> getByteString
       <*> getPath sd
 
   r <- catRights res
@@ -241,8 +243,8 @@ queryPathInfoUncached path = do
   narBytes         <- Just <$> sockGetInt
   ultimate         <- sockGetBool
 
-  sigStrings       <- fmap bsToText <$> sockGetStrings
-  caString         <- bsToText <$> sockGetStr
+  sigStrings       <- fmap Data.Text.Encoding.decodeUtf8 <$> sockGetStrings
+  caString         <- Data.Text.Encoding.decodeUtf8 <$> sockGetStr
 
   let
       sigs = case

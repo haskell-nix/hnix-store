@@ -30,8 +30,6 @@ import Control.Monad.State.Strict (StateT, gets, modify)
 import Data.ByteString (ByteString)
 import Network.Socket (Socket)
 
-import qualified Data.ByteString.Lazy as BSL
-
 import Control.Monad.Trans.State.Strict (mapStateT)
 import Control.Monad.Trans.Except (mapExceptT)
 import Control.Monad.Trans.Reader (withReaderT)
@@ -68,7 +66,7 @@ getStoreDir' = asks hasStoreDir
 type MonadStore a
   = ExceptT
       String
-      (StateT (Maybe BSL.ByteString, [Logger]) (ReaderT StoreConfig IO))
+      (StateT (Maybe ByteString, [Logger]) (ReaderT StoreConfig IO))
       a
 
 -- | For lying about the store dir in tests
@@ -111,7 +109,7 @@ getLog = gets snd
 flushLog :: MonadStore ()
 flushLog = modify (\(a, _b) -> (a, []))
 
-setData :: BSL.ByteString -> MonadStore ()
+setData :: ByteString -> MonadStore ()
 setData x = modify (\(_, b) -> (Just x, b))
 
 clearData :: MonadStore ()
