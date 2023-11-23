@@ -26,6 +26,7 @@ common commons
     , DeriveFoldable
     , DeriveTraversable
     , DeriveLift
+    , DerivingVia
     , FlexibleContexts
     , FlexibleInstances
     , RecordWildCards
@@ -63,6 +64,7 @@ library
   import: commons
   exposed-modules:
       System.Nix.Store.Remote
+    , System.Nix.Store.Remote.Arbitrary
     , System.Nix.Store.Remote.Serialize
     , System.Nix.Store.Remote.Serialize.Prim
     , System.Nix.Store.Remote.Logger
@@ -89,11 +91,13 @@ library
     , crypton
     , data-default-class
     , dependent-sum > 0.7 && < 1
+    , generic-arbitrary < 1.1
     , text
     , time
     , transformers
     , network
     , mtl
+    , QuickCheck
     , unordered-containers
     , vector
   hs-source-dirs:      src

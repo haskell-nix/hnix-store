@@ -23,8 +23,10 @@ import qualified System.Nix.Build
 import System.Nix.Arbitrary ()
 import System.Nix.Build (BuildMode, BuildStatus)
 import System.Nix.Derivation (Derivation(..))
+import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serialize (getDerivation, putDerivation)
 import System.Nix.Store.Remote.Serialize.Prim
+import System.Nix.Store.Remote.Types
 
 -- | Test for roundtrip using @Putter@ and @Get@ functions
 roundtrips2
@@ -108,25 +110,39 @@ spec = do
         -- inputDrvs is not used in remote protocol serialization
         . (\drv -> drv { inputDrvs = mempty })
 
-  let it' name constr value = it name $ runPut (put constr) `shouldBe` runPut (putInt value)
-  describe "Build enum order matches Nix" $ do
-    it' "Normal" System.Nix.Build.Normal 0
-    it' "Repair" System.Nix.Build.Repair 1
-    it' "Check"  System.Nix.Build.Check  2
+    prop "Verbosity" $ roundtripS @Verbosity
 
-  describe "BuildStatus enum order matches Nix" $ do
-    it' "Built"                  System.Nix.Build.Built                   0
-    it' "Substituted"            System.Nix.Build.Substituted             1
-    it' "AlreadyValid"           System.Nix.Build.AlreadyValid            2
-    it' "PermanentFailure"       System.Nix.Build.PermanentFailure        3
-    it' "InputRejected"          System.Nix.Build.InputRejected           4
-    it' "OutputRejected"         System.Nix.Build.OutputRejected          5
-    it' "TransientFailure"       System.Nix.Build.TransientFailure        6
-    it' "CachedFailure"          System.Nix.Build.CachedFailure           7
-    it' "TimedOut"               System.Nix.Build.TimedOut                8
-    it' "MiscFailure"            System.Nix.Build.MiscFailure             9
-    it' "DependencyFailed"       System.Nix.Build.DependencyFailed       10
-    it' "LogLimitExceeded"       System.Nix.Build.LogLimitExceeded       11
-    it' "NotDeterministic"       System.Nix.Build.NotDeterministic       12
-    it' "ResolvesToAlreadyValid" System.Nix.Build.ResolvesToAlreadyValid 13
-    it' "NoSubstituters"         System.Nix.Build.NoSubstituters         14
+  describe "Enums" $ do
+    let it' name constr value = it name $ runPut (put constr) `shouldBe` runPut (putInt value)
+    describe "Build enum order matches Nix" $ do
+      it' "Normal" System.Nix.Build.Normal 0
+      it' "Repair" System.Nix.Build.Repair 1
+      it' "Check"  System.Nix.Build.Check  2
+
+    describe "BuildStatus enum order matches Nix" $ do
+      it' "Built"                  System.Nix.Build.Built                   0
+      it' "Substituted"            System.Nix.Build.Substituted             1
+      it' "AlreadyValid"           System.Nix.Build.AlreadyValid            2
+      it' "PermanentFailure"       System.Nix.Build.PermanentFailure        3
+      it' "InputRejected"          System.Nix.Build.InputRejected           4
+      it' "OutputRejected"         System.Nix.Build.OutputRejected          5
+      it' "TransientFailure"       System.Nix.Build.TransientFailure        6
+      it' "CachedFailure"          System.Nix.Build.CachedFailure           7
+      it' "TimedOut"               System.Nix.Build.TimedOut                8
+      it' "MiscFailure"            System.Nix.Build.MiscFailure             9
+      it' "DependencyFailed"       System.Nix.Build.DependencyFailed       10
+      it' "LogLimitExceeded"       System.Nix.Build.LogLimitExceeded       11
+      it' "NotDeterministic"       System.Nix.Build.NotDeterministic       12
+      it' "ResolvesToAlreadyValid" System.Nix.Build.ResolvesToAlreadyValid 13
+      it' "NoSubstituters"         System.Nix.Build.NoSubstituters         14
+
+    describe "Verbosity enum order matches Nix" $ do
+      it' "Error"     Verbosity_Error     0
+      it' "Warn"      Verbosity_Warn      1
+      it' "Notice"    Verbosity_Notice    2
+      it' "Info"      Verbosity_Info      3
+      it' "Talkative" Verbosity_Talkative 4
+      it' "Chatty"    Verbosity_Chatty    5
+      it' "Debug"     Verbosity_Debug     6
+      it' "Vomit"     Verbosity_Vomit     7
+
