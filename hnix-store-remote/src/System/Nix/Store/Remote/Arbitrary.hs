@@ -7,6 +7,15 @@ import System.Nix.Store.Remote.Types
 
 import Test.QuickCheck (Arbitrary(..))
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
+import Test.QuickCheck.Instances ()
+
+-- * Logger
+
+deriving via GenericArbitrary ActivityID
+  instance Arbitrary ActivityID
+
+deriving via GenericArbitrary Field
+  instance Arbitrary Field
 
 deriving via GenericArbitrary Verbosity
   instance Arbitrary Verbosity

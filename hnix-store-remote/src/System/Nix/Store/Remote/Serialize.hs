@@ -20,7 +20,7 @@ import System.Nix.Derivation (Derivation(..), DerivationOutput(..))
 import System.Nix.Build (BuildMode(..), BuildStatus(..), BuildResult(..))
 import System.Nix.StorePath (StoreDir, StorePath)
 import System.Nix.Store.Remote.Serialize.Prim
-import System.Nix.Store.Remote.Types.Verbosity (Verbosity)
+import System.Nix.Store.Remote.Types
 
 instance Serialize Text where
   get = getText
@@ -105,6 +105,20 @@ putDerivation storeDir Derivation{..} = do
 
   flip putMany (Data.Map.toList env)
     $ \(a1, a2) -> putText a1 *> putText a2
+
+-- * Logger
+
+instance Serialize ActivityID where
+  get = ActivityID <$> getInt
+  put (ActivityID aid) = putInt aid
+
+instance Serialize Field where
+  get = getInt >>= \case
+    0 -> Field_LogInt <$> getInt
+    1 -> Field_LogStr <$> getByteString
+    x -> fail $ "Unknown log field type: " <> show x
+  put (Field_LogInt x) = putInt 0 >> putInt x
+  put (Field_LogStr x) = putInt 1 >> putByteString x
 
 instance Serialize Verbosity where
   get = getEnum

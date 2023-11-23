@@ -73,12 +73,4 @@ processOutput = do
 getFields :: Get [Field]
 getFields = do
   cnt <- getInt
-  Control.Monad.replicateM cnt getField
-
-getField :: Get Field
-getField = do
-  typ <- getInt
-  case (typ :: Int) of
-    0 -> Field_LogInt <$> getInt
-    1 -> Field_LogStr <$> getByteString
-    x -> fail $ "Unknown log type: " <> show x
+  Control.Monad.replicateM cnt Data.Serialize.get

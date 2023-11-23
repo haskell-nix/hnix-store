@@ -98,6 +98,7 @@ library
     , network
     , mtl
     , QuickCheck
+    , quickcheck-instances
     , unordered-containers
     , vector
   hs-source-dirs:      src

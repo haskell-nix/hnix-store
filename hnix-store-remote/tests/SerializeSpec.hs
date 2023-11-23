@@ -110,7 +110,10 @@ spec = do
         -- inputDrvs is not used in remote protocol serialization
         . (\drv -> drv { inputDrvs = mempty })
 
-    prop "Verbosity" $ roundtripS @Verbosity
+    describe "Logger" $ do
+      prop "ActivityID" $ roundtripS @ActivityID
+      prop "Field" $ roundtripS @Field
+      prop "Verbosity" $ roundtripS @Verbosity
 
   describe "Enums" $ do
     let it' name constr value = it name $ runPut (put constr) `shouldBe` runPut (putInt value)
