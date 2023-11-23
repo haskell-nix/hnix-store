@@ -4,20 +4,7 @@ let haskellCi =
 let defSteps = haskellCi.defaultCabalSteps
 
 in    haskellCi.generalCi
-        ( haskellCi.withNix
-            ( defSteps
-              with extraSteps.pre
-                   =
-                    defSteps.extraSteps.pre
-                  # [ haskellCi.installCachixStep "hnix-store"
-                    , haskellCi.BuildStep.NameIf
-                        { name = "Install libsodium"
-                        , run = "sudo apt install libsodium-dev"
-                        , `if` = "matrix.os == 'ubuntu-latest'"
-                        }
-                    ]
-            )
-        )
+        (haskellCi.withNix defSteps)
         haskellCi.DhallMatrix::{
         , ghc =
           [ haskellCi.GHC.GHC963
