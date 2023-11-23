@@ -80,7 +80,7 @@ library
     , bytestring
     , cereal
     , containers
-    , cryptonite
+    , crypton
     , data-default-class
     , dependent-sum > 0.7 && < 1
     , text
@@ -151,7 +151,7 @@ test-suite remote-io
     , hnix-store-remote
     , bytestring
     , containers
-    , cryptonite
+    , crypton
     , directory
     , process
     , filepath
