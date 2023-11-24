@@ -76,13 +76,13 @@ library
     , bytestring
     , containers
     , constraints-extras
-    , cryptonite
+    , crypton
     , data-default-class
     , dependent-sum > 0.7
     , dependent-sum-template > 0.1.1 && < 0.3
     , filepath
     , hashable
-    -- Required for cryptonite low-level type convertion
+    -- Required for crypton low-level type convertion
     , memory
     , nix-derivation >= 1.1.1 && <2
     , some > 1.0.5 && < 2
@@ -111,7 +111,7 @@ test-suite core
     , base16-bytestring
     , base64-bytestring
     , bytestring
-    , cryptonite
+    , crypton
     , data-default-class
     , hspec
     , tasty

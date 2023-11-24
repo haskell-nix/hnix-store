@@ -33,7 +33,7 @@ library
     , hnix-store-core >= 0.8
     , hnix-store-nar >= 0.1
     , bytestring
-    , cryptonite
+    , crypton
     , mtl
     , text
     , unordered-containers
@@ -54,7 +54,7 @@ test-suite readonly
     , hnix-store-core
     , hnix-store-readonly
     , bytestring
-    , cryptonite
+    , crypton
     , data-default-class
     , hspec
     , unordered-containers
