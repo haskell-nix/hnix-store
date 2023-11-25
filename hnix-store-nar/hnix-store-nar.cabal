@@ -98,7 +98,7 @@ test-suite nar
       base
     , hnix-store-nar
     , base64-bytestring
-    , binary
+    , cereal
     , bytestring
     , containers
     , directory
