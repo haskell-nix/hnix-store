@@ -71,6 +71,7 @@ library
     , System.Nix.Store.Remote.Arbitrary
     , System.Nix.Store.Remote.Serialize
     , System.Nix.Store.Remote.Serialize.Prim
+    , System.Nix.Store.Remote.Serializer
     , System.Nix.Store.Remote.Logger
     , System.Nix.Store.Remote.MonadStore
     , System.Nix.Store.Remote.Protocol
@@ -96,6 +97,7 @@ library
     , data-default-class
     , dependent-sum > 0.7 && < 1
     , generic-arbitrary < 1.1
+    , hashable
     , text
     , time
     , transformers
