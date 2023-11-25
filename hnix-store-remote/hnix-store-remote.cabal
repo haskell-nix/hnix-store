@@ -29,12 +29,14 @@ common commons
     , DerivingVia
     , FlexibleContexts
     , FlexibleInstances
+    , GADTs
     , RecordWildCards
     , ScopedTypeVariables
     , StandaloneDeriving
     , TypeApplications
     , TypeSynonymInstances
     , InstanceSigs
+    , KindSignatures
     , MultiParamTypeClasses
     , TupleSections
     , LambdaCase
@@ -63,7 +65,9 @@ flag build-readme
 library
   import: commons
   exposed-modules:
-      System.Nix.Store.Remote
+      Data.Serializer
+    , Data.Serializer.Example
+    , System.Nix.Store.Remote
     , System.Nix.Store.Remote.Arbitrary
     , System.Nix.Store.Remote.Serialize
     , System.Nix.Store.Remote.Serialize.Prim
@@ -123,6 +127,7 @@ test-suite remote
   hs-source-dirs:    tests
   ghc-options:       -Wall -threaded -rtsopts "-with-rtsopts -N"
   other-modules:
+      Data.SerializerSpec
       SerializeSpec
   build-tool-depends:
     hspec-discover:hspec-discover
@@ -132,6 +137,7 @@ test-suite remote
     , hnix-store-remote
     , hnix-store-tests
     , cereal
+    , some > 1.0.5 && < 2
     , text
     , time
     , hspec
