@@ -7,15 +7,15 @@ import           Control.Applicative              (many, optional, (<|>))
 import qualified Control.Concurrent               as Concurrent
 import           Control.Exception                (SomeException, try)
 import           Control.Monad                    (replicateM, void, forM_, when)
-import           Data.Binary                      (Binary(..), decodeFile)
-import           Data.Binary.Get                  (Get, getByteString,
+import           Data.Serialize                   (Serialize(..))
+import           Data.Serialize                   (Get, getByteString,
                                                    getInt64le,
                                                    getLazyByteString, runGet)
-import           Data.Binary.Put                  (Put, putInt64le,
-                                                   putLazyByteString, runPut)
+import           Data.Serialize                   (Putter, putInt64le,
+                                                   putByteString, runPut)
 import           Data.Bool                        (bool)
 import qualified Data.ByteString                  as BS
-import qualified Data.ByteString.Base64.Lazy      as B64
+import qualified Data.ByteString.Base64           as B64
 import qualified Data.ByteString.Char8            as BSC
 import qualified Data.ByteString.Lazy             as BSL
 import qualified Data.ByteString.Lazy.Char8       as BSLC
@@ -53,11 +53,11 @@ import GHC.Stats
 #endif
 
 
-withBytesAsHandle :: BSLC.ByteString -> (IO.Handle -> IO a) -> IO a
+withBytesAsHandle :: BSC.ByteString -> (IO.Handle -> IO a) -> IO a
 withBytesAsHandle bytes act = do
   Temp.withSystemTempFile "nar-test-file-XXXXX" $ \tmpFile h -> do
     IO.hClose h
-    BSL.writeFile tmpFile bytes
+    BSC.writeFile tmpFile bytes
     IO.withFile tmpFile IO.ReadMode act
 
 spec_narEncoding :: Spec
@@ -85,14 +85,14 @@ spec_narEncoding = do
         res' <- Temp.withSystemTempFile "nar-test-file-hnix" $ \tmpFile h -> do
           buildNarIO narEffectsIO packageFilePath h
           IO.hClose h
-          BSL.readFile tmpFile
+          BSC.readFile tmpFile
 
         res' `shouldBe` runPut (putNar n)
 
   -- For a Haskell embedded Nar, check that encoding it gives
   -- the same bytestring as `nix-store --dump`
   let
-    encEqualsNixStore :: Nar -> BSL.ByteString -> IO ()
+    encEqualsNixStore :: Nar -> BSC.ByteString -> IO ()
     encEqualsNixStore n b = runPut (putNar n) `shouldBe` b
 
 
@@ -159,7 +159,7 @@ test_nixStoreBigDir = packThenExtract "bigdir" $ \baseDir -> do
 
 
 prop_narEncodingArbitrary :: Nar -> Property
-prop_narEncodingArbitrary n = runGet getNar (runPut $ putNar n) === n
+prop_narEncodingArbitrary n = runGet getNar (runPut $ putNar n) === Right n
 
 unit_packSelfSrcDir :: HU.Assertion
 unit_packSelfSrcDir = Temp.withSystemTempDirectory "nar-test" $ \tmpDir -> do
@@ -472,16 +472,16 @@ sampleDirWithManyFiles nFiles =
 -- check our Haskell NAR generator against `nix-store`
 
 -- "hi" file turned to a NAR with `nix-store --dump`, Base64 encoded
-sampleRegularBaseline :: BSL.ByteString
-sampleRegularBaseline = B64.decodeLenient $ BSL.concat
+sampleRegularBaseline :: BSC.ByteString
+sampleRegularBaseline = B64.decodeLenient $ BSC.concat
   ["DQAAAAAAAABuaXgtYXJjaGl2ZS0xAAAAAQAAAAAAAAAoAAAAAAA"
   ,"AAAQAAAAAAAAAdHlwZQAAAAAHAAAAAAAAAHJlZ3VsYXIACAAAAA"
   ,"AAAABjb250ZW50cwMAAAAAAAAAaGkKAAAAAAABAAAAAAAAACkAA"
   ,"AAAAAAA"
   ]
 
-sampleRegular'Baseline :: BSL.ByteString
-sampleRegular'Baseline = B64.decodeLenient $ BSL.concat
+sampleRegular'Baseline :: BSC.ByteString
+sampleRegular'Baseline = B64.decodeLenient $ BSC.concat
   ["DQAAAAAAAABuaXgtYXJjaGl2ZS0xAAAAAQAAAAAAAAAoAAAAAAA"
   ,"AAAQAAAAAAAAAdHlwZQAAAAAHAAAAAAAAAHJlZ3VsYXIACAAAAA"
   ,"AAAABjb250ZW50c0AAAAAAAAAAI2luY2x1ZGUgPHN0ZGlvLmg+C"
@@ -489,8 +489,8 @@ sampleRegular'Baseline = B64.decodeLenient $ BSL.concat
   ,"dCAwOyB9CgEAAAAAAAAAKQAAAAAAAAA="
   ]
 
-sampleExecutableBaseline :: BSL.ByteString
-sampleExecutableBaseline = B64.decodeLenient $ BSL.concat
+sampleExecutableBaseline :: BSC.ByteString
+sampleExecutableBaseline = B64.decodeLenient $ BSC.concat
   ["DQAAAAAAAABuaXgtYXJjaGl2ZS0xAAAAAQAAAAAAAAAoAAAAAAA"
   ,"AAAQAAAAAAAAAdHlwZQAAAAAHAAAAAAAAAHJlZ3VsYXIACgAAAA"
   ,"AAAABleGVjdXRhYmxlAAAAAAAAAAAAAAAAAAAIAAAAAAAAAGNvb"
@@ -498,16 +498,16 @@ sampleExecutableBaseline = B64.decodeLenient $ BSL.concat
   ,"IGhlbGxvLmMKAAAAAAAAAQAAAAAAAAApAAAAAAAAAA=="
   ]
 
-sampleSymLinkBaseline :: BSL.ByteString
-sampleSymLinkBaseline = B64.decodeLenient $ BSL.concat
+sampleSymLinkBaseline :: BSC.ByteString
+sampleSymLinkBaseline = B64.decodeLenient $ BSC.concat
   ["DQAAAAAAAABuaXgtYXJjaGl2ZS0xAAAAAQAAAAAAAAAoAAAAAAA"
   ,"AAAQAAAAAAAAAdHlwZQAAAAAHAAAAAAAAAHN5bWxpbmsABgAAAA"
   ,"AAAAB0YXJnZXQAAAcAAAAAAAAAaGVsbG8uYwABAAAAAAAAACkAA"
   ,"AAAAAAA"
   ]
 
-sampleDirectoryBaseline :: BSL.ByteString
-sampleDirectoryBaseline = B64.decodeLenient $ BSL.concat
+sampleDirectoryBaseline :: BSC.ByteString
+sampleDirectoryBaseline = B64.decodeLenient $ BSC.concat
   ["DQAAAAAAAABuaXgtYXJjaGl2ZS0xAAAAAQAAAAAAAAAoAAAAAAA"
   ,"AAAQAAAAAAAAAdHlwZQAAAAAJAAAAAAAAAGRpcmVjdG9yeQAAAA"
   ,"AAAAAFAAAAAAAAAGVudHJ5AAAAAQAAAAAAAAAoAAAAAAAAAAQAA"
@@ -531,8 +531,8 @@ sampleDirectoryBaseline = B64.decodeLenient $ BSL.concat
   ,"AAAAKQAAAAAAAAABAAAAAAAAACkAAAAAAAAA"
   ]
 
-sampleLinkToDirectoryBaseline :: BSL.ByteString
-sampleLinkToDirectoryBaseline = B64.decodeLenient $ BSL.concat
+sampleLinkToDirectoryBaseline :: BSC.ByteString
+sampleLinkToDirectoryBaseline = B64.decodeLenient $ BSC.concat
   ["DQAAAAAAAABuaXgtYXJjaGl2ZS0xAAAAAQAAAAAAAAAoAAAAAAAAAAQAAAAAAAAAdHlwZQAAAAAJ"
   ,"AAAAAAAAAGRpcmVjdG9yeQAAAAAAAAAFAAAAAAAAAGVudHJ5AAAAAQAAAAAAAAAoAAAAAAAAAAQA"
   ,"AAAAAAAAbmFtZQAAAAADAAAAAAAAAGZvbwAAAAAABAAAAAAAAABub2RlAAAAAAEAAAAAAAAAKAAA"
@@ -590,7 +590,7 @@ data FileSystemObject =
 newtype FilePathPart = FilePathPart { unFilePathPart :: BSC.ByteString }
   deriving (Eq, Ord, Show)
 
-instance Binary Nar where
+instance Serialize Nar where
   get = getNar
   put = putNar
 
@@ -630,8 +630,8 @@ instance Arbitrary FileSystemObject where
           pure (nm,f)
 
 ------------------------------------------------------------------------------
--- | Serialize Nar to lazy ByteString
-putNar :: Nar -> Put
+-- | Serialize Nar to ByteString
+putNar :: Putter Nar
 putNar (Nar file) = header <> parens (putFile file)
     where
 
@@ -642,10 +642,10 @@ putNar (Nar file) = header <> parens (putFile file)
             >> (if isExec == Executable
                then strs ["executable", ""]
                else pure ())
-            >> putContents fSize contents
+            >> putContents fSize (BSL.toStrict contents)
 
         putFile (SymLink target) =
-               strs ["type", "symlink", "target", BSL.fromStrict $ E.encodeUtf8 target]
+               strs ["type", "symlink", "target", E.encodeUtf8 target]
 
         -- toList sorts the entries by FilePathPart before serializing
         putFile (Directory entries) =
@@ -656,29 +656,29 @@ putNar (Nar file) = header <> parens (putFile file)
             str "entry"
             parens $ do
               str "name"
-              str (BSL.fromStrict name)
+              str name
               str "node"
               parens (putFile fso)
 
         parens m = str "(" >> m >> str ")"
 
         -- Do not use this for file contents
-        str :: BSL.ByteString -> Put
-        str t = let len = BSL.length t
-            in int len <> pad len t
+        str :: Putter BS.ByteString
+        str t = let len = BS.length t
+            in int len <> pad (fromIntegral len) t
 
-        putContents :: Int64 -> BSL.ByteString -> Put
+        putContents :: Int64 -> Putter BS.ByteString
         putContents fSize bs = str "contents" <> int fSize <> pad fSize bs
 
-        int :: Integral a => a -> Put
+        int :: Integral a => Putter a
         int n = putInt64le $ fromIntegral n
 
-        pad :: Int64 -> BSL.ByteString -> Put
+        pad :: Int64 -> Putter BS.ByteString
         pad strSize bs = do
-          putLazyByteString bs
-          putLazyByteString (BSL.replicate (padLen strSize) 0)
+          putByteString bs
+          putByteString (BS.replicate (fromIntegral (padLen strSize)) 0)
 
-        strs :: [BSL.ByteString] -> Put
+        strs :: Putter [BS.ByteString]
         strs = mapM_ str
 
 -- | Distance to the next multiple of 8
@@ -687,7 +687,7 @@ padLen n = (8 - n) `mod` 8
 
 
 ------------------------------------------------------------------------------
--- | Deserialize a Nar from lazy ByteString
+-- | Deserialize a Nar from ByteString
 getNar :: Get Nar
 getNar = fmap Nar $ header >> parens getFile
     where
@@ -746,3 +746,13 @@ getNar = fmap Nar $ header >> parens getFile
           if s == s'
               then pure s
               else fail "No"
+
+------------------------------------------------------------------------------
+-- | Deserialize from binary file
+decodeFile :: Serialize a => FilePath -> IO a
+decodeFile f = do
+  bs <- BS.readFile f
+  let result = runGet get bs
+  case result of
+    Left reason -> error reason
+    Right output -> pure output
