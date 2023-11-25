@@ -268,13 +268,8 @@ parseFile = do
 
   target     <- currentFile
   streamFile <- getNarEffect Nar.narStreamFile
-  Trans.lift (streamFile target getChunk)
-
-  when (s == "executable") $ do
-    effs :: Nar.NarEffects m <- getNarEffects
-    Trans.lift $ do
-      p <- Nar.narGetPerms effs target
-      Nar.narSetPerms effs target (p { Directory.executable = True })
+  let isExecutable = bool Nar.NonExecutable Nar.Executable (s == "executable")
+  Trans.lift (streamFile target isExecutable getChunk)
 
   expectRawString (Bytes.replicate (padLen $ fromIntegral fSize) 0)
 
