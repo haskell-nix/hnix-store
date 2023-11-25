@@ -11,6 +11,7 @@ import Data.Serialize.Get (Get)
 import Data.Serialize.Put (Putter)
 import Data.Text (Text)
 import Data.Time (NominalDiffTime, UTCTime)
+import Data.Word (Word8)
 import System.Nix.StorePath (StoreDir, StorePath, InvalidPathError)
 
 import qualified Control.Monad
@@ -26,18 +27,18 @@ import qualified System.Nix.StorePath
 -- * Int
 
 -- | Deserialize Nix like integer
-getInt :: Get Int
+getInt :: Integral a => Get a
 getInt = fromIntegral <$> Data.Serialize.Get.getWord64le
 
 -- | Serialize Nix like integer
-putInt :: Putter Int
+putInt :: Integral a => Putter a
 putInt = Data.Serialize.Put.putWord64le . fromIntegral
 
 -- * Bool
 
 -- | Deserialize @Bool@ from integer
 getBool :: Get Bool
-getBool = getInt >>= \case
+getBool = (getInt :: Get Word8) >>= \case
   0 -> pure False
   1 -> pure True
   x -> fail $ "illegal bool value " ++ show x

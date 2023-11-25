@@ -58,7 +58,7 @@ roundtripS =
 spec :: Spec
 spec = parallel $ do
   describe "Prim" $ do
-    prop "Int" $ roundtrips2 putInt getInt
+    prop "Int" $ roundtrips2 putInt (getInt @Int)
     prop "Bool" $ roundtrips2 putBool getBool
 
     prop "UTCTime" $ do
@@ -74,7 +74,7 @@ spec = parallel $ do
         (fromSeconds . Data.Time.Clock.POSIX.utcTimeToPOSIXSeconds <$> getTime)
 
   describe "Combinators" $ do
-    prop "Many" $ roundtrips2 (putMany putInt) (getMany getInt)
+    prop "Many" $ roundtrips2 (putMany putInt) (getMany (getInt @Int))
     prop "ByteString" $ roundtrips2 putByteString getByteString
     prop "[ByteString]" $ roundtrips2 putByteStrings getByteStrings
     prop "Text" $ roundtrips2 putText getText
@@ -116,7 +116,7 @@ spec = parallel $ do
       prop "Verbosity" $ roundtripS @Verbosity
 
   describe "Enums" $ do
-    let it' name constr value = it name $ runPut (put constr) `shouldBe` runPut (putInt value)
+    let it' name constr value = it name $ runPut (put constr) `shouldBe` runPut (putInt @Int value)
     describe "BuildMode enum order matches Nix" $ do
       it' "Normal" BuildMode_Normal 0
       it' "Repair" BuildMode_Repair 1

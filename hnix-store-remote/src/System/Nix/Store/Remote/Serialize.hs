@@ -9,6 +9,7 @@ import Data.Serialize (Serialize(..))
 import Data.Serialize.Get (Get)
 import Data.Serialize.Put (Putter)
 import Data.Text (Text)
+import Data.Word (Word8)
 
 import qualified Data.Bool
 import qualified Data.Map
@@ -113,12 +114,12 @@ instance Serialize ActivityID where
   put (ActivityID aid) = putInt aid
 
 instance Serialize Field where
-  get = getInt >>= \case
+  get = (getInt :: Get Word8) >>= \case
     0 -> Field_LogInt <$> getInt
     1 -> Field_LogStr <$> getByteString
     x -> fail $ "Unknown log field type: " <> show x
-  put (Field_LogInt x) = putInt 0 >> putInt x
-  put (Field_LogStr x) = putInt 1 >> putByteString x
+  put (Field_LogInt x) = putInt (0 :: Word8) >> putInt x
+  put (Field_LogStr x) = putInt (1 :: Word8) >> putByteString x
 
 instance Serialize Verbosity where
   get = getEnum

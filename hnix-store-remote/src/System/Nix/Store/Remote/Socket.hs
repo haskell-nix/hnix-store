@@ -47,7 +47,7 @@ sockGet :: Get a -> MonadStore a
 sockGet = getSocketIncremental
 
 sockGetInt :: Integral a => MonadStore a
-sockGetInt = fromIntegral <$> getSocketIncremental getInt
+sockGetInt = getSocketIncremental getInt
 
 sockGetBool :: MonadStore Bool
 sockGetBool = (== (1 :: Int)) <$> sockGetInt
