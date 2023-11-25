@@ -590,10 +590,6 @@ data FileSystemObject =
 newtype FilePathPart = FilePathPart { unFilePathPart :: BSC.ByteString }
   deriving (Eq, Ord, Show)
 
--- instance Binary Nar where
---   get = getNar
---   put = putNar
-
 instance Serialize Nar where
   get = getNar
   put = putNar
