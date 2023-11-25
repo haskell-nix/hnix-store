@@ -7,7 +7,7 @@ module System.Nix.Nar.Streamer
   , dumpPath
   , streamNarIO
   , streamNarIOWithOptions
-  , IsExecutable(..)
+  , Nar.IsExecutable(..)
   ) where
 
 import Data.ByteString (ByteString)
@@ -18,7 +18,6 @@ import           Control.Monad                    ( forM_
                                                   , when
                                                   )
 import qualified Control.Monad.IO.Class          as IO
-import           Data.Bool                        ( bool )
 import qualified Data.ByteString                 as Bytes
 import qualified Data.ByteString.Lazy            as Bytes.Lazy
 import qualified Data.Foldable
@@ -26,7 +25,6 @@ import qualified Data.List
 import qualified Data.Serialize                  as Serial
 import qualified Data.Text                       as T (pack, breakOn)
 import qualified Data.Text.Encoding              as TE (encodeUtf8)
-import qualified System.Directory                as Directory
 import           System.FilePath                 ((</>))
 
 import qualified System.Nix.Nar.Effects as Nar
@@ -107,9 +105,9 @@ streamNarIOWithOptions opts effs basePath yield = do
               yield $ strs ["name", serializedPath, "node"]
               parens $ go fullName
         else do
-          isExec <- IO.liftIO $ isExecutable effs path
+          isExec <- IO.liftIO $ Nar.narIsExec effs path
           yield $ strs ["type", "regular"]
-          when (isExec == Executable) $ yield $ strs ["executable", ""]
+          when (isExec == Nar.Executable) $ yield $ strs ["executable", ""]
           fSize <- IO.liftIO $ Nar.narFileSize effs path
           yield $ str "contents"
           yield $ int fSize
@@ -126,20 +124,6 @@ streamNarIOWithOptions opts effs basePath yield = do
   yieldFile path fsize = do
     mapM_ yield . Bytes.Lazy.toChunks =<< IO.liftIO (Nar.narReadFile effs path)
     yield $ Bytes.replicate (padLen $ fromIntegral fsize) 0
-
-data IsExecutable = NonExecutable | Executable
-  deriving (Eq, Show)
-
-isExecutable
-  :: Functor m
-  => Nar.NarEffects m
-  -> FilePath
-  -> m IsExecutable
-isExecutable effs fp =
-  bool
-    NonExecutable
-    Executable
-    . Directory.executable <$> Nar.narGetPerms effs fp
 
 -- | Distance to the next multiple of 8
 padLen :: Int -> Int

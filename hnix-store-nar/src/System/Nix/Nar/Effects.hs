@@ -3,11 +3,13 @@
 module System.Nix.Nar.Effects
   ( NarEffects(..)
   , narEffectsIO
+  , IsExecutable(..)
   ) where
 
 import Control.Monad.Trans.Control (MonadBaseControl)
 import Control.Monad.IO.Class (MonadIO(liftIO))
 import Data.ByteString (ByteString)
+import Data.Bool (bool)
 import Data.Int (Int64)
 import Data.Kind (Type)
 import System.IO (Handle, IOMode(WriteMode))
@@ -25,15 +27,17 @@ import           System.Posix.Files          ( createSymbolicLink
 import qualified System.IO                   as IO
 import qualified Control.Exception.Lifted    as Exception.Lifted
 
+data IsExecutable = NonExecutable | Executable
+  deriving (Eq, Show)
+
 data NarEffects (m :: Type -> Type) = NarEffects {
     narReadFile   :: FilePath -> m Bytes.Lazy.ByteString
-  , narWriteFile  :: FilePath -> Bytes.Lazy.ByteString -> m ()
-  , narStreamFile :: FilePath -> m (Maybe ByteString) -> m ()
+  , narWriteFile  :: FilePath -> IsExecutable -> Bytes.Lazy.ByteString -> m ()
+  , narStreamFile :: FilePath -> IsExecutable -> m (Maybe ByteString) -> m ()
   , narListDir    :: FilePath -> m [FilePath]
   , narCreateDir  :: FilePath -> m ()
   , narCreateLink :: FilePath -> FilePath -> m ()
-  , narGetPerms   :: FilePath -> m Directory.Permissions
-  , narSetPerms   :: FilePath -> Directory.Permissions ->  m ()
+  , narIsExec     :: FilePath -> m IsExecutable
   , narIsDir      :: FilePath -> m Bool
   , narIsSymLink  :: FilePath -> m Bool
   , narFileSize   :: FilePath -> m Int64
@@ -53,13 +57,15 @@ narEffectsIO
   => NarEffects m
 narEffectsIO = NarEffects {
     narReadFile   = liftIO . Bytes.Lazy.readFile
-  , narWriteFile  = \a -> liftIO . Bytes.Lazy.writeFile a
+  , narWriteFile  = \f e c -> liftIO $ do
+      Bytes.Lazy.writeFile f c
+      p <- Directory.getPermissions f
+      Directory.setPermissions f (p { Directory.executable = e == Executable })
   , narStreamFile = streamStringOutIO
   , narListDir    = liftIO . Directory.listDirectory
   , narCreateDir  = liftIO . Directory.createDirectory
   , narCreateLink = \f -> liftIO . createSymbolicLink f
-  , narGetPerms   = liftIO . Directory.getPermissions
-  , narSetPerms   = \f -> liftIO . Directory.setPermissions f
+  , narIsExec     = liftIO . (fmap (bool NonExecutable Executable . Directory.executable)) . Directory.getPermissions
   , narIsDir      = fmap isDirectory . liftIO . getFileStatus
   , narIsSymLink  = liftIO . Directory.pathIsSymbolicLink
   , narFileSize   = fmap (fromIntegral . fileSize) . liftIO . getFileStatus
@@ -76,9 +82,10 @@ streamStringOutIO
      , MonadBaseControl IO m
      )
   => FilePath
+  -> IsExecutable
   -> m (Maybe ByteString)
   -> m ()
-streamStringOutIO f getChunk =
+streamStringOutIO f executable getChunk =
   Exception.Lifted.bracket
     (liftIO $ IO.openFile f WriteMode)
     (liftIO . IO.hClose)
@@ -93,6 +100,9 @@ streamStringOutIO f getChunk =
       Nothing -> pure ()
       Just c  -> do
         liftIO $ Data.ByteString.hPut handle c
+        Control.Monad.when (executable == Executable) $ liftIO $ do
+          p <- Directory.getPermissions f
+          Directory.setPermissions f (p { Directory.executable = True })
         go handle
   cleanupException (e :: Exception.Lifted.SomeException) = do
     liftIO $ Directory.removeFile f
