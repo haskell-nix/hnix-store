@@ -69,7 +69,7 @@ simpleOpArgs op args = do
     sockGetBool
     (do
       -- TODO: errorExitStatus, head
-      Error{..} <- head <$> getError
+      Logger_Error{..} <- head <$> getError
       throwError $ Data.ByteString.Char8.unpack errorMessage
     )
     err
@@ -99,7 +99,7 @@ runOpArgsIO op encoder = do
   err <- gotError
   Control.Monad.when err $ do
     -- TODO: errorExitStatus, head
-    Error{..} <- head <$> getError
+    Logger_Error{..} <- head <$> getError
     throwError $ Data.ByteString.Char8.unpack errorMessage
 
 runStore :: MonadStore a -> IO (Either String a, [Logger])

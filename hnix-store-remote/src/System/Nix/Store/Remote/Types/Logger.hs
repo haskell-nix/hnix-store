@@ -5,18 +5,12 @@ module System.Nix.Store.Remote.Types.Logger
   , loggerOpCodeToInt
   , intToLoggerOpCode
   , isError
-  -- to be nuked/newtyped
-  , ActivityType
-  , ResultType
   ) where
 
 import Data.ByteString (ByteString)
 import GHC.Generics
-import System.Nix.Store.Remote.Types.Activity (ActivityID)
+import System.Nix.Store.Remote.Types.Activity (Activity, ActivityID, ActivityResult)
 import System.Nix.Store.Remote.Types.Verbosity (Verbosity)
-
-type ActivityType = Int
-type ResultType = Int
 
 data Field
   = Field_LogStr ByteString
@@ -58,32 +52,32 @@ intToLoggerOpCode = \case
   x -> Left $ "Invalid LoggerOpCode: " ++ show x
 
 data Logger
-  = Next ByteString
-  | Read Int         -- data needed from source
-  | Write ByteString -- data for sink
-  | Last
-  | Error
+  = Logger_Next ByteString
+  | Logger_Read Int         -- data needed from source
+  | Logger_Write ByteString -- data for sink
+  | Logger_Last
+  | Logger_Error
       { errorExitStatus :: Int
       , errorMessage :: ByteString
       }
-  | StartActivity
+  | Logger_StartActivity
       { startActivityID :: ActivityID
       , startActivityVerbosity :: Verbosity
-      , startActivityType :: ActivityType
+      , startActivityType :: Maybe Activity
       , startActivityString :: ByteString
       , startActivityFields :: [Field]
       , startActivityParentID :: ActivityID
       }
-  | StopActivity
+  | Logger_StopActivity
       { stopActivityID :: ActivityID
       }
-  | Result
+  | Logger_Result
       { resultActivityID :: ActivityID
-      , resultType :: ResultType
+      , resultType :: ActivityResult
       , resultFields :: [Field]
       }
   deriving (Eq, Generic, Ord, Show)
 
 isError :: Logger -> Bool
-isError (Error _ _) = True
-isError _           = False
+isError Logger_Error {} = True
+isError _ = False

@@ -10,6 +10,7 @@ module System.Nix.Store.Remote.Serializer
   -- * NixSerializer
     NixSerializer
   -- ** Runners
+  , runSerialT
   , runG
   , runP
   -- * Primitives
@@ -33,6 +34,7 @@ module System.Nix.Store.Remote.Serializer
   , activityResult
   , field
   , loggerOpCode
+  , logger
   , verbosity
   ) where
 
@@ -223,6 +225,71 @@ field = liftSerialize
 
 loggerOpCode :: NixSerializer r e LoggerOpCode
 loggerOpCode = liftSerialize
+
+logger :: NixSerializer r e Logger
+logger = Serializer
+  { getS = getS loggerOpCode >>= \case
+      LoggerOpCode_Next ->
+        Logger_Next <$> getS byteString
+      LoggerOpCode_Read ->
+        Logger_Read <$> getS int
+      LoggerOpCode_Write ->
+        Logger_Write <$> getS byteString
+      LoggerOpCode_Last ->
+        pure Logger_Last
+      LoggerOpCode_Error -> do
+        errorMessage <- getS byteString
+        errorExitStatus <- getS int
+        pure Logger_Error{..}
+      LoggerOpCode_StartActivity -> do
+        startActivityID <- getS activityID
+        startActivityVerbosity <- getS verbosity
+        startActivityType <- getS maybeActivity
+        startActivityString <- getS byteString
+        startActivityFields <- getS (list field)
+        startActivityParentID <- getS activityID
+        pure Logger_StartActivity{..}
+      LoggerOpCode_StopActivity -> do
+        stopActivityID <- getS activityID
+        pure Logger_StopActivity{..}
+      LoggerOpCode_Result -> do
+        resultActivityID <- getS activityID
+        resultType <- getS activityResult
+        resultFields <- getS (list field)
+        pure Logger_Result {..}
+    , putS = \case
+        Logger_Next s -> do
+          putS loggerOpCode LoggerOpCode_Next
+          putS byteString s
+        Logger_Read i -> do
+          putS loggerOpCode LoggerOpCode_Read
+          putS int i
+        Logger_Write s -> do
+          putS loggerOpCode LoggerOpCode_Write
+          putS byteString s
+        Logger_Last ->
+          putS loggerOpCode LoggerOpCode_Last
+        Logger_Error{..} -> do
+          putS loggerOpCode LoggerOpCode_Error
+          putS byteString errorMessage
+          putS int errorExitStatus
+        Logger_StartActivity{..} -> do
+          putS loggerOpCode LoggerOpCode_StartActivity
+          putS activityID startActivityID
+          putS verbosity startActivityVerbosity
+          putS maybeActivity startActivityType
+          putS byteString startActivityString
+          putS (list field) startActivityFields
+          putS activityID startActivityParentID
+        Logger_StopActivity{..} -> do
+          putS loggerOpCode LoggerOpCode_StopActivity
+          putS activityID stopActivityID
+        Logger_Result{..} -> do
+          putS loggerOpCode LoggerOpCode_Result
+          putS activityID resultActivityID
+          putS activityResult resultType
+          putS (list field) resultFields
+  }
 
 verbosity :: NixSerializer r e Verbosity
 verbosity = liftSerialize

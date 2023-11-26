@@ -26,5 +26,8 @@ deriving via GenericArbitrary Field
 deriving via GenericArbitrary LoggerOpCode
   instance Arbitrary LoggerOpCode
 
+deriving via GenericArbitrary Logger
+  instance Arbitrary Logger
+
 deriving via GenericArbitrary Verbosity
   instance Arbitrary Verbosity

@@ -87,3 +87,4 @@ spec = parallel $ do
       prop "Field" $ roundtripS field
       prop "LoggerOpCode" $ roundtripS loggerOpCode
       prop "Verbosity" $ roundtripS verbosity
+      prop "Logger" $ roundtripS logger
