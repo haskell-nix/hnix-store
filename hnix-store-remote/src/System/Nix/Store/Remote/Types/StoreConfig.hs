@@ -17,13 +17,13 @@ instance HasStoreDir PreStoreConfig where
   hasStoreDir = preStoreConfig_dir
 
 class HasStoreSocket r where
-  storeSocket :: r -> Socket
+  hasStoreSocket :: r -> Socket
 
 instance HasStoreSocket Socket where
-  storeSocket = id
+  hasStoreSocket = id
 
 instance HasStoreSocket PreStoreConfig where
-  storeSocket = preStoreConfig_socket
+  hasStoreSocket = preStoreConfig_socket
 
 data StoreConfig = StoreConfig
   { storeConfig_dir         :: StoreDir
@@ -38,4 +38,4 @@ instance HasProtoVersion StoreConfig where
   hasProtoVersion = storeConfig_protoVersion
 
 instance HasStoreSocket StoreConfig where
-  storeSocket = storeConfig_socket
+  hasStoreSocket = storeConfig_socket
