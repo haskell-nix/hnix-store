@@ -114,6 +114,7 @@ spec = parallel $ do
       prop "ActivityID" $ roundtripS @ActivityID
       prop "Activity" $ roundtripS @Activity
       prop "Field" $ roundtripS @Field
+      prop "LoggerOpCode" $ roundtripS @LoggerOpCode
       prop "Verbosity" $ roundtripS @Verbosity
 
   describe "Enums" $ do
@@ -164,6 +165,16 @@ spec = parallel $ do
         it' "Progress"         ActivityResult_Progress         105
         it' "SetExpected"      ActivityResult_SetExpected      106
         it' "PostBuildLogLine" ActivityResult_PostBuildLogLine 107
+
+      describe "LoggerOpCode matches Nix" $ do
+        it' "Next"          LoggerOpCode_Next          0x6f6c6d67
+        it' "Read"          LoggerOpCode_Read          0x64617461
+        it' "Write"         LoggerOpCode_Write         0x64617416
+        it' "Last"          LoggerOpCode_Last          0x616c7473
+        it' "Error"         LoggerOpCode_Error         0x63787470
+        it' "StartActivity" LoggerOpCode_StartActivity 0x53545254
+        it' "StopActivity"  LoggerOpCode_StopActivity  0x53544f50
+        it' "Result"        LoggerOpCode_Result        0x52534c54
 
       describe "Verbosity enum order matches Nix" $ do
         it' "Error"     Verbosity_Error     0

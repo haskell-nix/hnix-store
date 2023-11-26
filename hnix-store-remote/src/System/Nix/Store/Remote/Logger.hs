@@ -5,8 +5,7 @@ module System.Nix.Store.Remote.Logger
   ) where
 
 import Control.Monad.Except (throwError)
-import Control.Monad.State.Strict (get)
-import Data.Serialize.Get (Get, Result(..))
+import Data.Serialize (Get, Result(..))
 import System.Nix.Store.Remote.Serialize ()
 import System.Nix.Store.Remote.Serialize.Prim
 import System.Nix.Store.Remote.Socket
@@ -14,30 +13,38 @@ import System.Nix.Store.Remote.MonadStore
 import System.Nix.Store.Remote.Types
 
 import qualified Control.Monad
+import qualified Control.Monad.State.Strict
 import qualified Data.Serialize
 import qualified Data.Serialize.Get
 
 controlParser :: Get Logger
 controlParser = do
-  ctrl <- getInt
-  case (ctrl :: Int) of
-    0x6f6c6d67 -> Next          <$> getByteString
-    0x64617461 -> Read          <$> getInt
-    0x64617416 -> Write         <$> getByteString
-    0x616c7473 -> pure Last
-    0x63787470 -> flip Error    <$> getByteString
-                                <*> getInt
-    0x53545254 -> StartActivity <$> (ActivityID <$> getInt)
-                                <*> Data.Serialize.get
-                                <*> getInt
-                                <*> getByteString
-                                <*> getFields
-                                <*> (ActivityID <$> getInt)
-    0x53544f50 -> StopActivity  <$> (ActivityID <$> getInt)
-    0x52534c54 -> Result        <$> (ActivityID <$> getInt)
-                                <*> getInt
-                                <*> getFields
-    x          -> fail          $ "Invalid control message received:" <> show x
+  ctrl <- Data.Serialize.get
+  case (ctrl :: LoggerOpCode) of
+    LoggerOpCode_Next ->
+      Next <$> getByteString
+    LoggerOpCode_Read ->
+      Read <$> getInt
+    LoggerOpCode_Write ->
+      Write <$> getByteString
+    LoggerOpCode_Last ->
+      pure Last
+    LoggerOpCode_Error ->
+      flip Error <$> getByteString
+                 <*> getInt
+    LoggerOpCode_StartActivity ->
+      StartActivity <$> (ActivityID <$> getInt)
+                    <*> Data.Serialize.get
+                    <*> getInt
+                    <*> getByteString
+                    <*> getFields
+                    <*> (ActivityID <$> getInt)
+    LoggerOpCode_StopActivity ->
+      StopActivity  <$> (ActivityID <$> getInt)
+    LoggerOpCode_Result ->
+      Result <$> (ActivityID <$> getInt)
+             <*> getInt
+             <*> getFields
 
 processOutput :: MonadStore [Logger]
 processOutput = do
@@ -50,7 +57,7 @@ processOutput = do
       e@(Error _ _) -> pure [e]
       Last          -> pure [Last]
       Read _n       -> do
-        (mdata, _) <- get
+        (mdata, _) <- Control.Monad.State.Strict.get
         case mdata of
           Nothing   -> throwError "No data to read provided"
           Just part -> do

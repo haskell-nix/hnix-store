@@ -23,5 +23,8 @@ deriving via GenericArbitrary ActivityResult
 deriving via GenericArbitrary Field
   instance Arbitrary Field
 
+deriving via GenericArbitrary LoggerOpCode
+  instance Arbitrary LoggerOpCode
+
 deriving via GenericArbitrary Verbosity
   instance Arbitrary Verbosity

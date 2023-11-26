@@ -133,6 +133,10 @@ instance Serialize Field where
   put (Field_LogInt x) = putInt (0 :: Word8) >> putInt x
   put (Field_LogStr x) = putInt (1 :: Word8) >> putByteString x
 
+instance Serialize LoggerOpCode where
+  get = getInt @Int >>= either fail pure . intToLoggerOpCode
+  put = putInt @Int . loggerOpCodeToInt
+
 instance Serialize Verbosity where
   get = getEnum
   put = putEnum

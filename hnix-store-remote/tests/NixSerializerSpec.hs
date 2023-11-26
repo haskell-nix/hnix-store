@@ -85,4 +85,5 @@ spec = parallel $ do
       prop "Maybe Activity" $ roundtripS maybeActivity
       prop "ActivityResult" $ roundtripS activityResult
       prop "Field" $ roundtripS field
+      prop "LoggerOpCode" $ roundtripS loggerOpCode
       prop "Verbosity" $ roundtripS verbosity
