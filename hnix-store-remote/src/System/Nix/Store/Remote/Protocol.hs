@@ -26,7 +26,6 @@ import qualified Data.Bool
 import Data.Serialize.Get
 import Data.Serialize.Put
 import qualified Data.ByteString
-import qualified Data.ByteString.Char8
 
 import Network.Socket (SockAddr(SockAddrUnix))
 import qualified Network.Socket as S
@@ -68,9 +67,8 @@ simpleOpArgs op args = do
   Data.Bool.bool
     sockGetBool
     (do
-      -- TODO: errorExitStatus, head
-      Logger_Error{..} <- head <$> getError
-      throwError $ Data.ByteString.Char8.unpack errorMessage
+      -- TODO: don't use show
+      getErrors >>= throwError . show
     )
     err
 
@@ -98,9 +96,8 @@ runOpArgsIO op encoder = do
   modify (\(a, b) -> (a, b <> out))
   err <- gotError
   Control.Monad.when err $ do
-    -- TODO: errorExitStatus, head
-    Logger_Error{..} <- head <$> getError
-    throwError $ Data.ByteString.Char8.unpack errorMessage
+    -- TODO: don't use show
+    getErrors >>= throwError . show
 
 runStore :: MonadStore a -> IO (Either String a, [Logger])
 runStore = runStoreOpts defaultSockPath def

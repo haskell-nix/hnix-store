@@ -6,7 +6,7 @@ module System.Nix.Store.Remote.MonadStore
   , getLog
   , flushLog
   , gotError
-  , getError
+  , getErrors
   , setData
   , clearData
   ) where
@@ -43,8 +43,8 @@ mapStoreDir f = mapExceptT . mapStateT . withReaderT
 gotError :: MonadStore Bool
 gotError = gets (any isError . snd)
 
-getError :: MonadStore [Logger]
-getError = gets (filter isError . snd)
+getErrors :: MonadStore [Logger]
+getErrors = gets (filter isError . snd)
 
 getLog :: MonadStore [Logger]
 getLog = gets snd
