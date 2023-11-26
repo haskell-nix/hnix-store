@@ -29,6 +29,7 @@ module System.Nix.Store.Remote.Serializer
   , buildResult
   -- ** Logger
   , activityID
+  , maybeActivity
   , activityResult
   , field
   , verbosity
@@ -196,6 +197,19 @@ buildResult :: NixSerializer r e BuildResult
 buildResult = liftSerialize
 
 -- ** Logger
+
+maybeActivity :: NixSerializer r e (Maybe Activity)
+maybeActivity = Serializer
+  { getS = getS (int @Int) >>= \case
+      0 -> pure Nothing
+      x -> either fail (pure . Just) $ toEnumCheckBounds (x - 100)
+  , putS = \case
+      Nothing -> putS (int @Int) 0
+      Just act -> putS activity act
+  }
+  where
+    activity :: NixSerializer r e Activity
+    activity = liftSerialize
 
 activityID :: NixSerializer r e ActivityID
 activityID = liftSerialize
