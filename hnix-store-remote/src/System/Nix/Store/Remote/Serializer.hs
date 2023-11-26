@@ -240,7 +240,7 @@ logger :: NixSerializer r e Logger
 logger = Serializer
   { getS = getS loggerOpCode >>= \case
       LoggerOpCode_Next ->
-        Logger_Next <$> getS byteString
+        Logger_Next <$> getS text
       LoggerOpCode_Read ->
         Logger_Read <$> getS int
       LoggerOpCode_Write ->
@@ -270,7 +270,7 @@ logger = Serializer
     , putS = \case
         Logger_Next s -> do
           putS loggerOpCode LoggerOpCode_Next
-          putS byteString s
+          putS text s
         Logger_Read i -> do
           putS loggerOpCode LoggerOpCode_Read
           putS int i

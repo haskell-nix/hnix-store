@@ -53,7 +53,7 @@ intToLoggerOpCode = \case
   x -> Left $ "Invalid LoggerOpCode: " ++ show x
 
 data Logger
-  = Logger_Next ByteString
+  = Logger_Next Text
   | Logger_Read Int         -- data needed from source
   | Logger_Write ByteString -- data for sink
   | Logger_Last
