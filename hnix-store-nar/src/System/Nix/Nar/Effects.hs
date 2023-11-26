@@ -88,7 +88,7 @@ streamStringOutIO
 streamStringOutIO f executable getChunk =
   Exception.Lifted.bracket
     (liftIO $ IO.openFile f WriteMode)
-    (liftIO . IO.hClose)
+    (\h -> liftIO (updateExecutablePermissions >> IO.hClose h))
     go
   `Exception.Lifted.catch`
     cleanupException
@@ -100,10 +100,11 @@ streamStringOutIO f executable getChunk =
       Nothing -> pure ()
       Just c  -> do
         liftIO $ Data.ByteString.hPut handle c
-        Control.Monad.when (executable == Executable) $ liftIO $ do
-          p <- Directory.getPermissions f
-          Directory.setPermissions f (p { Directory.executable = True })
         go handle
+  updateExecutablePermissions =
+    Control.Monad.when (executable == Executable) $ do
+      p <- Directory.getPermissions f
+      Directory.setPermissions f (p { Directory.executable = True })
   cleanupException (e :: Exception.Lifted.SomeException) = do
     liftIO $ Directory.removeFile f
     Control.Monad.fail $
