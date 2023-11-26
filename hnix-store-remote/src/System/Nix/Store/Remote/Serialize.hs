@@ -147,10 +147,10 @@ instance Serialize ActivityResult where
 instance Serialize Field where
   get = (getInt :: Get Word8) >>= \case
     0 -> Field_LogInt <$> getInt
-    1 -> Field_LogStr <$> getByteString
+    1 -> Field_LogStr <$> getText
     x -> fail $ "Unknown log field type: " <> show x
   put (Field_LogInt x) = putInt (0 :: Word8) >> putInt x
-  put (Field_LogStr x) = putInt (1 :: Word8) >> putByteString x
+  put (Field_LogStr x) = putInt (1 :: Word8) >> putText x
 
 instance Serialize LoggerOpCode where
   get = getInt @Int >>= either fail pure . intToLoggerOpCode

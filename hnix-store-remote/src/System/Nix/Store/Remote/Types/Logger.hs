@@ -8,12 +8,13 @@ module System.Nix.Store.Remote.Types.Logger
   ) where
 
 import Data.ByteString (ByteString)
+import Data.Text (Text)
 import GHC.Generics
 import System.Nix.Store.Remote.Types.Activity (Activity, ActivityID, ActivityResult)
 import System.Nix.Store.Remote.Types.Verbosity (Verbosity)
 
 data Field
-  = Field_LogStr ByteString
+  = Field_LogStr Text
   | Field_LogInt Int
   deriving (Eq, Generic, Ord, Show)
 
