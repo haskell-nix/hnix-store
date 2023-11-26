@@ -11,6 +11,7 @@ import System.Nix.Store.Remote.Socket (sockGet8, sockPut)
 import System.Nix.Store.Remote.MonadStore (MonadStore, clearData)
 import System.Nix.Store.Remote.Types (Logger(..), ProtoVersion, hasProtoVersion)
 
+import qualified Control.Monad
 import qualified Control.Monad.Reader
 import qualified Control.Monad.State.Strict
 import qualified Data.Serialize.Get
@@ -27,7 +28,12 @@ processOutput = do
       (runSerialT protoVersion $ Data.Serializer.getS logger)
 
   go :: Result (Either () Logger) -> MonadStore [Logger]
-  go (Done ectrl _leftover) = do
+  go (Done ectrl leftover) = do
+
+    Control.Monad.unless (leftover == mempty) $
+      -- TODO: throwError
+      error $ "Leftovers detected: '" ++ show leftover ++ "'"
+
     protoVersion <- Control.Monad.Reader.asks hasProtoVersion
     case ectrl of
       -- TODO: tie this with throwError and better error type
