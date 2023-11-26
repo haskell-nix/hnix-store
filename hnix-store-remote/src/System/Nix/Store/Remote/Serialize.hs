@@ -109,9 +109,21 @@ putDerivation storeDir Derivation{..} = do
 
 -- * Logger
 
+instance Serialize Activity where
+  get =
+    toEnumCheckBounds . (+(-100)) <$> getInt
+    >>= either fail pure
+  put = putInt . (+100) . fromEnum
+
 instance Serialize ActivityID where
   get = ActivityID <$> getInt
   put (ActivityID aid) = putInt aid
+
+instance Serialize ActivityResult where
+  get =
+    toEnumCheckBounds . (+(-100)) <$> getInt
+    >>= either fail pure
+  put = putInt . (+100) . fromEnum
 
 instance Serialize Field where
   get = (getInt :: Get Word8) >>= \case

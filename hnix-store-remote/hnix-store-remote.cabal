@@ -77,6 +77,7 @@ library
     , System.Nix.Store.Remote.Protocol
     , System.Nix.Store.Remote.Socket
     , System.Nix.Store.Remote.Types
+    , System.Nix.Store.Remote.Types.Activity
     , System.Nix.Store.Remote.Types.CheckMode
     , System.Nix.Store.Remote.Types.Logger
     , System.Nix.Store.Remote.Types.ProtoVersion

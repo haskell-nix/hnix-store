@@ -110,7 +110,9 @@ spec = parallel $ do
         . (\drv -> drv { inputDrvs = mempty })
 
     describe "Logger" $ do
+      prop "Activity" $ roundtripS @Activity
       prop "ActivityID" $ roundtripS @ActivityID
+      prop "Activity" $ roundtripS @Activity
       prop "Field" $ roundtripS @Field
       prop "Verbosity" $ roundtripS @Verbosity
 
@@ -138,13 +140,37 @@ spec = parallel $ do
       it' "ResolvesToAlreadyValid" BuildStatus_ResolvesToAlreadyValid 13
       it' "NoSubstituters"         BuildStatus_NoSubstituters         14
 
-    describe "Verbosity enum order matches Nix" $ do
-      it' "Error"     Verbosity_Error     0
-      it' "Warn"      Verbosity_Warn      1
-      it' "Notice"    Verbosity_Notice    2
-      it' "Info"      Verbosity_Info      3
-      it' "Talkative" Verbosity_Talkative 4
-      it' "Chatty"    Verbosity_Chatty    5
-      it' "Debug"     Verbosity_Debug     6
-      it' "Vomit"     Verbosity_Vomit     7
+    describe "Logger" $ do
+      describe "Activity enum order matches Nix" $ do
+        it' "CopyPath"      Activity_CopyPath      100
+        it' "FileTransfer"  Activity_FileTransfer  101
+        it' "Realise"       Activity_Realise       102
+        it' "CopyPaths"     Activity_CopyPaths     103
+        it' "Builds"        Activity_Builds        104
+        it' "Build"         Activity_Build         105
+        it' "OptimiseStore" Activity_OptimiseStore 106
+        it' "VerifyPaths"   Activity_VerifyPaths   107
+        it' "Substitute"    Activity_Substitute    108
+        it' "QueryPathInfo" Activity_QueryPathInfo 109
+        it' "PostBuildHook" Activity_PostBuildHook 110
+        it' "BuildWaiting"  Activity_BuildWaiting  111
 
+      describe "ActivityResult enum order matches Nix" $ do
+        it' "FileLinked"       ActivityResult_FileLinked       100
+        it' "BuildLogLine"     ActivityResult_BuildLogLine     101
+        it' "UnstrustedPath"   ActivityResult_UnstrustedPath   102
+        it' "CorruptedPath"    ActivityResult_CorruptedPath    103
+        it' "SetPhase"         ActivityResult_SetPhase         104
+        it' "Progress"         ActivityResult_Progress         105
+        it' "SetExpected"      ActivityResult_SetExpected      106
+        it' "PostBuildLogLine" ActivityResult_PostBuildLogLine 107
+
+      describe "Verbosity enum order matches Nix" $ do
+        it' "Error"     Verbosity_Error     0
+        it' "Warn"      Verbosity_Warn      1
+        it' "Notice"    Verbosity_Notice    2
+        it' "Info"      Verbosity_Info      3
+        it' "Talkative" Verbosity_Talkative 4
+        it' "Chatty"    Verbosity_Chatty    5
+        it' "Debug"     Verbosity_Debug     6
+        it' "Vomit"     Verbosity_Vomit     7

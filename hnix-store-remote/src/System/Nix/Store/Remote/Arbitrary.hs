@@ -11,8 +11,14 @@ import Test.QuickCheck.Instances ()
 
 -- * Logger
 
+deriving via GenericArbitrary Activity
+  instance Arbitrary Activity
+
 deriving via GenericArbitrary ActivityID
   instance Arbitrary ActivityID
+
+deriving via GenericArbitrary ActivityResult
+  instance Arbitrary ActivityResult
 
 deriving via GenericArbitrary Field
   instance Arbitrary Field

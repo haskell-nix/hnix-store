@@ -2,7 +2,6 @@ module System.Nix.Store.Remote.Types.Logger
   ( Field(..)
   , Logger(..)
   , isError
-  , ActivityID(..)
   -- to be nuked/newtyped
   , ActivityType
   , ResultType
@@ -10,10 +9,8 @@ module System.Nix.Store.Remote.Types.Logger
 
 import Data.ByteString (ByteString)
 import GHC.Generics
+import System.Nix.Store.Remote.Types.Activity (ActivityID)
 import System.Nix.Store.Remote.Types.Verbosity (Verbosity)
-
-newtype ActivityID = ActivityID { unActivityID :: Int }
-  deriving (Eq, Generic, Ord, Show)
 
 type ActivityType = Int
 type ResultType = Int

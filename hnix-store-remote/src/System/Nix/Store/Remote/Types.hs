@@ -1,5 +1,6 @@
 module System.Nix.Store.Remote.Types
-  ( module System.Nix.Store.Remote.Types.CheckMode
+  ( module System.Nix.Store.Remote.Types.Activity
+  , module System.Nix.Store.Remote.Types.CheckMode
   , module System.Nix.Store.Remote.Types.Logger
   , module System.Nix.Store.Remote.Types.ProtoVersion
   , module System.Nix.Store.Remote.Types.StoreConfig
@@ -8,6 +9,7 @@ module System.Nix.Store.Remote.Types
   , module System.Nix.Store.Remote.Types.WorkerOp
   ) where
 
+import System.Nix.Store.Remote.Types.Activity
 import System.Nix.Store.Remote.Types.CheckMode
 import System.Nix.Store.Remote.Types.Logger
 import System.Nix.Store.Remote.Types.ProtoVersion

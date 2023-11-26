@@ -29,6 +29,7 @@ module System.Nix.Store.Remote.Serializer
   , buildResult
   -- ** Logger
   , activityID
+  , activityResult
   , field
   , verbosity
   ) where
@@ -198,6 +199,9 @@ buildResult = liftSerialize
 
 activityID :: NixSerializer r e ActivityID
 activityID = liftSerialize
+
+activityResult :: NixSerializer r e ActivityResult
+activityResult = liftSerialize
 
 field :: NixSerializer r e Field
 field = liftSerialize

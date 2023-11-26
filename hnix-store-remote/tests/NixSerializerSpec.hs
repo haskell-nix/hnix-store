@@ -82,5 +82,6 @@ spec = parallel $ do
                  }
     describe "Logger" $ do
       prop "ActivityID" $ roundtripS activityID
+      prop "ActivityResult" $ roundtripS activityResult
       prop "Field" $ roundtripS field
       prop "Verbosity" $ roundtripS verbosity
