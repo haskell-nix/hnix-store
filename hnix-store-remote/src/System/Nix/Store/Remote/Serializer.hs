@@ -18,6 +18,7 @@ module System.Nix.Store.Remote.Serializer
   , byteString
   , enum
   , text
+  , maybeText
   , time
   -- * Combinators
   , list
@@ -128,6 +129,15 @@ enum = lift2 getEnum putEnum
 text :: NixSerializer r e Text
 text = liftSerialize
 
+maybeText :: NixSerializer r e (Maybe Text)
+maybeText = mapIsoSerializer
+  (\case
+    t | Data.Text.null t -> Nothing
+    t | otherwise -> Just t
+  )
+  (Prelude.maybe mempty id)
+  text
+
 time :: NixSerializer r e UTCTime
 time = lift2 getTime putTime
 
@@ -178,16 +188,6 @@ mapS k v =
     Data.Map.Strict.toList
   $ list
   $ tup k v
-
--- unused
-_maybeText :: NixSerializer r e (Maybe Text)
-_maybeText = mapIsoSerializer
-  (\case
-    t | Data.Text.null t -> Nothing
-    t | otherwise -> Just t
-  )
-  (Prelude.maybe mempty id)
-  text
 
 -- * Lifted from Serialize
 

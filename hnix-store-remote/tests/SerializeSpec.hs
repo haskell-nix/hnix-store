@@ -1,4 +1,3 @@
-{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module SerializeSpec (spec) where
@@ -60,6 +59,7 @@ spec = parallel $ do
   describe "Prim" $ do
     prop "Int" $ roundtrips2 putInt (getInt @Int)
     prop "Bool" $ roundtrips2 putBool getBool
+    prop "ByteString" $ roundtrips2 putByteString getByteString
 
     prop "UTCTime" $ do
       let
@@ -75,7 +75,6 @@ spec = parallel $ do
 
   describe "Combinators" $ do
     prop "Many" $ roundtrips2 (putMany putInt) (getMany (getInt @Int))
-    prop "ByteString" $ roundtrips2 putByteString getByteString
     prop "[ByteString]" $ roundtrips2 putByteStrings getByteStrings
     prop "Text" $ roundtrips2 putText getText
     prop "[Text]" $ roundtrips2 putTexts getTexts
