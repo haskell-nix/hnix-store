@@ -11,6 +11,7 @@ import Data.Serialize.Put (Putter)
 import Data.Text (Text)
 import Data.Word (Word8, Word32)
 
+import qualified Control.Monad
 import qualified Data.Bits
 import qualified Data.Bool
 import qualified Data.Map
@@ -151,6 +152,44 @@ instance Serialize Field where
     x -> fail $ "Unknown log field type: " <> show x
   put (Field_LogInt x) = putInt (0 :: Word8) >> putInt x
   put (Field_LogStr x) = putInt (1 :: Word8) >> putText x
+
+instance Serialize Trace where
+  get = do
+    tracePosition <- (\case 0 -> Nothing; x -> Just x) <$> getInt @Int
+    traceHint <- get
+    pure Trace{..}
+  put Trace{..} = do
+    maybe (putInt @Int 0) putInt $ tracePosition
+    put traceHint
+
+instance Serialize BasicError where
+  get = do
+    basicErrorMessage <- get
+    basicErrorExitStatus <- getInt
+    pure BasicError{..}
+  put BasicError{..} = do
+    put basicErrorMessage
+    putInt basicErrorExitStatus
+
+instance Serialize ErrorInfo where
+  get = do
+    etyp <- get @Text
+    Control.Monad.unless (etyp == Data.Text.pack "Error")
+      $ fail
+      $ "get ErrorInfo: received unknown error type" ++ show etyp
+    errorInfoLevel <- get
+    _name <- get @Text -- removed error name
+    errorInfoMessage <- get
+    errorInfoPosition <- (\case 0 -> Nothing; x -> Just x) <$> getInt @Int
+    errorInfoTraces <- getMany get
+    pure ErrorInfo{..}
+  put ErrorInfo{..} = do
+    put $ Data.Text.pack "Error"
+    put errorInfoLevel
+    put $ Data.Text.pack "Error" -- removed error name
+    put errorInfoMessage
+    maybe (putInt @Int 0) putInt $ errorInfoPosition
+    putMany put errorInfoTraces
 
 instance Serialize LoggerOpCode where
   get = getInt @Int >>= either fail pure . intToLoggerOpCode

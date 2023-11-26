@@ -26,6 +26,15 @@ deriving via GenericArbitrary ActivityResult
 deriving via GenericArbitrary Field
   instance Arbitrary Field
 
+deriving via GenericArbitrary Trace
+  instance Arbitrary Trace
+
+deriving via GenericArbitrary BasicError
+  instance Arbitrary BasicError
+
+deriving via GenericArbitrary ErrorInfo
+  instance Arbitrary ErrorInfo
+
 deriving via GenericArbitrary LoggerOpCode
   instance Arbitrary LoggerOpCode
 

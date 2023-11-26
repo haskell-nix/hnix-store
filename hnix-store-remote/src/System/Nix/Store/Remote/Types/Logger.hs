@@ -1,5 +1,8 @@
 module System.Nix.Store.Remote.Types.Logger
   ( Field(..)
+  , Trace(..)
+  , BasicError(..)
+  , ErrorInfo(..)
   , Logger(..)
   , LoggerOpCode(..)
   , loggerOpCodeToInt
@@ -16,6 +19,29 @@ import System.Nix.Store.Remote.Types.Verbosity (Verbosity)
 data Field
   = Field_LogStr Text
   | Field_LogInt Int
+  deriving (Eq, Generic, Ord, Show)
+
+-- | Error trace
+data Trace = Trace
+  { tracePosition :: Maybe Int -- Error position, Nix always writes 0 here
+  , traceHint :: Text
+  }
+  deriving (Eq, Generic, Ord, Show)
+
+data BasicError = BasicError
+  { basicErrorExitStatus :: Int
+  , basicErrorMessage :: Text
+  }
+  deriving (Eq, Generic, Ord, Show)
+
+-- | Extended error info
+-- available for protoVersion_minor >= 26
+data ErrorInfo = ErrorInfo
+  { errorInfoLevel :: Verbosity
+  , errorInfoMessage :: Text
+  , errorInfoPosition :: Maybe Int -- Error position, Nix always writes 0 here
+  , errorInfoTraces :: [Trace]
+  }
   deriving (Eq, Generic, Ord, Show)
 
 data LoggerOpCode

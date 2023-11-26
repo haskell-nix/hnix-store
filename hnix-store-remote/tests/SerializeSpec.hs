@@ -116,6 +116,19 @@ spec = parallel $ do
       prop "ActivityID" $ roundtripS @ActivityID
       prop "Activity" $ roundtripS @Activity
       prop "Field" $ roundtripS @Field
+      prop "Trace"
+        $ forAll (arbitrary `suchThat` ((/= Just 0) . tracePosition))
+        $ roundtripS @Trace
+      prop "BasicError" $ roundtripS @BasicError
+      prop "ErrorInfo"
+        $ forAll (arbitrary
+                  `suchThat`
+                    (\ErrorInfo{..}
+                        -> errorInfoPosition /= Just 0
+                           && all ((/= Just 0) . tracePosition) errorInfoTraces
+                    )
+                 )
+        $ roundtripS @ErrorInfo
       prop "LoggerOpCode" $ roundtripS @LoggerOpCode
       prop "Verbosity" $ roundtripS @Verbosity
 

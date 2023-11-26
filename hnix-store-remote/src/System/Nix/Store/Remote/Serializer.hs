@@ -35,6 +35,9 @@ module System.Nix.Store.Remote.Serializer
   , maybeActivity
   , activityResult
   , field
+  , trace
+  , basicError
+  , errorInfo
   , loggerOpCode
   , logger
   , verbosity
@@ -232,6 +235,15 @@ activityResult = liftSerialize
 
 field :: NixSerializer r e Field
 field = liftSerialize
+
+trace :: NixSerializer r e Trace
+trace = liftSerialize
+
+basicError :: NixSerializer r e BasicError
+basicError = liftSerialize
+
+errorInfo :: NixSerializer r e ErrorInfo
+errorInfo = liftSerialize
 
 loggerOpCode :: NixSerializer r e LoggerOpCode
 loggerOpCode = liftSerialize

@@ -17,6 +17,7 @@ import System.Nix.Arbitrary ()
 import System.Nix.Derivation (Derivation(inputDrvs))
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
+import System.Nix.Store.Remote.Types (ErrorInfo(..), Trace(..))
 
 -- | Test for roundtrip using @NixSerializer@
 roundtripSReader
@@ -93,6 +94,19 @@ spec = parallel $ do
       prop "Maybe Activity" $ roundtripS maybeActivity
       prop "ActivityResult" $ roundtripS activityResult
       prop "Field" $ roundtripS field
+      prop "Trace"
+        $ forAll (arbitrary `suchThat` ((/= Just 0) . tracePosition))
+        $ roundtripS trace
+      prop "BasicError" $ roundtripS basicError
+      prop "ErrorInfo"
+        $ forAll (arbitrary
+                  `suchThat`
+                    (\ErrorInfo{..}
+                        -> errorInfoPosition /= Just 0
+                           && all ((/= Just 0) . tracePosition) errorInfoTraces
+                    )
+                 )
+        $ roundtripS errorInfo
       prop "LoggerOpCode" $ roundtripS loggerOpCode
       prop "Verbosity" $ roundtripS verbosity
       prop "Logger" $ roundtripS logger
