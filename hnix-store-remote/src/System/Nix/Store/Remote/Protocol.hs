@@ -37,7 +37,7 @@ import System.Nix.Store.Remote.Serialize.Prim
 import System.Nix.Store.Remote.Logger
 import System.Nix.Store.Remote.MonadStore
 import System.Nix.Store.Remote.Socket
-import System.Nix.Store.Remote.Types hiding (protoVersion)
+import System.Nix.Store.Remote.Types
 
 protoVersion :: Int
 protoVersion = 0x115

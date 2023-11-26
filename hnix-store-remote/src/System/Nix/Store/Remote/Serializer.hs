@@ -28,6 +28,7 @@ module System.Nix.Store.Remote.Serializer
   , mapS
   -- * Lifted from Serialize
   , buildResult
+  , protoVersion
   , derivation
   -- ** Logger
   , activityID
@@ -201,6 +202,9 @@ mapS k v =
 
 buildResult :: NixSerializer r e BuildResult
 buildResult = liftSerialize
+
+protoVersion :: NixSerializer r e ProtoVersion
+protoVersion = liftSerialize
 
 derivation :: StoreDir -> NixSerializer r e (Derivation StorePath Text)
 derivation sd = lift2 (getDerivation sd) (putDerivation sd)

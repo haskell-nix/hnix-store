@@ -86,6 +86,8 @@ spec = parallel $ do
       roundtripS (derivation sd)
       . (\drv -> drv { inputDrvs = mempty })
 
+    prop "ProtoVersion" $ roundtripS protoVersion
+
     describe "Logger" $ do
       prop "ActivityID" $ roundtripS activityID
       prop "Maybe Activity" $ roundtripS maybeActivity

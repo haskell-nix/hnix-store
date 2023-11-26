@@ -102,6 +102,8 @@ spec = parallel $ do
                  , System.Nix.Build.stopTime  = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
                  }
 
+    prop "ProtoVersion" $ roundtripS @ProtoVersion
+
     prop "Derivation StorePath Text" $ \sd ->
       roundtrips2
         (putDerivation sd)

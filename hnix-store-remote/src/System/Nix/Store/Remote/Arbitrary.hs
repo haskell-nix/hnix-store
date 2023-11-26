@@ -9,6 +9,9 @@ import Test.QuickCheck (Arbitrary(..))
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
 import Test.QuickCheck.Instances ()
 
+deriving via GenericArbitrary ProtoVersion
+  instance Arbitrary ProtoVersion
+
 -- * Logger
 
 deriving via GenericArbitrary Activity

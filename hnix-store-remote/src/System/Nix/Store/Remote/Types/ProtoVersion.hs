@@ -4,12 +4,13 @@ module System.Nix.Store.Remote.Types.ProtoVersion
   ) where
 
 import Data.Word (Word8, Word16)
+import GHC.Generics
 
 data ProtoVersion = ProtoVersion
   { protoVersion_major :: Word16
   , protoVersion_minor :: Word8
   }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Generic, Ord, Show)
 
 class HasProtoVersion r where
-  protoVersion :: r -> ProtoVersion
+  hasProtoVersion :: r -> ProtoVersion

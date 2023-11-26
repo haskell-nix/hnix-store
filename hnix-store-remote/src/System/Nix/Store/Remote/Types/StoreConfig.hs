@@ -35,7 +35,7 @@ instance HasStoreDir StoreConfig where
   hasStoreDir = storeConfig_dir
 
 instance HasProtoVersion StoreConfig where
-  protoVersion = storeConfig_protoVersion
+  hasProtoVersion = storeConfig_protoVersion
 
 instance HasStoreSocket StoreConfig where
   storeSocket = storeConfig_socket

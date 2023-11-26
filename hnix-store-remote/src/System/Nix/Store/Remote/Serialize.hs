@@ -9,8 +9,9 @@ import Data.Serialize (Serialize(..))
 import Data.Serialize.Get (Get)
 import Data.Serialize.Put (Putter)
 import Data.Text (Text)
-import Data.Word (Word8)
+import Data.Word (Word8, Word32)
 
+import qualified Data.Bits
 import qualified Data.Bool
 import qualified Data.Map
 import qualified Data.Set
@@ -26,6 +27,8 @@ import System.Nix.Store.Remote.Types
 instance Serialize Text where
   get = getText
   put = putText
+
+-- * BuildResult
 
 instance Serialize BuildMode where
   get = getEnum
@@ -56,6 +59,22 @@ instance Serialize BuildResult where
     putBool isNonDeterministic
     putTime startTime
     putTime stopTime
+
+-- * ProtoVersion
+
+instance Serialize ProtoVersion where
+  get = do
+    v <- getInt @Word32
+    pure ProtoVersion
+      { protoVersion_major = fromIntegral $ Data.Bits.shiftR v 8
+      , protoVersion_minor = fromIntegral $ v Data.Bits..&. 0x00FF
+      }
+  put p =
+    putInt @Word32
+    $ ((Data.Bits.shiftL (fromIntegral $ protoVersion_major p :: Word32) 8)
+        Data.Bits..|. fromIntegral (protoVersion_minor p))
+
+-- * Derivation
 
 getDerivation
   :: StoreDir
