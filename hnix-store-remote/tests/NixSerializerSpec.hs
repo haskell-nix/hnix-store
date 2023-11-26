@@ -6,7 +6,7 @@ import Data.Fixed (Uni)
 import Data.Time (NominalDiffTime)
 import Test.Hspec (Expectation, Spec, describe, parallel, shouldBe)
 import Test.Hspec.QuickCheck (prop)
-import Test.QuickCheck (arbitrary, forAll, suchThat)
+import Test.QuickCheck (Gen, arbitrary, forAll, suchThat)
 import Test.QuickCheck.Instances ()
 
 import qualified Data.Time.Clock.POSIX
@@ -17,7 +17,7 @@ import System.Nix.Arbitrary ()
 import System.Nix.Derivation (Derivation(inputDrvs))
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
-import System.Nix.Store.Remote.Types (ErrorInfo(..), ProtoVersion, Trace(..))
+import System.Nix.Store.Remote.Types  (ErrorInfo(..), Logger(..), ProtoVersion(..), Trace(..))
 
 -- | Test for roundtrip using @NixSerializer@
 roundtripSReader
@@ -109,4 +109,16 @@ spec = parallel $ do
         $ roundtripS errorInfo
       prop "LoggerOpCode" $ roundtripS loggerOpCode
       prop "Verbosity" $ roundtripS verbosity
-      prop "Logger" $ roundtripSReader @ProtoVersion logger
+      prop "Logger"
+        $ forAll (arbitrary :: Gen ProtoVersion)
+        $ \pv ->
+            forAll (arbitrary `suchThat` errorInfoIf (protoVersion_minor pv >= 26))
+        $ roundtripSReader logger pv
+        where
+          errorInfoIf True (Logger_Error (Right x)) = noJust0s x
+          errorInfoIf False (Logger_Error (Left _)) = True
+          errorInfoIf _ (Logger_Error _) = False
+          errorInfoIf _ _ = True
+          noJust0s ErrorInfo{..} =
+            errorInfoPosition /= Just 0
+            && all ((/= Just 0) . tracePosition) errorInfoTraces

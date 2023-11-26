@@ -34,7 +34,7 @@ processOutput = do
       Left e -> error $ show e
       Right ctrl -> do
         case ctrl of
-          e@(Logger_Error {}) -> pure [e]
+          e@(Logger_Error _) -> pure [e]
           Logger_Last -> pure [Logger_Last]
           Logger_Read _n -> do
             (mdata, _) <- Control.Monad.State.Strict.get

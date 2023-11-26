@@ -57,6 +57,7 @@ import Data.Text (Text)
 import Data.Time (UTCTime)
 
 import qualified Control.Monad
+import qualified Control.Monad.Reader
 import qualified Data.HashSet
 import qualified Data.Map.Strict
 import qualified Data.Set
@@ -262,9 +263,11 @@ logger = Serializer
       LoggerOpCode_Last ->
         pure Logger_Last
       LoggerOpCode_Error -> do
-        errorMessage <- getS byteString
-        errorExitStatus <- getS int
-        pure Logger_Error{..}
+        pv <- Control.Monad.Reader.asks hasProtoVersion
+        Logger_Error <$>
+          if protoVersion_minor pv >= 26
+          then Right <$> getS errorInfo
+          else Left <$> getS basicError
       LoggerOpCode_StartActivity -> do
         startActivityID <- getS activityID
         startActivityVerbosity <- getS verbosity
@@ -293,10 +296,13 @@ logger = Serializer
           putS byteString s
         Logger_Last ->
           putS loggerOpCode LoggerOpCode_Last
-        Logger_Error{..} -> do
+        Logger_Error basicOrInfo -> do
           putS loggerOpCode LoggerOpCode_Error
-          putS byteString errorMessage
-          putS int errorExitStatus
+          -- TODO: throwError if we try to send
+          -- ErrorInfo to client which has no support for it
+          case basicOrInfo of
+            Left e -> putS basicError e
+            Right e -> putS errorInfo e
         Logger_StartActivity{..} -> do
           putS loggerOpCode LoggerOpCode_StartActivity
           putS activityID startActivityID

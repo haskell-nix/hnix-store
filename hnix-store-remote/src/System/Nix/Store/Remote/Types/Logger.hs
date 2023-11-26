@@ -83,10 +83,7 @@ data Logger
   | Logger_Read Int         -- data needed from source
   | Logger_Write ByteString -- data for sink
   | Logger_Last
-  | Logger_Error
-      { errorExitStatus :: Int
-      , errorMessage :: ByteString
-      }
+  | Logger_Error (Either BasicError ErrorInfo)
   | Logger_StartActivity
       { startActivityID :: ActivityID
       , startActivityVerbosity :: Verbosity
