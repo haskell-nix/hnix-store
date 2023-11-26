@@ -28,6 +28,7 @@ module System.Nix.Store.Remote.Serializer
   , mapS
   -- * Lifted from Serialize
   , buildResult
+  , derivation
   -- ** Logger
   , activityID
   , maybeActivity
@@ -59,7 +60,9 @@ import qualified Data.Text
 
 import Data.Serializer
 import System.Nix.Build (BuildResult)
-import System.Nix.Store.Remote.Serialize () -- TODO: getDerivation
+import System.Nix.Derivation (Derivation)
+import System.Nix.StorePath (StoreDir, StorePath)
+import System.Nix.Store.Remote.Serialize (getDerivation, putDerivation)
 import System.Nix.Store.Remote.Serialize.Prim
 import System.Nix.Store.Remote.Types
 
@@ -198,6 +201,9 @@ mapS k v =
 
 buildResult :: NixSerializer r e BuildResult
 buildResult = liftSerialize
+
+derivation :: StoreDir -> NixSerializer r e (Derivation StorePath Text)
+derivation sd = lift2 (getDerivation sd) (putDerivation sd)
 
 -- ** Logger
 

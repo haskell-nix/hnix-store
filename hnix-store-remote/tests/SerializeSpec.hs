@@ -21,7 +21,7 @@ import qualified System.Nix.Build
 
 import System.Nix.Arbitrary ()
 import System.Nix.Build (BuildMode(..), BuildStatus(..))
-import System.Nix.Derivation (Derivation(..))
+import System.Nix.Derivation (Derivation(inputDrvs))
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serialize (getDerivation, putDerivation)
 import System.Nix.Store.Remote.Serialize.Prim

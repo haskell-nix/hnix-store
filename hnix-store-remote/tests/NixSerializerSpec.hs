@@ -14,6 +14,7 @@ import qualified Data.Serializer
 import qualified System.Nix.Build
 
 import System.Nix.Arbitrary ()
+import System.Nix.Derivation (Derivation(inputDrvs))
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
 
@@ -80,6 +81,11 @@ spec = parallel $ do
             $ br { System.Nix.Build.startTime = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
                  , System.Nix.Build.stopTime  = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
                  }
+
+    prop "Derivation" $ \sd ->
+      roundtripS (derivation sd)
+      . (\drv -> drv { inputDrvs = mempty })
+
     describe "Logger" $ do
       prop "ActivityID" $ roundtripS activityID
       prop "Maybe Activity" $ roundtripS maybeActivity
