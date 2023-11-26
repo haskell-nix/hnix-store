@@ -248,7 +248,9 @@ errorInfo = liftSerialize
 loggerOpCode :: NixSerializer r e LoggerOpCode
 loggerOpCode = liftSerialize
 
-logger :: NixSerializer r e Logger
+logger
+  :: HasProtoVersion r
+  => NixSerializer r e Logger
 logger = Serializer
   { getS = getS loggerOpCode >>= \case
       LoggerOpCode_Next ->

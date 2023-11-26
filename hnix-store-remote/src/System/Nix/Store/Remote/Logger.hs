@@ -9,22 +9,26 @@ import System.Nix.Store.Remote.Serialize.Prim (putByteString)
 import System.Nix.Store.Remote.Serializer (logger, runSerialT)
 import System.Nix.Store.Remote.Socket (sockGet8, sockPut)
 import System.Nix.Store.Remote.MonadStore (MonadStore, clearData)
-import System.Nix.Store.Remote.Types (Logger(..))
+import System.Nix.Store.Remote.Types (Logger(..), ProtoVersion, hasProtoVersion)
 
+import qualified Control.Monad.Reader
 import qualified Control.Monad.State.Strict
 import qualified Data.Serialize.Get
 import qualified Data.Serializer
 
 processOutput :: MonadStore [Logger]
 processOutput = do
- sockGet8 >>= go . decoder
+ protoVersion <- Control.Monad.Reader.asks hasProtoVersion
+ sockGet8 >>= go . (decoder protoVersion)
  where
-  decoder :: ByteString -> Result (Either () Logger)
-  decoder =
+  decoder :: ProtoVersion -> ByteString -> Result (Either () Logger)
+  decoder protoVersion =
     Data.Serialize.Get.runGetPartial
-      (runSerialT () $ Data.Serializer.getS logger)
+      (runSerialT protoVersion $ Data.Serializer.getS logger)
+
   go :: Result (Either () Logger) -> MonadStore [Logger]
   go (Done ectrl _leftover) = do
+    protoVersion <- Control.Monad.Reader.asks hasProtoVersion
     case ectrl of
       -- TODO: tie this with throwError and better error type
       Left e -> error $ show e
@@ -41,11 +45,11 @@ processOutput = do
                 sockPut $ putByteString part
                 clearData
 
-            sockGet8 >>= go . decoder
+            sockGet8 >>= go . (decoder protoVersion)
 
           -- we should probably handle Read here as well
           x -> do
-            next <- sockGet8 >>= go . decoder
+            next <- sockGet8 >>= go . (decoder protoVersion)
             pure $ x : next
   go (Partial k) = do
     chunk <- sockGet8

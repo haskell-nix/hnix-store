@@ -14,3 +14,6 @@ data ProtoVersion = ProtoVersion
 
 class HasProtoVersion r where
   hasProtoVersion :: r -> ProtoVersion
+
+instance HasProtoVersion ProtoVersion where
+  hasProtoVersion = id

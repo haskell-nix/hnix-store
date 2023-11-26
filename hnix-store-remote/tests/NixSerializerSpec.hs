@@ -17,7 +17,7 @@ import System.Nix.Arbitrary ()
 import System.Nix.Derivation (Derivation(inputDrvs))
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
-import System.Nix.Store.Remote.Types (ErrorInfo(..), Trace(..))
+import System.Nix.Store.Remote.Types (ErrorInfo(..), ProtoVersion, Trace(..))
 
 -- | Test for roundtrip using @NixSerializer@
 roundtripSReader
@@ -109,4 +109,4 @@ spec = parallel $ do
         $ roundtripS errorInfo
       prop "LoggerOpCode" $ roundtripS loggerOpCode
       prop "Verbosity" $ roundtripS verbosity
-      prop "Logger" $ roundtripS logger
+      prop "Logger" $ roundtripSReader @ProtoVersion logger
