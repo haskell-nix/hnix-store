@@ -50,12 +50,18 @@ putBool False = putInt (0 :: Int)
 
 -- * Enum
 
+-- | Utility toEnum version checking bounds using Bounded class
+toEnumCheckBounds :: Enum a => Int -> Either String a
+toEnumCheckBounds = \case
+  x | x < minBound -> Left $ "enum out of min bound " ++ show x
+  x | x > maxBound -> Left $ "enum out of max bound " ++ show x
+  x | otherwise -> Right $ toEnum x
+
 -- | Deserialize @Enum@ to integer
 getEnum :: Enum a => Get a
-getEnum = getInt >>= \case
-  x | x < minBound -> fail $ "enum out of min bound " ++ show x
-  x | x > maxBound -> fail $ "enum out of max bound " ++ show x
-  x | otherwise -> pure $ toEnum x
+getEnum =
+  toEnumCheckBounds <$> getInt
+  >>= either fail pure
 
 -- | Serialize @Enum@ to integer
 putEnum :: Enum a => Putter a
