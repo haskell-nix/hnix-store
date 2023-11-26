@@ -46,7 +46,7 @@ protoVersion = 0x115
 ourProtoVersion :: ProtoVersion
 ourProtoVersion = ProtoVersion
   { protoVersion_major = 1
-  , protoVersion_minor = 35
+  , protoVersion_minor = 21
   }
 
 workerMagic1 :: Int
