@@ -23,13 +23,13 @@ import System.Nix.StorePath.Metadata (Metadata(..))
 import qualified Data.HashSet as HashSet
 import qualified Data.Text as Text
 
--- ^ Produce the message signed by a NAR signature
+-- | Produce the message signed by a NAR signature
 metadataFingerprint :: StoreDir -> StorePath -> Metadata StorePath -> Text
 metadataFingerprint storeDir storePath Metadata{..} = let
   narSize = fromMaybe 0 narBytes
   in fingerprint storeDir storePath narHash narSize (HashSet.toList references)
 
--- ^ Produce the message signed by a NAR signature
+-- | Produce the message signed by a NAR signature
 fingerprint :: StoreDir
             -> StorePath
             -> DSum HashAlgo Digest -- ^ NAR hash
