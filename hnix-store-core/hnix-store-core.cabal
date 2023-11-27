@@ -62,6 +62,7 @@ library
     , System.Nix.ContentAddress
     , System.Nix.Derivation
     , System.Nix.DerivedPath
+    , System.Nix.Fingerprint
     , System.Nix.Hash
     , System.Nix.Hash.Truncation
     , System.Nix.Signature
@@ -98,6 +99,7 @@ test-suite core
   main-is: Driver.hs
   other-modules:
     Derivation
+    Fingerprint
     Hash
     Signature
   hs-source-dirs:
@@ -111,6 +113,7 @@ test-suite core
     , base16-bytestring
     , base64-bytestring
     , bytestring
+    , containers
     , crypton
     , data-default-class
     , hspec
@@ -118,3 +121,5 @@ test-suite core
     , tasty-golden
     , tasty-hspec
     , text
+    , time
+    , unordered-containers
