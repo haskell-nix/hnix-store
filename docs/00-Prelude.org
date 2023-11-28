@@ -1,0 +1,25 @@
+#+TITLE: Prelude
+
+* Intro
+
+~hnix-store~ project was founded in 2018 by Shea Levy as a companion
+to [[https://github.com/haskell-nix/hnix/][hnix]] project, which is its primary user. It lives its own life
+separate from ~hnix~ repository to prevent cross coupling
+between the two components which should allow for store to be used
+as a standalone interface to [[https://github.com/NixOS/nix][Nix]] stores.
+
+* Direct users
+
+Following projects are known to use ~hnix-store~ directly:
+
+** [[https://github.com/haskell-nix/hnix/][hnix]]
+** [[https://github.com/cachix/cachix/][cachix]]
++ NAR serialization
+** [[https://git.sr.ht/~jack/nix-freeze-tree/][nix-freeze-tree]]
++ Digest computation
++ NAR serialization
+* Index
+
+List of packages that are part of this ad-hoc wiki
+** [[./01-Contributors.org][01-Contributors]]
+** [[./02-Hacking.org][02-Hacking]]
