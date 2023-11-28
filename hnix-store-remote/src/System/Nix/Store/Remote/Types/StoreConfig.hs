@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
 module System.Nix.Store.Remote.Types.StoreConfig
   ( PreStoreConfig(..)
   , StoreConfig(..)
@@ -30,6 +31,9 @@ data StoreConfig = StoreConfig
   , storeConfig_protoVersion :: ProtoVersion
   , storeConfig_socket      :: Socket
   }
+
+instance HasStoreDir StoreDir where
+  hasStoreDir = id
 
 instance HasStoreDir StoreConfig where
   hasStoreDir = storeConfig_dir

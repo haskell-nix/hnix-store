@@ -15,17 +15,20 @@ import qualified System.Nix.Build
 
 import System.Nix.Arbitrary ()
 import System.Nix.Derivation (Derivation(inputDrvs))
+import System.Nix.StorePath (StoreDir)
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
-import System.Nix.Store.Remote.Types  (ErrorInfo(..), Logger(..), ProtoVersion(..), Trace(..))
+import System.Nix.Store.Remote.Types (ErrorInfo(..), Logger(..), ProtoVersion(..), Trace(..))
 
 -- | Test for roundtrip using @NixSerializer@
 roundtripSReader
-  :: forall r a
+  :: forall r e a
    . ( Eq a
      , Show a
+     , Eq e
+     , Show e
      )
-  => NixSerializer r () a
+  => NixSerializer r e a
   -> r
   -> a
   -> Expectation
@@ -82,6 +85,9 @@ spec = parallel $ do
             $ br { System.Nix.Build.startTime = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
                  , System.Nix.Build.stopTime  = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
                  }
+
+    prop "StorePath" $ \sd ->
+      roundtripSReader @StoreDir path sd
 
     prop "Derivation" $ \sd ->
       roundtripS (derivation sd)

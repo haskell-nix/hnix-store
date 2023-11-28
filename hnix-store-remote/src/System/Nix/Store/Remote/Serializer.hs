@@ -9,6 +9,9 @@ module System.Nix.Store.Remote.Serializer
   (
   -- * NixSerializer
     NixSerializer
+  -- * Errors
+  , GetError(..)
+  , LoggerError(..)
   -- ** Runners
   , runSerialT
   , runG
@@ -30,6 +33,8 @@ module System.Nix.Store.Remote.Serializer
   , buildResult
   , protoVersion
   , derivation
+  -- * StorePath
+  , path
   -- ** Logger
   , activityID
   , maybeActivity
@@ -43,7 +48,7 @@ module System.Nix.Store.Remote.Serializer
   , verbosity
   ) where
 
-import Control.Monad.Except (MonadError)
+import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.Reader (MonadReader)
 import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Reader (ReaderT, runReaderT)
@@ -55,6 +60,7 @@ import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Time (UTCTime)
+import GHC.Generics (Generic)
 
 import qualified Control.Monad
 import qualified Control.Monad.Reader
@@ -66,7 +72,7 @@ import qualified Data.Text
 import Data.Serializer
 import System.Nix.Build (BuildResult)
 import System.Nix.Derivation (Derivation)
-import System.Nix.StorePath (StoreDir, StorePath)
+import System.Nix.StorePath (HasStoreDir(..), InvalidPathError, StoreDir, StorePath)
 import System.Nix.Store.Remote.Serialize (getDerivation, putDerivation)
 import System.Nix.Store.Remote.Serialize.Prim
 import System.Nix.Store.Remote.Types
@@ -100,6 +106,19 @@ runSerialT r =
 -- * NixSerializer
 
 type NixSerializer r e = Serializer (SerialT r e)
+
+-- * Errors
+
+data GetError
+  = GetError
+  | GetError_Path InvalidPathError
+  deriving (Eq, Ord, Generic, Show)
+
+data LoggerError
+  = LoggerError_Get GetError
+  | LoggerError_TooOldForErrorInfo
+  | LoggerError_TooNewForBasicError
+  deriving (Eq, Ord, Generic, Show)
 
 -- ** Runners
 
@@ -210,6 +229,22 @@ buildResult = liftSerialize
 protoVersion :: NixSerializer r e ProtoVersion
 protoVersion = liftSerialize
 
+-- * StorePath
+
+path :: HasStoreDir r => NixSerializer r GetError StorePath
+path = Serializer
+  { getS = do
+      sd <- Control.Monad.Reader.asks hasStoreDir
+      lift (getPath sd)
+      >>=
+        either
+          (throwError . GetError_Path)
+          pure
+  , putS = \p -> do
+      sd <- Control.Monad.Reader.asks hasStoreDir
+      lift $ putPath sd p
+  }
+
 derivation :: StoreDir -> NixSerializer r e (Derivation StorePath Text)
 derivation sd = lift2 (getDerivation sd) (putDerivation sd)
 
@@ -251,7 +286,7 @@ loggerOpCode = liftSerialize
 
 logger
   :: HasProtoVersion r
-  => NixSerializer r e Logger
+  => NixSerializer r LoggerError Logger
 logger = Serializer
   { getS = getS loggerOpCode >>= \case
       LoggerOpCode_Next ->
@@ -298,11 +333,15 @@ logger = Serializer
           putS loggerOpCode LoggerOpCode_Last
         Logger_Error basicOrInfo -> do
           putS loggerOpCode LoggerOpCode_Error
-          -- TODO: throwError if we try to send
-          -- ErrorInfo to client which has no support for it
+
+          minor <- protoVersion_minor <$> Control.Monad.Reader.asks hasProtoVersion
+
           case basicOrInfo of
-            Left e -> putS basicError e
+            Left _ | minor >= 26 -> throwError $ LoggerError_TooNewForBasicError
+            Left e | otherwise -> putS basicError e
+            Right _ | minor < 26 -> throwError $ LoggerError_TooOldForErrorInfo
             Right e -> putS errorInfo e
+
         Logger_StartActivity{..} -> do
           putS loggerOpCode LoggerOpCode_StartActivity
           putS activityID startActivityID
