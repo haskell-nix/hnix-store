@@ -22,19 +22,23 @@ module System.Nix.Store.Remote.Serializer
   , enum
   , text
   , maybeText
+  -- * UTCTime
   , time
   -- * Combinators
   , list
   , set
   , hashSet
   , mapS
-  -- * Lifted from Serialize
-  , buildResult
+  -- * ProtoVersion
   , protoVersion
-  , derivation
   -- * StorePath
-  , path
-  -- ** Logger
+  , storePath
+  -- * Derivation
+  , derivation
+  -- * Build
+  , buildMode
+  , buildResult
+  -- * Logger
   , LoggerError(..)
   , activityID
   , maybeActivity
@@ -54,29 +58,35 @@ import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Reader (ReaderT, runReaderT)
 import Control.Monad.Trans.Except (ExceptT, runExceptT)
 import Data.ByteString (ByteString)
+import Data.Fixed (Uni)
 import Data.Hashable (Hashable)
 import Data.HashSet (HashSet)
 import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
-import Data.Time (UTCTime)
-import Data.Word (Word8, Word64)
+import Data.Time (NominalDiffTime, UTCTime)
+import Data.Vector (Vector)
+import Data.Word (Word8, Word32, Word64)
 import GHC.Generics (Generic)
 
 import qualified Control.Monad
 import qualified Control.Monad.Reader
+import qualified Data.Bits
 import qualified Data.HashSet
 import qualified Data.Map.Strict
 import qualified Data.Serialize.Get
+import qualified Data.Serialize.Put
 import qualified Data.Set
 import qualified Data.Text
 import qualified Data.Text.Encoding
+import qualified Data.Time.Clock.POSIX
+import qualified Data.Vector
 
 import Data.Serializer
-import System.Nix.Build (BuildResult)
-import System.Nix.Derivation (Derivation)
-import System.Nix.StorePath (HasStoreDir(..), InvalidPathError, StoreDir, StorePath)
-import System.Nix.Store.Remote.Serialize (getDerivation, putDerivation)
+import System.Nix.Build (BuildMode, BuildResult(..))
+import System.Nix.Derivation (Derivation(..), DerivationOutput(..))
+import System.Nix.StorePath (HasStoreDir(..), InvalidPathError, StorePath)
+import System.Nix.Store.Remote.Serialize ()
 import System.Nix.Store.Remote.Serialize.Prim
 import System.Nix.Store.Remote.Types
 
@@ -162,7 +172,10 @@ runP serializer r =
 -- * Primitives
 
 int :: Integral a => NixSerializer r e a
-int = lift2 getInt putInt
+int = Serializer
+  { getS = fromIntegral <$> lift Data.Serialize.Get.getWord64le
+  , putS = lift . Data.Serialize.Put.putWord64le . fromIntegral
+  }
 
 bool :: NixSerializer r PrimError Bool
 bool = Serializer
@@ -224,8 +237,27 @@ maybeText = mapIsoSerializer
   (Prelude.maybe mempty id)
   text
 
+-- * UTCTime
+
 time :: NixSerializer r e UTCTime
-time = lift2 getTime putTime
+time = Serializer
+  { getS =
+      Data.Time.Clock.POSIX.posixSecondsToUTCTime
+      . toPicoSeconds
+      <$> getS int
+  , putS =
+      putS int
+      . fromPicoSeconds
+      . Data.Time.Clock.POSIX.utcTimeToPOSIXSeconds
+  }
+  where
+    -- fancy (*10^12), from Int to Uni to Pico(seconds)
+    toPicoSeconds :: Int -> NominalDiffTime
+    toPicoSeconds n = realToFrac (toEnum n :: Uni)
+
+    -- fancy (`div`10^12), from Pico to Uni to Int
+    fromPicoSeconds :: NominalDiffTime -> Int
+    fromPicoSeconds = (fromEnum :: Uni -> Int) . realToFrac
 
 -- * Combinators
 
@@ -275,18 +307,36 @@ mapS k v =
   $ list
   $ tup k v
 
--- * Lifted from Serialize
+vector
+  :: Ord a
+  => NixSerializer r e a
+  -> NixSerializer r e (Vector a)
+vector =
+  mapIsoSerializer
+    Data.Vector.fromList
+    Data.Vector.toList
+  . list
 
-buildResult :: NixSerializer r e BuildResult
-buildResult = liftSerialize
+-- * ProtoVersion
 
 protoVersion :: NixSerializer r e ProtoVersion
-protoVersion = liftSerialize
+protoVersion = Serializer
+  { getS = do
+      v <- getS (int @Word32)
+      pure ProtoVersion
+        { protoVersion_major = fromIntegral $ Data.Bits.shiftR v 8
+        , protoVersion_minor = fromIntegral $ v Data.Bits..&. 0x00FF
+        }
+  , putS = \p ->
+      putS (int @Word32)
+      $ ((Data.Bits.shiftL (fromIntegral $ protoVersion_major p :: Word32) 8)
+          Data.Bits..|. fromIntegral (protoVersion_minor p))
+  }
 
 -- * StorePath
 
-path :: HasStoreDir r => NixSerializer r PrimError StorePath
-path = Serializer
+storePath :: HasStoreDir r => NixSerializer r PrimError StorePath
+storePath = Serializer
   { getS = do
       sd <- Control.Monad.Reader.asks hasStoreDir
       lift (getPath sd)
@@ -299,10 +349,75 @@ path = Serializer
       lift $ putPath sd p
   }
 
-derivation :: StoreDir -> NixSerializer r e (Derivation StorePath Text)
-derivation sd = lift2 (getDerivation sd) (putDerivation sd)
+derivationOutput
+  :: HasStoreDir r
+  => NixSerializer r PrimError (DerivationOutput StorePath Text)
+derivationOutput = Serializer
+  { getS = do
+      path <- getS storePath
+      hashAlgo <- getS text
+      hash <- getS text
+      pure DerivationOutput{..}
+  , putS = \DerivationOutput{..} -> do
+      putS storePath path
+      putS text hashAlgo
+      putS text hash
+  }
 
--- ** Logger
+-- * Derivation
+
+derivation
+  :: HasStoreDir r
+  => NixSerializer r PrimError (Derivation StorePath Text)
+derivation = Serializer
+  { getS = do
+      outputs <- getS (mapS text derivationOutput)
+      -- Our type is Derivation, but in Nix
+      -- the type sent over the wire is BasicDerivation
+      -- which omits inputDrvs
+      inputDrvs <- pure mempty
+      inputSrcs <- getS (set storePath)
+
+      platform <- getS text
+      builder <- getS text
+      args <- getS (vector text)
+      env <- getS (mapS text text)
+      pure Derivation{..}
+  , putS = \Derivation{..} -> do
+      putS (mapS text derivationOutput) outputs
+      putS (set storePath) inputSrcs
+      putS text platform
+      putS text builder
+      putS (vector text) args
+      putS (mapS text text) env
+  }
+
+-- * Build
+
+buildMode :: NixSerializer r PrimError BuildMode
+buildMode = enum
+
+buildResult :: NixSerializer r PrimError BuildResult
+buildResult = Serializer
+  { getS = do
+      status <- getS enum
+      errorMessage <- getS maybeText
+      timesBuilt <- getS int
+      isNonDeterministic <- getS bool
+      startTime <- getS time
+      stopTime <- getS time
+      pure $ BuildResult{..}
+
+ , putS = \BuildResult{..} -> do
+    putS enum status
+    putS maybeText errorMessage
+    putS int timesBuilt
+    putS bool isNonDeterministic
+    putS time startTime
+    putS time stopTime
+  }
+
+-- * Logger
 
 data LoggerError
   = LoggerError_Prim PrimError
