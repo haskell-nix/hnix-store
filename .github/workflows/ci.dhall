@@ -4,7 +4,14 @@ let haskellCi =
 let defSteps = haskellCi.defaultCabalSteps
 
 in    haskellCi.generalCi
-        (haskellCi.withNix defSteps)
+        ( haskellCi.withNix
+            ( defSteps
+              with extraSteps.pre
+                   =
+                    defSteps.extraSteps.pre
+                  # [ haskellCi.installCachixStep "hnix-store" ]
+            )
+        )
         haskellCi.DhallMatrix::{
         , ghc =
           [ haskellCi.GHC.GHC963

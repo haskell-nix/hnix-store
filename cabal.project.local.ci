@@ -1,5 +1,3 @@
-tests: True
-
 package hnix-store-core
   ghc-options: -Wunused-packages -Wall -Werror
 
