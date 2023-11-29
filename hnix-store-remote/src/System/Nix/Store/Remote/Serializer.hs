@@ -74,6 +74,7 @@ import GHC.Generics (Generic)
 import qualified Control.Monad
 import qualified Control.Monad.Reader
 import qualified Data.Bits
+import qualified Data.ByteString
 import qualified Data.HashSet
 import qualified Data.Map.Strict
 import qualified Data.Serialize.Get
@@ -89,11 +90,10 @@ import System.Nix.Build (BuildMode, BuildResult(..))
 import System.Nix.Derivation (Derivation(..), DerivationOutput(..))
 import System.Nix.DerivedPath (DerivedPath, ParseOutputsError)
 import System.Nix.StorePath (HasStoreDir(..), InvalidPathError, StorePath)
-import System.Nix.Store.Remote.Serialize ()
-import System.Nix.Store.Remote.Serialize.Prim
 import System.Nix.Store.Remote.Types
 
 import qualified System.Nix.DerivedPath
+import qualified System.Nix.StorePath
 
 -- | Transformer for @Serializer@
 newtype SerialT r e m a = SerialT
@@ -195,7 +195,9 @@ bool = Serializer
       0 -> pure False
       1 -> pure True
       x -> throwError $ PrimError_IllegalBool x
-  , putS = lift . putBool
+  , putS = \case
+      False -> putS (int @Word8) 0
+      True  -> putS (int @Word8) 1
   }
 
 byteString :: NixSerializer r PrimError ByteString
@@ -204,17 +206,29 @@ byteString = Serializer
       len <- getS int
       st  <- lift $ Data.Serialize.Get.getByteString len
       Control.Monad.when (len `mod` 8 /= 0) $ do
-        pads <- lift $ unpad $ fromIntegral $ 8 - (len `mod` 8)
+        pads <- unpad $ fromIntegral $ 8 - (len `mod` 8)
         Control.Monad.unless
           (all (== 0) pads)
           $ throwError
           $ PrimError_BadPadding st len pads
       pure st
-  , putS = lift . putByteString
+  , putS = \x -> do
+      let len = Data.ByteString.length x
+      putS int len
+      lift $ Data.Serialize.Put.putByteString x
+      Control.Monad.when
+        (len `mod` 8 /= 0)
+        $ pad $ 8 - (len `mod` 8)
   }
   where
-    unpad x =
-      Control.Monad.replicateM x Data.Serialize.Get.getWord8
+    unpad count =
+      Control.Monad.replicateM
+        count
+        (lift Data.Serialize.Get.getWord8)
+    pad count =
+      Control.Monad.replicateM_
+        count
+        (lift $ Data.Serialize.Put.putWord8 0)
 
 -- | Utility toEnum version checking bounds using Bounded class
 toEnumCheckBoundsM
@@ -231,7 +245,7 @@ toEnumCheckBoundsM = \case
 enum :: Enum a => NixSerializer r PrimError a
 enum = Serializer
   { getS = getS int >>= toEnumCheckBoundsM
-  , putS = lift . putEnum
+  , putS = putS int . fromEnum
   }
 
 text :: NixSerializer r PrimError Text
@@ -353,14 +367,16 @@ storePath :: HasStoreDir r => NixSerializer r PrimError StorePath
 storePath = Serializer
   { getS = do
       sd <- Control.Monad.Reader.asks hasStoreDir
-      lift (getPath sd)
+      System.Nix.StorePath.parsePath sd <$> getS byteString
       >>=
         either
           (throwError . PrimError_Path)
           pure
   , putS = \p -> do
       sd <- Control.Monad.Reader.asks hasStoreDir
-      lift $ putPath sd p
+      putS
+        byteString
+        $ System.Nix.StorePath.storePathToRawFilePath sd p
   }
 
 derivationOutput
