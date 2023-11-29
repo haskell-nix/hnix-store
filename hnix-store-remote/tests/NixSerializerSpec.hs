@@ -4,6 +4,7 @@ module NixSerializerSpec (spec) where
 
 import Data.Fixed (Uni)
 import Data.Time (NominalDiffTime)
+import Data.Text (Text)
 import Test.Hspec (Expectation, Spec, describe, parallel, shouldBe)
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck (Gen, arbitrary, forAll, suchThat)
@@ -14,8 +15,9 @@ import qualified Data.Serializer
 import qualified System.Nix.Build
 
 import System.Nix.Arbitrary ()
+import System.Nix.Build (BuildResult)
 import System.Nix.Derivation (Derivation(inputDrvs))
-import System.Nix.StorePath (StoreDir)
+import System.Nix.StorePath (StoreDir, StorePath)
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types (ErrorInfo(..), Logger(..), ProtoVersion(..), Trace(..))
@@ -40,8 +42,10 @@ roundtripSReader serializer readerVal a =
 roundtripS
   :: ( Eq a
      , Show a
+     , Eq e
+     , Show e
      )
-  => NixSerializer () GetError a
+  => NixSerializer () e a
   -> a
   -> Expectation
 roundtripS serializer = roundtripSReader serializer ()
@@ -49,7 +53,7 @@ roundtripS serializer = roundtripSReader serializer ()
 spec :: Spec
 spec = parallel $ do
   describe "Prim" $ do
-    prop "Int" $ roundtripS @Int int
+    prop "Int" $ roundtripS @Int @() int
     prop "Bool" $ roundtripS bool
     prop "ByteString" $ roundtripS byteString
     prop "Text" $ roundtripS text
@@ -64,14 +68,14 @@ spec = parallel $ do
         fromSeconds :: NominalDiffTime -> Int
         fromSeconds = (fromEnum :: Uni -> Int) . realToFrac
 
-      roundtripS $
+      roundtripS @Int @() $
         Data.Serializer.mapIsoSerializer
           (fromSeconds . Data.Time.Clock.POSIX.utcTimeToPOSIXSeconds)
           (Data.Time.Clock.POSIX.posixSecondsToUTCTime . toSeconds)
           time
 
   describe "Combinators" $ do
-    prop "list" $ roundtripS @[Int] (list int)
+    prop "list" $ roundtripS @[Int] @() (list int)
     prop "set" $ roundtripS (set byteString)
     prop "hashSet" $ roundtripS (hashSet byteString)
     prop "mapS" $ roundtripS (mapS (int @Int) byteString)
@@ -80,7 +84,7 @@ spec = parallel $ do
     prop "BuildResult"
       $ forAll (arbitrary `suchThat` ((/= Just "") . System.Nix.Build.errorMessage))
       $ \br ->
-          roundtripS buildResult
+          roundtripS @BuildResult @() buildResult
             -- fix time to 0 as we test UTCTime above
             $ br { System.Nix.Build.startTime = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
                  , System.Nix.Build.stopTime  = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
@@ -90,10 +94,10 @@ spec = parallel $ do
       roundtripSReader @StoreDir path sd
 
     prop "Derivation" $ \sd ->
-      roundtripS (derivation sd)
+      roundtripS @(Derivation StorePath Text) @() (derivation sd)
       . (\drv -> drv { inputDrvs = mempty })
 
-    prop "ProtoVersion" $ roundtripS protoVersion
+    prop "ProtoVersion" $ roundtripS @ProtoVersion @() protoVersion
 
     describe "Logger" $ do
       prop "ActivityID" $ roundtripS activityID

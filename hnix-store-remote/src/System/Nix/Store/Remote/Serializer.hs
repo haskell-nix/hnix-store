@@ -10,8 +10,7 @@ module System.Nix.Store.Remote.Serializer
   -- * NixSerializer
     NixSerializer
   -- * Errors
-  , GetError(..)
-  , LoggerError(..)
+  , PrimError(..)
   -- ** Runners
   , runSerialT
   , runG
@@ -36,6 +35,7 @@ module System.Nix.Store.Remote.Serializer
   -- * StorePath
   , path
   -- ** Logger
+  , LoggerError(..)
   , activityID
   , maybeActivity
   , activityResult
@@ -48,7 +48,7 @@ module System.Nix.Store.Remote.Serializer
   , verbosity
   ) where
 
-import Control.Monad.Except (MonadError, throwError)
+import Control.Monad.Except (MonadError, throwError, withExceptT)
 import Control.Monad.Reader (MonadReader)
 import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Reader (ReaderT, runReaderT)
@@ -60,15 +60,17 @@ import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Time (UTCTime)
-import Data.Word (Word64)
+import Data.Word (Word8, Word64)
 import GHC.Generics (Generic)
 
 import qualified Control.Monad
 import qualified Control.Monad.Reader
 import qualified Data.HashSet
 import qualified Data.Map.Strict
+import qualified Data.Serialize.Get
 import qualified Data.Set
 import qualified Data.Text
+import qualified Data.Text.Encoding
 
 import Data.Serializer
 import System.Nix.Build (BuildResult)
@@ -104,24 +106,33 @@ runSerialT r =
   . runExceptT
   . _unSerialT
 
+mapError
+  :: Functor m
+  => (e -> e')
+  -> SerialT r e m a
+  -> SerialT r e' m a
+mapError f =
+  SerialT
+  . withExceptT f
+  . _unSerialT
+
 -- * NixSerializer
 
 type NixSerializer r e = Serializer (SerialT r e)
 
 -- * Errors
 
-data GetError
-  = GetError
-  | GetError_EnumOutOfMinBound Int
-  | GetError_EnumOutOfMaxBound Int
-  | GetError_IllegalBool Word64
-  | GetError_Path InvalidPathError
-  deriving (Eq, Ord, Generic, Show)
-
-data LoggerError
-  = LoggerError_Get GetError
-  | LoggerError_TooOldForErrorInfo
-  | LoggerError_TooNewForBasicError
+data PrimError
+  = PrimError
+  | PrimError_BadPadding
+      { badPaddingStr :: ByteString
+      , badPaddingLen :: Int
+      , badPaddingPads :: [Word8]
+      }
+  | PrimError_EnumOutOfMinBound Int
+  | PrimError_EnumOutOfMaxBound Int
+  | PrimError_IllegalBool Word64
+  | PrimError_Path InvalidPathError
   deriving (Eq, Ord, Generic, Show)
 
 -- ** Runners
@@ -153,31 +164,58 @@ runP serializer r =
 int :: Integral a => NixSerializer r e a
 int = lift2 getInt putInt
 
-bool :: NixSerializer r GetError Bool
+bool :: NixSerializer r PrimError Bool
 bool = Serializer
   { getS = getS (int @Word64) >>= \case
       0 -> pure False
       1 -> pure True
-      x -> throwError $ GetError_IllegalBool x
+      x -> throwError $ PrimError_IllegalBool x
   , putS = lift . putBool
   }
 
-byteString :: NixSerializer r e ByteString
-byteString = lift2 getByteString putByteString
+byteString :: NixSerializer r PrimError ByteString
+byteString = Serializer
+  { getS = do
+      len <- getS int
+      st  <- lift $ Data.Serialize.Get.getByteString len
+      Control.Monad.when (len `mod` 8 /= 0) $ do
+        pads <- lift $ unpad $ fromIntegral $ 8 - (len `mod` 8)
+        Control.Monad.unless
+          (all (== 0) pads)
+          $ throwError
+          $ PrimError_BadPadding st len pads
+      pure st
+  , putS = lift . putByteString
+  }
+  where
+    unpad x =
+      Control.Monad.replicateM x Data.Serialize.Get.getWord8
 
-enum :: Enum a => NixSerializer r GetError a
+-- | Utility toEnum version checking bounds using Bounded class
+toEnumCheckBoundsM
+  :: ( Enum a
+     , MonadError PrimError m
+     )
+  => Int
+  -> m a
+toEnumCheckBoundsM = \case
+  x | x < minBound -> throwError $ PrimError_EnumOutOfMinBound x
+  x | x > maxBound -> throwError $ PrimError_EnumOutOfMaxBound x
+  x | otherwise -> pure $ toEnum x
+
+enum :: Enum a => NixSerializer r PrimError a
 enum = Serializer
-  { getS = getS int >>= \case
-      x | x < minBound -> throwError $ GetError_EnumOutOfMinBound x
-      x | x > maxBound -> throwError $ GetError_EnumOutOfMaxBound x
-      x | otherwise -> pure $ toEnum x
+  { getS = getS int >>= toEnumCheckBoundsM
   , putS = lift . putEnum
   }
 
-text :: NixSerializer r e Text
-text = liftSerialize
+text :: NixSerializer r PrimError Text
+text = mapIsoSerializer
+  Data.Text.Encoding.decodeUtf8
+  Data.Text.Encoding.encodeUtf8
+  byteString
 
-maybeText :: NixSerializer r e (Maybe Text)
+maybeText :: NixSerializer r PrimError (Maybe Text)
 maybeText = mapIsoSerializer
   (\case
     t | Data.Text.null t -> Nothing
@@ -247,14 +285,14 @@ protoVersion = liftSerialize
 
 -- * StorePath
 
-path :: HasStoreDir r => NixSerializer r GetError StorePath
+path :: HasStoreDir r => NixSerializer r PrimError StorePath
 path = Serializer
   { getS = do
       sd <- Control.Monad.Reader.asks hasStoreDir
       lift (getPath sd)
       >>=
         either
-          (throwError . GetError_Path)
+          (throwError . PrimError_Path)
           pure
   , putS = \p -> do
       sd <- Control.Monad.Reader.asks hasStoreDir
@@ -266,39 +304,114 @@ derivation sd = lift2 (getDerivation sd) (putDerivation sd)
 
 -- ** Logger
 
-maybeActivity :: NixSerializer r e (Maybe Activity)
+data LoggerError
+  = LoggerError_Prim PrimError
+  | LoggerError_InvalidOpCode Int
+  | LoggerError_TooOldForErrorInfo
+  | LoggerError_TooNewForBasicError
+  | LoggerError_UnknownLogFieldType Word8
+  deriving (Eq, Ord, Generic, Show)
+
+mapPrimE
+  :: Functor m
+  => SerialT r PrimError m a
+  -> SerialT r LoggerError m a
+mapPrimE = mapError LoggerError_Prim
+
+maybeActivity :: NixSerializer r LoggerError (Maybe Activity)
 maybeActivity = Serializer
   { getS = getS (int @Int) >>= \case
       0 -> pure Nothing
-      x -> either fail (pure . Just) $ toEnumCheckBounds (x - 100)
+      x -> mapPrimE $ toEnumCheckBoundsM (x - 100) >>= pure . Just
   , putS = \case
       Nothing -> putS (int @Int) 0
       Just act -> putS activity act
   }
   where
-    activity :: NixSerializer r e Activity
-    activity = liftSerialize
+    activity :: NixSerializer r LoggerError Activity
+    activity = Serializer
+      { getS = mapPrimE $ getS int >>= toEnumCheckBoundsM . (+(-100))
+      , putS = putS int . (+100) . fromEnum
+      }
 
-activityID :: NixSerializer r e ActivityID
-activityID = liftSerialize
+activityID :: NixSerializer r LoggerError ActivityID
+activityID = mapIsoSerializer ActivityID unActivityID int
 
-activityResult :: NixSerializer r e ActivityResult
-activityResult = liftSerialize
+activityResult :: NixSerializer r LoggerError ActivityResult
+activityResult = Serializer
+  { getS = mapPrimE $ getS int >>= toEnumCheckBoundsM . (+(-100))
+  , putS = putS int . (+100) . fromEnum
+  }
 
-field :: NixSerializer r e Field
-field = liftSerialize
+field :: NixSerializer r LoggerError Field
+field = Serializer
+  { getS = getS (int @Word8) >>= \case
+      0 -> Field_LogInt <$> getS int
+      1 -> Field_LogStr <$> mapPrimE (getS text)
+      x -> throwError $ LoggerError_UnknownLogFieldType x
+  , putS = \case
+      Field_LogInt x -> putS int (0 :: Word8) >> putS int x
+      Field_LogStr x -> putS int (1 :: Word8) >> mapPrimE (putS text x)
+  }
 
-trace :: NixSerializer r e Trace
-trace = liftSerialize
+trace :: NixSerializer r LoggerError Trace
+trace = Serializer
+  { getS = do
+      tracePosition <- (\case 0 -> Nothing; x -> Just x) <$> getS (int @Int)
+      traceHint <- mapPrimE $ getS text
+      pure Trace{..}
+  , putS = \Trace{..} -> do
+      maybe (putS (int @Int) 0) (putS int) $ tracePosition
+      mapPrimE $ putS text traceHint
+  }
 
-basicError :: NixSerializer r e BasicError
-basicError = liftSerialize
+basicError :: NixSerializer r LoggerError BasicError
+basicError = Serializer
+  { getS = do
+      basicErrorMessage <- mapPrimE $ getS text
+      basicErrorExitStatus <- getS int
+      pure BasicError{..}
 
-errorInfo :: NixSerializer r e ErrorInfo
-errorInfo = liftSerialize
+  , putS = \BasicError{..} -> do
+      mapPrimE $ putS text basicErrorMessage
+      putS int basicErrorExitStatus
+  }
 
-loggerOpCode :: NixSerializer r e LoggerOpCode
-loggerOpCode = liftSerialize
+errorInfo :: NixSerializer r LoggerError ErrorInfo
+errorInfo = Serializer
+  { getS = do
+      etyp <- mapPrimE $ getS text
+      Control.Monad.unless (etyp == Data.Text.pack "Error")
+        $ fail
+        $ "get ErrorInfo: received unknown error type" ++ show etyp
+      errorInfoLevel <- getS verbosity
+      _name <- mapPrimE $ getS text -- removed error name
+      errorInfoMessage <- mapPrimE $ getS text
+      errorInfoPosition <- (\case 0 -> Nothing; x -> Just x) <$> getS int
+      errorInfoTraces <- getS (list trace)
+      pure ErrorInfo{..}
+
+  , putS = \ErrorInfo{..} -> do
+      mapPrimE $ do
+        putS text $ Data.Text.pack "Error"
+      putS verbosity errorInfoLevel
+      mapPrimE $ do
+        putS text $ Data.Text.pack "Error" -- removed error name
+        putS text errorInfoMessage
+        maybe (putS (int @Word8) 0) (putS int) errorInfoPosition
+      putS (list trace) errorInfoTraces
+  }
+
+loggerOpCode :: NixSerializer r LoggerError LoggerOpCode
+loggerOpCode = Serializer
+  { getS = do
+      c <- getS int
+      either
+        (pure $ throwError (LoggerError_InvalidOpCode c))
+        pure
+        $ intToLoggerOpCode c
+  , putS = putS int . loggerOpCodeToInt
+  }
 
 logger
   :: HasProtoVersion r
@@ -306,47 +419,62 @@ logger
 logger = Serializer
   { getS = getS loggerOpCode >>= \case
       LoggerOpCode_Next ->
-        Logger_Next <$> getS text
+        mapPrimE $
+          Logger_Next <$> getS text
+
       LoggerOpCode_Read ->
         Logger_Read <$> getS int
+
       LoggerOpCode_Write ->
-        Logger_Write <$> getS byteString
+        mapPrimE $
+          Logger_Write <$> getS byteString
+
       LoggerOpCode_Last ->
         pure Logger_Last
+
       LoggerOpCode_Error -> do
         pv <- Control.Monad.Reader.asks hasProtoVersion
         Logger_Error <$>
           if protoVersion_minor pv >= 26
           then Right <$> getS errorInfo
           else Left <$> getS basicError
+
       LoggerOpCode_StartActivity -> do
         startActivityID <- getS activityID
         startActivityVerbosity <- getS verbosity
         startActivityType <- getS maybeActivity
-        startActivityString <- getS byteString
+        startActivityString <- mapPrimE $ getS byteString
         startActivityFields <- getS (list field)
         startActivityParentID <- getS activityID
         pure Logger_StartActivity{..}
+
       LoggerOpCode_StopActivity -> do
         stopActivityID <- getS activityID
         pure Logger_StopActivity{..}
+
       LoggerOpCode_Result -> do
         resultActivityID <- getS activityID
         resultType <- getS activityResult
         resultFields <- getS (list field)
         pure Logger_Result {..}
+
     , putS = \case
         Logger_Next s -> do
           putS loggerOpCode LoggerOpCode_Next
-          putS text s
+          mapError LoggerError_Prim $
+            putS text s
+
         Logger_Read i -> do
           putS loggerOpCode LoggerOpCode_Read
           putS int i
+
         Logger_Write s -> do
           putS loggerOpCode LoggerOpCode_Write
-          putS byteString s
+          mapPrimE $ putS byteString s
+
         Logger_Last ->
           putS loggerOpCode LoggerOpCode_Last
+
         Logger_Error basicOrInfo -> do
           putS loggerOpCode LoggerOpCode_Error
 
@@ -363,12 +491,15 @@ logger = Serializer
           putS activityID startActivityID
           putS verbosity startActivityVerbosity
           putS maybeActivity startActivityType
-          putS byteString startActivityString
+          mapPrimE $
+            putS byteString startActivityString
           putS (list field) startActivityFields
           putS activityID startActivityParentID
+
         Logger_StopActivity{..} -> do
           putS loggerOpCode LoggerOpCode_StopActivity
           putS activityID stopActivityID
+
         Logger_Result{..} -> do
           putS loggerOpCode LoggerOpCode_Result
           putS activityID resultActivityID
@@ -376,5 +507,8 @@ logger = Serializer
           putS (list field) resultFields
   }
 
-verbosity :: NixSerializer r e Verbosity
-verbosity = liftSerialize
+verbosity :: NixSerializer r LoggerError Verbosity
+verbosity = Serializer
+  { getS = mapPrimE $ getS enum
+  , putS = mapPrimE . putS enum
+  }
