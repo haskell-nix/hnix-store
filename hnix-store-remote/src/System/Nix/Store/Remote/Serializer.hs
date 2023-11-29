@@ -35,6 +35,8 @@ module System.Nix.Store.Remote.Serializer
   , storePath
   -- * Derivation
   , derivation
+  -- * Derivation
+  , derivedPath
   -- * Build
   , buildMode
   , buildResult
@@ -85,10 +87,13 @@ import qualified Data.Vector
 import Data.Serializer
 import System.Nix.Build (BuildMode, BuildResult(..))
 import System.Nix.Derivation (Derivation(..), DerivationOutput(..))
+import System.Nix.DerivedPath (DerivedPath, ParseOutputsError)
 import System.Nix.StorePath (HasStoreDir(..), InvalidPathError, StorePath)
 import System.Nix.Store.Remote.Serialize ()
 import System.Nix.Store.Remote.Serialize.Prim
 import System.Nix.Store.Remote.Types
+
+import qualified System.Nix.DerivedPath
 
 -- | Transformer for @Serializer@
 newtype SerialT r e m a = SerialT
@@ -139,10 +144,17 @@ data PrimError
       , badPaddingLen :: Int
       , badPaddingPads :: [Word8]
       }
+  | PrimError_DerivedPath ParseOutputsError
   | PrimError_EnumOutOfMinBound Int
   | PrimError_EnumOutOfMaxBound Int
   | PrimError_IllegalBool Word64
+  | PrimError_NotYetImplemented String (ForPV ProtoVersion)
   | PrimError_Path InvalidPathError
+  deriving (Eq, Ord, Generic, Show)
+
+data ForPV a
+  = ForPV_Newer a
+  | ForPV_Older a
   deriving (Eq, Ord, Generic, Show)
 
 -- ** Runners
@@ -392,6 +404,49 @@ derivation = Serializer
       putS text builder
       putS (vector text) args
       putS (mapS text text) env
+  }
+
+-- * DerivedPath
+
+derivedPathNew
+  :: HasStoreDir r
+  => NixSerializer r PrimError DerivedPath
+derivedPathNew = Serializer
+  { getS = do
+      root <- Control.Monad.Reader.asks hasStoreDir
+      p <- getS text
+      case System.Nix.DerivedPath.parseDerivedPath root p of
+        Left err -> throwError $ PrimError_DerivedPath err
+        Right x -> pure x
+  , putS = \d -> do
+      root <- Control.Monad.Reader.asks hasStoreDir
+      putS text (System.Nix.DerivedPath.derivedPathToText root d)
+  }
+
+derivedPath
+  :: ( HasProtoVersion r
+     , HasStoreDir r
+     )
+  => NixSerializer r PrimError DerivedPath
+derivedPath = Serializer
+  { getS = do
+      pv <- Control.Monad.Reader.asks hasProtoVersion
+      if pv < ProtoVersion 1 30
+        then
+          throwError
+          $ PrimError_NotYetImplemented
+              "DerivedPath"
+              (ForPV_Older pv)
+        else getS derivedPathNew
+  , putS = \d -> do
+      pv <- Control.Monad.Reader.asks hasProtoVersion
+      if pv < ProtoVersion 1 30
+        then
+          throwError
+          $ PrimError_NotYetImplemented
+              "DerivedPath"
+              (ForPV_Older pv)
+        else putS derivedPathNew d
   }
 
 -- * Build
