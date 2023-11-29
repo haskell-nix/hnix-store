@@ -1,3 +1,6 @@
+test: true
+benchmarks: true
+
 packages:
   ./hnix-store-core/hnix-store-core.cabal
   ./hnix-store-db/hnix-store-db.cabal
