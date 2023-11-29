@@ -10,6 +10,7 @@ module System.Nix.Store.Remote
   , addTempRoot
   , buildPaths
   , buildDerivation
+  , deleteSpecific
   , ensurePath
   , findRoots
   , isValidPathUncached
@@ -38,6 +39,7 @@ import Data.Dependent.Sum (DSum((:=>)))
 import Data.HashSet (HashSet)
 import Data.Map (Map)
 import Data.Text (Text)
+import Data.Word (Word64)
 import System.Nix.Nar (NarSource)
 import System.Nix.Derivation (Derivation)
 import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
@@ -163,6 +165,26 @@ buildDerivation p drv buildMode = do
     putInt (0 :: Int)
 
   getSocketIncremental get
+
+-- | Delete store paths
+deleteSpecific
+ :: HashSet StorePath -- ^ Paths to delete
+ -> MonadStore (HashSet StorePath, Word64) -- ^ (Paths deleted, Bytes freed)
+deleteSpecific paths = do
+  storeDir <- getStoreDir
+  runOpArgs CollectGarbage $ do
+    putEnum GCDeleteSpecific
+    putPaths storeDir paths
+    putBool False -- ignoreLiveness
+    putInt (maxBound :: Word64) -- maxFreedBytes
+    putInt (0::Int)
+    putInt (0::Int)
+    putInt (0::Int)
+  getSocketIncremental $ do
+    deletedPaths <- getPathsOrFail storeDir
+    bytesFreed <- getInt
+    _ :: Int <- getInt
+    pure (deletedPaths, bytesFreed)
 
 ensurePath :: StorePath -> MonadStore ()
 ensurePath pn = do

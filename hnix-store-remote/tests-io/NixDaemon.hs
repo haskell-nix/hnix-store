@@ -5,9 +5,8 @@ module NixDaemon where
 import Data.Text (Text)
 import Data.Either (isRight, isLeft)
 import Data.Bool (bool)
-import Control.Monad (void)
+import Control.Monad (forM_, void)
 import Control.Monad.IO.Class (liftIO)
-
 import qualified System.Environment
 import Control.Exception (bracket)
 import Control.Concurrent (threadDelay)
@@ -15,6 +14,8 @@ import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Either
 import qualified Data.HashSet as HS
 import qualified Data.Map.Strict as M
+import qualified Data.Text
+import qualified Data.Text.Encoding
 import System.Directory
 import System.IO.Temp
 import qualified System.Process as P
@@ -274,3 +275,17 @@ spec_protocol = Hspec.around withNixDaemon $
         path <- dummy
         liftIO $ print path
         isValidPathUncached path `shouldReturn` True
+
+    context "deleteSpecific" $
+      itRights "delete a path from the store" $ withPath $ \path -> do
+          -- clear temp gc roots so the delete works. restarting the nix daemon should also do this...
+          storeDir <- getStoreDir
+          let tempRootsDir = Data.Text.unpack $ mconcat [ Data.Text.Encoding.decodeUtf8 (unStoreDir storeDir), "/../var/nix/temproots/" ]
+          tempRootList <- liftIO $ listDirectory tempRootsDir
+          liftIO $ forM_ tempRootList $ \entry -> do
+            removeFile $ mconcat [ tempRootsDir, "/", entry ]
+
+          (deletedPaths, deletedBytes) <- deleteSpecific (HS.fromList [path])
+          deletedPaths `shouldBe` HS.fromList [path]
+          deletedBytes `shouldBe` 4
+

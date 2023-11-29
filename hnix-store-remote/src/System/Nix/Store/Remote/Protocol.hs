@@ -11,8 +11,8 @@ module System.Nix.Store.Remote.Protocol
   , runStoreOpts
   , runStoreOptsTCP
   , runStoreOpts'
-
   , ourProtoVersion
+  , GCAction(..)
   ) where
 
 import qualified Control.Monad
@@ -155,3 +155,11 @@ runStoreOpts' sockFamily sockAddr storeRootDir code =
       $ (`runReaderT` sock)
       $ (`runStateT` (Nothing, []))
       $ runExceptT (greet >> code)
+
+data GCAction
+  = GCReturnLive
+  | GCReturnDead
+  | GCDeleteDead
+  | GCDeleteSpecific
+  deriving (Eq, Show, Enum)
+
