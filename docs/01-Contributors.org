@@ -1,0 +1,30 @@
+#+TITLE: Contributors
+
++ Previous [[./00-Prelude.org][00-Prelude]]
++ Next [[./02-Hacking.org][02-Hacking]]
+
+Big thanks to our present and past contributors,
+in order of appearance:
+
++ Shea Levy @shlevy
++ Gabriella Gonzalez  @Gabriella439
++ Alex Rozenshteyn @rpglover64
++ Greg Hale @imalsogreg
++ sorki @srk
++ Doug Beardsley @mightybyte
++ John Ericson @Ericson2314
++ Brian McKenna  @puffnfresh
++ tv @473
++ Drew Hess @dhess
++ Guillaume Maudoux @layus
++ Anton Latukha @Anton-Latukha
++ Tom McLaughlin @thomasjm
++ Patrick @soulomoon
++ Domen Kožar @domenkozar
++ Andrei Borzenkov @s-and-witch
++ Sander @sandydoo
++ Cale Gibbard @cgibbard
++ Dylan Green @cidkidnix
++ Luigy Leon @luigy
++ squalus @squalus
++ Vaibhav Sagar @vaibhavsagar

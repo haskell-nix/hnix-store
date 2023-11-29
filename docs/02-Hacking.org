@@ -1,0 +1,116 @@
+#+TITLE: Hacking
+
++ Previous [[./01-Contributors.org][01-Contributors]]
++ Next ~FIXME~
+
+* Basic workflow
+
+Entering the development shell using ~nix-shell~ will pull
+in all the dependencies required by all sub-packages.
+
+Both ~default.nix~ and ~shell.nix~ simply import ~<nixpkgs>~ from your
+~NIX_PATH~. If this is by chance broken, try using ~nixpkgs-unstable~ which
+is targeted by our CI, as it is also the basis for ~haskell-updates~ ~nixpkgs~ branch
+where new Hackage packages land.
+
+Not pinning the to specific version of ~nixpkgs~ is intentional so CI can roll
+with the ~unstable~ branch and detect breakage early.
+
+** Using another version of GHC
+
+To use a different version of GHC to the one used
+by your ~pkgs.haskellPackages~, pass, for example ~--argstr compiler ghc963~
+to either ~nix-shell~ or ~nix-build~
+
+** ~matrix.nix~
+
+~nix-build matrix-nix~ can be used to check that all our packages
+built against all supported GHC versions. It pulls the versions
+from [[../.github/workflows/ci.dhall][.github/workflows/ci.dhall]] so there is a single source of truth
+and the compilers don't need to be listed separately again.
+
+* Adding new packages
+
+When adding a new sub-package, following files need to be updated:
++ ~default.nix~
++ ~shell.nix~
++ ~cabal.project~
++ ~cabal.project.local.ci~ (only if needed)
++ ~hie.yaml~
+
+* CI
+
+The GitHub Actions CI uses [[https://github.com/sorki/github-actions-dhall][github-actions-dhall]] and [[../.github/workflows/ci.dhall][.github/workflows/ci.dhall]]
+to generate the [[../.github/workflows/ci.yaml][.github/workflows/ci.yaml]] workflow file
+which does a full matrix build of supported compilers both using ~cabal~ and ~nix~.
+
+** Cachix cache
+
+The CI uses [[https://github.com/cachix/cachix/][cachix]] to not rebuild everything from scratch everytime it runs, it also
+feeds the cache available at https://app.cachix.org/cache/hnix-store which you
+can configure on your system.
+
+** Updating
+
+To update the CI, edit [[../.github/workflows/ci.dhall][.github/workflows/ci.dhall]] and run [[../.github/workflows/ci.sh][.github/workflows/ci.sh]]
+to regenerate the ~yaml~ file. Don't forget to commit both files.
+
+* Changelogs
+
+Since the packages are used by others as dependencies in production environments,
+make sure to add changelog entries for public interface breaking changes. These don't
+need to cover all changes if you are sure that the change only affects packages inside
+~hnix-store~.
+
+* Readmes
+
+Some ~README.md~ files are symlinked to ~README.lhs~ files and also serve as a buildable executables.
+This makes sure they are always up to date and buildable. They are guarded by cabal flags
+and only available in development environment which enables all of them via [[../cabal.project][cabal.project]], which
+also causes them to be built by CI but not to propagate downstream (and polute ~$PATH~ of downstream users).
+
+* ~ghcid~
+
+~ghcid~ can be used as a lightweight IDE to assist with edit-compile-run-test cycle. You can obtain it quickly using
+~nix-shell -p haskellPackages.ghcid~
+
+** Running
+*** For a single library
+
+#+begin_src shell
+ghcid -c 'cabal repl hnix-store-core'
+#+end_src
+
+*** For a testsuite or executable
+
+#+begin_src shell
+ghcid -c 'cabal repl test-suite:props'
+# or
+ghcid -c 'cabal repl exe:db-readme'
+#+end_src
+
+Often the specifier like ~exe~ or ~test-suite~ can be omitted when the name is unique.
+
+*** Running a testsuite after a build
+
+If working with the testsuite directly, you can invoke
+#+begin_src shell
+ghcid -c 'cabal repl test-suite:remote' --test 'hspec spec'
+#+end_src
+
+If you are editing a library or you need to run multiple testsuites, you can for example use
+
+#+begin_src shell
+ghcid -c 'cabal repl hnix-store-remote' --test ':! cabal test test-suite:remote && cabal test test-suite:remote-io'
+#+end_src
+
+*** With restarting
+
+~ghcid~ can also restart itself so ~ghci~ picks up new or moved files, following incantation can be invoked
+when working with ~hnix-store-remote~ to combine all of the features
+
+#+begin_src shell
+ghcid -c 'cabal repl hnix-store-remote' \
+  --restart 'hnix-store-remote/hnix-store-remote.cabal' \
+  --test ':! cabal test test-suite:remote && cabal test test-suite:remote-io'
+#+end_src
