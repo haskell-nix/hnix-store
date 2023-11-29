@@ -56,6 +56,12 @@ flag io-testsuite
     Enable testsuite, which requires external
     binaries and Linux namespace support.
 
+flag build-derivation
+  default:
+    False
+  description:
+    Build build-derivation executable
+
 flag build-readme
   default:
     False
@@ -110,6 +116,21 @@ library
     , vector
   hs-source-dirs:      src
   ghc-options:         -Wall
+
+executable build-derivation
+  if !flag(build-derivation)
+    buildable: False
+  build-depends:
+      base >=4.12 && <5
+    , attoparsec
+    , hnix-store-core
+    , hnix-store-remote
+    , data-default-class
+    , text
+  default-language: Haskell2010
+  main-is: BuildDerivation.hs
+  hs-source-dirs:      app
+  ghc-options: -Wall -threaded -rtsopts "-with-rtsopts -N"
 
 executable remote-readme
   if !flag(build-readme)
