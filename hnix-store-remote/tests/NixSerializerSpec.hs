@@ -41,7 +41,7 @@ roundtripS
   :: ( Eq a
      , Show a
      )
-  => NixSerializer () () a
+  => NixSerializer () GetError a
   -> a
   -> Expectation
 roundtripS serializer = roundtripSReader serializer ()

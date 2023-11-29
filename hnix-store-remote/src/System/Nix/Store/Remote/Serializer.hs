@@ -60,6 +60,7 @@ import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Time (UTCTime)
+import Data.Word (Word64)
 import GHC.Generics (Generic)
 
 import qualified Control.Monad
@@ -111,6 +112,9 @@ type NixSerializer r e = Serializer (SerialT r e)
 
 data GetError
   = GetError
+  | GetError_EnumOutOfMinBound Int
+  | GetError_EnumOutOfMaxBound Int
+  | GetError_IllegalBool Word64
   | GetError_Path InvalidPathError
   deriving (Eq, Ord, Generic, Show)
 
@@ -149,14 +153,26 @@ runP serializer r =
 int :: Integral a => NixSerializer r e a
 int = lift2 getInt putInt
 
-bool :: NixSerializer r e Bool
-bool = lift2 getBool putBool
+bool :: NixSerializer r GetError Bool
+bool = Serializer
+  { getS = getS (int @Word64) >>= \case
+      0 -> pure False
+      1 -> pure True
+      x -> throwError $ GetError_IllegalBool x
+  , putS = lift . putBool
+  }
 
 byteString :: NixSerializer r e ByteString
 byteString = lift2 getByteString putByteString
 
-enum :: Enum a => NixSerializer r e a
-enum = lift2 getEnum putEnum
+enum :: Enum a => NixSerializer r GetError a
+enum = Serializer
+  { getS = getS int >>= \case
+      x | x < minBound -> throwError $ GetError_EnumOutOfMinBound x
+      x | x > maxBound -> throwError $ GetError_EnumOutOfMaxBound x
+      x | otherwise -> pure $ toEnum x
+  , putS = lift . putEnum
+  }
 
 text :: NixSerializer r e Text
 text = liftSerialize
