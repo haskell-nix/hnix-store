@@ -1,11 +1,18 @@
 let haskellCi =
       https://raw.githubusercontent.com/sorki/github-actions-dhall/main/haskell-ci.dhall
-        sha256:9e49c0d57a38ab766825b3d2de6656d998b15eec873982db97d590ef58298601
+        sha256:5d7058a7684fd5315467b562853bd1c4a43da691c09293d3715ee739dfa26e08
 
 let defSteps = haskellCi.defaultCabalSteps
 
 in    haskellCi.generalCi
-        (haskellCi.withNix defSteps)
+        ( haskellCi.withNix
+            ( defSteps
+              with extraSteps.pre
+                   =
+                    defSteps.extraSteps.pre
+                  # [ haskellCi.installCachixStep "hnix-store" ]
+            )
+        )
         haskellCi.DhallMatrix::{
         , ghc =
           [ haskellCi.GHC.GHC963
