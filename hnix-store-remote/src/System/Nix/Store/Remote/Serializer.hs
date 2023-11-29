@@ -319,6 +319,8 @@ vector =
 
 -- * ProtoVersion
 
+-- protoVersion_major & 0xFF00
+-- protoVersion_minor & 0x00FF
 protoVersion :: NixSerializer r e ProtoVersion
 protoVersion = Serializer
   { getS = do

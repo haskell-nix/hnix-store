@@ -36,12 +36,8 @@ import System.Nix.Store.Remote.Serialize.Prim
 import System.Nix.Store.Remote.Logger
 import System.Nix.Store.Remote.MonadStore
 import System.Nix.Store.Remote.Socket
+import System.Nix.Store.Remote.Serializer (protoVersion)
 import System.Nix.Store.Remote.Types
-
-protoVersion :: Int
-protoVersion = 0x115
--- major protoVersion & 0xFF00
--- minor ..           & 0x00FF
 
 ourProtoVersion :: ProtoVersion
 ourProtoVersion = ProtoVersion
@@ -130,7 +126,7 @@ runStoreOpts' sockFamily sockAddr storeRootDir code =
 
   greet = do
     sockPut $ putInt workerMagic1
-    soc      <- asks storeConfig_socket
+    soc      <- asks hasStoreSocket
     vermagic <- liftIO $ recv soc 16
     let
       eres =
@@ -144,7 +140,8 @@ runStoreOpts' sockFamily sockAddr storeRootDir code =
       Right (magic2, _daemonProtoVersion) -> do
         Control.Monad.unless (magic2 == workerMagic2) $ error "Worker magic 2 mismatch"
 
-    sockPut $ putInt protoVersion -- clientVersion
+    pv <- asks hasProtoVersion
+    sockPutS @() protoVersion pv -- clientVersion
     sockPut $ putInt (0 :: Int)   -- affinity
     sockPut $ putInt (0 :: Int)   -- obsolete reserveSpace
 

@@ -2,7 +2,6 @@ module System.Nix.Store.Remote.MonadStore
   ( MonadStore
   , mapStoreDir
   , getStoreDir
-  , getStoreDir'
   , getLog
   , flushLog
   , gotError
@@ -26,8 +25,8 @@ import System.Nix.Store.Remote.Types.Logger (Logger, isError)
 import System.Nix.Store.Remote.Types.StoreConfig (StoreConfig(..))
 
 -- | Ask for a @StoreDir@
-getStoreDir' :: (HasStoreDir r, MonadReader r m) => m StoreDir
-getStoreDir' = asks hasStoreDir
+getStoreDir :: (HasStoreDir r, MonadReader r m) => m StoreDir
+getStoreDir = asks hasStoreDir
 
 type MonadStore a
   = ExceptT
@@ -57,6 +56,3 @@ setData x = modify (\(_, b) -> (Just x, b))
 
 clearData :: MonadStore ()
 clearData = modify (\(_, b) -> (Nothing, b))
-
-getStoreDir :: MonadStore StoreDir
-getStoreDir = asks storeConfig_dir

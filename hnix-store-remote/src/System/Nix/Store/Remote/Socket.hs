@@ -10,6 +10,7 @@ import Data.Serialize.Put
 import Network.Socket.ByteString (recv, sendAll)
 import System.Nix.StorePath (StorePath)
 import System.Nix.Store.Remote.MonadStore
+import System.Nix.Store.Remote.Serializer (NixSerializer, runP)
 import System.Nix.Store.Remote.Serialize.Prim
 import System.Nix.Store.Remote.Types
 
@@ -35,13 +36,26 @@ getSocketIncremental = genericIncremental sockGet8
 
 sockGet8 :: MonadStore ByteString
 sockGet8 = do
-  soc <- asks storeConfig_socket
+  soc <- asks hasStoreSocket
   liftIO $ recv soc 8
 
 sockPut :: Put -> MonadStore ()
 sockPut p = do
-  soc <- asks storeConfig_socket
+  soc <- asks hasStoreSocket
   liftIO $ sendAll soc $ runPut p
+
+sockPutS
+  :: Show e
+  => NixSerializer ProtoVersion e a
+  -> a
+  -> MonadStore ()
+sockPutS s a = do
+  soc <- asks hasStoreSocket
+  pv <- asks hasProtoVersion
+  case runP s pv a of
+    Right x -> liftIO $ sendAll soc x
+    -- TODO: errors
+    Left e -> throwError $ show e
 
 sockGet :: Get a -> MonadStore a
 sockGet = getSocketIncremental

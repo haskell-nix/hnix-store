@@ -63,6 +63,8 @@ instance Serialize BuildResult where
 
 -- * ProtoVersion
 
+-- protoVersion_major & 0xFF00
+-- protoVersion_minor & 0x00FF
 instance Serialize ProtoVersion where
   get = do
     v <- getInt @Word32
