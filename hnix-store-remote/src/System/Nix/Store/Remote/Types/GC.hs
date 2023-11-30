@@ -13,6 +13,7 @@ import Data.Word (Word64)
 import GHC.Generics (Generic)
 import System.Nix.StorePath (StorePath)
 
+-- | Garbage collection action
 data GCAction
   = GCAction_ReturnLive -- ^ Return the set of paths reachable from roots (closure)
   | GCAction_ReturnDead -- ^ Return unreachable paths
@@ -20,7 +21,7 @@ data GCAction
   | GCAction_DeleteSpecific -- ^ Delete specified paths
   deriving (Bounded, Eq, Enum, Generic, Ord, Show)
 
- -- | Garbage collector operation options
+-- | Garbage collector operation options
 data GCOptions = GCOptions
   { -- | Operation
     gcOptions_operation :: GCAction
@@ -32,6 +33,7 @@ data GCOptions = GCOptions
   , gcOptions_maxFreed :: Integer
   } deriving (Eq, Generic, Ord, Show)
 
+-- | Result of the garbage collection operation
 data GCResult = GCResult
  { -- | Depending on the action, the GC roots,
    -- or the paths that would be or have been deleted
