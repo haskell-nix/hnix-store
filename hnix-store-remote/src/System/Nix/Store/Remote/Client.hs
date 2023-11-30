@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module System.Nix.Store.Remote.Protocol
+module System.Nix.Store.Remote.Client
   ( Run
   , simpleOp
   , simpleOpArgs

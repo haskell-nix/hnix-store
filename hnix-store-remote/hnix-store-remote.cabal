@@ -75,9 +75,9 @@ library
     , Data.Serializer.Example
     , System.Nix.Store.Remote
     , System.Nix.Store.Remote.Arbitrary
+    , System.Nix.Store.Remote.Client
     , System.Nix.Store.Remote.Logger
     , System.Nix.Store.Remote.MonadStore
-    , System.Nix.Store.Remote.Protocol
     , System.Nix.Store.Remote.Serialize
     , System.Nix.Store.Remote.Serialize.Prim
     , System.Nix.Store.Remote.Serializer

@@ -73,7 +73,7 @@ import qualified System.Nix.Signature
 import qualified System.Nix.StorePath
 
 import System.Nix.Store.Remote.MonadStore (MonadRemoteStore, getStoreDir, RemoteStoreError(RemoteStoreError_GetAddrInfoFailed))
-import System.Nix.Store.Remote.Protocol (Run, runStoreSocket, runOp, runOpArgs, runOpArgsIO, simpleOp, simpleOpArgs)
+import System.Nix.Store.Remote.Client (Run, runStoreSocket, runOp, runOpArgs, runOpArgsIO, simpleOp, simpleOpArgs)
 import System.Nix.Store.Remote.Socket
 import System.Nix.Store.Remote.Types
 
