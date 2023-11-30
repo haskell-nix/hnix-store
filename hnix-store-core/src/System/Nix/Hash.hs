@@ -167,7 +167,7 @@ decodeDigestWith b x =
     let
       toEither =
         maybeToRight
-          ("Cryptonite was not able to convert '(ByteString -> Digest a)' for: '" <> show bs <>"'.")
+          ("Crypton was not able to convert '(ByteString -> Digest a)' for: '" <> show bs <>"'.")
     (toEither . Crypto.Hash.digestFromByteString) bs
   where
     -- To not depend on @extra@
