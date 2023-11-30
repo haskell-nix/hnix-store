@@ -61,6 +61,12 @@ instance Serialize BuildResult where
     putTime startTime
     putTime stopTime
 
+-- * GCAction
+--
+instance Serialize GCAction where
+  get = getEnum
+  put = putEnum
+
 -- * ProtoVersion
 
 -- protoVersion_major & 0xFF00

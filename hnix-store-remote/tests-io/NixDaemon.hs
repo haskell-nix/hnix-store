@@ -285,7 +285,7 @@ spec_protocol = Hspec.around withNixDaemon $
           liftIO $ forM_ tempRootList $ \entry -> do
             removeFile $ mconcat [ tempRootsDir, "/", entry ]
 
-          (deletedPaths, deletedBytes) <- deleteSpecific (HS.fromList [path])
-          deletedPaths `shouldBe` HS.fromList [path]
-          deletedBytes `shouldBe` 4
+          GCResult{..} <- deleteSpecific (HS.fromList [path])
+          gcResult_deletedPaths `shouldBe` HS.fromList [path]
+          gcResult_bytesFreed `shouldBe` 4
 

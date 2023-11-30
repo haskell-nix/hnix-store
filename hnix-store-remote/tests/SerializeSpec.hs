@@ -156,6 +156,12 @@ spec = parallel $ do
       it' "ResolvesToAlreadyValid" BuildStatus_ResolvesToAlreadyValid 13
       it' "NoSubstituters"         BuildStatus_NoSubstituters         14
 
+    describe "GCAction enum order matches Nix" $ do
+      it' "ReturnLive"     GCAction_ReturnLive     0
+      it' "ReturnDead"     GCAction_ReturnDead     1
+      it' "DeleteDead"     GCAction_DeleteDead     2
+      it' "DeleteSpecific" GCAction_DeleteSpecific 3
+
     describe "Logger" $ do
       describe "Activity enum order matches Nix" $ do
         it' "CopyPath"      Activity_CopyPath      100

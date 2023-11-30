@@ -152,11 +152,3 @@ runStoreOpts' sockFamily sockAddr storeRootDir code =
       $ (`runReaderT` sock)
       $ (`runStateT` (Nothing, []))
       $ runExceptT (greet >> code)
-
-data GCAction
-  = GCReturnLive
-  | GCReturnDead
-  | GCDeleteDead
-  | GCDeleteSpecific
-  deriving (Eq, Show, Enum)
-

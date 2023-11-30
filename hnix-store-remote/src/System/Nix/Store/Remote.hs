@@ -169,11 +169,11 @@ buildDerivation p drv buildMode = do
 -- | Delete store paths
 deleteSpecific
  :: HashSet StorePath -- ^ Paths to delete
- -> MonadStore (HashSet StorePath, Word64) -- ^ (Paths deleted, Bytes freed)
+ -> MonadStore GCResult
 deleteSpecific paths = do
   storeDir <- getStoreDir
   runOpArgs CollectGarbage $ do
-    putEnum GCDeleteSpecific
+    putEnum GCAction_DeleteSpecific
     putPaths storeDir paths
     putBool False -- ignoreLiveness
     putInt (maxBound :: Word64) -- maxFreedBytes
@@ -181,10 +181,11 @@ deleteSpecific paths = do
     putInt (0::Int)
     putInt (0::Int)
   getSocketIncremental $ do
-    deletedPaths <- getPathsOrFail storeDir
-    bytesFreed <- getInt
+    gcResult_deletedPaths <- getPathsOrFail storeDir
+    gcResult_bytesFreed <- getInt
+    -- TODO: who knows
     _ :: Int <- getInt
-    pure (deletedPaths, bytesFreed)
+    pure GCResult{..}
 
 ensurePath :: StorePath -> MonadStore ()
 ensurePath pn = do
