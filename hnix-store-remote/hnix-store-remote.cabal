@@ -162,6 +162,8 @@ test-suite remote
     , hnix-store-remote
     , hnix-store-tests
     , cereal
+    , crypton
+    , dependent-sum > 0.7 && < 1
     , some > 1.0.5 && < 2
     , text
     , time

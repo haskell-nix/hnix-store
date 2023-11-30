@@ -2,6 +2,8 @@
 
 module NixSerializerSpec (spec) where
 
+import Crypto.Hash (MD5, SHA1, SHA256, SHA512)
+import Data.Dependent.Sum (DSum((:=>)))
 import Data.Fixed (Uni)
 import Data.Time (NominalDiffTime)
 import Test.Hspec (Expectation, Spec, describe, parallel, shouldBe)
@@ -12,11 +14,13 @@ import Test.QuickCheck.Instances ()
 import qualified Data.Time.Clock.POSIX
 import qualified Data.Serializer
 import qualified System.Nix.Build
+import qualified System.Nix.Hash
 
 import System.Nix.Arbitrary ()
 import System.Nix.Build (BuildResult)
 import System.Nix.Derivation (Derivation(inputDrvs))
 import System.Nix.StorePath (StoreDir)
+import System.Nix.StorePath.Metadata (Metadata(..))
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types (ErrorInfo(..), Logger(..), ProtoVersion(..), Trace(..))
@@ -89,8 +93,36 @@ spec = parallel $ do
                  , System.Nix.Build.stopTime  = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
                  }
 
-    prop "StorePath" $ \sd ->
-      roundtripSReader @StoreDir storePath sd
+    prop "StorePath" $
+      roundtripSReader @StoreDir storePath
+
+    prop "StorePathHashPart" $
+      roundtripS storePathHashPart
+
+    prop "StorePathName" $
+      roundtripS storePathName
+
+    let narHashIsSHA256 Metadata{..} =
+          case narHash of
+            (System.Nix.Hash.HashAlgo_SHA256 :=> _) -> True
+            _ -> False
+
+    prop "Metadata (StorePath)"
+      $ \sd -> forAll (arbitrary `suchThat` (\m -> narHashIsSHA256 m && narBytes m /= Just 0))
+      $ roundtripSReader @StoreDir pathMetadata sd
+        . (\m -> m
+            { registrationTime = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
+            , sigs = mempty
+            })
+
+    prop "Some HashAlgo" $
+      roundtripS someHashAlgo
+
+    describe "Digest" $ do
+      prop "MD5" $ roundtripS . digest @MD5
+      prop "SHA1" $ roundtripS . digest @SHA1
+      prop "SHA256" $ roundtripS . digest @SHA256
+      prop "SHA512" $ roundtripS . digest @SHA512
 
     prop "Derivation" $ \sd ->
       roundtripSReader @StoreDir derivation sd

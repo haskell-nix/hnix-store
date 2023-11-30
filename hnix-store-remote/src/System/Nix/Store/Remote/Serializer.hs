@@ -33,6 +33,14 @@ module System.Nix.Store.Remote.Serializer
   , protoVersion
   -- * StorePath
   , storePath
+  , storePathHashPart
+  , storePathName
+  -- * Metadata
+  , pathMetadata
+  -- * Some HashAlgo
+  , someHashAlgo
+  -- * Digest
+  , digest
   -- * Derivation
   , derivation
   -- * Derivation
@@ -59,12 +67,15 @@ import Control.Monad.Reader (MonadReader)
 import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Reader (ReaderT, runReaderT)
 import Control.Monad.Trans.Except (ExceptT, runExceptT)
+import Crypto.Hash (Digest, HashAlgorithm, SHA256)
 import Data.ByteString (ByteString)
+import Data.Dependent.Sum (DSum((:=>)))
 import Data.Fixed (Uni)
 import Data.Hashable (Hashable)
 import Data.HashSet (HashSet)
 import Data.Map (Map)
 import Data.Set (Set)
+import Data.Some (Some)
 import Data.Text (Text)
 import Data.Time (NominalDiffTime, UTCTime)
 import Data.Vector (Vector)
@@ -86,13 +97,23 @@ import qualified Data.Time.Clock.POSIX
 import qualified Data.Vector
 
 import Data.Serializer
+import System.Nix.Base (BaseEncoding(NixBase32))
 import System.Nix.Build (BuildMode, BuildResult(..))
+import System.Nix.ContentAddress (ContentAddress)
 import System.Nix.Derivation (Derivation(..), DerivationOutput(..))
 import System.Nix.DerivedPath (DerivedPath, ParseOutputsError)
-import System.Nix.StorePath (HasStoreDir(..), InvalidPathError, StorePath)
+import System.Nix.Hash (HashAlgo)
+import System.Nix.StorePath (HasStoreDir(..), InvalidPathError, StorePath, StorePathHashPart, StorePathName)
+import System.Nix.StorePath.Metadata (Metadata(..), StorePathTrust(..))
 import System.Nix.Store.Remote.Types
 
+import qualified Data.Coerce
+import qualified Data.Bifunctor
+import qualified Data.Some
+import qualified System.Nix.Base
+import qualified System.Nix.ContentAddress
 import qualified System.Nix.DerivedPath
+import qualified System.Nix.Hash
 import qualified System.Nix.StorePath
 
 -- | Transformer for @Serializer@
@@ -144,10 +165,15 @@ data PrimError
       , badPaddingLen :: Int
       , badPaddingPads :: [Word8]
       }
+  | PrimError_ContentAddress String
   | PrimError_DerivedPath ParseOutputsError
+  | PrimError_Digest String
   | PrimError_EnumOutOfMinBound Int
   | PrimError_EnumOutOfMaxBound Int
+  | PrimError_HashAlgo String
   | PrimError_IllegalBool Word64
+  | PrimError_InvalidNixBase32
+  | PrimError_NarHashMustBeSHA256
   | PrimError_NotYetImplemented String (ForPV ProtoVersion)
   | PrimError_Path InvalidPathError
   deriving (Eq, Ord, Generic, Show)
@@ -260,7 +286,7 @@ maybeText = mapIsoSerializer
     t | Data.Text.null t -> Nothing
     t | otherwise -> Just t
   )
-  (Prelude.maybe mempty id)
+  (maybe mempty id)
   text
 
 -- * UTCTime
@@ -378,6 +404,140 @@ storePath = Serializer
         byteString
         $ System.Nix.StorePath.storePathToRawFilePath sd p
   }
+
+storePathHashPart :: NixSerializer r PrimError StorePathHashPart
+storePathHashPart =
+  mapIsoSerializer
+    System.Nix.StorePath.unsafeMakeStorePathHashPart
+    System.Nix.StorePath.unStorePathHashPart
+    $ mapPrismSerializer
+        (Data.Bifunctor.first (pure PrimError_InvalidNixBase32)
+         . System.Nix.Base.decodeWith NixBase32)
+        (System.Nix.Base.encodeWith NixBase32)
+        text
+
+storePathName :: NixSerializer r PrimError StorePathName
+storePathName =
+  mapPrismSerializer
+    (Data.Bifunctor.first PrimError_Path
+     . System.Nix.StorePath.makeStorePathName)
+    System.Nix.StorePath.unStorePathName
+    text
+
+pathMetadata
+  :: HasStoreDir r
+  => NixSerializer r PrimError (Metadata StorePath)
+pathMetadata = Serializer
+  { getS = do
+      deriverPath <- getS maybePath
+
+      digest' <- getS $ digest NixBase32
+      let narHash = System.Nix.Hash.HashAlgo_SHA256 :=> digest'
+
+      references <- getS $ hashSet storePath
+      registrationTime <- getS time
+      narBytes <- (\case
+                      0 -> Nothing
+                      size -> Just size) <$> getS int
+      trust <- getS storePathTrust
+
+      _sigStrings <- getS $ list text
+      contentAddress <- getS maybeContentAddress
+
+      let
+          -- XXX: signatures need pubkey from config
+          sigs = mempty
+      pure $ Metadata{..}
+
+  , putS = \Metadata{..} -> do
+      putS maybePath deriverPath
+
+      let putNarHash
+            :: DSum HashAlgo Digest
+            -> SerialT r PrimError PutM ()
+          putNarHash = \case
+            System.Nix.Hash.HashAlgo_SHA256 :=> d
+              -> putS (digest @SHA256 NixBase32) d
+            _ -> throwError PrimError_NarHashMustBeSHA256
+
+      putNarHash narHash
+
+      putS (hashSet storePath) references
+      putS time registrationTime
+      putS int $ Prelude.maybe 0 id $ narBytes
+      putS storePathTrust trust
+      putS (hashSet text) mempty
+      putS maybeContentAddress contentAddress
+  }
+  where
+    maybeContentAddress
+      :: NixSerializer r PrimError (Maybe ContentAddress)
+    maybeContentAddress =
+      mapPrismSerializer
+        (maybe
+          (pure Nothing)
+           $ Data.Bifunctor.bimap
+               PrimError_ContentAddress
+               Just
+           . System.Nix.ContentAddress.parseContentAddress
+        )
+        (fmap System.Nix.ContentAddress.buildContentAddress)
+        maybeText
+
+    maybePath
+      :: HasStoreDir r
+      => NixSerializer r PrimError (Maybe StorePath)
+    maybePath = Serializer
+      { getS = do
+          getS maybeText >>= \case
+            Nothing -> pure Nothing
+            Just t -> do
+              sd <- Control.Monad.Reader.asks hasStoreDir
+              either
+                (throwError . PrimError_Path)
+                (pure . pure)
+                $ System.Nix.StorePath.parsePathFromText sd t
+
+      , putS = \case
+          Nothing -> putS maybeText Nothing
+          Just p -> do
+            sd <- Control.Monad.Reader.asks hasStoreDir
+            putS text $ System.Nix.StorePath.storePathToText sd p
+      }
+
+    storePathTrust =
+      mapIsoSerializer
+        (\case False -> BuiltElsewhere; True -> BuiltLocally)
+        (\case BuiltElsewhere -> False; BuiltLocally -> True)
+        bool
+
+
+-- * Some HashAlgo
+
+someHashAlgo :: NixSerializer r PrimError (Some HashAlgo)
+someHashAlgo =
+  mapPrismSerializer
+    (Data.Bifunctor.first PrimError_HashAlgo
+     . System.Nix.Hash.textToAlgo)
+    (Data.Some.foldSome System.Nix.Hash.algoToText)
+    text
+
+-- * Digest
+
+digest
+  :: forall a r
+   . HashAlgorithm a
+  => BaseEncoding
+  -> NixSerializer r PrimError (Digest a)
+digest base =
+  mapIsoSerializer
+    Data.Coerce.coerce
+    Data.Coerce.coerce
+    $ mapPrismSerializer
+        (Data.Bifunctor.first PrimError_Digest
+         . System.Nix.Hash.decodeDigestWith @a base)
+        (System.Nix.Hash.encodeDigestWith base)
+        $ text
 
 derivationOutput
   :: HasStoreDir r
