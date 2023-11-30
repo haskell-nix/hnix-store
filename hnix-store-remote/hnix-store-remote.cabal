@@ -76,6 +76,7 @@ library
     , System.Nix.Store.Remote
     , System.Nix.Store.Remote.Arbitrary
     , System.Nix.Store.Remote.Client
+    , System.Nix.Store.Remote.GADT
     , System.Nix.Store.Remote.Logger
     , System.Nix.Store.Remote.MonadStore
     , System.Nix.Store.Remote.Serialize
