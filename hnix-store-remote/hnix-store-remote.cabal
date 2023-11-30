@@ -75,17 +75,17 @@ library
     , Data.Serializer.Example
     , System.Nix.Store.Remote
     , System.Nix.Store.Remote.Arbitrary
-    , System.Nix.Store.Remote.Serialize
-    , System.Nix.Store.Remote.Serialize.Prim
-    , System.Nix.Store.Remote.Serializer
     , System.Nix.Store.Remote.Logger
     , System.Nix.Store.Remote.MonadStore
     , System.Nix.Store.Remote.Protocol
+    , System.Nix.Store.Remote.Serialize
+    , System.Nix.Store.Remote.Serialize.Prim
+    , System.Nix.Store.Remote.Serializer
     , System.Nix.Store.Remote.Socket
     , System.Nix.Store.Remote.Types
     , System.Nix.Store.Remote.Types.Activity
-    , System.Nix.Store.Remote.Types.GC
     , System.Nix.Store.Remote.Types.CheckMode
+    , System.Nix.Store.Remote.Types.GC
     , System.Nix.Store.Remote.Types.Logger
     , System.Nix.Store.Remote.Types.ProtoVersion
     , System.Nix.Store.Remote.Types.StoreConfig
