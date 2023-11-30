@@ -193,7 +193,7 @@ tup a b = Serializer
 data GetSerializerError customGetError
   = SerializerError_GetFail String
   | SerializerError_Get customGetError
-  deriving (Eq, Show)
+  deriving (Eq, Ord, Show)
 
 -- | Helper for transforming nested Eithers
 -- into @GetSerializerError@ wrapper

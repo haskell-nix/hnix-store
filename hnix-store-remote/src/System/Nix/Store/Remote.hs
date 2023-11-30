@@ -3,7 +3,9 @@
 {-# LANGUAGE OverloadedStrings   #-}
 
 module System.Nix.Store.Remote
-  ( addToStore
+  (
+  -- * Operations
+    addToStore
   , addTextToStore
   , addSignatures
   , addIndirectRoot
@@ -25,50 +27,123 @@ module System.Nix.Store.Remote
   , queryPathFromHashPart
   , queryMissing
   , optimiseStore
-  , runStore
   , syncWithGC
   , verifyStore
   , module System.Nix.Store.Types
   , module System.Nix.Store.Remote.MonadStore
   , module System.Nix.Store.Remote.Types
+  -- * Compat
+  , MonadStore
+  -- * Runners
+  , runStore
+  , runStoreOpts
+  , runStoreOptsTCP
   ) where
 
 import Crypto.Hash (SHA256)
 import Data.ByteString (ByteString)
+import Data.Default.Class (Default(def))
 import Data.Dependent.Sum (DSum((:=>)))
 import Data.HashSet (HashSet)
 import Data.Map (Map)
 import Data.Text (Text)
 import Data.Word (Word64)
+import Network.Socket (Family, SockAddr(SockAddrUnix))
 import System.Nix.Nar (NarSource)
 import System.Nix.Derivation (Derivation)
 import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
 import System.Nix.Build (BuildMode, BuildResult)
 import System.Nix.Hash (NamedAlgo(..), BaseEncoding(Base16), decodeDigestWith)
-import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart, InvalidPathError)
+import System.Nix.StorePath (StoreDir(..), StorePath, StorePathName, StorePathHashPart, InvalidPathError)
 import System.Nix.StorePath.Metadata  (Metadata(..), StorePathTrust(..))
 
 import qualified Data.Text
+import qualified Control.Exception
 import qualified Control.Monad
 import qualified Data.Attoparsec.Text
 import qualified Data.Text.Encoding
 import qualified Data.Map.Strict
 import qualified Data.Serialize.Put
 import qualified Data.Set
+import qualified Network.Socket
 
 import qualified System.Nix.ContentAddress
 import qualified System.Nix.Hash
 import qualified System.Nix.Signature
 import qualified System.Nix.StorePath
 
-import System.Nix.Store.Remote.MonadStore
-import System.Nix.Store.Remote.Protocol
+import System.Nix.Store.Remote.MonadStore (MonadRemoteStore, getStoreDir, RemoteStoreError(RemoteStoreError_GetAddrInfoFailed))
+import System.Nix.Store.Remote.Protocol (Run, runStoreSocket, runOp, runOpArgs, runOpArgsIO, simpleOp, simpleOpArgs)
 import System.Nix.Store.Remote.Socket
 import System.Nix.Store.Remote.Types
 
 import Data.Serialize (get)
-import System.Nix.Store.Remote.Serialize
+import System.Nix.Store.Remote.Serialize (putDerivation)
 import System.Nix.Store.Remote.Serialize.Prim
+
+-- * Compat
+
+type MonadStore = MonadRemoteStore
+
+-- * Runners
+
+runStore :: MonadStore a -> Run a
+runStore = runStoreOpts defaultSockPath def
+  where
+    defaultSockPath :: String
+    defaultSockPath = "/nix/var/nix/daemon-socket/socket"
+
+runStoreOpts
+  :: FilePath
+  -> StoreDir
+  -> MonadStore a
+  -> Run a
+runStoreOpts socketPath =
+  runStoreOpts'
+    Network.Socket.AF_UNIX
+    (SockAddrUnix socketPath)
+
+runStoreOptsTCP
+  :: String
+  -> Int
+  -> StoreDir
+  -> MonadStore a
+  -> Run a
+runStoreOptsTCP host port sd code = do
+  Network.Socket.getAddrInfo
+    (Just Network.Socket.defaultHints)
+    (Just host)
+    (Just $ show port)
+    >>= \case
+      (sockAddr:_) ->
+        runStoreOpts'
+          (Network.Socket.addrFamily sockAddr)
+          (Network.Socket.addrAddress sockAddr)
+          sd
+          code
+      _ -> pure (Left RemoteStoreError_GetAddrInfoFailed, [])
+
+runStoreOpts'
+  :: Family
+  -> SockAddr
+  -> StoreDir
+  -> MonadStore a
+  -> Run a
+runStoreOpts' sockFamily sockAddr storeRootDir code =
+  Control.Exception.bracket
+    open
+    (Network.Socket.close . hasStoreSocket)
+    (flip runStoreSocket code)
+  where
+    open = do
+      soc <- Network.Socket.socket sockFamily Network.Socket.Stream 0
+      Network.Socket.connect soc sockAddr
+      pure PreStoreConfig
+          { preStoreConfig_socket = soc
+          , preStoreConfig_dir = storeRootDir
+          }
+
+-- * Operations
 
 -- | Pack `Nar` and add it to the store.
 addToStore

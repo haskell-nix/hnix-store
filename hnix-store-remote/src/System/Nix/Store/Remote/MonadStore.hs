@@ -1,58 +1,171 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module System.Nix.Store.Remote.MonadStore
-  ( MonadStore
-  , mapStoreDir
+  ( RemoteStoreState(..)
+  , RemoteStoreError(..)
+  , WorkerError(..)
+  , RemoteStoreT
+  , runRemoteStoreT
+  , mapStoreConfig
+  , MonadRemoteStore0
+  , MonadRemoteStore
+  , MonadRemoteStoreHandshake
+  -- *
   , getStoreDir
-  , getLog
-  , flushLog
+  , getStoreSocket
+  , getProtoVersion
+  -- *
+  , appendLogs
+  , getLogs
+  , flushLogs
   , gotError
   , getErrors
+  -- *
+  , getData
   , setData
   , clearData
   ) where
 
-import Control.Monad.Except (ExceptT)
-import Control.Monad.Reader (ReaderT, asks)
-import Control.Monad.Reader.Class (MonadReader)
-import Control.Monad.State.Strict (StateT, gets, modify)
+
+import Control.Monad.Except (MonadError)
+import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.Reader (MonadReader, ask)
+import Control.Monad.State.Strict (get, modify)
+import Control.Monad.Trans (MonadTrans, lift)
+import Control.Monad.Trans.State.Strict (StateT, runStateT, mapStateT)
+import Control.Monad.Trans.Except (ExceptT, runExceptT, mapExceptT)
+import Control.Monad.Trans.Reader (ReaderT, runReaderT, withReaderT)
 import Data.ByteString (ByteString)
-
-import Control.Monad.Trans.State.Strict (mapStateT)
-import Control.Monad.Trans.Except (mapExceptT)
-import Control.Monad.Trans.Reader (withReaderT)
-
+import Data.Word (Word64)
+import Network.Socket (Socket)
 import System.Nix.StorePath (HasStoreDir(..), StoreDir)
+import System.Nix.Store.Remote.Serializer (SError)
 import System.Nix.Store.Remote.Types.Logger (Logger, isError)
-import System.Nix.Store.Remote.Types.StoreConfig (StoreConfig(..))
+import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion)
+import System.Nix.Store.Remote.Types.StoreConfig (HasStoreSocket(..), PreStoreConfig, StoreConfig)
+
+data RemoteStoreState = RemoteStoreState {
+    remoteStoreState_logs :: [Logger]
+  , remoteStoreState_mData :: Maybe ByteString
+  } deriving (Eq, Ord, Show)
+
+data RemoteStoreError
+  = RemoteStoreError_Fixme String
+  | RemoteStoreError_BuildFailed
+  | RemoteStoreError_ClientVersionTooOld
+  | RemoteStoreError_Disconnected
+  | RemoteStoreError_GetAddrInfoFailed
+  | RemoteStoreError_SerializerGet SError
+  | RemoteStoreError_SerializerPut SError
+  | RemoteStoreError_NoDataProvided
+  | RemoteStoreError_ProtocolMismatch
+  | RemoteStoreError_WorkerMagic2Mismatch
+  | RemoteStoreError_WorkerError WorkerError
+  deriving (Eq, Show, Ord)
+
+-- | Non-fatal (to server) errors in worker interaction
+data WorkerError
+  = WorkerError_SendClosed
+  | WorkerError_InvalidOperation Word64
+  | WorkerError_NotYetImplemented
+  deriving (Eq, Ord, Show)
+
+newtype RemoteStoreT r m a = RemoteStoreT
+  { _unRemoteStoreT
+      :: ExceptT RemoteStoreError
+          (StateT RemoteStoreState
+            (ReaderT r m)) a
+  }
+  deriving
+    ( Functor
+    , Applicative
+    , Monad
+    , MonadReader r
+    --, MonadState StoreState   -- Avoid making the internal state explicit
+    --, MonadFail
+    , MonadError RemoteStoreError
+    , MonadIO
+    )
+
+instance MonadTrans (RemoteStoreT r) where
+  lift = RemoteStoreT . lift . lift . lift
+
+-- | Runner for @RemoteStoreT@
+runRemoteStoreT
+  :: ( HasStoreDir r
+     , HasStoreSocket r
+     , Monad m
+     )
+  => r
+  -> RemoteStoreT r m a
+  -> m (Either RemoteStoreError a, [Logger])
+runRemoteStoreT r =
+    fmap (\(res, RemoteStoreState{..}) -> (res, remoteStoreState_logs))
+  . (`runReaderT` r)
+  . (`runStateT` emptyState)
+  . runExceptT
+  . _unRemoteStoreT
+  where
+    emptyState = RemoteStoreState
+      { remoteStoreState_logs = mempty
+      , remoteStoreState_mData = Nothing
+      }
+
+type MonadRemoteStore0 r = RemoteStoreT r IO
+
+type MonadRemoteStore = MonadRemoteStore0 StoreConfig
+
+type MonadRemoteStoreHandshake = MonadRemoteStore0 PreStoreConfig
+
+mapStoreConfig
+  :: (rb -> ra)
+  -> (MonadRemoteStore0 ra a -> MonadRemoteStore0 rb a)
+mapStoreConfig f =
+  RemoteStoreT
+  . ( mapExceptT
+    . mapStateT
+    . withReaderT
+    ) f
+  . _unRemoteStoreT
 
 -- | Ask for a @StoreDir@
-getStoreDir :: (HasStoreDir r, MonadReader r m) => m StoreDir
-getStoreDir = asks hasStoreDir
+getStoreDir :: HasStoreDir r => MonadRemoteStore0 r StoreDir
+getStoreDir = hasStoreDir <$> RemoteStoreT ask
 
-type MonadStore a
-  = ExceptT
-      String
-      (StateT (Maybe ByteString, [Logger]) (ReaderT StoreConfig IO))
-      a
+-- | Ask for a @StoreDir@
+getStoreSocket :: HasStoreSocket r => MonadRemoteStore0 r Socket
+getStoreSocket = hasStoreSocket <$> RemoteStoreT ask
 
--- | For lying about the store dir in tests
-mapStoreDir :: (StoreDir -> StoreDir) -> (MonadStore a -> MonadStore a)
-mapStoreDir f = mapExceptT . mapStateT . withReaderT
-  $ \c@StoreConfig { storeConfig_dir = sd } -> c { storeConfig_dir = f sd }
+-- | Ask for a @StoreDir@
+getProtoVersion :: HasProtoVersion r => MonadRemoteStore0 r ProtoVersion
+getProtoVersion = hasProtoVersion <$> RemoteStoreT ask
 
-gotError :: MonadStore Bool
-gotError = gets (any isError . snd)
+gotError :: MonadRemoteStore0 r Bool
+gotError = any isError <$> getLogs
 
-getErrors :: MonadStore [Logger]
-getErrors = gets (filter isError . snd)
+getErrors :: MonadRemoteStore0 r [Logger]
+getErrors = filter isError <$> getLogs
 
-getLog :: MonadStore [Logger]
-getLog = gets snd
+-- *
 
-flushLog :: MonadStore ()
-flushLog = modify (\(a, _b) -> (a, []))
+appendLogs :: [Logger] -> MonadRemoteStore0 r ()
+appendLogs x = RemoteStoreT
+  $ modify
+  $ \s -> s { remoteStoreState_logs = remoteStoreState_logs s <> x }
 
-setData :: ByteString -> MonadStore ()
-setData x = modify (\(_, b) -> (Just x, b))
+getLogs :: MonadRemoteStore0 r [Logger]
+getLogs = remoteStoreState_logs <$> RemoteStoreT get
 
-clearData :: MonadStore ()
-clearData = modify (\(_, b) -> (Nothing, b))
+flushLogs :: MonadRemoteStore0 r ()
+flushLogs = RemoteStoreT $ modify $ \s -> s { remoteStoreState_logs = mempty }
+
+-- *
+
+getData :: MonadRemoteStore0 r (Maybe ByteString)
+getData = remoteStoreState_mData <$> RemoteStoreT get
+
+setData :: ByteString -> MonadRemoteStore0 r ()
+setData x = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mData = pure x }
+
+clearData :: MonadRemoteStore0 r ()
+clearData = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mData = Nothing }

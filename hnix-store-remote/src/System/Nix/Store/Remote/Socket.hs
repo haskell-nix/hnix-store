@@ -1,19 +1,21 @@
 module System.Nix.Store.Remote.Socket where
 
-import Control.Monad.Except (throwError)
-import Control.Monad.Reader (asks)
+import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.IO.Class (MonadIO(..))
+import Control.Monad.Reader (MonadReader, ask, asks)
 import Data.ByteString (ByteString)
 import Data.HashSet (HashSet)
 import Data.Serialize.Get (Get, Result(..))
-import Data.Serialize.Put
+import Data.Serialize.Put (Put, runPut)
 import Network.Socket.ByteString (recv, sendAll)
-import System.Nix.StorePath (StorePath)
-import System.Nix.Store.Remote.MonadStore
-import System.Nix.Store.Remote.Serializer (NixSerializer, runP)
-import System.Nix.Store.Remote.Serialize.Prim
-import System.Nix.Store.Remote.Types
+import System.Nix.StorePath (HasStoreDir, StorePath)
+import System.Nix.Store.Remote.MonadStore (MonadRemoteStore0, RemoteStoreError(..), getStoreDir, getStoreSocket)
+import System.Nix.Store.Remote.Serializer (NixSerializer, SError, runP, runSerialT)
+import System.Nix.Store.Remote.Serialize.Prim (getInt, getByteString, getByteStrings, getPath, getPathsOrFail)
+import System.Nix.Store.Remote.Types (HasStoreSocket(..))
 
+import qualified Data.ByteString
+import qualified Data.Serializer
 import qualified Data.Serialize.Get
 
 genericIncremental
@@ -31,57 +33,116 @@ genericIncremental getsome parser = do
     go (k chunk)
   go (Fail msg _leftover) = error msg
 
-getSocketIncremental :: Get a -> MonadStore a
-getSocketIncremental = genericIncremental sockGet8
-
-sockGet8 :: MonadStore ByteString
+sockGet8
+  :: HasStoreSocket r
+  => MonadRemoteStore0 r ByteString
 sockGet8 = do
-  soc <- asks hasStoreSocket
+  soc <- getStoreSocket
   liftIO $ recv soc 8
 
-sockPut :: Put -> MonadStore ()
+sockPut
+  :: HasStoreSocket r
+  => Put
+  -> MonadRemoteStore0 r ()
 sockPut p = do
-  soc <- asks hasStoreSocket
+  soc <- getStoreSocket
   liftIO $ sendAll soc $ runPut p
 
 sockPutS
-  :: Show e
-  => NixSerializer ProtoVersion e a
+  :: ( MonadReader r m
+     , MonadError RemoteStoreError m
+     , MonadIO m
+     , HasStoreSocket r
+     )
+  => NixSerializer r SError a
   -> a
-  -> MonadStore ()
+  -> m ()
 sockPutS s a = do
-  soc <- asks hasStoreSocket
-  pv <- asks hasProtoVersion
-  case runP s pv a of
-    Right x -> liftIO $ sendAll soc x
-    -- TODO: errors
-    Left e -> throwError $ show e
+  r <- ask
+  case runP s r a of
+    Right x -> liftIO $ sendAll (hasStoreSocket r) x
+    Left e -> throwError $ RemoteStoreError_SerializerPut e
 
-sockGet :: Get a -> MonadStore a
+sockGetS
+  :: forall r m a
+   . ( HasStoreSocket r
+     , MonadError RemoteStoreError m
+     , MonadReader r m
+     , MonadIO m
+     )
+  => NixSerializer r SError a
+  -> m a
+sockGetS s = do
+  r <- ask
+  res <- genericIncremental sockGet8'
+    $ runSerialT r $ Data.Serializer.getS s
+
+  case res of
+    Right x -> pure x
+    Left e -> throwError $ RemoteStoreError_SerializerGet e
+ where
+  sockGet8' :: MonadError RemoteStoreError m => m ByteString
+  sockGet8' = do
+    soc <- asks hasStoreSocket
+    result <- liftIO $ recv soc 8
+    if Data.ByteString.length result == 0
+      then throwError RemoteStoreError_Disconnected
+      else pure result
+
+-- * Obsolete
+
+getSocketIncremental
+  :: HasStoreSocket r
+  => Get a
+  -> MonadRemoteStore0 r a
+getSocketIncremental = genericIncremental sockGet8
+
+sockGet
+  :: HasStoreSocket r
+  => Get a
+  -> MonadRemoteStore0 r a
 sockGet = getSocketIncremental
 
-sockGetInt :: Integral a => MonadStore a
+sockGetInt
+  :: ( HasStoreSocket r
+     , Integral a
+     )
+  => MonadRemoteStore0 r a
 sockGetInt = getSocketIncremental getInt
 
-sockGetBool :: MonadStore Bool
+sockGetBool
+  :: HasStoreSocket r
+  => MonadRemoteStore0 r Bool
 sockGetBool = (== (1 :: Int)) <$> sockGetInt
 
-sockGetStr :: MonadStore ByteString
+sockGetStr
+  :: HasStoreSocket r
+  => MonadRemoteStore0 r ByteString
 sockGetStr = getSocketIncremental getByteString
 
-sockGetStrings :: MonadStore [ByteString]
+sockGetStrings
+  :: HasStoreSocket r
+  => MonadRemoteStore0 r [ByteString]
 sockGetStrings = getSocketIncremental getByteStrings
 
-sockGetPath :: MonadStore StorePath
+sockGetPath
+  :: ( HasStoreDir r
+     , HasStoreSocket r
+     )
+  => MonadRemoteStore0 r StorePath
 sockGetPath = do
   sd  <- getStoreDir
   pth <- getSocketIncremental (getPath sd)
   either
-    (throwError . show)
+    (throwError . RemoteStoreError_Fixme . show)
     pure
     pth
 
-sockGetPathMay :: MonadStore (Maybe StorePath)
+sockGetPathMay
+  :: ( HasStoreDir r
+     , HasStoreSocket r
+     )
+  => MonadRemoteStore0 r (Maybe StorePath)
 sockGetPathMay = do
   sd  <- getStoreDir
   pth <- getSocketIncremental (getPath sd)
@@ -91,7 +152,11 @@ sockGetPathMay = do
       Just
       pth
 
-sockGetPaths :: MonadStore (HashSet StorePath)
+sockGetPaths
+  :: ( HasStoreDir r
+     , HasStoreSocket r
+     )
+  => MonadRemoteStore0 r (HashSet StorePath)
 sockGetPaths = do
   sd <- getStoreDir
   getSocketIncremental (getPathsOrFail sd)

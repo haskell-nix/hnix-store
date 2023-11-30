@@ -1,42 +1,29 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module System.Nix.Store.Remote.Protocol
-  ( WorkerOp(..)
+  ( Run
   , simpleOp
   , simpleOpArgs
   , runOp
   , runOpArgs
   , runOpArgsIO
-  , runStore
-  , runStoreOpts
-  , runStoreOptsTCP
-  , runStoreOpts'
+  , runStoreSocket
   , ourProtoVersion
-  , GCAction(..)
   ) where
 
-import qualified Control.Monad
-import Control.Exception              ( bracket )
-import Control.Monad.Except
-import Control.Monad.Reader (asks, runReaderT)
-import Control.Monad.State.Strict
+import Control.Monad (unless, when)
+import Control.Monad.Except (throwError)
+import Control.Monad.IO.Class (liftIO)
+import Data.Serialize.Put (Put, runPut)
 
-import Data.Default.Class (Default(def))
 import qualified Data.Bool
-import Data.Serialize.Get
-import Data.Serialize.Put
 import qualified Data.ByteString
+import qualified Network.Socket.ByteString
 
-import Network.Socket (SockAddr(SockAddrUnix))
-import qualified Network.Socket as S
-import Network.Socket.ByteString (recv, sendAll)
-
-import System.Nix.StorePath (StoreDir(..))
-import System.Nix.Store.Remote.Serialize.Prim
-import System.Nix.Store.Remote.Logger
+import System.Nix.Store.Remote.Logger (processOutput)
 import System.Nix.Store.Remote.MonadStore
-import System.Nix.Store.Remote.Socket
-import System.Nix.Store.Remote.Serializer (protoVersion)
+import System.Nix.Store.Remote.Socket (sockPutS, sockGetS)
+import System.Nix.Store.Remote.Serializer (bool, enum, int, protoVersion, text)
 import System.Nix.Store.Remote.Types
 
 ourProtoVersion :: ProtoVersion
@@ -50,28 +37,27 @@ workerMagic1 = 0x6e697863
 workerMagic2 :: Int
 workerMagic2 = 0x6478696f
 
-defaultSockPath :: String
-defaultSockPath = "/nix/var/nix/daemon-socket/socket"
+type Run a = IO (Either RemoteStoreError a, [Logger])
 
-simpleOp :: WorkerOp -> MonadStore Bool
+simpleOp :: WorkerOp -> MonadRemoteStore Bool
 simpleOp op = simpleOpArgs op $ pure ()
 
-simpleOpArgs :: WorkerOp -> Put -> MonadStore Bool
+simpleOpArgs :: WorkerOp -> Put -> MonadRemoteStore Bool
 simpleOpArgs op args = do
   runOpArgs op args
   err <- gotError
   Data.Bool.bool
-    sockGetBool
+    (sockGetS bool)
     (do
       -- TODO: don't use show
-      getErrors >>= throwError . show
+      getErrors >>= throwError . RemoteStoreError_Fixme . show
     )
     err
 
-runOp :: WorkerOp -> MonadStore ()
+runOp :: WorkerOp -> MonadRemoteStore ()
 runOp op = runOpArgs op $ pure ()
 
-runOpArgs :: WorkerOp -> Put -> MonadStore ()
+runOpArgs :: WorkerOp -> Put -> MonadRemoteStore ()
 runOpArgs op args =
   runOpArgsIO
     op
@@ -79,76 +65,70 @@ runOpArgs op args =
 
 runOpArgsIO
   :: WorkerOp
-  -> ((Data.ByteString.ByteString -> MonadStore ()) -> MonadStore ())
-  -> MonadStore ()
+  -> ((Data.ByteString.ByteString -> MonadRemoteStore ())
+       -> MonadRemoteStore ()
+     )
+  -> MonadRemoteStore ()
 runOpArgsIO op encoder = do
+  sockPutS enum op
 
-  sockPut $ putEnum op
-
-  soc <- asks storeConfig_socket
-  encoder (liftIO . sendAll soc)
+  soc <- getStoreSocket
+  encoder (liftIO . Network.Socket.ByteString.sendAll soc)
 
   out <- processOutput
-  modify (\(a, b) -> (a, b <> out))
+  appendLogs out
   err <- gotError
-  Control.Monad.when err $ do
+  when err $ do
     -- TODO: don't use show
-    getErrors >>= throwError . show
+    getErrors >>= throwError . RemoteStoreError_Fixme . show
 
-runStore :: MonadStore a -> IO (Either String a, [Logger])
-runStore = runStoreOpts defaultSockPath def
+runStoreSocket
+  :: PreStoreConfig
+  -> MonadRemoteStore a
+  -> Run a
+runStoreSocket preStoreConfig code =
+  runRemoteStoreT preStoreConfig $ do
+    pv <- greet
+    mapStoreConfig
+      (\(PreStoreConfig a b) -> StoreConfig a pv b)
+      code
 
-runStoreOpts
-  :: FilePath -> StoreDir -> MonadStore a -> IO (Either String a, [Logger])
-runStoreOpts path = runStoreOpts' S.AF_UNIX (SockAddrUnix path)
+  where
+    greet :: MonadRemoteStoreHandshake ProtoVersion
+    greet = do
+      sockPutS int workerMagic1
 
-runStoreOptsTCP
-  :: String -> Int -> StoreDir -> MonadStore a -> IO (Either String a, [Logger])
-runStoreOptsTCP host port storeRootDir code = do
-  S.getAddrInfo (Just S.defaultHints) (Just host) (Just $ show port) >>= \case
-    (sockAddr:_) -> runStoreOpts' (S.addrFamily sockAddr) (S.addrAddress sockAddr) storeRootDir code
-    _ -> pure (Left "Couldn't resolve host and port with getAddrInfo.", [])
+      magic <- sockGetS int
+      unless
+        (magic == workerMagic2)
+        $ throwError RemoteStoreError_WorkerMagic2Mismatch
 
-runStoreOpts'
-  :: S.Family -> S.SockAddr -> StoreDir -> MonadStore a -> IO (Either String a, [Logger])
-runStoreOpts' sockFamily sockAddr storeRootDir code =
-  bracket open (S.close . storeConfig_socket) run
+      daemonVersion <- sockGetS protoVersion
 
- where
-  open = do
-    soc <- S.socket sockFamily S.Stream 0
-    S.connect soc sockAddr
-    pure StoreConfig
-        { storeConfig_dir = storeRootDir
-        , storeConfig_protoVersion = ourProtoVersion
-        , storeConfig_socket = soc
-        }
+      when (daemonVersion < ProtoVersion 1 10)
+        $ throwError RemoteStoreError_ClientVersionTooOld
 
-  greet = do
-    sockPut $ putInt workerMagic1
-    soc      <- asks hasStoreSocket
-    vermagic <- liftIO $ recv soc 16
-    let
-      eres =
-        flip runGet vermagic
-          $ (,)
-            <$> (getInt :: Get Int)
-            <*> (getInt :: Get Int)
+      sockPutS protoVersion ourProtoVersion
 
-    case eres of
-      Left err -> error $ "Error parsing vermagic " ++ err
-      Right (magic2, _daemonProtoVersion) -> do
-        Control.Monad.unless (magic2 == workerMagic2) $ error "Worker magic 2 mismatch"
+      when (daemonVersion >= ProtoVersion 1 14)
+        $ sockPutS int (0 :: Int) -- affinity, obsolete
 
-    pv <- asks hasProtoVersion
-    sockPutS @() protoVersion pv -- clientVersion
-    sockPut $ putInt (0 :: Int)   -- affinity
-    sockPut $ putInt (0 :: Int)   -- obsolete reserveSpace
+      when (daemonVersion >= ProtoVersion 1 11) $ do
+        sockPutS bool False  -- reserveSpace, obsolete
 
-    processOutput
+      -- not quite right, should be min of the two
+      -- as well as two ^ above
+      when (ourProtoVersion >= ProtoVersion 1 33) $ do
+        -- If we were buffering I/O, we would flush the output here.
+        _daemonNixVersion <- sockGetS text
+        return ()
 
-  run sock =
-    fmap (\(res, (_data, logs)) -> (res, logs))
-      $ (`runReaderT` sock)
-      $ (`runStateT` (Nothing, []))
-      $ runExceptT (greet >> code)
+      -- TODO do something with it
+      -- TODO patter match better
+      _ <- mapStoreConfig
+            (\(PreStoreConfig a b) -> StoreConfig a ourProtoVersion b)
+            processOutput
+
+      -- TODO should be minimum of
+      -- ourProtoVersion vs daemonVersion
+      pure ourProtoVersion

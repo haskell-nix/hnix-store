@@ -29,7 +29,6 @@ import System.Nix.Build
 import System.Nix.StorePath
 import System.Nix.StorePath.Metadata
 import System.Nix.Store.Remote
-import System.Nix.Store.Remote.Protocol
 
 import Crypto.Hash (SHA256)
 import System.Nix.Nar (dumpPath)
@@ -89,7 +88,7 @@ error: changing ownership of path '/run/user/1000/test-nix-store-06b0d249e561612
 
 startDaemon
   :: FilePath
-  -> IO (P.ProcessHandle, MonadStore a -> IO (Either String a, [Logger]))
+  -> IO (P.ProcessHandle, MonadStore a -> IO (Either RemoteStoreError a, [Logger]))
 startDaemon fp = do
   writeConf (fp </> "etc" </> "nix.conf")
   p <- createProcessEnv fp "nix-daemon" []
@@ -110,7 +109,7 @@ enterNamespaces = do
   writeGroupMappings Nothing [GroupMapping 0 gid 1] True
 
 withNixDaemon
-  :: ((MonadStore a -> IO (Either String a, [Logger])) -> IO a) -> IO a
+  :: ((MonadStore a -> IO (Either RemoteStoreError a, [Logger])) -> IO a) -> IO a
 withNixDaemon action =
   withSystemTempDirectory "test-nix-store" $ \path -> do
 
@@ -213,7 +212,10 @@ spec_protocol = Hspec.around withNixDaemon $
       itRights "validates path" $ withPath $ \path -> do
         liftIO $ print path
         isValidPathUncached path `shouldReturn` True
-      itLefts "fails on invalid path" $ mapStoreDir (\_ -> StoreDir "/asdf") $ isValidPathUncached invalidPath
+      itLefts "fails on invalid path"
+        $ mapStoreConfig
+            (\sc -> sc { storeConfig_dir = StoreDir "/asdf" })
+            $ isValidPathUncached invalidPath
 
     context "queryAllValidPaths" $ do
       itRights "empty query" queryAllValidPaths

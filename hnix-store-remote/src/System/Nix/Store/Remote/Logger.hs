@@ -8,18 +8,22 @@ import Data.Serialize (Result(..))
 import System.Nix.Store.Remote.Serialize.Prim (putByteString)
 import System.Nix.Store.Remote.Serializer (LoggerSError, logger, runSerialT)
 import System.Nix.Store.Remote.Socket (sockGet8, sockPut)
-import System.Nix.Store.Remote.MonadStore (MonadStore, clearData)
-import System.Nix.Store.Remote.Types (Logger(..), ProtoVersion, hasProtoVersion)
+import System.Nix.Store.Remote.MonadStore (MonadRemoteStore0, RemoteStoreError(..), clearData, getData, getProtoVersion)
+import System.Nix.Store.Remote.Types.Logger (Logger(..))
+import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion)
+import System.Nix.Store.Remote.Types.StoreConfig (HasStoreSocket(..))
 
 import qualified Control.Monad
-import qualified Control.Monad.Reader
-import qualified Control.Monad.State.Strict
 import qualified Data.Serialize.Get
 import qualified Data.Serializer
 
-processOutput :: MonadStore [Logger]
+processOutput
+  :: ( HasProtoVersion r
+     , HasStoreSocket r
+     )
+  => MonadRemoteStore0 r [Logger]
 processOutput = do
- protoVersion <- Control.Monad.Reader.asks hasProtoVersion
+ protoVersion <- getProtoVersion
  sockGet8 >>= go . (decoder protoVersion)
  where
   decoder
@@ -30,14 +34,19 @@ processOutput = do
     Data.Serialize.Get.runGetPartial
       (runSerialT protoVersion $ Data.Serializer.getS logger)
 
-  go :: Result (Either LoggerSError Logger) -> MonadStore [Logger]
+  go
+    :: ( HasProtoVersion r
+       , HasStoreSocket r
+       )
+    => Result (Either LoggerSError Logger)
+    -> MonadRemoteStore0 r [Logger]
   go (Done ectrl leftover) = do
 
     Control.Monad.unless (leftover == mempty) $
       -- TODO: throwError
       error $ "Leftovers detected: '" ++ show leftover ++ "'"
 
-    protoVersion <- Control.Monad.Reader.asks hasProtoVersion
+    protoVersion <- getProtoVersion
     case ectrl of
       -- TODO: tie this with throwError and better error type
       Left e -> error $ show e
@@ -46,9 +55,9 @@ processOutput = do
           e@(Logger_Error _) -> pure [e]
           Logger_Last -> pure [Logger_Last]
           Logger_Read _n -> do
-            (mdata, _) <- Control.Monad.State.Strict.get
+            mdata <- getData
             case mdata of
-              Nothing   -> throwError "No data to read provided"
+              Nothing   -> throwError RemoteStoreError_NoDataProvided
               Just part -> do
                 -- XXX: we should check/assert part size against n of (Read n)
                 sockPut $ putByteString part
