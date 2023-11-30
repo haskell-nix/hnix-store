@@ -45,6 +45,7 @@ library
     , System.Nix.Arbitrary.Signature
     , System.Nix.Arbitrary.Store.Types
     , System.Nix.Arbitrary.StorePath
+    , System.Nix.Arbitrary.StorePath.Metadata
     , Test.Hspec.Nix
   build-depends:
       base >=4.12 && <5
