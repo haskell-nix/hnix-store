@@ -6,7 +6,7 @@ import Control.Monad.Except (throwError)
 import Data.ByteString (ByteString)
 import Data.Serialize (Result(..))
 import System.Nix.Store.Remote.Serialize.Prim (putByteString)
-import System.Nix.Store.Remote.Serializer (LoggerError, logger, runSerialT)
+import System.Nix.Store.Remote.Serializer (LoggerSError, logger, runSerialT)
 import System.Nix.Store.Remote.Socket (sockGet8, sockPut)
 import System.Nix.Store.Remote.MonadStore (MonadStore, clearData)
 import System.Nix.Store.Remote.Types (Logger(..), ProtoVersion, hasProtoVersion)
@@ -25,12 +25,12 @@ processOutput = do
   decoder
     :: ProtoVersion
     -> ByteString
-    -> Result (Either LoggerError Logger)
+    -> Result (Either LoggerSError Logger)
   decoder protoVersion =
     Data.Serialize.Get.runGetPartial
       (runSerialT protoVersion $ Data.Serializer.getS logger)
 
-  go :: Result (Either LoggerError Logger) -> MonadStore [Logger]
+  go :: Result (Either LoggerSError Logger) -> MonadStore [Logger]
   go (Done ectrl leftover) = do
 
     Control.Monad.unless (leftover == mempty) $
