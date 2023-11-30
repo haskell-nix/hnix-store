@@ -112,7 +112,6 @@ spec = parallel $ do
       $ roundtripSReader @StoreDir pathMetadata sd
         . (\m -> m
             { registrationTime = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
-            , sigs = mempty
             })
 
     prop "Some HashAlgo" $

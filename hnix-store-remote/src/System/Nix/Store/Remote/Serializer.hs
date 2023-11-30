@@ -84,6 +84,7 @@ import GHC.Generics (Generic)
 
 import qualified Control.Monad
 import qualified Control.Monad.Reader
+import qualified Data.Attoparsec.Text
 import qualified Data.Bits
 import qualified Data.ByteString
 import qualified Data.HashSet
@@ -103,6 +104,7 @@ import System.Nix.ContentAddress (ContentAddress)
 import System.Nix.Derivation (Derivation(..), DerivationOutput(..))
 import System.Nix.DerivedPath (DerivedPath, ParseOutputsError)
 import System.Nix.Hash (HashAlgo)
+import System.Nix.Signature (NarSignature)
 import System.Nix.StorePath (HasStoreDir(..), InvalidPathError, StorePath, StorePathHashPart, StorePathName)
 import System.Nix.StorePath.Metadata (Metadata(..), StorePathTrust(..))
 import System.Nix.Store.Remote.Types
@@ -114,6 +116,7 @@ import qualified System.Nix.Base
 import qualified System.Nix.ContentAddress
 import qualified System.Nix.DerivedPath
 import qualified System.Nix.Hash
+import qualified System.Nix.Signature
 import qualified System.Nix.StorePath
 
 -- | Transformer for @Serializer@
@@ -176,6 +179,7 @@ data PrimError
   | PrimError_NarHashMustBeSHA256
   | PrimError_NotYetImplemented String (ForPV ProtoVersion)
   | PrimError_Path InvalidPathError
+  | PrimError_Signature String
   deriving (Eq, Ord, Generic, Show)
 
 data ForPV a
@@ -441,12 +445,9 @@ pathMetadata = Serializer
                       size -> Just size) <$> getS int
       trust <- getS storePathTrust
 
-      _sigStrings <- getS $ list text
+      sigs <- getS $ set signature
       contentAddress <- getS maybeContentAddress
 
-      let
-          -- XXX: signatures need pubkey from config
-          sigs = mempty
       pure $ Metadata{..}
 
   , putS = \Metadata{..} -> do
@@ -466,7 +467,7 @@ pathMetadata = Serializer
       putS time registrationTime
       putS int $ Prelude.maybe 0 id $ narBytes
       putS storePathTrust trust
-      putS (hashSet text) mempty
+      putS (set signature) sigs
       putS maybeContentAddress contentAddress
   }
   where
@@ -505,12 +506,23 @@ pathMetadata = Serializer
             putS text $ System.Nix.StorePath.storePathToText sd p
       }
 
+    storePathTrust
+      :: NixSerializer r PrimError StorePathTrust
     storePathTrust =
       mapIsoSerializer
         (\case False -> BuiltElsewhere; True -> BuiltLocally)
         (\case BuiltElsewhere -> False; BuiltLocally -> True)
         bool
 
+    signature
+      :: NixSerializer r PrimError NarSignature
+    signature =
+      mapPrismSerializer
+        (Data.Bifunctor.first PrimError_Signature
+         . Data.Attoparsec.Text.parseOnly
+             System.Nix.Signature.signatureParser)
+        (System.Nix.Signature.signatureToText)
+        text
 
 -- * Some HashAlgo
 
