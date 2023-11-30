@@ -29,6 +29,7 @@ import System.Nix.Build
 import System.Nix.StorePath
 import System.Nix.StorePath.Metadata
 import System.Nix.Store.Remote
+import System.Nix.Store.Remote.MonadStore (mapStoreConfig)
 
 import Crypto.Hash (SHA256)
 import System.Nix.Nar (dumpPath)
