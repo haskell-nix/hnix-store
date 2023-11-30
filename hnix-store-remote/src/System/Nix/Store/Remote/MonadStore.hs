@@ -10,22 +10,21 @@ module System.Nix.Store.Remote.MonadStore
   , MonadRemoteStore0
   , MonadRemoteStore
   , MonadRemoteStoreHandshake
-  -- *
+  -- * Reader helpers
   , getStoreDir
   , getStoreSocket
   , getProtoVersion
-  -- *
+  -- * Logs
   , appendLogs
   , getLogs
   , flushLogs
   , gotError
   , getErrors
-  -- *
+  -- * Data required from client
   , getData
   , setData
   , clearData
   ) where
-
 
 import Control.Monad.Except (MonadError)
 import Control.Monad.IO.Class (MonadIO)
@@ -81,8 +80,7 @@ newtype RemoteStoreT r m a = RemoteStoreT
     , Applicative
     , Monad
     , MonadReader r
-    --, MonadState StoreState   -- Avoid making the internal state explicit
-    --, MonadFail
+    --, MonadState StoreState -- Avoid making the internal state explicit
     , MonadError RemoteStoreError
     , MonadIO
     )
@@ -140,13 +138,13 @@ getStoreSocket = hasStoreSocket <$> RemoteStoreT ask
 getProtoVersion :: HasProtoVersion r => MonadRemoteStore0 r ProtoVersion
 getProtoVersion = hasProtoVersion <$> RemoteStoreT ask
 
+-- * Logs
+
 gotError :: MonadRemoteStore0 r Bool
 gotError = any isError <$> getLogs
 
 getErrors :: MonadRemoteStore0 r [Logger]
 getErrors = filter isError <$> getLogs
-
--- *
 
 appendLogs :: [Logger] -> MonadRemoteStore0 r ()
 appendLogs x = RemoteStoreT
@@ -159,7 +157,7 @@ getLogs = remoteStoreState_logs <$> RemoteStoreT get
 flushLogs :: MonadRemoteStore0 r ()
 flushLogs = RemoteStoreT $ modify $ \s -> s { remoteStoreState_logs = mempty }
 
--- *
+-- * Data required from client
 
 getData :: MonadRemoteStore0 r (Maybe ByteString)
 getData = remoteStoreState_mData <$> RemoteStoreT get
