@@ -36,6 +36,7 @@ library
   import: commons
   exposed-modules:
       System.Nix.Arbitrary
+    , System.Nix.Arbitrary.Base
     , System.Nix.Arbitrary.Build
     , System.Nix.Arbitrary.ContentAddress
     , System.Nix.Arbitrary.Derivation

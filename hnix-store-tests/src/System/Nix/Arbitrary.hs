@@ -1,5 +1,6 @@
 module System.Nix.Arbitrary where
 
+import System.Nix.Arbitrary.Base ()
 import System.Nix.Arbitrary.Build ()
 import System.Nix.Arbitrary.ContentAddress ()
 import System.Nix.Arbitrary.Derivation ()
