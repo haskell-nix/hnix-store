@@ -10,6 +10,7 @@ module System.Nix.Store.Remote
   , addTempRoot
   , buildPaths
   , buildDerivation
+  , deleteSpecific
   , ensurePath
   , findRoots
   , isValidPathUncached
@@ -28,54 +29,46 @@ module System.Nix.Store.Remote
   , syncWithGC
   , verifyStore
   , module System.Nix.Store.Types
+  , module System.Nix.Store.Remote.MonadStore
   , module System.Nix.Store.Remote.Types
   ) where
 
+import Crypto.Hash (SHA256)
+import Data.ByteString (ByteString)
 import Data.Dependent.Sum (DSum((:=>)))
 import Data.HashSet (HashSet)
 import Data.Map (Map)
 import Data.Text (Text)
+import Data.Word (Word64)
+import System.Nix.Nar (NarSource)
+import System.Nix.Derivation (Derivation)
+import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
+import System.Nix.Build (BuildMode, BuildResult)
+import System.Nix.Hash (NamedAlgo(..), BaseEncoding(Base16), decodeDigestWith)
+import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart, InvalidPathError)
+import System.Nix.StorePath.Metadata  (Metadata(..), StorePathTrust(..))
+
 import qualified Data.Text
 import qualified Control.Monad
 import qualified Data.Attoparsec.Text
 import qualified Data.Text.Encoding
-import qualified System.Nix.Hash
---
-import qualified Data.ByteString.Lazy          as BSL
-
-import System.Nix.Derivation (Derivation)
-import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
-import           System.Nix.Build               ( BuildMode
-                                                , BuildResult
-                                                )
-import           System.Nix.Hash                ( NamedAlgo(..)
-                                                , BaseEncoding(Base16)
-                                                , decodeDigestWith
-                                                )
-import           System.Nix.StorePath           ( StorePath
-                                                , StorePathName
-                                                , StorePathHashPart
-                                                , InvalidPathError
-                                                )
-import           System.Nix.StorePath.Metadata  ( Metadata(..)
-                                                , StorePathTrust(..)
-                                                )
-
-import qualified Data.Binary.Put
 import qualified Data.Map.Strict
+import qualified Data.Serialize.Put
 import qualified Data.Set
 
 import qualified System.Nix.ContentAddress
+import qualified System.Nix.Hash
+import qualified System.Nix.Signature
 import qualified System.Nix.StorePath
 
-import           System.Nix.Store.Remote.Binary
-import           System.Nix.Store.Remote.Types
-import           System.Nix.Store.Remote.Protocol
-import           System.Nix.Store.Remote.Util
-import qualified System.Nix.Signature
-import           Crypto.Hash                    ( SHA256 )
-import           System.Nix.Nar                 ( NarSource )
+import System.Nix.Store.Remote.MonadStore
+import System.Nix.Store.Remote.Protocol
+import System.Nix.Store.Remote.Socket
+import System.Nix.Store.Remote.Types
 
+import Data.Serialize (get)
+import System.Nix.Store.Remote.Serialize
+import System.Nix.Store.Remote.Serialize.Prim
 
 -- | Pack `Nar` and add it to the store.
 addToStore
@@ -91,7 +84,7 @@ addToStore name source recursive repair = do
     $ error "repairing is not supported when building through the Nix daemon"
 
   runOpArgsIO AddToStore $ \yield -> do
-    yield $ BSL.toStrict $ Data.Binary.Put.runPut $ do
+    yield $ Data.Serialize.Put.runPut $ do
       putText $ System.Nix.StorePath.unStorePathName name
       putBool
         $ not
@@ -124,7 +117,7 @@ addTextToStore name text references' repair = do
     putPaths storeDir references'
   sockGetPath
 
-addSignatures :: StorePath -> [BSL.ByteString] -> MonadStore ()
+addSignatures :: StorePath -> [ByteString] -> MonadStore ()
 addSignatures p signatures = do
   storeDir <- getStoreDir
   Control.Monad.void $ simpleOpArgs AddSignatures $ do
@@ -169,9 +162,30 @@ buildDerivation p drv buildMode = do
     -- but without it protocol just hangs waiting for
     -- more data. Needs investigation.
     -- Intentionally the only warning that should pop-up.
-    putInt (0 :: Integer)
+    putInt (0 :: Int)
 
-  getSocketIncremental getBuildResult
+  getSocketIncremental get
+
+-- | Delete store paths
+deleteSpecific
+ :: HashSet StorePath -- ^ Paths to delete
+ -> MonadStore GCResult
+deleteSpecific paths = do
+  storeDir <- getStoreDir
+  runOpArgs CollectGarbage $ do
+    putEnum GCAction_DeleteSpecific
+    putPaths storeDir paths
+    putBool False -- ignoreLiveness
+    putInt (maxBound :: Word64) -- maxFreedBytes
+    putInt (0::Int)
+    putInt (0::Int)
+    putInt (0::Int)
+  getSocketIncremental $ do
+    gcResult_deletedPaths <- getPathsOrFail storeDir
+    gcResult_bytesFreed <- getInt
+    -- TODO: who knows
+    _ :: Int <- getInt
+    pure GCResult{..}
 
 ensurePath :: StorePath -> MonadStore ()
 ensurePath pn = do
@@ -179,7 +193,7 @@ ensurePath pn = do
   Control.Monad.void $ simpleOpArgs EnsurePath $ putPath storeDir pn
 
 -- | Find garbage collector roots.
-findRoots :: MonadStore (Map BSL.ByteString StorePath)
+findRoots :: MonadStore (Map ByteString StorePath)
 findRoots = do
   runOp FindRoots
   sd  <- getStoreDir
@@ -187,7 +201,7 @@ findRoots = do
     getSocketIncremental
     $ getMany
     $ (,)
-      <$> (BSL.fromStrict <$> getByteStringLen)
+      <$> getByteString
       <*> getPath sd
 
   r <- catRights res
@@ -208,13 +222,13 @@ isValidPathUncached p = do
 -- | Query valid paths from set, optionally try to use substitutes.
 queryValidPaths
   :: HashSet StorePath   -- ^ Set of `StorePath`s to query
-  -> SubstituteFlag -- ^ Try substituting missing paths when `True`
+  -> SubstituteMode      -- ^ Try substituting missing paths when `True`
   -> MonadStore (HashSet StorePath)
 queryValidPaths ps substitute = do
   storeDir <- getStoreDir
   runOpArgs QueryValidPaths $ do
     putPaths storeDir ps
-    putBool (unSubstituteFlag substitute)
+    putBool $ substitute == SubstituteMode_DoSubstitute
   sockGetPaths
 
 queryAllValidPaths :: MonadStore (HashSet StorePath)
@@ -253,8 +267,8 @@ queryPathInfoUncached path = do
   narBytes         <- Just <$> sockGetInt
   ultimate         <- sockGetBool
 
-  sigStrings       <- fmap bsToText <$> sockGetStrings
-  caString         <- bsToText <$> sockGetStr
+  sigStrings       <- fmap Data.Text.Encoding.decodeUtf8 <$> sockGetStrings
+  caString         <- Data.Text.Encoding.decodeUtf8 <$> sockGetStr
 
   let
       sigs = case
@@ -335,7 +349,7 @@ syncWithGC :: MonadStore ()
 syncWithGC = Control.Monad.void $ simpleOp SyncWithGC
 
 -- returns True on errors
-verifyStore :: CheckFlag -> RepairMode -> MonadStore Bool
+verifyStore :: CheckMode -> RepairMode -> MonadStore Bool
 verifyStore check repair = simpleOpArgs VerifyStore $ do
-  putBool $ unCheckFlag check
+  putBool $ check == CheckMode_DoCheck
   putBool $ repair == RepairMode_DoRepair

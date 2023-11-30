@@ -34,6 +34,7 @@ module System.Nix.StorePath
   , pathParser
     -- * Utilities for tests
   , unsafeMakeStorePath
+  , unsafeMakeStorePathHashPart
   ) where
 
 import Crypto.Hash (HashAlgorithm)
@@ -307,3 +308,11 @@ unsafeMakeStorePath
   -> StorePathName
   -> StorePath
 unsafeMakeStorePath = StorePath
+
+-- | Path hash parts rarely need to be constructed directly.
+-- Prefer @mkStorePathHashPart@
+-- Used by remote store in wire protocol
+unsafeMakeStorePathHashPart
+  :: ByteString
+  -> StorePathHashPart
+unsafeMakeStorePathHashPart = StorePathHashPart

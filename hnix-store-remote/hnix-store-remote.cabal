@@ -26,14 +26,17 @@ common commons
     , DeriveFoldable
     , DeriveTraversable
     , DeriveLift
+    , DerivingVia
     , FlexibleContexts
     , FlexibleInstances
+    , GADTs
     , RecordWildCards
     , ScopedTypeVariables
     , StandaloneDeriving
     , TypeApplications
     , TypeSynonymInstances
     , InstanceSigs
+    , KindSignatures
     , MultiParamTypeClasses
     , TupleSections
     , LambdaCase
@@ -53,6 +56,12 @@ flag io-testsuite
     Enable testsuite, which requires external
     binaries and Linux namespace support.
 
+flag build-derivation
+  default:
+    False
+  description:
+    Build build-derivation executable
+
 flag build-readme
   default:
     False
@@ -62,36 +71,67 @@ flag build-readme
 library
   import: commons
   exposed-modules:
-      System.Nix.Store.Remote
-    , System.Nix.Store.Remote.Binary
+      Data.Serializer
+    , Data.Serializer.Example
+    , System.Nix.Store.Remote
+    , System.Nix.Store.Remote.Arbitrary
+    , System.Nix.Store.Remote.Logger
+    , System.Nix.Store.Remote.MonadStore
+    , System.Nix.Store.Remote.Protocol
     , System.Nix.Store.Remote.Serialize
     , System.Nix.Store.Remote.Serialize.Prim
-    , System.Nix.Store.Remote.Logger
-    , System.Nix.Store.Remote.Protocol
+    , System.Nix.Store.Remote.Serializer
+    , System.Nix.Store.Remote.Socket
     , System.Nix.Store.Remote.Types
-    , System.Nix.Store.Remote.Util
+    , System.Nix.Store.Remote.Types.Activity
+    , System.Nix.Store.Remote.Types.CheckMode
+    , System.Nix.Store.Remote.Types.GC
+    , System.Nix.Store.Remote.Types.Logger
+    , System.Nix.Store.Remote.Types.ProtoVersion
+    , System.Nix.Store.Remote.Types.StoreConfig
+    , System.Nix.Store.Remote.Types.SubstituteMode
+    , System.Nix.Store.Remote.Types.Verbosity
+    , System.Nix.Store.Remote.Types.WorkerOp
 
   build-depends:
       base >=4.12 && <5
     , hnix-store-core >= 0.8 && <0.9
     , hnix-store-nar >= 0.1
     , attoparsec
-    , binary
     , bytestring
     , cereal
     , containers
     , crypton
     , data-default-class
     , dependent-sum > 0.7 && < 1
+    , generic-arbitrary < 1.1
+    , hashable
     , text
     , time
+    , transformers
     , network
     , mtl
+    , QuickCheck
+    , quickcheck-instances
     , unordered-containers
-    , transformers
     , vector
   hs-source-dirs:      src
   ghc-options:         -Wall
+
+executable build-derivation
+  if !flag(build-derivation)
+    buildable: False
+  build-depends:
+      base >=4.12 && <5
+    , attoparsec
+    , hnix-store-core
+    , hnix-store-remote
+    , data-default-class
+    , text
+  default-language: Haskell2010
+  main-is: BuildDerivation.hs
+  hs-source-dirs:      app
+  ghc-options: -Wall -threaded -rtsopts "-with-rtsopts -N"
 
 executable remote-readme
   if !flag(build-readme)
@@ -110,8 +150,10 @@ test-suite remote
   type:              exitcode-stdio-1.0
   main-is:           Driver.hs
   hs-source-dirs:    tests
-  ghc-options:       -Wall
+  ghc-options:       -Wall -threaded -rtsopts "-with-rtsopts -N"
   other-modules:
+      Data.SerializerSpec
+      NixSerializerSpec
       SerializeSpec
   build-tool-depends:
     hspec-discover:hspec-discover
@@ -121,6 +163,9 @@ test-suite remote
     , hnix-store-remote
     , hnix-store-tests
     , cereal
+    , crypton
+    , dependent-sum > 0.7 && < 1
+    , some > 1.0.5 && < 2
     , text
     , time
     , hspec
@@ -153,14 +198,14 @@ test-suite remote-io
     , containers
     , crypton
     , directory
-    , process
     , filepath
-    , hspec-expectations-lifted
-    , text
-    , tasty
     , hspec
-    , tasty-hspec
+    , hspec-expectations-lifted
     , linux-namespaces
+    , process
+    , tasty
+    , tasty-hspec
     , temporary
+    , text
     , unix
     , unordered-containers

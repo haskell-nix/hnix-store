@@ -11,9 +11,11 @@ import Data.Serialize.Get (Get)
 import Data.Serialize.Put (Putter)
 import Data.Text (Text)
 import Data.Time (NominalDiffTime, UTCTime)
+import Data.Word (Word8)
 import System.Nix.StorePath (StoreDir, StorePath, InvalidPathError)
 
 import qualified Control.Monad
+import qualified Data.Either
 import qualified Data.HashSet
 import qualified Data.Serialize.Get
 import qualified Data.Serialize.Put
@@ -25,18 +27,21 @@ import qualified System.Nix.StorePath
 -- * Int
 
 -- | Deserialize Nix like integer
-getInt :: Get Int
+getInt :: Integral a => Get a
 getInt = fromIntegral <$> Data.Serialize.Get.getWord64le
 
 -- | Serialize Nix like integer
-putInt :: Putter Int
+putInt :: Integral a => Putter a
 putInt = Data.Serialize.Put.putWord64le . fromIntegral
 
 -- * Bool
 
 -- | Deserialize @Bool@ from integer
 getBool :: Get Bool
-getBool = (== 1) <$> (getInt :: Get Int)
+getBool = (getInt :: Get Word8) >>= \case
+  0 -> pure False
+  1 -> pure True
+  x -> fail $ "illegal bool value " ++ show x
 
 -- | Serialize @Bool@ into integer
 putBool :: Putter Bool
@@ -45,9 +50,18 @@ putBool False = putInt (0 :: Int)
 
 -- * Enum
 
+-- | Utility toEnum version checking bounds using Bounded class
+toEnumCheckBounds :: Enum a => Int -> Either String a
+toEnumCheckBounds = \case
+  x | x < minBound -> Left $ "enum out of min bound " ++ show x
+  x | x > maxBound -> Left $ "enum out of max bound " ++ show x
+  x | otherwise -> Right $ toEnum x
+
 -- | Deserialize @Enum@ to integer
 getEnum :: Enum a => Get a
-getEnum = toEnum <$> getInt
+getEnum =
+  toEnumCheckBounds <$> getInt
+  >>= either fail pure
 
 -- | Serialize @Enum@ to integer
 putEnum :: Enum a => Putter a
@@ -178,6 +192,19 @@ getPaths sd =
   Data.HashSet.fromList
   . fmap (System.Nix.StorePath.parsePath sd)
   <$> getByteStrings
+
+-- | Deserialize @StorePath@, checking
+-- that @StoreDir@ matches expected value
+getPathsOrFail :: StoreDir -> Get (HashSet StorePath)
+getPathsOrFail sd = do
+  eps <-
+    fmap (System.Nix.StorePath.parsePath sd)
+    <$> getByteStrings
+  Control.Monad.when (any Data.Either.isLeft eps)
+    $ fail
+    $ show
+    $ Data.Either.lefts eps
+  pure $ Data.HashSet.fromList $ Data.Either.rights eps
 
 -- | Serialize a @HashSet@ of @StorePath@s
 putPaths :: StoreDir -> Putter (HashSet StorePath)

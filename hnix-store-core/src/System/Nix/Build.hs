@@ -15,25 +15,28 @@ import GHC.Generics (Generic)
 
 -- keep the order of these Enums to match enums from reference implementations
 -- src/libstore/store-api.hh
-data BuildMode = Normal | Repair | Check
+data BuildMode
+  = BuildMode_Normal
+  | BuildMode_Repair
+  | BuildMode_Check
   deriving (Eq, Generic, Ord, Enum, Show)
 
 data BuildStatus =
-    Built
-  | Substituted
-  | AlreadyValid
-  | PermanentFailure
-  | InputRejected
-  | OutputRejected
-  | TransientFailure -- possibly transient
-  | CachedFailure    -- no longer used
-  | TimedOut
-  | MiscFailure
-  | DependencyFailed
-  | LogLimitExceeded
-  | NotDeterministic
-  | ResolvesToAlreadyValid
-  | NoSubstituters
+    BuildStatus_Built
+  | BuildStatus_Substituted
+  | BuildStatus_AlreadyValid
+  | BuildStatus_PermanentFailure
+  | BuildStatus_InputRejected
+  | BuildStatus_OutputRejected
+  | BuildStatus_TransientFailure -- possibly transient
+  | BuildStatus_CachedFailure    -- no longer used
+  | BuildStatus_TimedOut
+  | BuildStatus_MiscFailure
+  | BuildStatus_DependencyFailed
+  | BuildStatus_LogLimitExceeded
+  | BuildStatus_NotDeterministic
+  | BuildStatus_ResolvesToAlreadyValid
+  | BuildStatus_NoSubstituters
   deriving (Eq, Generic, Ord, Enum, Show)
 
 -- | Result of the build
@@ -55,4 +58,8 @@ data BuildResult = BuildResult
 
 buildSuccess :: BuildResult -> Bool
 buildSuccess BuildResult {..} =
-  status `elem` [Built, Substituted, AlreadyValid]
+  status `elem`
+    [ BuildStatus_Built
+    , BuildStatus_Substituted
+    , BuildStatus_AlreadyValid
+    ]

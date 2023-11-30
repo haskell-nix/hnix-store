@@ -1,6 +1,6 @@
 let haskellCi =
       https://raw.githubusercontent.com/sorki/github-actions-dhall/main/haskell-ci.dhall
-        sha256:5d7058a7684fd5315467b562853bd1c4a43da691c09293d3715ee739dfa26e08
+        sha256:a39801f73d93c6e0f91942755ef8ae4c50947e9a9b180b6724957229470f7b8d
 
 let defSteps = haskellCi.defaultCabalSteps
 

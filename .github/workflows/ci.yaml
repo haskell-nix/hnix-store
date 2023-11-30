@@ -59,7 +59,6 @@ jobs:
         - "macos-latest"
 name: Haskell CI
 'on':
-  pull_request: {}
   push: {}
   schedule:
   - cron: "4 20 10 * *"

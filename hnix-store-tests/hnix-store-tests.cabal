@@ -36,6 +36,7 @@ library
   import: commons
   exposed-modules:
       System.Nix.Arbitrary
+    , System.Nix.Arbitrary.Base
     , System.Nix.Arbitrary.Build
     , System.Nix.Arbitrary.ContentAddress
     , System.Nix.Arbitrary.Derivation
@@ -44,6 +45,7 @@ library
     , System.Nix.Arbitrary.Signature
     , System.Nix.Arbitrary.Store.Types
     , System.Nix.Arbitrary.StorePath
+    , System.Nix.Arbitrary.StorePath.Metadata
     , Test.Hspec.Nix
   build-depends:
       base >=4.12 && <5

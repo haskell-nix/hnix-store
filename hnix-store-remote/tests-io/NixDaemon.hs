@@ -3,42 +3,36 @@
 module NixDaemon where
 
 import Data.Text (Text)
-import           Data.Either                    ( isRight
-                                                , isLeft
-                                                )
-import           Data.Bool                      ( bool )
-import           Control.Monad                  ( void )
-import           Control.Monad.IO.Class         ( liftIO )
-
+import Data.Either (isRight, isLeft)
+import Data.Bool (bool)
+import Control.Monad (forM_, void)
+import Control.Monad.IO.Class (liftIO)
 import qualified System.Environment
-import           Control.Exception              ( bracket )
-import           Control.Concurrent             ( threadDelay )
-import qualified Data.ByteString.Char8         as BSC
+import Control.Exception (bracket)
+import Control.Concurrent (threadDelay)
+import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Either
-import qualified Data.HashSet                  as HS
-import qualified Data.Map.Strict               as M
-import           System.Directory
-import           System.IO.Temp
-import qualified System.Process                as P
-import           System.Posix.User             as U
-import           System.Linux.Namespaces       as NS
-import           Test.Hspec                     ( Spec
-                                                , describe
-                                                , context
-                                                )
-import qualified Test.Hspec                    as Hspec
-import           Test.Hspec.Expectations.Lifted
+import qualified Data.HashSet as HS
+import qualified Data.Map.Strict as M
+import qualified Data.Text
+import qualified Data.Text.Encoding
+import System.Directory
+import System.IO.Temp
+import qualified System.Process as P
+import System.Posix.User as U
+import System.Linux.Namespaces as NS
+import Test.Hspec (Spec, describe, context)
+import qualified Test.Hspec as Hspec
+import Test.Hspec.Expectations.Lifted
+import System.FilePath
+import System.Nix.Build
+import System.Nix.StorePath
+import System.Nix.StorePath.Metadata
+import System.Nix.Store.Remote
+import System.Nix.Store.Remote.Protocol
 
-import           System.FilePath
-
-import           System.Nix.Build
-import           System.Nix.StorePath
-import           System.Nix.StorePath.Metadata
-import           System.Nix.Store.Remote
-import           System.Nix.Store.Remote.Protocol
-
-import           Crypto.Hash                    ( SHA256 )
-import           System.Nix.Nar                 ( dumpPath )
+import Crypto.Hash (SHA256)
+import System.Nix.Nar (dumpPath)
 
 createProcessEnv :: FilePath -> String -> [String] -> IO P.ProcessHandle
 createProcessEnv fp proc args = do
@@ -194,14 +188,23 @@ spec_protocol = Hspec.around withNixDaemon $
 
     context "verifyStore" $ do
       itRights "check=False repair=False" $
-        verifyStore dontCheck RepairMode_DontRepair `shouldReturn` False
+        verifyStore
+          CheckMode_DontCheck
+          RepairMode_DontRepair
+        `shouldReturn` False
 
       itRights "check=True repair=False" $
-        verifyStore doCheck RepairMode_DontRepair `shouldReturn` False
+        verifyStore
+          CheckMode_DoCheck
+          RepairMode_DontRepair
+        `shouldReturn` False
 
       --privileged
       itRights "check=True repair=True" $
-        verifyStore doCheck RepairMode_DoRepair `shouldReturn` False
+        verifyStore
+          CheckMode_DoCheck
+          RepairMode_DoRepair
+        `shouldReturn` False
 
     context "addTextToStore" $
       itRights "adds text to store" $ withPath pure
@@ -234,15 +237,15 @@ spec_protocol = Hspec.around withNixDaemon $
     context "buildPaths" $ do
       itRights "build Normal" $ withPath $ \path -> do
         let pathSet = HS.fromList [path]
-        buildPaths pathSet Normal
+        buildPaths pathSet BuildMode_Normal
 
       itRights "build Check" $ withPath $ \path -> do
         let pathSet = HS.fromList [path]
-        buildPaths pathSet Check
+        buildPaths pathSet BuildMode_Check
 
       itLefts "build Repair" $ withPath $ \path -> do
         let pathSet = HS.fromList [path]
-        buildPaths pathSet Repair
+        buildPaths pathSet BuildMode_Repair
 
     context "roots" $ context "findRoots" $ do
         itRights "empty roots" (findRoots `shouldReturn` M.empty)
@@ -272,3 +275,17 @@ spec_protocol = Hspec.around withNixDaemon $
         path <- dummy
         liftIO $ print path
         isValidPathUncached path `shouldReturn` True
+
+    context "deleteSpecific" $
+      itRights "delete a path from the store" $ withPath $ \path -> do
+          -- clear temp gc roots so the delete works. restarting the nix daemon should also do this...
+          storeDir <- getStoreDir
+          let tempRootsDir = Data.Text.unpack $ mconcat [ Data.Text.Encoding.decodeUtf8 (unStoreDir storeDir), "/../var/nix/temproots/" ]
+          tempRootList <- liftIO $ listDirectory tempRootsDir
+          liftIO $ forM_ tempRootList $ \entry -> do
+            removeFile $ mconcat [ tempRootsDir, "/", entry ]
+
+          GCResult{..} <- deleteSpecific (HS.fromList [path])
+          gcResult_deletedPaths `shouldBe` HS.fromList [path]
+          gcResult_bytesFreed `shouldBe` 4
+

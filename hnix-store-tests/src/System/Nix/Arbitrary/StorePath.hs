@@ -1,13 +1,11 @@
--- due to recent generic-arbitrary
 {-# LANGUAGE CPP #-}
-{-# OPTIONS_GHC -fconstraint-solver-iterations=0 #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 module System.Nix.Arbitrary.StorePath where
 
 #if !MIN_VERSION_base(4,18,0)
 import Control.Applicative (liftA2)
 #endif
-import Crypto.Hash (SHA256)
+import Crypto.Hash (MD5, SHA1, SHA256, SHA512)
 import qualified Data.ByteString.Char8
 import qualified Data.Text
 import System.Nix.StorePath (StoreDir(..)
@@ -17,7 +15,7 @@ import System.Nix.StorePath (StoreDir(..)
   )
 import qualified System.Nix.StorePath
 
-import Test.QuickCheck (Arbitrary(arbitrary), listOf, elements)
+import Test.QuickCheck (Arbitrary(arbitrary), elements, listOf, oneof)
 
 instance Arbitrary StoreDir where
   arbitrary =
@@ -43,6 +41,13 @@ instance Arbitrary StorePathName where
 
 instance Arbitrary StorePathHashPart where
   arbitrary =
-    -- TODO(srk): other hashes
-    System.Nix.StorePath.mkStorePathHashPart @SHA256
-    . Data.ByteString.Char8.pack <$> arbitrary
+    oneof
+      [ System.Nix.StorePath.mkStorePathHashPart @MD5
+        . Data.ByteString.Char8.pack <$> arbitrary
+      , System.Nix.StorePath.mkStorePathHashPart @SHA1
+        . Data.ByteString.Char8.pack <$> arbitrary
+      , System.Nix.StorePath.mkStorePathHashPart @SHA256
+        . Data.ByteString.Char8.pack <$> arbitrary
+      , System.Nix.StorePath.mkStorePathHashPart @SHA512
+        . Data.ByteString.Char8.pack <$> arbitrary
+      ]

@@ -20,4 +20,4 @@ package hnix-store-nar
   flags: +bounded_memory
 
 package hnix-store-remote
-  flags: +build-readme +io-testsuite
+  flags: +build-derivation +build-readme +io-testsuite

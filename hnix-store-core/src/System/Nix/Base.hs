@@ -6,6 +6,7 @@ module System.Nix.Base
 
 import Data.ByteString (ByteString)
 import Data.Text (Text)
+import GHC.Generics (Generic)
 
 import qualified Data.Text.Encoding
 import qualified Data.ByteString.Base16
@@ -21,6 +22,7 @@ data BaseEncoding
   -- & NixBase seems be the most widely used in Nix.
   | Base16
   | Base64
+  deriving (Bounded, Eq, Enum, Generic, Ord, Show)
 
 -- | Encode @ByteString@ with @Base@ encoding, produce @Text@.
 encodeWith :: BaseEncoding -> ByteString -> Text
