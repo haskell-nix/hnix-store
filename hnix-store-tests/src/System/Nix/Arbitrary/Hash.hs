@@ -6,6 +6,7 @@ module System.Nix.Arbitrary.Hash where
 import Data.ByteString (ByteString)
 import Crypto.Hash (Digest, MD5(..), SHA1(..), SHA256(..), SHA512(..))
 import Data.Dependent.Sum (DSum((:=>)))
+import Data.Some (Some(Some))
 import System.Nix.Hash (HashAlgo(..))
 
 import Test.QuickCheck (Arbitrary(arbitrary), oneof)
@@ -35,4 +36,15 @@ instance Arbitrary (DSum HashAlgo Digest)  where
     , (HashAlgo_SHA1 :=>)   <$> arbitrary
     , (HashAlgo_SHA256 :=>) <$> arbitrary
     , (HashAlgo_SHA512 :=>) <$> arbitrary
+    ]
+
+instance Arbitrary (Some HashAlgo)  where
+  arbitrary =
+    oneof
+    $ pure
+    <$> [
+      Some HashAlgo_MD5
+    , Some HashAlgo_SHA1
+    , Some HashAlgo_SHA256
+    , Some HashAlgo_SHA512
     ]
