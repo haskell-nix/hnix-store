@@ -151,7 +151,8 @@ mapIsoSerializer
   :: Functor (t Get)
   => (a -> b) -- ^ Map over @getS@
   -> (b -> a) -- ^ Map over @putS@
-  -> (Serializer t a -> Serializer t b)
+  -> Serializer t a
+  -> Serializer t b
 mapIsoSerializer f g s = Serializer
   { getS = f <$> getS s
   , putS = putS s . g
@@ -163,7 +164,8 @@ mapPrismSerializer
   :: MonadError eGet (t Get)
   => (a -> Either eGet b) -- ^ Map over @getS@
   -> (b -> a)             -- ^ Map over @putS@
-  -> (Serializer t a -> Serializer t b)
+  -> Serializer t a
+  -> Serializer t b
 mapPrismSerializer f g s = Serializer
   { getS = either throwError pure . f =<< getS s
   , putS = putS s . g
