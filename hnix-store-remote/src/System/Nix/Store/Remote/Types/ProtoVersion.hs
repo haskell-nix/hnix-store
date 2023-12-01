@@ -1,6 +1,7 @@
 module System.Nix.Store.Remote.Types.ProtoVersion
   ( ProtoVersion(..)
   , HasProtoVersion(..)
+  , ourProtoVersion
   ) where
 
 import Data.Word (Word8, Word16)
@@ -17,3 +18,10 @@ class HasProtoVersion r where
 
 instance HasProtoVersion ProtoVersion where
   hasProtoVersion = id
+
+-- | The protocol version we support
+ourProtoVersion :: ProtoVersion
+ourProtoVersion = ProtoVersion
+  { protoVersion_major = 1
+  , protoVersion_minor = 21
+  }

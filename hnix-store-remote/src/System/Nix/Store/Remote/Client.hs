@@ -24,13 +24,10 @@ import System.Nix.Store.Remote.Logger (processOutput)
 import System.Nix.Store.Remote.MonadStore
 import System.Nix.Store.Remote.Socket (sockPutS, sockGetS)
 import System.Nix.Store.Remote.Serializer (bool, enum, int, protoVersion, text)
-import System.Nix.Store.Remote.Types
-
-ourProtoVersion :: ProtoVersion
-ourProtoVersion = ProtoVersion
-  { protoVersion_major = 1
-  , protoVersion_minor = 21
-  }
+import System.Nix.Store.Remote.Types.Logger (Logger)
+import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..), ourProtoVersion)
+import System.Nix.Store.Remote.Types.StoreConfig (PreStoreConfig(..), StoreConfig(..))
+import System.Nix.Store.Remote.Types.WorkerOp (WorkerOp)
 
 workerMagic1 :: Int
 workerMagic1 = 0x6e697863
