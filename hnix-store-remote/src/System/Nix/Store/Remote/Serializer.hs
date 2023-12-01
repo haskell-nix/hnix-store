@@ -67,6 +67,7 @@ module System.Nix.Store.Remote.Serializer
   , HandshakeSError(..)
   , workerMagic
   -- * Worker protocol
+  , storeText
   , workerOp
   ) where
 
@@ -926,6 +927,17 @@ workerMagic = Serializer
   }
 
 -- * Worker protocol
+
+storeText :: NixSerializer r SError StoreText
+storeText = Serializer
+  { getS = do
+      storeTextName <- getS storePathName
+      storeTextText <- getS text
+      pure StoreText{..}
+  , putS = \StoreText{..} -> do
+      putS storePathName storeTextName
+      putS text storeTextText
+  }
 
 workerOp :: NixSerializer r SError WorkerOp
 workerOp = enum

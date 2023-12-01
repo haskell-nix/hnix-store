@@ -21,6 +21,9 @@ deriving via GenericArbitrary SubstituteMode
 deriving via GenericArbitrary ProtoVersion
   instance Arbitrary ProtoVersion
 
+deriving via GenericArbitrary StoreText
+  instance Arbitrary StoreText
+
 -- * Logger
 
 deriving via GenericArbitrary Activity
@@ -56,7 +59,7 @@ deriving via GenericArbitrary Verbosity
 instance Arbitrary (Some StoreRequest) where
   arbitrary = oneof
     [ Some <$> (AddToStore <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)
-    , Some <$> (AddTextToStore <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)
+    , Some <$> (AddTextToStore <$> arbitrary <*> arbitrary <*> arbitrary)
     , Some <$> (AddSignatures <$> arbitrary <*> arbitrary)
     , Some . AddIndirectRoot  <$> arbitrary
     , Some . AddTempRoot <$> arbitrary

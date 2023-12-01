@@ -24,6 +24,7 @@ import System.Nix.Store.Types (RepairMode)
 import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart)
 import System.Nix.StorePath.Metadata (Metadata)
 import System.Nix.Store.Remote.Types.CheckMode (CheckMode)
+import System.Nix.Store.Remote.Types.StoreText (StoreText)
 import System.Nix.Store.Remote.Types.SubstituteMode (SubstituteMode)
 
 data StoreRequest :: Type -> Type where
@@ -49,8 +50,7 @@ data StoreRequest :: Type -> Type where
   -- Reference accepts repair but only uses it
   -- to throw error in case of remote talking to nix-daemon.
   AddTextToStore
-    :: Text -- ^ Name of the text
-    -> Text -- ^ Actual text to add
+    :: StoreText
     -> HashSet StorePath -- ^ Set of @StorePath@s that the added text references
     -> RepairMode -- ^ Repair mode, must be @RepairMode_DontRepair@ in case of remote backend
     -> StoreRequest StorePath
@@ -167,7 +167,7 @@ deriveGShow ''StoreRequest
 
 instance {-# OVERLAPPING #-} Eq (Some StoreRequest) where
   Some (AddToStore a b c d) == Some (AddToStore a' b' c' d') = (a, b, c, d) == (a', b', c', d')
-  Some (AddTextToStore a b c d) == Some (AddTextToStore a' b' c' d') = (a, b, c, d) == (a', b', c', d')
+  Some (AddTextToStore a b c) == Some (AddTextToStore a' b' c') = (a, b, c) == (a', b', c')
   Some (AddSignatures a b) == Some (AddSignatures a' b') = (a, b) == (a', b')
   Some (AddIndirectRoot a) == Some (AddIndirectRoot a') = a == a'
   Some (AddTempRoot a) == Some (AddTempRoot a') = a == a'

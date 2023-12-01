@@ -167,6 +167,9 @@ spec = parallel $ do
       it' "IsValidPath"           WorkerOp_IsValidPath            1
       it' "BuildPathsWithResults" WorkerOp_BuildPathsWithResults 46
 
+  describe "Worker protocol" $ do
+    prop "StoreText" $ roundtripS storeText
+
 errorInfoIf :: Bool -> Logger -> Bool
 errorInfoIf True (Logger_Error (Right x)) = noJust0s x
   where

@@ -90,6 +90,7 @@ library
     , System.Nix.Store.Remote.Types.Logger
     , System.Nix.Store.Remote.Types.ProtoVersion
     , System.Nix.Store.Remote.Types.StoreConfig
+    , System.Nix.Store.Remote.Types.StoreText
     , System.Nix.Store.Remote.Types.SubstituteMode
     , System.Nix.Store.Remote.Types.Verbosity
     , System.Nix.Store.Remote.Types.WorkerMagic
