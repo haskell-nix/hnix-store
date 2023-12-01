@@ -62,6 +62,7 @@ parseDerivedPath
   -> Text
   -> Either ParseOutputsError DerivedPath
 parseDerivedPath root p =
+  -- TODO: breaks when root contains !
   case Data.Text.breakOn "!" p of
     (s, r) ->
       if Data.Text.null r
