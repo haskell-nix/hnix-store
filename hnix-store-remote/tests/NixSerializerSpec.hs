@@ -24,7 +24,14 @@ import System.Nix.StorePath (StoreDir)
 import System.Nix.StorePath.Metadata (Metadata(..))
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
-import System.Nix.Store.Remote.Types (ErrorInfo(..), Logger(..), ProtoVersion(..), Trace(..), WorkerOp(..))
+import System.Nix.Store.Remote.Types.Logger (ErrorInfo(..), Logger(..),  Trace(..))
+import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion(..))
+import System.Nix.Store.Remote.Types.StoreConfig (TestStoreConfig)
+import System.Nix.Store.Remote.Types.WorkerOp (WorkerOp(..))
+
+-- WIP
+import Data.Some (Some(Some))
+import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
 
 -- | Test for roundtrip using @NixSerializer@
 roundtripSReader
@@ -169,6 +176,17 @@ spec = parallel $ do
 
   describe "Worker protocol" $ do
     prop "StoreText" $ roundtripS storeText
+
+    prop "StoreRequest"
+      $ \testStoreConfig ->
+          forAll (arbitrary `suchThat` (hacks (hasProtoVersion testStoreConfig)))
+          $ roundtripSReader @TestStoreConfig storeRequest testStoreConfig
+
+hacks :: ProtoVersion -> Some StoreRequest -> Bool
+hacks v (Some (BuildPaths _ _)) | v < ProtoVersion 1 30 = False
+hacks _ (Some (BuildDerivation _ drv _)) = inputDrvs drv == mempty
+hacks v (Some (QueryMissing _)) | v < ProtoVersion 1 30 = False
+hacks _ _ = True
 
 errorInfoIf :: Bool -> Logger -> Bool
 errorInfoIf True (Logger_Error (Right x)) = noJust0s x

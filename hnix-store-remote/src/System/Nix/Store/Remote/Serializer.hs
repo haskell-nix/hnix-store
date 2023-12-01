@@ -69,6 +69,7 @@ module System.Nix.Store.Remote.Serializer
   -- * Worker protocol
   , storeText
   , workerOp
+  , storeRequest
   ) where
 
 import Control.Monad.Except (MonadError, throwError, )
@@ -84,7 +85,7 @@ import Data.Hashable (Hashable)
 import Data.HashSet (HashSet)
 import Data.Map (Map)
 import Data.Set (Set)
-import Data.Some (Some)
+import Data.Some (Some(Some))
 import Data.Text (Text)
 import Data.Time (NominalDiffTime, UTCTime)
 import Data.Vector (Vector)
@@ -942,3 +943,230 @@ storeText = Serializer
 workerOp :: NixSerializer r SError WorkerOp
 workerOp = enum
 
+storeRequest
+  :: ( HasProtoVersion r
+     , HasStoreDir r
+     )
+  => NixSerializer r SError (Some StoreRequest)
+storeRequest = Serializer
+  { getS = getS workerOp >>= \case
+      WorkerOp_AddToStore -> do
+        pathName <- getS storePathName
+        recursive <- getS enum
+        hashAlgo <- getS someHashAlgo
+        repairMode <- getS enum
+        pure $ Some (AddToStore pathName recursive hashAlgo repairMode)
+
+      WorkerOp_AddTextToStore -> do
+        txt <- getS storeText
+        paths <- getS (hashSet storePath)
+        repairMode <- getS enum
+        pure $ Some (AddTextToStore txt paths repairMode)
+
+      WorkerOp_AddSignatures -> do
+        path <- getS storePath
+        signatures <- getS (list byteString)
+        pure $ Some (AddSignatures path signatures)
+
+      WorkerOp_AddIndirectRoot ->
+        Some . AddIndirectRoot <$> getS storePath
+
+      WorkerOp_AddTempRoot ->
+        Some . AddTempRoot <$> getS storePath
+
+      WorkerOp_BuildPaths -> do
+        derived <- getS (set derivedPath)
+        buildMode' <- getS buildMode
+        pure $ Some (BuildPaths derived buildMode')
+
+      WorkerOp_BuildDerivation -> do
+        path <- getS storePath
+        drv <- getS derivation
+        buildMode' <- getS buildMode
+        pure $ Some (BuildDerivation path drv buildMode')
+
+      WorkerOp_EnsurePath ->
+        Some . EnsurePath <$> getS storePath
+
+      WorkerOp_FindRoots -> do
+        pure $ Some FindRoots
+
+      WorkerOp_IsValidPath ->
+        Some . IsValidPath <$> getS storePath
+
+      WorkerOp_QueryValidPaths -> do
+        paths <- getS (hashSet storePath)
+        substituteMode <- getS enum
+        pure $ Some (QueryValidPaths paths substituteMode)
+
+      WorkerOp_QueryAllValidPaths ->
+        pure $ Some QueryAllValidPaths
+
+      WorkerOp_QuerySubstitutablePaths ->
+        Some . QuerySubstitutablePaths <$> getS (hashSet storePath)
+
+      WorkerOp_QueryPathInfo ->
+        Some . QueryPathInfo <$> getS storePath
+
+      WorkerOp_QueryReferrers ->
+        Some . QueryReferrers <$> getS storePath
+
+      WorkerOp_QueryValidDerivers ->
+        Some . QueryValidDerivers <$> getS storePath
+
+      WorkerOp_QueryDerivationOutputs ->
+        Some . QueryDerivationOutputs <$> getS storePath
+
+      WorkerOp_QueryDerivationOutputNames ->
+        Some . QueryDerivationOutputNames <$> getS storePath
+
+      WorkerOp_QueryPathFromHashPart ->
+        Some . QueryPathFromHashPart <$> getS storePathHashPart
+
+      WorkerOp_QueryMissing ->
+        Some . QueryMissing <$> getS (set derivedPath)
+
+      WorkerOp_OptimiseStore ->
+        pure $ Some OptimiseStore
+
+      WorkerOp_SyncWithGC ->
+        pure $ Some SyncWithGC
+
+      WorkerOp_VerifyStore -> do
+        checkMode <- getS enum
+        repairMode <- getS enum
+
+        pure $ Some (VerifyStore checkMode repairMode)
+
+      WorkerOp_Reserved_0__ -> undefined
+      WorkerOp_Reserved_2__ -> undefined
+      WorkerOp_Reserved_15__ -> undefined
+      WorkerOp_Reserved_17__ -> undefined
+
+      WorkerOp_AddBuildLog -> undefined
+      WorkerOp_AddMultipleToStore -> undefined
+      WorkerOp_AddToStoreNar -> undefined
+      WorkerOp_BuildPathsWithResults -> undefined
+      WorkerOp_ClearFailedPaths -> undefined
+      WorkerOp_CollectGarbage -> undefined
+      WorkerOp_ExportPath -> undefined
+      WorkerOp_HasSubstitutes -> undefined
+      WorkerOp_ImportPaths -> undefined
+      WorkerOp_NarFromPath -> undefined
+      WorkerOp_QueryDerivationOutputMap -> undefined
+      WorkerOp_QueryDeriver -> undefined
+      WorkerOp_QueryFailedPaths -> undefined
+      WorkerOp_QueryPathHash -> undefined
+      WorkerOp_QueryRealisation -> undefined
+      WorkerOp_QuerySubstitutablePathInfo -> undefined
+      WorkerOp_QuerySubstitutablePathInfos -> undefined
+      WorkerOp_QueryReferences -> undefined
+      WorkerOp_RegisterDrvOutput -> undefined
+      WorkerOp_SetOptions -> undefined
+
+  , putS = \case
+      Some (AddToStore pathName recursive hashAlgo repairMode) -> do
+        putS workerOp WorkerOp_AddToStore
+
+        putS storePathName pathName
+        putS enum recursive
+        putS someHashAlgo hashAlgo
+        putS enum repairMode
+
+      Some (AddTextToStore txt paths repairMode) -> do
+        putS workerOp WorkerOp_AddTextToStore
+
+        putS storeText txt
+        putS (hashSet storePath) paths
+        putS enum repairMode
+
+      Some (AddSignatures path signatures) -> do
+        putS workerOp WorkerOp_AddSignatures
+
+        putS storePath path
+        putS (list byteString) signatures
+
+      Some (AddIndirectRoot path) -> do
+        putS workerOp WorkerOp_AddIndirectRoot
+        putS storePath path
+
+      Some (AddTempRoot path) -> do
+        putS workerOp WorkerOp_AddTempRoot
+        putS storePath path
+
+      Some (BuildPaths derived buildMode') -> do
+        putS workerOp WorkerOp_BuildPaths
+
+        putS (set derivedPath) derived
+        putS buildMode buildMode'
+
+      Some (BuildDerivation path drv buildMode') -> do
+        putS workerOp WorkerOp_BuildDerivation
+
+        putS storePath path
+        putS derivation drv
+        putS buildMode buildMode'
+
+      Some (EnsurePath path) -> do
+        putS workerOp WorkerOp_EnsurePath
+        putS storePath path
+
+      Some FindRoots ->
+        putS workerOp WorkerOp_FindRoots
+
+      Some (IsValidPath path) -> do
+        putS workerOp WorkerOp_IsValidPath
+        putS storePath path
+
+      Some (QueryValidPaths paths substituteMode) -> do
+        putS workerOp WorkerOp_QueryValidPaths
+
+        putS (hashSet storePath) paths
+        putS enum substituteMode
+
+      Some QueryAllValidPaths ->
+        putS workerOp WorkerOp_QueryAllValidPaths
+
+      Some (QuerySubstitutablePaths paths) -> do
+        putS workerOp WorkerOp_QuerySubstitutablePaths
+        putS (hashSet storePath) paths
+
+      Some (QueryPathInfo path) -> do
+        putS workerOp WorkerOp_QueryPathInfo
+        putS storePath path
+
+      Some (QueryReferrers path) -> do
+        putS workerOp WorkerOp_QueryReferrers
+        putS storePath path
+
+      Some (QueryValidDerivers path) -> do
+        putS workerOp WorkerOp_QueryValidDerivers
+        putS storePath path
+
+      Some (QueryDerivationOutputs path) -> do
+        putS workerOp WorkerOp_QueryDerivationOutputs
+        putS storePath path
+
+      Some (QueryDerivationOutputNames path) -> do
+        putS workerOp WorkerOp_QueryDerivationOutputNames
+        putS storePath path
+
+      Some (QueryPathFromHashPart pathHashPart) -> do
+        putS workerOp WorkerOp_QueryPathFromHashPart
+        putS storePathHashPart pathHashPart
+
+      Some (QueryMissing derived) -> do
+        putS workerOp WorkerOp_QueryMissing
+        putS (set derivedPath) derived
+
+      Some OptimiseStore ->
+        putS workerOp WorkerOp_OptimiseStore
+
+      Some SyncWithGC ->
+        putS workerOp WorkerOp_SyncWithGC
+
+      Some (VerifyStore checkMode repairMode) -> do
+        putS workerOp WorkerOp_VerifyStore
+        putS enum checkMode
+        putS enum repairMode
+  }
