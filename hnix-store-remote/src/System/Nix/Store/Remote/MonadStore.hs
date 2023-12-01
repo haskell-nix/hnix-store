@@ -38,7 +38,7 @@ import Data.ByteString (ByteString)
 import Data.Word (Word64)
 import Network.Socket (Socket)
 import System.Nix.StorePath (HasStoreDir(..), StoreDir)
-import System.Nix.Store.Remote.Serializer (SError)
+import System.Nix.Store.Remote.Serializer (HandshakeSError, LoggerSError, SError)
 import System.Nix.Store.Remote.Types.Logger (Logger, isError)
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion)
 import System.Nix.Store.Remote.Types.StoreConfig (HasStoreSocket(..), PreStoreConfig, StoreConfig)
@@ -55,6 +55,8 @@ data RemoteStoreError
   | RemoteStoreError_Disconnected
   | RemoteStoreError_GetAddrInfoFailed
   | RemoteStoreError_SerializerGet SError
+  | RemoteStoreError_SerializerHandshake HandshakeSError
+  | RemoteStoreError_SerializerLogger LoggerSError
   | RemoteStoreError_SerializerPut SError
   | RemoteStoreError_NoDataProvided
   | RemoteStoreError_ProtocolMismatch

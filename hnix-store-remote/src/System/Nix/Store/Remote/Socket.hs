@@ -10,7 +10,7 @@ import Data.Serialize.Put (Put, runPut)
 import Network.Socket.ByteString (recv, sendAll)
 import System.Nix.StorePath (HasStoreDir, StorePath)
 import System.Nix.Store.Remote.MonadStore (MonadRemoteStore0, RemoteStoreError(..), getStoreDir, getStoreSocket)
-import System.Nix.Store.Remote.Serializer (NixSerializer, SError, runP, runSerialT)
+import System.Nix.Store.Remote.Serializer (NixSerializer, runP, runSerialT)
 import System.Nix.Store.Remote.Serialize.Prim (getInt, getByteString, getByteStrings, getPath, getPathsOrFail)
 import System.Nix.Store.Remote.Types (HasStoreSocket(..))
 
@@ -50,27 +50,28 @@ sockPut p = do
 
 sockPutS
   :: ( MonadReader r m
-     , MonadError RemoteStoreError m
+     , MonadError e m
      , MonadIO m
      , HasStoreSocket r
      )
-  => NixSerializer r SError a
+  => NixSerializer r e a
   -> a
   -> m ()
 sockPutS s a = do
   r <- ask
   case runP s r a of
     Right x -> liftIO $ sendAll (hasStoreSocket r) x
-    Left e -> throwError $ RemoteStoreError_SerializerPut e
+    Left e -> throwError e
 
 sockGetS
-  :: forall r m a
+  :: forall r e m a
    . ( HasStoreSocket r
      , MonadError RemoteStoreError m
+     , MonadError e m
      , MonadReader r m
      , MonadIO m
      )
-  => NixSerializer r SError a
+  => NixSerializer r e a
   -> m a
 sockGetS s = do
   r <- ask
@@ -79,7 +80,7 @@ sockGetS s = do
 
   case res of
     Right x -> pure x
-    Left e -> throwError $ RemoteStoreError_SerializerGet e
+    Left e -> throwError e
  where
   sockGet8' :: MonadError RemoteStoreError m => m ByteString
   sockGet8' = do

@@ -63,6 +63,9 @@ module System.Nix.Store.Remote.Serializer
   , loggerOpCode
   , logger
   , verbosity
+  -- * Handshake
+  , HandshakeSError(..)
+  , workerMagic
   ) where
 
 import Control.Monad.Except (MonadError, throwError, )
@@ -901,4 +904,21 @@ verbosity :: NixSerializer r LoggerSError Verbosity
 verbosity = Serializer
   { getS = mapPrimE $ getS enum
   , putS = mapPrimE . putS enum
+  }
+
+-- * Handshake
+
+data HandshakeSError
+  = HandshakeSError_InvalidWorkerMagic Word64
+  deriving (Eq, Ord, Generic, Show)
+
+workerMagic :: NixSerializer r HandshakeSError WorkerMagic
+workerMagic = Serializer
+  { getS = do
+      c <- getS int
+      either
+        (pure $ throwError (HandshakeSError_InvalidWorkerMagic c))
+        pure
+        $ word64ToWorkerMagic c
+  , putS = putS int . workerMagicToWord64
   }
