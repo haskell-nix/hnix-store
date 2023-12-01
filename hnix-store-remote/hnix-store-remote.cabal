@@ -107,7 +107,7 @@ library
     , containers
     , crypton
     , data-default-class
-    , dependent-sum > 0.7 && < 1
+    , dependent-sum > 0.7
     , dependent-sum-template > 0.1.1 && < 0.3
     , generic-arbitrary < 1.1
     , hashable
@@ -169,7 +169,7 @@ test-suite remote
     , hnix-store-tests
     , cereal
     , crypton
-    , dependent-sum > 0.7 && < 1
+    , dependent-sum > 0.7
     , some > 1.0.5 && < 2
     , text
     , time
