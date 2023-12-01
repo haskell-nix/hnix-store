@@ -5,7 +5,6 @@ module System.Nix.Store.Remote.Arbitrary where
 
 import Data.Some (Some(Some))
 import System.Nix.Arbitrary ()
-import System.Nix.Store.Remote.GADT
 import System.Nix.Store.Remote.Types
 
 import Test.QuickCheck (Arbitrary(..), oneof)

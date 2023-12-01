@@ -76,7 +76,6 @@ library
     , System.Nix.Store.Remote
     , System.Nix.Store.Remote.Arbitrary
     , System.Nix.Store.Remote.Client
-    , System.Nix.Store.Remote.GADT
     , System.Nix.Store.Remote.Logger
     , System.Nix.Store.Remote.MonadStore
     , System.Nix.Store.Remote.Serialize
@@ -90,6 +89,7 @@ library
     , System.Nix.Store.Remote.Types.Logger
     , System.Nix.Store.Remote.Types.ProtoVersion
     , System.Nix.Store.Remote.Types.StoreConfig
+    , System.Nix.Store.Remote.Types.StoreRequest
     , System.Nix.Store.Remote.Types.StoreText
     , System.Nix.Store.Remote.Types.SubstituteMode
     , System.Nix.Store.Remote.Types.Verbosity

@@ -1,8 +1,8 @@
-{-# language GADTs #-}
-{-# language Rank2Types #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module System.Nix.Store.Remote.GADT
+module System.Nix.Store.Remote.Types.StoreRequest
   ( StoreRequest(..)
   ) where
 
