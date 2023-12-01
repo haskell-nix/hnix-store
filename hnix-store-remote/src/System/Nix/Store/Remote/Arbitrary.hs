@@ -3,11 +3,20 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 module System.Nix.Store.Remote.Arbitrary where
 
+import Data.Some (Some(Some))
+import System.Nix.Arbitrary ()
+import System.Nix.Store.Remote.GADT
 import System.Nix.Store.Remote.Types
 
-import Test.QuickCheck (Arbitrary(..))
+import Test.QuickCheck (Arbitrary(..), oneof)
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
 import Test.QuickCheck.Instances ()
+
+deriving via GenericArbitrary CheckMode
+  instance Arbitrary CheckMode
+
+deriving via GenericArbitrary SubstituteMode
+  instance Arbitrary SubstituteMode
 
 deriving via GenericArbitrary ProtoVersion
   instance Arbitrary ProtoVersion
@@ -43,3 +52,30 @@ deriving via GenericArbitrary Logger
 
 deriving via GenericArbitrary Verbosity
   instance Arbitrary Verbosity
+
+instance Arbitrary (Some StoreRequest) where
+  arbitrary = oneof
+    [ Some <$> (AddToStore <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)
+    , Some <$> (AddTextToStore <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)
+    , Some <$> (AddSignatures <$> arbitrary <*> arbitrary)
+    , Some . AddIndirectRoot  <$> arbitrary
+    , Some . AddTempRoot <$> arbitrary
+    , Some <$> (BuildPaths <$> arbitrary <*> arbitrary)
+    , Some <$> (BuildDerivation <$> arbitrary <*> arbitrary <*> arbitrary)
+    , Some . EnsurePath <$> arbitrary
+    , pure $ Some FindRoots
+    , Some . IsValidPath <$> arbitrary
+    , Some <$> (QueryValidPaths <$> arbitrary <*> arbitrary)
+    , pure $ Some QueryAllValidPaths
+    , Some . QuerySubstitutablePaths <$> arbitrary
+    , Some . QueryPathInfo <$> arbitrary
+    , Some . QueryReferrers <$> arbitrary
+    , Some . QueryValidDerivers <$> arbitrary
+    , Some . QueryDerivationOutputs <$> arbitrary
+    , Some . QueryDerivationOutputNames <$> arbitrary
+    , Some . QueryPathFromHashPart <$> arbitrary
+    , Some . QueryMissing <$> arbitrary
+    , pure $ Some OptimiseStore
+    , pure $ Some SyncWithGC
+    , Some <$> (VerifyStore <$> arbitrary <*> arbitrary)
+    ]

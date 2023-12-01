@@ -1,24 +1,25 @@
 {-# language GADTs #-}
 {-# language Rank2Types #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module System.Nix.Store.Remote.GADT
   ( StoreRequest(..)
   ) where
 
-import Control.Monad.IO.Class (MonadIO)
 import Data.ByteString (ByteString)
+import Data.GADT.Compare.TH (deriveGEq, deriveGCompare)
+import Data.GADT.Show.TH (deriveGShow)
 import Data.HashSet (HashSet)
 import Data.Kind (Type)
 import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
-import Data.Some (Some)
+import Data.Some (Some(Some))
 
 import System.Nix.Build (BuildMode, BuildResult)
 import System.Nix.Derivation (Derivation)
 import System.Nix.DerivedPath (DerivedPath)
 import System.Nix.Hash (HashAlgo)
-import System.Nix.Nar (NarSource)
 import System.Nix.Store.Types (RepairMode)
 import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart)
 import System.Nix.StorePath.Metadata (Metadata)
@@ -30,8 +31,16 @@ data StoreRequest :: Type -> Type where
   AddToStore
     :: StorePathName -- ^ Name part of the newly created @StorePath@
     -> Bool -- ^ Add target directory recursively
-    -> Some HashAlgo
-    -> (forall m . MonadIO m => NarSource m) -- ^ provide nar stream
+    -> Some HashAlgo -- ^ Nar hashing algorithm
+--  -> (forall m . MonadIO m => NarSource m) -- ^ provide nar stream
+-- Not part of StoreRequest
+-- as it would require StoreRequest (m :: Type -> Type) :: Type -> Type
+-- for which we cannot derive anything
+--
+-- Also the thing is the only special case
+-- and it is always sent *after* the other
+-- information so it can be handled
+-- separately after that. Hopefully.
     -> RepairMode -- ^ Only used by local store backend
     -> StoreRequest StorePath
 
@@ -148,3 +157,37 @@ data StoreRequest :: Type -> Type where
     :: CheckMode
     -> RepairMode
     -> StoreRequest Bool
+
+deriving instance Eq (StoreRequest a)
+deriving instance Show (StoreRequest a)
+
+deriveGEq ''StoreRequest
+deriveGCompare ''StoreRequest
+deriveGShow ''StoreRequest
+
+instance {-# OVERLAPPING #-} Eq (Some StoreRequest) where
+  Some (AddToStore a b c d) == Some (AddToStore a' b' c' d') = (a, b, c, d) == (a', b', c', d')
+  Some (AddTextToStore a b c d) == Some (AddTextToStore a' b' c' d') = (a, b, c, d) == (a', b', c', d')
+  Some (AddSignatures a b) == Some (AddSignatures a' b') = (a, b) == (a', b')
+  Some (AddIndirectRoot a) == Some (AddIndirectRoot a') = a == a'
+  Some (AddTempRoot a) == Some (AddTempRoot a') = a == a'
+  Some (BuildPaths a b) == Some (BuildPaths a' b') = (a, b) == (a', b')
+  Some (BuildDerivation a b c) == Some (BuildDerivation a' b' c') = (a, b, c) == (a', b', c')
+  Some (EnsurePath a) == Some (EnsurePath a') = a == a'
+  Some (FindRoots) == Some (FindRoots) = True
+  Some (IsValidPath a) == Some (IsValidPath a') = a == a'
+  Some (QueryValidPaths a b) == Some (QueryValidPaths a' b') = (a, b) == (a', b')
+  Some QueryAllValidPaths == Some QueryAllValidPaths = True
+  Some (QuerySubstitutablePaths a) == Some (QuerySubstitutablePaths a') = a == a'
+  Some (QueryPathInfo a) == Some (QueryPathInfo a') = a == a'
+  Some (QueryReferrers a) == Some (QueryReferrers a') = a == a'
+  Some (QueryValidDerivers a) == Some (QueryValidDerivers a') = a == a'
+  Some (QueryDerivationOutputs a) == Some (QueryDerivationOutputs a') = a == a'
+  Some (QueryDerivationOutputNames a) == Some (QueryDerivationOutputNames a') = a == a'
+  Some (QueryPathFromHashPart a) == Some (QueryPathFromHashPart a') = a == a'
+  Some (QueryMissing a) == Some (QueryMissing a') = a == a'
+  Some OptimiseStore == Some OptimiseStore = True
+  Some SyncWithGC == Some SyncWithGC = True
+  Some (VerifyStore a b) == Some (VerifyStore a' b') = (a, b) == (a', b')
+
+  _ == _ = False

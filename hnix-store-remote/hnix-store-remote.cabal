@@ -99,6 +99,7 @@ library
       base >=4.12 && <5
     , hnix-store-core >= 0.8 && <0.9
     , hnix-store-nar >= 0.1
+    , hnix-store-tests >= 0.1
     , attoparsec
     , bytestring
     , cereal
@@ -106,6 +107,7 @@ library
     , crypton
     , data-default-class
     , dependent-sum > 0.7 && < 1
+    , dependent-sum-template > 0.1.1 && < 0.3
     , generic-arbitrary < 1.1
     , hashable
     , text
