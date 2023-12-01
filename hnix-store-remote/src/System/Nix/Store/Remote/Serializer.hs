@@ -33,6 +33,7 @@ module System.Nix.Store.Remote.Serializer
   , protoVersion
   -- * StorePath
   , storePath
+  , maybePath
   , storePathHashPart
   , storePathName
   -- * Metadata
@@ -409,6 +410,27 @@ storePath = Serializer
         $ System.Nix.StorePath.storePathToRawFilePath sd p
   }
 
+maybePath
+  :: HasStoreDir r
+  => NixSerializer r SError (Maybe StorePath)
+maybePath = Serializer
+  { getS = do
+      getS maybeText >>= \case
+        Nothing -> pure Nothing
+        Just t -> do
+          sd <- Control.Monad.Reader.asks hasStoreDir
+          either
+            (throwError . SError_Path)
+            (pure . pure)
+            $ System.Nix.StorePath.parsePathFromText sd t
+
+  , putS = \case
+      Nothing -> putS maybeText Nothing
+      Just p -> do
+        sd <- Control.Monad.Reader.asks hasStoreDir
+        putS text $ System.Nix.StorePath.storePathToText sd p
+  }
+
 storePathHashPart :: NixSerializer r SError StorePathHashPart
 storePathHashPart =
   mapIsoSerializer
@@ -484,27 +506,6 @@ pathMetadata = Serializer
         )
         (fmap System.Nix.ContentAddress.buildContentAddress)
         maybeText
-
-    maybePath
-      :: HasStoreDir r
-      => NixSerializer r SError (Maybe StorePath)
-    maybePath = Serializer
-      { getS = do
-          getS maybeText >>= \case
-            Nothing -> pure Nothing
-            Just t -> do
-              sd <- Control.Monad.Reader.asks hasStoreDir
-              either
-                (throwError . SError_Path)
-                (pure . pure)
-                $ System.Nix.StorePath.parsePathFromText sd t
-
-      , putS = \case
-          Nothing -> putS maybeText Nothing
-          Just p -> do
-            sd <- Control.Monad.Reader.asks hasStoreDir
-            putS text $ System.Nix.StorePath.storePathToText sd p
-      }
 
     storePathTrust
       :: NixSerializer r SError StorePathTrust
