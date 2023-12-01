@@ -3,13 +3,19 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 module System.Nix.Arbitrary.DerivedPath where
 
-import Test.QuickCheck (Arbitrary)
+import qualified Data.Set
+import Test.QuickCheck (Arbitrary(..), oneof)
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
 import System.Nix.Arbitrary.StorePath ()
-import System.Nix.DerivedPath (DerivedPath, OutputsSpec)
+import System.Nix.DerivedPath (DerivedPath, OutputsSpec(..))
 
-deriving via GenericArbitrary OutputsSpec
-  instance Arbitrary OutputsSpec
+instance Arbitrary OutputsSpec where
+  arbitrary = oneof
+    [ pure OutputsSpec_All
+    ,   OutputsSpec_Names
+      . Data.Set.fromList
+      <$> ((:) <$> arbitrary <*> arbitrary)
+    ]
 
 deriving via GenericArbitrary DerivedPath
   instance Arbitrary DerivedPath

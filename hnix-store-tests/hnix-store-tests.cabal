@@ -51,6 +51,7 @@ library
       base >=4.12 && <5
     , hnix-store-core >= 0.8
     , bytestring
+    , containers
     , crypton
     , dependent-sum > 0.7
     , generic-arbitrary < 1.1
@@ -80,7 +81,5 @@ test-suite props
     , hnix-store-core
     , hnix-store-tests
     , attoparsec
-    , containers
-    , QuickCheck
     , text
     , hspec
