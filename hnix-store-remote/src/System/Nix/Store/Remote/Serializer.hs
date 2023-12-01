@@ -9,6 +9,8 @@ module System.Nix.Store.Remote.Serializer
   (
   -- * NixSerializer
     NixSerializer
+  , mapReaderS
+  , mapErrorS
   -- * Errors
   , SError(..)
   -- ** Runners
@@ -63,11 +65,11 @@ module System.Nix.Store.Remote.Serializer
   , verbosity
   ) where
 
-import Control.Monad.Except (MonadError, throwError, withExceptT)
+import Control.Monad.Except (MonadError, throwError, )
 import Control.Monad.Reader (MonadReader)
 import Control.Monad.Trans (MonadTrans, lift)
-import Control.Monad.Trans.Reader (ReaderT, runReaderT)
-import Control.Monad.Trans.Except (ExceptT, runExceptT)
+import Control.Monad.Trans.Reader (ReaderT, runReaderT, withReaderT)
+import Control.Monad.Trans.Except (ExceptT, mapExceptT, runExceptT, withExceptT)
 import Crypto.Hash (Digest, HashAlgorithm, SHA256)
 import Data.ByteString (ByteString)
 import Data.Dependent.Sum (DSum((:=>)))
@@ -146,15 +148,43 @@ runSerialT r =
   . runExceptT
   . _unSerialT
 
-mapError
+mapErrorST
   :: Functor m
   => (e -> e')
   -> SerialT r e m a
   -> SerialT r e' m a
-mapError f =
+mapErrorST f =
+    SerialT
+    . withExceptT f
+    . _unSerialT
+
+mapErrorS
+  :: (e -> e')
+  -> NixSerializer r e a
+  -> NixSerializer r e' a
+mapErrorS f s = Serializer
+  { getS = mapErrorST f $ getS s
+  , putS = mapErrorST f . putS s
+  }
+
+mapReaderST
+  :: Functor m
+  => (r' -> r)
+  -> SerialT r e m a
+  -> SerialT r' e m a
+mapReaderST f =
   SerialT
-  . withExceptT f
+  . (mapExceptT . withReaderT) f
   . _unSerialT
+
+mapReaderS
+  :: (r' -> r)
+  -> NixSerializer r e a
+  -> NixSerializer r' e a
+mapReaderS f s = Serializer
+  { getS = mapReaderST f $ getS s
+  , putS = mapReaderST f . putS s
+  }
 
 -- * NixSerializer
 
@@ -677,7 +707,7 @@ mapPrimE
   :: Functor m
   => SerialT r SError m a
   -> SerialT r LoggerSError m a
-mapPrimE = mapError LoggerSError_Prim
+mapPrimE = mapErrorST LoggerSError_Prim
 
 maybeActivity :: NixSerializer r LoggerSError (Maybe Activity)
 maybeActivity = Serializer
@@ -822,8 +852,7 @@ logger = Serializer
     , putS = \case
         Logger_Next s -> do
           putS loggerOpCode LoggerOpCode_Next
-          mapError LoggerSError_Prim $
-            putS text s
+          mapPrimE $ putS text s
 
         Logger_Read i -> do
           putS loggerOpCode LoggerOpCode_Read
