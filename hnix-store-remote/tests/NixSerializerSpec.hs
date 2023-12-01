@@ -6,7 +6,8 @@ import Crypto.Hash (MD5, SHA1, SHA256, SHA512)
 import Data.Dependent.Sum (DSum((:=>)))
 import Data.Fixed (Uni)
 import Data.Time (NominalDiffTime)
-import Test.Hspec (Expectation, Spec, describe, parallel, shouldBe)
+import Data.Word (Word64)
+import Test.Hspec (Expectation, Spec, describe, it, parallel, shouldBe)
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck (Gen, arbitrary, forAll, suchThat)
 import Test.QuickCheck.Instances ()
@@ -23,7 +24,7 @@ import System.Nix.StorePath (StoreDir)
 import System.Nix.StorePath.Metadata (Metadata(..))
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
-import System.Nix.Store.Remote.Types (ErrorInfo(..), Logger(..), ProtoVersion(..), Trace(..))
+import System.Nix.Store.Remote.Types (ErrorInfo(..), Logger(..), ProtoVersion(..), Trace(..), WorkerOp(..))
 
 -- | Test for roundtrip using @NixSerializer@
 roundtripSReader
@@ -154,11 +155,25 @@ spec = parallel $ do
         $ \pv ->
             forAll (arbitrary `suchThat` errorInfoIf (protoVersion_minor pv >= 26))
         $ roundtripSReader logger pv
-        where
-          errorInfoIf True (Logger_Error (Right x)) = noJust0s x
-          errorInfoIf False (Logger_Error (Left _)) = True
-          errorInfoIf _ (Logger_Error _) = False
-          errorInfoIf _ _ = True
-          noJust0s ErrorInfo{..} =
-            errorInfoPosition /= Just 0
-            && all ((/= Just 0) . tracePosition) errorInfoTraces
+
+  describe "Enums" $ do
+    let it' name constr value =
+          it name
+            $ (runP enum () constr)
+            `shouldBe`
+            (runP (int @Word64) () value)
+
+    describe "WorkerOp enum order matches Nix" $ do
+      it' "IsValidPath"           WorkerOp_IsValidPath            1
+      it' "BuildPathsWithResults" WorkerOp_BuildPathsWithResults 46
+
+errorInfoIf :: Bool -> Logger -> Bool
+errorInfoIf True (Logger_Error (Right x)) = noJust0s x
+  where
+    noJust0s :: ErrorInfo -> Bool
+    noJust0s ErrorInfo{..} =
+      errorInfoPosition /= Just 0
+      && all ((/= Just 0) . tracePosition) errorInfoTraces
+errorInfoIf False (Logger_Error (Left _)) = True
+errorInfoIf _ (Logger_Error _) = False
+errorInfoIf _ _ = True

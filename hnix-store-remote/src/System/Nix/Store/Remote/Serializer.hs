@@ -66,6 +66,8 @@ module System.Nix.Store.Remote.Serializer
   -- * Handshake
   , HandshakeSError(..)
   , workerMagic
+  -- * Worker protocol
+  , workerOp
   ) where
 
 import Control.Monad.Except (MonadError, throwError, )
@@ -922,3 +924,9 @@ workerMagic = Serializer
         $ word64ToWorkerMagic c
   , putS = putS int . workerMagicToWord64
   }
+
+-- * Worker protocol
+
+workerOp :: NixSerializer r SError WorkerOp
+workerOp = enum
+
