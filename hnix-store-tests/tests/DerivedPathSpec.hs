@@ -1,6 +1,5 @@
 module DerivedPathSpec where
 
-import Data.Default.Class (Default(def))
 import Test.Hspec (Spec, describe, shouldBe)
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck (Arbitrary(arbitrary), forAll, suchThat)
@@ -14,10 +13,10 @@ import qualified System.Nix.DerivedPath
 spec :: Spec
 spec = do
   describe "DerivedPath" $ do
-    prop "roundtrips" $
+    prop "roundtrips" $ \sd ->
       forAll (arbitrary `suchThat` nonEmptyOutputsSpec_Names) $ \p ->
-        System.Nix.DerivedPath.parseDerivedPath def
-          (System.Nix.DerivedPath.derivedPathToText def p)
+        System.Nix.DerivedPath.parseDerivedPath sd
+          (System.Nix.DerivedPath.derivedPathToText sd p)
         `shouldBe` pure p
   where
     nonEmptyOutputsSpec_Names :: DerivedPath -> Bool

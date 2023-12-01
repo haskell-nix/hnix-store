@@ -81,7 +81,6 @@ test-suite props
     , hnix-store-tests
     , attoparsec
     , containers
-    , data-default-class
     , QuickCheck
     , text
     , hspec
