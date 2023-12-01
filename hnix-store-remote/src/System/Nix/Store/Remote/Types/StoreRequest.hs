@@ -20,7 +20,7 @@ import System.Nix.Build (BuildMode, BuildResult)
 import System.Nix.Derivation (Derivation)
 import System.Nix.DerivedPath (DerivedPath)
 import System.Nix.Hash (HashAlgo)
-import System.Nix.Store.Types (RepairMode)
+import System.Nix.Store.Types (FileIngestionMethod, RepairMode)
 import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart)
 import System.Nix.StorePath.Metadata (Metadata)
 import System.Nix.Store.Remote.Types.CheckMode (CheckMode)
@@ -31,7 +31,7 @@ data StoreRequest :: Type -> Type where
   -- | Add @NarSource@ to the store.
   AddToStore
     :: StorePathName -- ^ Name part of the newly created @StorePath@
-    -> Bool -- ^ Add target directory recursively
+    -> FileIngestionMethod -- ^ Add target directory recursively
     -> Some HashAlgo -- ^ Nar hashing algorithm
 --  -> (forall m . MonadIO m => NarSource m) -- ^ provide nar stream
 -- Not part of StoreRequest
