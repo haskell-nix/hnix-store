@@ -200,8 +200,8 @@ instance Serialize ErrorInfo where
     putMany put errorInfoTraces
 
 instance Serialize LoggerOpCode where
-  get = getInt @Int >>= either fail pure . intToLoggerOpCode
-  put = putInt @Int . loggerOpCodeToInt
+  get = getInt >>= either fail pure . word64ToLoggerOpCode
+  put = putInt . loggerOpCodeToWord64
 
 instance Serialize Verbosity where
   get = getEnum

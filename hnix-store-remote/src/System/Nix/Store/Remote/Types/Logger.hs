@@ -5,13 +5,14 @@ module System.Nix.Store.Remote.Types.Logger
   , ErrorInfo(..)
   , Logger(..)
   , LoggerOpCode(..)
-  , loggerOpCodeToInt
-  , intToLoggerOpCode
+  , loggerOpCodeToWord64
+  , word64ToLoggerOpCode
   , isError
   ) where
 
 import Data.ByteString (ByteString)
 import Data.Text (Text)
+import Data.Word (Word64)
 import GHC.Generics
 import System.Nix.Store.Remote.Types.Activity (Activity, ActivityID, ActivityResult)
 import System.Nix.Store.Remote.Types.Verbosity (Verbosity)
@@ -55,8 +56,8 @@ data LoggerOpCode
   | LoggerOpCode_Result
   deriving (Eq, Generic, Ord, Show)
 
-loggerOpCodeToInt :: LoggerOpCode -> Int
-loggerOpCodeToInt = \case
+loggerOpCodeToWord64 :: LoggerOpCode -> Word64
+loggerOpCodeToWord64 = \case
   LoggerOpCode_Next -> 0x6f6c6d67
   LoggerOpCode_Read -> 0x64617461
   LoggerOpCode_Write -> 0x64617416
@@ -66,8 +67,8 @@ loggerOpCodeToInt = \case
   LoggerOpCode_StopActivity -> 0x53544f50
   LoggerOpCode_Result -> 0x52534c54
 
-intToLoggerOpCode :: Int -> Either String LoggerOpCode
-intToLoggerOpCode = \case
+word64ToLoggerOpCode :: Word64 -> Either String LoggerOpCode
+word64ToLoggerOpCode = \case
   0x6f6c6d67 -> Right LoggerOpCode_Next
   0x64617461 -> Right LoggerOpCode_Read
   0x64617416 -> Right LoggerOpCode_Write

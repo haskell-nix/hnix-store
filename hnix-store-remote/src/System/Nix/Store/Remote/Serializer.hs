@@ -697,7 +697,7 @@ buildResult = Serializer
 
 data LoggerSError
   = LoggerSError_Prim SError
-  | LoggerSError_InvalidOpCode Int
+  | LoggerSError_InvalidOpCode Word64
   | LoggerSError_TooOldForErrorInfo
   | LoggerSError_TooNewForBasicError
   | LoggerSError_UnknownLogFieldType Word8
@@ -800,8 +800,8 @@ loggerOpCode = Serializer
       either
         (pure $ throwError (LoggerSError_InvalidOpCode c))
         pure
-        $ intToLoggerOpCode c
-  , putS = putS int . loggerOpCodeToInt
+        $ word64ToLoggerOpCode c
+  , putS = putS int . loggerOpCodeToWord64
   }
 
 logger
