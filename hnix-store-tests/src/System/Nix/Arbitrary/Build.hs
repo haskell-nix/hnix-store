@@ -3,11 +3,12 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 module System.Nix.Arbitrary.Build where
 
-import System.Nix.Build
-
+import Data.Text.Arbitrary ()
 import Test.QuickCheck (Arbitrary(..))
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
-import Test.QuickCheck.Instances ()
+import System.Nix.Arbitrary.UTCTime ()
+
+import System.Nix.Build
 
 deriving via GenericArbitrary BuildMode
   instance Arbitrary BuildMode

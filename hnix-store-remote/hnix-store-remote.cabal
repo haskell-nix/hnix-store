@@ -117,7 +117,6 @@ library
     , network
     , mtl
     , QuickCheck
-    , quickcheck-instances
     , unordered-containers
     , vector
   hs-source-dirs:      src
@@ -175,7 +174,6 @@ test-suite remote
     , time
     , hspec
     , QuickCheck
-    , quickcheck-instances
     , unordered-containers
 
 test-suite remote-io

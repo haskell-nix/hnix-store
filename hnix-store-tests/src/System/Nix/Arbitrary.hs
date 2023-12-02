@@ -1,5 +1,10 @@
 module System.Nix.Arbitrary where
 
+import Data.ByteString.Arbitrary ()
+import Data.HashSet.Arbitrary ()
+import Data.Text.Arbitrary ()
+import Data.Vector.Arbitrary ()
+
 import System.Nix.Arbitrary.Base ()
 import System.Nix.Arbitrary.Build ()
 import System.Nix.Arbitrary.ContentAddress ()

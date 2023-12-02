@@ -4,13 +4,13 @@
 module System.Nix.Arbitrary.Hash where
 
 import Data.ByteString (ByteString)
+import Data.ByteString.Arbitrary ()
 import Crypto.Hash (Digest, MD5(..), SHA1(..), SHA256(..), SHA512(..))
 import Data.Dependent.Sum (DSum((:=>)))
 import Data.Some (Some(Some))
 import System.Nix.Hash (HashAlgo(..))
 
 import Test.QuickCheck (Arbitrary(arbitrary), oneof)
-import Test.QuickCheck.Instances ()
 
 import qualified Crypto.Hash
 

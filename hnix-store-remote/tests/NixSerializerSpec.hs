@@ -4,21 +4,16 @@ module NixSerializerSpec (spec) where
 
 import Crypto.Hash (MD5, SHA1, SHA256, SHA512)
 import Data.Dependent.Sum (DSum((:=>)))
-import Data.Fixed (Uni)
-import Data.Time (NominalDiffTime)
+import Data.Time (UTCTime)
 import Data.Word (Word64)
 import Test.Hspec (Expectation, Spec, describe, it, parallel, shouldBe)
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck (Gen, arbitrary, forAll, suchThat)
-import Test.QuickCheck.Instances ()
 
-import qualified Data.Time.Clock.POSIX
-import qualified Data.Serializer
 import qualified System.Nix.Build
 import qualified System.Nix.Hash
 
 import System.Nix.Arbitrary ()
-import System.Nix.Build (BuildResult)
 import System.Nix.Derivation (Derivation(inputDrvs))
 import System.Nix.StorePath (StoreDir)
 import System.Nix.StorePath.Metadata (Metadata(..))
@@ -71,19 +66,7 @@ spec = parallel $ do
     prop "Maybe Text"
       $ forAll (arbitrary `suchThat` (/= Just ""))
       $ roundtripS maybeText
-    prop "UTCTime" $ do
-      let
-        -- scale to seconds and back
-        toSeconds :: Int -> NominalDiffTime
-        toSeconds n = realToFrac (toEnum n :: Uni)
-        fromSeconds :: NominalDiffTime -> Int
-        fromSeconds = (fromEnum :: Uni -> Int) . realToFrac
-
-      roundtripS @Int @() $
-        Data.Serializer.mapIsoSerializer
-          (fromSeconds . Data.Time.Clock.POSIX.utcTimeToPOSIXSeconds)
-          (Data.Time.Clock.POSIX.posixSecondsToUTCTime . toSeconds)
-          time
+    prop "UTCTime" $ roundtripS @UTCTime @() time
 
   describe "Combinators" $ do
     prop "list" $ roundtripS @[Int] @() (list int)
@@ -94,12 +77,7 @@ spec = parallel $ do
   describe "Complex" $ do
     prop "BuildResult"
       $ forAll (arbitrary `suchThat` ((/= Just "") . System.Nix.Build.errorMessage))
-      $ \br ->
-          roundtripS @BuildResult buildResult
-            -- fix time to 0 as we test UTCTime above
-            $ br { System.Nix.Build.startTime = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
-                 , System.Nix.Build.stopTime  = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
-                 }
+      $ roundtripS buildResult
 
     prop "StorePath" $
       roundtripSReader @StoreDir storePath
@@ -118,9 +96,6 @@ spec = parallel $ do
     prop "Metadata (StorePath)"
       $ \sd -> forAll (arbitrary `suchThat` (\m -> narHashIsSHA256 m && narBytes m /= Just 0))
       $ roundtripSReader @StoreDir pathMetadata sd
-        . (\m -> m
-            { registrationTime = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
-            })
 
     prop "Some HashAlgo" $
       roundtripS someHashAlgo

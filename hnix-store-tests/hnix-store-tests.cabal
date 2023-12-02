@@ -35,7 +35,11 @@ common commons
 library
   import: commons
   exposed-modules:
-      System.Nix.Arbitrary
+      Data.ByteString.Arbitrary
+    , Data.HashSet.Arbitrary
+    , Data.Text.Arbitrary
+    , Data.Vector.Arbitrary
+    , System.Nix.Arbitrary
     , System.Nix.Arbitrary.Base
     , System.Nix.Arbitrary.Build
     , System.Nix.Arbitrary.ContentAddress
@@ -46,6 +50,7 @@ library
     , System.Nix.Arbitrary.Store.Types
     , System.Nix.Arbitrary.StorePath
     , System.Nix.Arbitrary.StorePath.Metadata
+    , System.Nix.Arbitrary.UTCTime
     , Test.Hspec.Nix
   build-depends:
       base >=4.12 && <5
@@ -55,10 +60,13 @@ library
     , crypton
     , dependent-sum > 0.7
     , generic-arbitrary < 1.1
+    , hashable
     , hspec
     , QuickCheck
-    , quickcheck-instances
     , text
+    , time
+    , unordered-containers
+    , vector
   hs-source-dirs:      src
 
 test-suite props

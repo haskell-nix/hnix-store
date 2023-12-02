@@ -9,7 +9,6 @@ import System.Nix.Store.Remote.Types
 
 import Test.QuickCheck (Arbitrary(..), oneof)
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
-import Test.QuickCheck.Instances ()
 
 deriving via GenericArbitrary CheckMode
   instance Arbitrary CheckMode

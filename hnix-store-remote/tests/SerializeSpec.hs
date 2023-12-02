@@ -2,25 +2,21 @@
 
 module SerializeSpec (spec) where
 
-import Data.Fixed (Uni)
 import Data.Serialize (Serialize(..))
 import Data.Serialize.Get (Get, runGet)
 import Data.Serialize.Put (Putter, runPut)
 import Data.Text (Text)
-import Data.Time (NominalDiffTime)
 import Test.Hspec (Expectation, Spec, describe, it, parallel, shouldBe)
 import Test.Hspec.QuickCheck (prop)
 import Test.Hspec.Nix (roundtrips)
 import Test.QuickCheck (arbitrary, forAll, suchThat)
-import Test.QuickCheck.Instances ()
 
 import qualified Data.Either
 import qualified Data.HashSet
-import qualified Data.Time.Clock.POSIX
 import qualified System.Nix.Build
 
 import System.Nix.Arbitrary ()
-import System.Nix.Build (BuildMode(..), BuildStatus(..))
+import System.Nix.Build (BuildMode(..), BuildResult, BuildStatus(..))
 import System.Nix.Derivation (Derivation(inputDrvs))
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serialize (getDerivation, putDerivation)
@@ -61,18 +57,6 @@ spec = parallel $ do
     prop "Bool" $ roundtrips2 putBool getBool
     prop "ByteString" $ roundtrips2 putByteString getByteString
 
-    prop "UTCTime" $ do
-      let
-        -- scale to seconds and back
-        toSeconds :: Int -> NominalDiffTime
-        toSeconds n = realToFrac (toEnum n :: Uni)
-        fromSeconds :: NominalDiffTime -> Int
-        fromSeconds = (fromEnum :: Uni -> Int) . realToFrac
-
-      roundtrips2
-        (putTime . Data.Time.Clock.POSIX.posixSecondsToUTCTime . toSeconds)
-        (fromSeconds . Data.Time.Clock.POSIX.utcTimeToPOSIXSeconds <$> getTime)
-
   describe "Combinators" $ do
     prop "Many" $ roundtrips2 (putMany putInt) (getMany (getInt @Int))
     prop "[ByteString]" $ roundtrips2 putByteStrings getByteStrings
@@ -95,12 +79,7 @@ spec = parallel $ do
     prop "BuildStatus" $ roundtripS @BuildStatus
     it "BuildResult" $
       forAll (arbitrary `suchThat` ((/= Just "") . System.Nix.Build.errorMessage))
-      $ \br ->
-          roundtripS
-            -- fix time to 0 as we test UTCTime above
-            $ br { System.Nix.Build.startTime = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
-                 , System.Nix.Build.stopTime  = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
-                 }
+      $ roundtripS @BuildResult
 
     prop "ProtoVersion" $ roundtripS @ProtoVersion
 
