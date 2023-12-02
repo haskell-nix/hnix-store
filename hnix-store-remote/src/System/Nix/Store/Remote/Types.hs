@@ -8,6 +8,7 @@ module System.Nix.Store.Remote.Types
   , module System.Nix.Store.Remote.Types.StoreRequest
   , module System.Nix.Store.Remote.Types.StoreText
   , module System.Nix.Store.Remote.Types.SubstituteMode
+  , module System.Nix.Store.Remote.Types.TrustedFlag
   , module System.Nix.Store.Remote.Types.Verbosity
   , module System.Nix.Store.Remote.Types.WorkerMagic
   , module System.Nix.Store.Remote.Types.WorkerOp
@@ -22,6 +23,7 @@ import System.Nix.Store.Remote.Types.StoreConfig
 import System.Nix.Store.Remote.Types.StoreRequest
 import System.Nix.Store.Remote.Types.StoreText
 import System.Nix.Store.Remote.Types.SubstituteMode
+import System.Nix.Store.Remote.Types.TrustedFlag
 import System.Nix.Store.Remote.Types.Verbosity
 import System.Nix.Store.Remote.Types.WorkerMagic
 import System.Nix.Store.Remote.Types.WorkerOp

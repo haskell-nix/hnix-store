@@ -2,6 +2,8 @@ module System.Nix.Store.Remote.Types.WorkerOp
   ( WorkerOp(..)
   ) where
 
+import GHC.Generics (Generic)
+
 -- | Worker opcode
 --
 -- This type has gaps filled in so that the GHC builtin
@@ -54,4 +56,4 @@ data WorkerOp
   | WorkerOp_AddMultipleToStore --  44 0x2c
   | WorkerOp_AddBuildLog --  45 0x2d
   | WorkerOp_BuildPathsWithResults --  46 0x2e
-  deriving (Bounded, Eq, Enum, Ord, Show, Read)
+  deriving (Bounded, Eq, Enum, Generic, Ord, Show, Read)

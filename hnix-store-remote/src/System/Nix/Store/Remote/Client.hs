@@ -23,7 +23,7 @@ import qualified Network.Socket.ByteString
 import System.Nix.Store.Remote.Logger (processOutput)
 import System.Nix.Store.Remote.MonadStore
 import System.Nix.Store.Remote.Socket (sockPutS, sockGetS)
-import System.Nix.Store.Remote.Serializer (bool, enum, int, mapErrorS, protoVersion, text, workerMagic)
+import System.Nix.Store.Remote.Serializer (bool, enum, int, mapErrorS, protoVersion, text, trustedFlag, workerMagic)
 import System.Nix.Store.Remote.Types.Logger (Logger)
 import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..), ourProtoVersion)
 import System.Nix.Store.Remote.Types.StoreConfig (PreStoreConfig(..), StoreConfig(..))
@@ -132,6 +132,13 @@ runStoreSocket preStoreConfig code =
               RemoteStoreError_SerializerGet
               text
         return ()
+
+      _remoteTrustsUs <- if ourProtoVersion >= ProtoVersion 1 35
+        then do
+          sockGetS
+            $ mapErrorS RemoteStoreError_SerializerHandshake trustedFlag
+        else do
+          return Nothing
 
       -- TODO do something with it
       -- TODO patter match better

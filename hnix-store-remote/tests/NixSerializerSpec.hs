@@ -132,7 +132,13 @@ spec = parallel $ do
       it' "IsValidPath"           WorkerOp_IsValidPath            1
       it' "BuildPathsWithResults" WorkerOp_BuildPathsWithResults 46
 
+
+  describe "Handshake" $ do
+    prop "WorkerMagic" $ roundtripS workerMagic
+    prop "TrustedFlag" $ roundtripS trustedFlag
+
   describe "Worker protocol" $ do
+    prop "WorkerOp" $ roundtripS workerOp
     prop "StoreText" $ roundtripS storeText
 
     prop "StoreRequest"

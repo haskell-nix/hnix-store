@@ -69,6 +69,19 @@ deriving via GenericArbitrary Logger
 deriving via GenericArbitrary Verbosity
   instance Arbitrary Verbosity
 
+-- * Handshake
+
+deriving via GenericArbitrary WorkerMagic
+  instance Arbitrary WorkerMagic
+
+deriving via GenericArbitrary TrustedFlag
+  instance Arbitrary TrustedFlag
+
+-- * Worker protocol
+
+deriving via GenericArbitrary WorkerOp
+  instance Arbitrary WorkerOp
+
 instance Arbitrary (Some StoreRequest) where
   arbitrary = oneof
     [ Some <$> (AddToStore <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)

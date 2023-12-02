@@ -66,6 +66,7 @@ module System.Nix.Store.Remote.Serializer
   -- * Handshake
   , HandshakeSError(..)
   , workerMagic
+  , trustedFlag
   -- * Worker protocol
   , storeText
   , workerOp
@@ -914,6 +915,7 @@ verbosity = Serializer
 
 data HandshakeSError
   = HandshakeSError_InvalidWorkerMagic Word64
+  | HandshakeSError_InvalidTrustedFlag Word8
   deriving (Eq, Ord, Generic, Show)
 
 workerMagic :: NixSerializer r HandshakeSError WorkerMagic
@@ -925,6 +927,21 @@ workerMagic = Serializer
         pure
         $ word64ToWorkerMagic c
   , putS = putS int . workerMagicToWord64
+  }
+
+trustedFlag :: NixSerializer r HandshakeSError (Maybe TrustedFlag)
+trustedFlag = Serializer
+  { getS = do
+      n :: Word8 <- getS int
+      case n of
+        0 -> return $ Nothing
+        1 -> return $ Just TrustedFlag_Trusted
+        2 -> return $ Just TrustedFlag_NotTrusted
+        _ -> throwError (HandshakeSError_InvalidTrustedFlag n)
+  , putS = \n -> putS int $ case n of
+      Nothing -> 0 :: Word8
+      Just TrustedFlag_Trusted -> 1
+      Just TrustedFlag_NotTrusted -> 2
   }
 
 -- * Worker protocol
