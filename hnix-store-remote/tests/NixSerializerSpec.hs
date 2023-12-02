@@ -62,9 +62,7 @@ spec = parallel $ do
     prop "Bool" $ roundtripS bool
     prop "ByteString" $ roundtripS byteString
     prop "Text" $ roundtripS text
-    prop "Maybe Text"
-      $ forAll (arbitrary `suchThat` (/= Just ""))
-      $ roundtripS maybeText
+    prop "Maybe Text" $ roundtripS maybeText
     prop "UTCTime" $ roundtripS @UTCTime @() time
 
   describe "Combinators" $ do
