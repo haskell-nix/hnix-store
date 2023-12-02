@@ -4,6 +4,7 @@ module System.Nix.Store.Remote.Types.StoreConfig
   , StoreConfig(..)
   , TestStoreConfig(..)
   , HasStoreSocket(..)
+  , preStoreConfigToStoreConfig
   ) where
 
 import GHC.Generics (Generic)
@@ -56,3 +57,16 @@ instance HasProtoVersion TestStoreConfig where
 
 instance HasStoreDir TestStoreConfig where
   hasStoreDir = testStoreConfig_dir
+
+-- | Convert @PreStoreConfig@ to @StoreConfig@
+-- adding @ProtoVersion@ to latter
+preStoreConfigToStoreConfig
+  :: ProtoVersion
+  -> PreStoreConfig
+  -> StoreConfig
+preStoreConfigToStoreConfig pv PreStoreConfig{..} =
+  StoreConfig
+    { storeConfig_dir = preStoreConfig_dir
+    , storeConfig_protoVersion = pv
+    , storeConfig_socket = preStoreConfig_socket
+    }

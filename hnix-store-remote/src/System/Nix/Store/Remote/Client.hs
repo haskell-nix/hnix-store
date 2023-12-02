@@ -26,7 +26,7 @@ import System.Nix.Store.Remote.Socket (sockPutS, sockGetS)
 import System.Nix.Store.Remote.Serializer (bool, enum, int, mapErrorS, protoVersion, text, trustedFlag, workerMagic)
 import System.Nix.Store.Remote.Types.Logger (Logger)
 import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..), ourProtoVersion)
-import System.Nix.Store.Remote.Types.StoreConfig (PreStoreConfig(..), StoreConfig(..))
+import System.Nix.Store.Remote.Types.StoreConfig (PreStoreConfig, preStoreConfigToStoreConfig)
 import System.Nix.Store.Remote.Types.WorkerMagic (WorkerMagic(..))
 import System.Nix.Store.Remote.Types.WorkerOp (WorkerOp)
 
@@ -83,7 +83,7 @@ runStoreSocket preStoreConfig code =
   runRemoteStoreT preStoreConfig $ do
     pv <- greet
     mapStoreConfig
-      (\(PreStoreConfig a b) -> StoreConfig a pv b)
+      (preStoreConfigToStoreConfig pv)
       code
 
   where
@@ -141,9 +141,8 @@ runStoreSocket preStoreConfig code =
           return Nothing
 
       -- TODO do something with it
-      -- TODO patter match better
       _ <- mapStoreConfig
-            (\(PreStoreConfig a b) -> StoreConfig a ourProtoVersion b)
+            (preStoreConfigToStoreConfig minimumCommonVersion)
             processOutput
 
       pure minimumCommonVersion
