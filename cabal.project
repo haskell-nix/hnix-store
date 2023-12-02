@@ -21,3 +21,9 @@ package hnix-store-nar
 
 package hnix-store-remote
   flags: +build-derivation +build-readme +io-testsuite
+
+-- until https://github.com/obsidiansystems/dependent-sum-template/pull/7
+source-repository-package
+  type: git
+  location: https://github.com/ncfavier/dependent-sum-template/
+  tag: 6614029b47ec3957c871b2bbec91fe79f230cf9e
