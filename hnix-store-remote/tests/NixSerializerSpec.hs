@@ -4,6 +4,7 @@ module NixSerializerSpec (spec) where
 
 import Crypto.Hash (MD5, SHA1, SHA256, SHA512)
 import Data.Dependent.Sum (DSum((:=>)))
+import Data.Some (Some(Some))
 import Data.Time (UTCTime)
 import Data.Word (Word64)
 import Test.Hspec (Expectation, Spec, describe, it, parallel, shouldBe)
@@ -21,11 +22,8 @@ import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types.Logger (Logger(..))
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion(..))
 import System.Nix.Store.Remote.Types.StoreConfig (TestStoreConfig)
-import System.Nix.Store.Remote.Types.WorkerOp (WorkerOp(..))
-
--- WIP
-import Data.Some (Some(Some))
 import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
+import System.Nix.Store.Remote.Types.WorkerOp (WorkerOp(..))
 
 -- | Test for roundtrip using @NixSerializer@
 roundtripSReader
@@ -139,17 +137,17 @@ spec = parallel $ do
 
     prop "StoreRequest"
       $ \testStoreConfig ->
-          forAll (arbitrary `suchThat` (hacks (hasProtoVersion testStoreConfig)))
+          forAll (arbitrary `suchThat` (restrictProtoVersion (hasProtoVersion testStoreConfig)))
           $ roundtripSReader @TestStoreConfig storeRequest testStoreConfig
 
-hacks :: ProtoVersion -> Some StoreRequest -> Bool
-hacks v (Some (BuildPaths _ _)) | v < ProtoVersion 1 30 = False
-hacks _ (Some (BuildDerivation _ drv _)) = inputDrvs drv == mempty
-hacks v (Some (QueryMissing _)) | v < ProtoVersion 1 30 = False
-hacks _ _ = True
+restrictProtoVersion :: ProtoVersion -> Some StoreRequest -> Bool
+restrictProtoVersion v (Some (BuildPaths _ _)) | v < ProtoVersion 1 30 = False
+restrictProtoVersion _ (Some (BuildDerivation _ drv _)) = inputDrvs drv == mempty
+restrictProtoVersion v (Some (QueryMissing _)) | v < ProtoVersion 1 30 = False
+restrictProtoVersion _ _ = True
 
 errorInfoIf :: Bool -> Logger -> Bool
-errorInfoIf True (Logger_Error (Right _)) = True
-errorInfoIf False (Logger_Error (Left _)) = True
-errorInfoIf _ (Logger_Error _) = False
-errorInfoIf _ _ = True
+errorInfoIf True  (Logger_Error (Right _)) = True
+errorInfoIf False (Logger_Error (Left _))  = True
+errorInfoIf _     (Logger_Error _)         = False
+errorInfoIf _     _                        = True
