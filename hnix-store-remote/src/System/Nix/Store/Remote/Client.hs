@@ -114,17 +114,17 @@ runStoreSocket preStoreConfig code =
 
       sockPutS protoVersion ourProtoVersion
 
-      when (daemonVersion >= ProtoVersion 1 14)
+      let minimumCommonVersion = min daemonVersion ourProtoVersion
+
+      when (minimumCommonVersion >= ProtoVersion 1 14)
         $ sockPutS int (0 :: Int) -- affinity, obsolete
 
-      when (daemonVersion >= ProtoVersion 1 11) $ do
+      when (minimumCommonVersion >= ProtoVersion 1 11) $ do
         sockPutS
           (mapErrorS RemoteStoreError_SerializerPut bool)
           False -- reserveSpace, obsolete
 
-      -- not quite right, should be min of the two
-      -- as well as two ^ above
-      when (ourProtoVersion >= ProtoVersion 1 33) $ do
+      when (minimumCommonVersion >= ProtoVersion 1 33) $ do
         -- If we were buffering I/O, we would flush the output here.
         _daemonNixVersion <-
           sockGetS
@@ -133,7 +133,7 @@ runStoreSocket preStoreConfig code =
               text
         return ()
 
-      _remoteTrustsUs <- if ourProtoVersion >= ProtoVersion 1 35
+      _remoteTrustsUs <- if minimumCommonVersion >= ProtoVersion 1 35
         then do
           sockGetS
             $ mapErrorS RemoteStoreError_SerializerHandshake trustedFlag
@@ -146,6 +146,4 @@ runStoreSocket preStoreConfig code =
             (\(PreStoreConfig a b) -> StoreConfig a ourProtoVersion b)
             processOutput
 
-      -- TODO should be minimum of
-      -- ourProtoVersion vs daemonVersion
-      pure ourProtoVersion
+      pure minimumCommonVersion
