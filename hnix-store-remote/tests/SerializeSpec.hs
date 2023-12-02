@@ -13,7 +13,6 @@ import Test.QuickCheck (arbitrary, forAll, suchThat)
 
 import qualified Data.Either
 import qualified Data.HashSet
-import qualified System.Nix.Build
 
 import System.Nix.Arbitrary ()
 import System.Nix.Build (BuildMode(..), BuildResult, BuildStatus(..))
@@ -77,9 +76,7 @@ spec = parallel $ do
     prop "Text" $ roundtripS @Text
     prop "BuildMode" $ roundtripS @BuildMode
     prop "BuildStatus" $ roundtripS @BuildStatus
-    it "BuildResult" $
-      forAll (arbitrary `suchThat` ((/= Just "") . System.Nix.Build.errorMessage))
-      $ roundtripS @BuildResult
+    prop "BuildResult" $ roundtripS @BuildResult
 
     prop "ProtoVersion" $ roundtripS @ProtoVersion
 

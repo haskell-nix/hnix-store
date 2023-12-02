@@ -4,7 +4,7 @@
 module System.Nix.Arbitrary.Build where
 
 import Data.Text.Arbitrary ()
-import Test.QuickCheck (Arbitrary(..))
+import Test.QuickCheck (Arbitrary(..), suchThat)
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
 import System.Nix.Arbitrary.UTCTime ()
 
@@ -16,5 +16,14 @@ deriving via GenericArbitrary BuildMode
 deriving via GenericArbitrary BuildStatus
   instance Arbitrary BuildStatus
 
-deriving via GenericArbitrary BuildResult
-  instance Arbitrary BuildResult
+instance Arbitrary BuildResult where
+  arbitrary = do
+    status <- arbitrary
+    -- we encode empty errorMessage as Nothing
+    errorMessage <- arbitrary `suchThat` (/= Just mempty)
+    timesBuilt <- arbitrary
+    isNonDeterministic <- arbitrary
+    startTime <- arbitrary
+    stopTime <- arbitrary
+
+    pure $ BuildResult{..}

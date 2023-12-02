@@ -10,7 +10,6 @@ import Test.Hspec (Expectation, Spec, describe, it, parallel, shouldBe)
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck (Gen, arbitrary, forAll, suchThat)
 
-import qualified System.Nix.Build
 import qualified System.Nix.Hash
 
 import System.Nix.Arbitrary ()
@@ -75,9 +74,7 @@ spec = parallel $ do
     prop "mapS" $ roundtripS (mapS (int @Int) byteString)
 
   describe "Complex" $ do
-    prop "BuildResult"
-      $ forAll (arbitrary `suchThat` ((/= Just "") . System.Nix.Build.errorMessage))
-      $ roundtripS buildResult
+    prop "BuildResult" $ roundtripS buildResult
 
     prop "StorePath" $
       roundtripSReader @StoreDir storePath
