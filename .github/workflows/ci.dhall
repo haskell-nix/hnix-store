@@ -6,6 +6,7 @@ let defSteps = haskellCi.defaultCabalSteps
 in    haskellCi.generalCi
         ( haskellCi.withNix
             ( defSteps
+              with docStep = None haskellCi.BuildStep
               with extraSteps.pre
                    =
                     defSteps.extraSteps.pre

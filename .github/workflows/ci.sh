@@ -7,6 +7,8 @@ cd "$( dirname "${BASH_SOURCE[0]}" )"
 which dhall || cabal install dhall
 which dhall-to-yaml || cabal install dhall-yaml
 
+echo "dhall format-ing ci.dhall"
+dhall format ci.dhall
 echo "cp haskellCi.dhall -> ci.dhall.frozen"
 cp ci.dhall ci.dhall.frozen
 echo "dhall freez-ing ci.dhall.frozen"
