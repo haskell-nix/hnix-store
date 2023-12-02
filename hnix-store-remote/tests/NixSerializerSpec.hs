@@ -18,7 +18,7 @@ import System.Nix.StorePath (StoreDir)
 import System.Nix.StorePath.Metadata (Metadata(..))
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
-import System.Nix.Store.Remote.Types.Logger (ErrorInfo(..), Logger(..),  Trace(..))
+import System.Nix.Store.Remote.Types.Logger (Logger(..))
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion(..))
 import System.Nix.Store.Remote.Types.StoreConfig (TestStoreConfig)
 import System.Nix.Store.Remote.Types.WorkerOp (WorkerOp(..))
@@ -112,19 +112,9 @@ spec = parallel $ do
       prop "Maybe Activity" $ roundtripS maybeActivity
       prop "ActivityResult" $ roundtripS activityResult
       prop "Field" $ roundtripS field
-      prop "Trace"
-        $ forAll (arbitrary `suchThat` ((/= Just 0) . tracePosition))
-        $ roundtripS trace
+      prop "Trace" $ roundtripS trace
       prop "BasicError" $ roundtripS basicError
-      prop "ErrorInfo"
-        $ forAll (arbitrary
-                  `suchThat`
-                    (\ErrorInfo{..}
-                        -> errorInfoPosition /= Just 0
-                           && all ((/= Just 0) . tracePosition) errorInfoTraces
-                    )
-                 )
-        $ roundtripS errorInfo
+      prop "ErrorInfo" $ roundtripS errorInfo
       prop "LoggerOpCode" $ roundtripS loggerOpCode
       prop "Verbosity" $ roundtripS verbosity
       prop "Logger"
@@ -159,12 +149,7 @@ hacks v (Some (QueryMissing _)) | v < ProtoVersion 1 30 = False
 hacks _ _ = True
 
 errorInfoIf :: Bool -> Logger -> Bool
-errorInfoIf True (Logger_Error (Right x)) = noJust0s x
-  where
-    noJust0s :: ErrorInfo -> Bool
-    noJust0s ErrorInfo{..} =
-      errorInfoPosition /= Just 0
-      && all ((/= Just 0) . tracePosition) errorInfoTraces
+errorInfoIf True (Logger_Error (Right _)) = True
 errorInfoIf False (Logger_Error (Left _)) = True
 errorInfoIf _ (Logger_Error _) = False
 errorInfoIf _ _ = True

@@ -7,7 +7,7 @@ import Data.Some (Some(Some))
 import System.Nix.Arbitrary ()
 import System.Nix.Store.Remote.Types
 
-import Test.QuickCheck (Arbitrary(..), oneof)
+import Test.QuickCheck (Arbitrary(..), oneof, suchThat)
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
 
 deriving via GenericArbitrary CheckMode
@@ -39,14 +39,26 @@ deriving via GenericArbitrary ActivityResult
 deriving via GenericArbitrary Field
   instance Arbitrary Field
 
-deriving via GenericArbitrary Trace
-  instance Arbitrary Trace
+instance Arbitrary Trace where
+  arbitrary = do
+    -- we encode 0 position as Nothing
+    tracePosition <- arbitrary `suchThat` (/= Just 0)
+    traceHint <- arbitrary
+
+    pure Trace{..}
 
 deriving via GenericArbitrary BasicError
   instance Arbitrary BasicError
 
-deriving via GenericArbitrary ErrorInfo
-  instance Arbitrary ErrorInfo
+instance Arbitrary ErrorInfo where
+  arbitrary = do
+    errorInfoLevel <- arbitrary
+    errorInfoMessage <- arbitrary
+    -- we encode 0 position as Nothing
+    errorInfoPosition <- arbitrary `suchThat` (/= Just 0)
+    errorInfoTraces <- arbitrary
+
+    pure ErrorInfo{..}
 
 deriving via GenericArbitrary LoggerOpCode
   instance Arbitrary LoggerOpCode
