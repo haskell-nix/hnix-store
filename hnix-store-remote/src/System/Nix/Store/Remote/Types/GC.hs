@@ -30,7 +30,7 @@ data GCOptions = GCOptions
     -- | Paths to delete for @GCAction_DeleteSpecific@
   , gcOptions_pathsToDelete :: HashSet StorePath
     -- | Stop after `gcOptions_maxFreed` bytes have been freed
-  , gcOptions_maxFreed :: Integer
+  , gcOptions_maxFreed :: Word64
   } deriving (Eq, Generic, Ord, Show)
 
 -- | Result of the garbage collection operation

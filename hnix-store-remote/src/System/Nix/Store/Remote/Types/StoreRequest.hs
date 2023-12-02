@@ -24,6 +24,7 @@ import System.Nix.Signature (Signature)
 import System.Nix.Store.Types (FileIngestionMethod, RepairMode)
 import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart)
 import System.Nix.StorePath.Metadata (Metadata)
+import System.Nix.Store.Remote.Types.GC (GCOptions, GCResult)
 import System.Nix.Store.Remote.Types.CheckMode (CheckMode)
 import System.Nix.Store.Remote.Types.Query.Missing (Missing)
 import System.Nix.Store.Remote.Types.StoreText (StoreText)
@@ -86,6 +87,10 @@ data StoreRequest :: Type -> Type where
     -> Derivation StorePath Text
     -> BuildMode
     -> StoreRequest BuildResult
+
+  CollectGarbage
+    :: GCOptions
+    -> StoreRequest GCResult
 
   EnsurePath
     :: StorePath
@@ -169,6 +174,7 @@ instance {-# OVERLAPPING #-} Eq (Some StoreRequest) where
   Some (AddTempRoot a) == Some (AddTempRoot a') = a == a'
   Some (BuildPaths a b) == Some (BuildPaths a' b') = (a, b) == (a', b')
   Some (BuildDerivation a b c) == Some (BuildDerivation a' b' c') = (a, b, c) == (a', b', c')
+  Some (CollectGarbage a) == Some (CollectGarbage a') = a == a'
   Some (EnsurePath a) == Some (EnsurePath a') = a == a'
   Some (FindRoots) == Some (FindRoots) = True
   Some (IsValidPath a) == Some (IsValidPath a') = a == a'

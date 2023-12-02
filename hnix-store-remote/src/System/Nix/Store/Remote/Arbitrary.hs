@@ -69,6 +69,17 @@ deriving via GenericArbitrary Logger
 deriving via GenericArbitrary Verbosity
   instance Arbitrary Verbosity
 
+-- * GC
+
+deriving via GenericArbitrary GCAction
+  instance Arbitrary GCAction
+
+deriving via GenericArbitrary GCOptions
+  instance Arbitrary GCOptions
+
+deriving via GenericArbitrary GCResult
+  instance Arbitrary GCResult
+
 -- * Handshake
 
 deriving via GenericArbitrary WorkerMagic
@@ -91,6 +102,7 @@ instance Arbitrary (Some StoreRequest) where
     , Some . AddTempRoot <$> arbitrary
     , Some <$> (BuildPaths <$> arbitrary <*> arbitrary)
     , Some <$> (BuildDerivation <$> arbitrary <*> arbitrary <*> arbitrary)
+    , Some . CollectGarbage <$> arbitrary
     , Some . EnsurePath <$> arbitrary
     , pure $ Some FindRoots
     , Some . IsValidPath <$> arbitrary

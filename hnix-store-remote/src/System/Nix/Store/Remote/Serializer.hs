@@ -1017,6 +1017,16 @@ storeRequest = Serializer
         buildMode' <- getS buildMode
         pure $ Some (BuildDerivation path drv buildMode')
 
+      WorkerOp_CollectGarbage -> do
+        gcOptions_operation <- getS enum
+        gcOptions_pathsToDelete <- getS (hashSet storePath)
+        gcOptions_ignoreLiveness <- getS bool
+        gcOptions_maxFreed <- getS int
+        -- obsolete fields
+        Control.Monad.forM_ [0..(2 :: Word8)]
+          $ pure $ getS (int @Word8)
+        pure $ Some (CollectGarbage GCOptions{..})
+
       WorkerOp_EnsurePath ->
         Some . EnsurePath <$> getS storePath
 
@@ -1080,7 +1090,6 @@ storeRequest = Serializer
       WorkerOp_AddToStoreNar -> undefined
       WorkerOp_BuildPathsWithResults -> undefined
       WorkerOp_ClearFailedPaths -> undefined
-      WorkerOp_CollectGarbage -> undefined
       WorkerOp_ExportPath -> undefined
       WorkerOp_HasSubstitutes -> undefined
       WorkerOp_ImportPaths -> undefined
@@ -1138,6 +1147,17 @@ storeRequest = Serializer
         putS storePath path
         putS derivation drv
         putS buildMode buildMode'
+
+      Some (CollectGarbage GCOptions{..}) -> do
+        putS workerOp WorkerOp_CollectGarbage
+
+        putS enum gcOptions_operation
+        putS (hashSet storePath) gcOptions_pathsToDelete
+        putS bool gcOptions_ignoreLiveness
+        putS int gcOptions_maxFreed
+        -- obsolete fields
+        Control.Monad.forM_ [0..(2 :: Word8)]
+          $ pure $ putS int (0 :: Word8)
 
       Some (EnsurePath path) -> do
         putS workerOp WorkerOp_EnsurePath
