@@ -23,5 +23,5 @@ instance HasProtoVersion ProtoVersion where
 ourProtoVersion :: ProtoVersion
 ourProtoVersion = ProtoVersion
   { protoVersion_major = 1
-  , protoVersion_minor = 21
+  , protoVersion_minor = 24
   }
