@@ -40,6 +40,9 @@ module System.Nix.Store.Remote.Serializer
   , storePathName
   -- * Metadata
   , pathMetadata
+  -- * Signatures
+  , signature
+  , narSignature
   -- * Some HashAlgo
   , someHashAlgo
   -- * Digest
@@ -115,7 +118,7 @@ import System.Nix.ContentAddress (ContentAddress)
 import System.Nix.Derivation (Derivation(..), DerivationOutput(..))
 import System.Nix.DerivedPath (DerivedPath, ParseOutputsError)
 import System.Nix.Hash (HashAlgo)
-import System.Nix.Signature (NarSignature)
+import System.Nix.Signature (Signature, NarSignature)
 import System.Nix.StorePath (HasStoreDir(..), InvalidPathError, StorePath, StorePathHashPart, StorePathName)
 import System.Nix.StorePath.Metadata (Metadata(..), StorePathTrust(..))
 import System.Nix.Store.Remote.Types
@@ -505,7 +508,7 @@ pathMetadata = Serializer
                       size -> Just size) <$> getS int
       trust <- getS storePathTrust
 
-      sigs <- getS $ set signature
+      sigs <- getS $ set narSignature
       contentAddress <- getS maybeContentAddress
 
       pure $ Metadata{..}
@@ -527,7 +530,7 @@ pathMetadata = Serializer
       putS time registrationTime
       putS int $ Prelude.maybe 0 id $ narBytes
       putS storePathTrust trust
-      putS (set signature) sigs
+      putS (set narSignature) sigs
       putS maybeContentAddress contentAddress
   }
   where
@@ -553,15 +556,27 @@ pathMetadata = Serializer
         (\case BuiltElsewhere -> False; BuiltLocally -> True)
         bool
 
-    signature
-      :: NixSerializer r SError NarSignature
-    signature =
-      mapPrismSerializer
-        (Data.Bifunctor.first SError_Signature
-         . Data.Attoparsec.Text.parseOnly
-             System.Nix.Signature.signatureParser)
-        (System.Nix.Signature.signatureToText)
-        text
+-- * Signatures
+
+signature
+  :: NixSerializer r SError Signature
+signature =
+  mapPrismSerializer
+    (Data.Bifunctor.first SError_Signature
+     . Data.Attoparsec.Text.parseOnly
+         System.Nix.Signature.signatureParser)
+    (System.Nix.Signature.signatureToText)
+    text
+
+narSignature
+  :: NixSerializer r SError NarSignature
+narSignature =
+  mapPrismSerializer
+    (Data.Bifunctor.first SError_Signature
+     . Data.Attoparsec.Text.parseOnly
+         System.Nix.Signature.narSignatureParser)
+    (System.Nix.Signature.narSignatureToText)
+    text
 
 -- * Some HashAlgo
 
@@ -982,7 +997,7 @@ storeRequest = Serializer
 
       WorkerOp_AddSignatures -> do
         path <- getS storePath
-        signatures <- getS (list byteString)
+        signatures <- getS (set signature)
         pure $ Some (AddSignatures path signatures)
 
       WorkerOp_AddIndirectRoot ->
@@ -1101,7 +1116,7 @@ storeRequest = Serializer
         putS workerOp WorkerOp_AddSignatures
 
         putS storePath path
-        putS (list byteString) signatures
+        putS (set signature) signatures
 
       Some (AddIndirectRoot path) -> do
         putS workerOp WorkerOp_AddIndirectRoot

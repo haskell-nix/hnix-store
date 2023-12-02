@@ -20,6 +20,7 @@ import System.Nix.Build (BuildMode, BuildResult)
 import System.Nix.Derivation (Derivation)
 import System.Nix.DerivedPath (DerivedPath)
 import System.Nix.Hash (HashAlgo)
+import System.Nix.Signature (Signature)
 import System.Nix.Store.Types (FileIngestionMethod, RepairMode)
 import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart)
 import System.Nix.StorePath.Metadata (Metadata)
@@ -58,7 +59,7 @@ data StoreRequest :: Type -> Type where
 
   AddSignatures
     :: StorePath
-    -> [ByteString]
+    -> Set Signature
     -> StoreRequest ()
 
   -- | Add temporary garbage collector root.

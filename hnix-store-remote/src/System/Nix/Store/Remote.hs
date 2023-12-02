@@ -349,7 +349,8 @@ queryPathInfoUncached path = do
 
   let
       sigs = case
-               Data.Set.fromList <$> mapM (Data.Attoparsec.Text.parseOnly System.Nix.Signature.signatureParser) sigStrings
+               Data.Set.fromList
+               <$> mapM System.Nix.Signature.parseNarSignature sigStrings
                of
                Left e -> error e
                Right x -> x
