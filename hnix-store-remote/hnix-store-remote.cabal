@@ -86,6 +86,7 @@ library
     , System.Nix.Store.Remote.Types.Activity
     , System.Nix.Store.Remote.Types.CheckMode
     , System.Nix.Store.Remote.Types.GC
+    , System.Nix.Store.Remote.Types.Handshake
     , System.Nix.Store.Remote.Types.Logger
     , System.Nix.Store.Remote.Types.ProtoVersion
     , System.Nix.Store.Remote.Types.StoreConfig

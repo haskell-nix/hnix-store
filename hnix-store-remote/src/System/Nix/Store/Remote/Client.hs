@@ -24,6 +24,7 @@ import System.Nix.Store.Remote.Logger (processOutput)
 import System.Nix.Store.Remote.MonadStore
 import System.Nix.Store.Remote.Socket (sockPutS, sockGetS)
 import System.Nix.Store.Remote.Serializer (bool, enum, int, mapErrorS, protoVersion, text, trustedFlag, workerMagic)
+import System.Nix.Store.Remote.Types.Handshake (Handshake(..))
 import System.Nix.Store.Remote.Types.Logger (Logger)
 import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..), ourProtoVersion)
 import System.Nix.Store.Remote.Types.StoreConfig (PreStoreConfig, preStoreConfigToStoreConfig)
@@ -81,13 +82,13 @@ runStoreSocket
   -> Run a
 runStoreSocket preStoreConfig code =
   runRemoteStoreT preStoreConfig $ do
-    pv <- greet
+    Handshake{..} <- greet
     mapStoreConfig
-      (preStoreConfigToStoreConfig pv)
+      (preStoreConfigToStoreConfig handshakeProtoVersion)
       code
 
   where
-    greet :: MonadRemoteStoreHandshake ProtoVersion
+    greet :: MonadRemoteStoreHandshake Handshake
     greet = do
 
       sockPutS
@@ -124,25 +125,32 @@ runStoreSocket preStoreConfig code =
           (mapErrorS RemoteStoreError_SerializerPut bool)
           False -- reserveSpace, obsolete
 
-      when (minimumCommonVersion >= ProtoVersion 1 33) $ do
-        -- If we were buffering I/O, we would flush the output here.
-        _daemonNixVersion <-
-          sockGetS
-          $ mapErrorS
-              RemoteStoreError_SerializerGet
-              text
-        return ()
+      daemonNixVersion <- if minimumCommonVersion >= ProtoVersion 1 33
+        then do
+          -- If we were buffering I/O, we would flush the output here.
+          txtVer <-
+            sockGetS
+              $ mapErrorS
+                  RemoteStoreError_SerializerGet
+                  text
+          pure $ Just txtVer
+        else pure Nothing
 
-      _remoteTrustsUs <- if minimumCommonVersion >= ProtoVersion 1 35
+      remoteTrustsUs <- if minimumCommonVersion >= ProtoVersion 1 35
         then do
           sockGetS
             $ mapErrorS RemoteStoreError_SerializerHandshake trustedFlag
-        else do
-          return Nothing
+        else pure Nothing
 
-      -- TODO do something with it
-      _ <- mapStoreConfig
-            (preStoreConfigToStoreConfig minimumCommonVersion)
-            processOutput
+      logs <-
+        mapStoreConfig
+          (preStoreConfigToStoreConfig minimumCommonVersion)
+          processOutput
 
-      pure minimumCommonVersion
+      pure Handshake
+        { handshakeNixVersion = daemonNixVersion
+        , handshakeTrust = remoteTrustsUs
+        , handshakeProtoVersion = minimumCommonVersion
+        , handshakeRemoteProtoVersion = daemonVersion
+        , handshakeLogs = logs
+        }
