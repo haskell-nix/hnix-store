@@ -48,19 +48,19 @@ exampleMetadata = Metadata
   , registrationTime = UTCTime (fromOrdinalDate 0 0) 0
   , narBytes = Just 196040
   , trust = BuiltElsewhere
-  , sigs = Set.fromList $ forceRight . parseSignature <$> ["cache.nixos.org-1:TsTTb3WGTZKphvYdBHXwo6weVILmTytUjLB+vcX89fOjjRicCHmKA4RCPMVLkj6TMJ4GMX3HPVWRdD1hkeKZBQ==", "test1:519iiVLx/c4Rdt5DNt6Y2Jm6hcWE9+XY69ygiWSZCNGVcmOcyL64uVAJ3cV8vaTusIZdbTnYo9Y7vDNeTmmMBQ=="]
+  , sigs = Set.fromList $ forceRight . parseNarSignature <$> ["cache.nixos.org-1:TsTTb3WGTZKphvYdBHXwo6weVILmTytUjLB+vcX89fOjjRicCHmKA4RCPMVLkj6TMJ4GMX3HPVWRdD1hkeKZBQ==", "test1:519iiVLx/c4Rdt5DNt6Y2Jm6hcWE9+XY69ygiWSZCNGVcmOcyL64uVAJ3cV8vaTusIZdbTnYo9Y7vDNeTmmMBQ=="]
   , contentAddress = Nothing
   }
 
 pubkey :: Ed25519.PublicKey
 pubkey = forceDecodeB64Pubkey "6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-                                                                                                 
+
 forceDecodeB64Pubkey :: Text -> Ed25519.PublicKey
 forceDecodeB64Pubkey b64EncodedPubkey = let
   decoded = forceRight $ decodeWith Base64 b64EncodedPubkey
-  in case Ed25519.publicKey decoded of                                
+  in case Ed25519.publicKey decoded of
     CryptoFailed err -> (error . show) err
-    CryptoPassed x -> x        
+    CryptoPassed x -> x
 
 forceRight :: Either a b -> b
 forceRight = \case

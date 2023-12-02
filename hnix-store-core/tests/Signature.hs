@@ -54,24 +54,24 @@ pubkeyNixosOrg :: Crypto.PubKey.Ed25519.PublicKey
 pubkeyNixosOrg = forceDecodeB64Pubkey "6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
 
 shouldNotParse :: Text -> Expectation
-shouldNotParse encoded = case parseSignature encoded of
+shouldNotParse encoded = case parseNarSignature encoded of
   Left _ -> pure ()
   Right _ -> expectationFailure "should not have parsed"
 
 shouldParseName :: Text -> Text -> Expectation
-shouldParseName encoded name = case parseSignature encoded of
+shouldParseName encoded name = case parseNarSignature encoded of
   Left err -> expectationFailure err
   Right narSig -> shouldBe name (publicKey narSig)
 
 shouldVerify :: Text -> Crypto.PubKey.Ed25519.PublicKey -> BS.ByteString -> Expectation
-shouldVerify encoded pubkey msg = case parseSignature encoded of
+shouldVerify encoded pubkey msg = case parseNarSignature encoded of
   Left err -> expectationFailure err
   Right narSig -> let
     (Signature sig') = sig narSig
     in sig' `shouldSatisfy` Crypto.PubKey.Ed25519.verify pubkey msg
 
 shouldNotVerify :: Text -> Crypto.PubKey.Ed25519.PublicKey -> BS.ByteString -> Expectation
-shouldNotVerify encoded pubkey msg = case parseSignature encoded of
+shouldNotVerify encoded pubkey msg = case parseNarSignature encoded of
   Left err -> expectationFailure err
   Right narSig -> let
     (Signature sig') = sig narSig
