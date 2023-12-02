@@ -4,6 +4,7 @@ module System.Nix.Store.Remote.Types
   , module System.Nix.Store.Remote.Types.CheckMode
   , module System.Nix.Store.Remote.Types.Logger
   , module System.Nix.Store.Remote.Types.ProtoVersion
+  , module System.Nix.Store.Remote.Types.Query
   , module System.Nix.Store.Remote.Types.StoreConfig
   , module System.Nix.Store.Remote.Types.StoreRequest
   , module System.Nix.Store.Remote.Types.StoreText
@@ -19,6 +20,7 @@ import System.Nix.Store.Remote.Types.GC
 import System.Nix.Store.Remote.Types.CheckMode
 import System.Nix.Store.Remote.Types.Logger
 import System.Nix.Store.Remote.Types.ProtoVersion
+import System.Nix.Store.Remote.Types.Query
 import System.Nix.Store.Remote.Types.StoreConfig
 import System.Nix.Store.Remote.Types.StoreRequest
 import System.Nix.Store.Remote.Types.StoreText

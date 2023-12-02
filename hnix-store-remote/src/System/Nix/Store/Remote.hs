@@ -401,23 +401,18 @@ queryPathFromHashPart storePathHash = do
 
 queryMissing
   :: (HashSet StorePath)
-  -> MonadStore
-      ( HashSet StorePath -- Paths that will be built
-      , HashSet StorePath -- Paths that have substitutes
-      , HashSet StorePath -- Unknown paths
-      , Integer           -- Download size
-      , Integer           -- Nar size?
-      )
+  -> MonadStore Missing
 queryMissing ps = do
   storeDir <- getStoreDir
   runOpArgs WorkerOp_QueryMissing $ putPaths storeDir ps
 
-  willBuild      <- sockGetPaths
-  willSubstitute <- sockGetPaths
-  unknown        <- sockGetPaths
-  downloadSize'  <- sockGetInt
-  narSize'       <- sockGetInt
-  pure (willBuild, willSubstitute, unknown, downloadSize', narSize')
+  missingWillBuild      <- sockGetPaths
+  missingWillSubstitute <- sockGetPaths
+  missingUnknownPaths   <- sockGetPaths
+  missingDownloadSize  <- sockGetInt
+  missingNarSize       <- sockGetInt
+
+  pure Missing{..}
 
 optimiseStore :: MonadStore ()
 optimiseStore = Control.Monad.void $ simpleOp WorkerOp_OptimiseStore

@@ -262,7 +262,15 @@ spec_protocol = Hspec.around withNixDaemon $
     context "queryMissing" $
       itRights "queries" $ withPath $ \path -> do
         let pathSet = HS.fromList [path]
-        queryMissing pathSet `shouldReturn` (HS.empty, HS.empty, HS.empty, 0, 0)
+        queryMissing pathSet
+        `shouldReturn`
+        Missing
+          { missingWillBuild = mempty
+          , missingWillSubstitute = mempty
+          , missingUnknownPaths = mempty
+          , missingDownloadSize = 0
+          , missingNarSize = 0
+          }
 
     context "addToStore" $
       itRights "adds file to store" $ do

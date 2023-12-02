@@ -24,6 +24,7 @@ import System.Nix.Store.Types (FileIngestionMethod, RepairMode)
 import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart)
 import System.Nix.StorePath.Metadata (Metadata)
 import System.Nix.Store.Remote.Types.CheckMode (CheckMode)
+import System.Nix.Store.Remote.Types.Query.Missing (Missing)
 import System.Nix.Store.Remote.Types.StoreText (StoreText)
 import System.Nix.Store.Remote.Types.SubstituteMode (SubstituteMode)
 
@@ -138,13 +139,7 @@ data StoreRequest :: Type -> Type where
 
   QueryMissing
     :: Set DerivedPath
-    -> StoreRequest
-      ( HashSet StorePath -- Paths that will be built
-      , HashSet StorePath -- Paths that have substitutes
-      , HashSet StorePath -- Unknown paths
-      , Integer -- Download size
-      , Integer -- Nar size?
-      )
+    -> StoreRequest Missing
 
   OptimiseStore
     :: StoreRequest ()

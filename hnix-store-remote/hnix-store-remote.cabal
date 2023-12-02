@@ -89,6 +89,8 @@ library
     , System.Nix.Store.Remote.Types.Handshake
     , System.Nix.Store.Remote.Types.Logger
     , System.Nix.Store.Remote.Types.ProtoVersion
+    , System.Nix.Store.Remote.Types.Query
+    , System.Nix.Store.Remote.Types.Query.Missing
     , System.Nix.Store.Remote.Types.StoreConfig
     , System.Nix.Store.Remote.Types.StoreRequest
     , System.Nix.Store.Remote.Types.StoreText
