@@ -83,6 +83,7 @@ library
     , System.Nix.Store.Remote.Serialize
     , System.Nix.Store.Remote.Serialize.Prim
     , System.Nix.Store.Remote.Serializer
+    , System.Nix.Store.Remote.Server
     , System.Nix.Store.Remote.Socket
     , System.Nix.Store.Remote.Types
     , System.Nix.Store.Remote.Types.Activity
@@ -111,6 +112,7 @@ library
     , bytestring
     , cereal
     , containers
+    , concurrency
     , crypton
     , data-default-class
     , dependent-sum > 0.7

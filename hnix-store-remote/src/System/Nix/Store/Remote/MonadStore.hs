@@ -4,6 +4,7 @@ module System.Nix.Store.Remote.MonadStore
   ( RemoteStoreState(..)
   , RemoteStoreError(..)
   , WorkerError(..)
+  , WorkerException(..)
   , RemoteStoreT
   , runRemoteStoreT
   , mapStoreConfig
@@ -47,13 +48,26 @@ data RemoteStoreError
   | RemoteStoreError_ProtocolMismatch
   | RemoteStoreError_WorkerMagic2Mismatch
   | RemoteStoreError_WorkerError WorkerError
+  -- bad / redundant
+  | RemoteStoreError_WorkerException WorkerException
   deriving (Eq, Show, Ord)
+
+-- | fatal error in worker interaction which should disconnect client.
+data WorkerException
+  = WorkerException_ClientVersionTooOld
+  | WorkerException_ProtocolMismatch
+  | WorkerException_Error WorkerError
+  -- ^ allowed error outside allowed worker state
+--  | WorkerException_DecodingError DecodingError
+--  | WorkerException_BuildFailed StorePath
+  deriving (Eq, Ord, Show)
 
 -- | Non-fatal (to server) errors in worker interaction
 data WorkerError
   = WorkerError_SendClosed
   | WorkerError_InvalidOperation Word64
   | WorkerError_NotYetImplemented
+  | WorkerError_UnsupportedOperation
   deriving (Eq, Ord, Show)
 
 newtype RemoteStoreT r m a = RemoteStoreT
