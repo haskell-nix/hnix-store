@@ -55,6 +55,16 @@ can configure on your system.
 To update the CI, edit [[../.github/workflows/ci.dhall][.github/workflows/ci.dhall]] and run [[../.github/workflows/ci.sh][.github/workflows/ci.sh]]
 to regenerate the ~yaml~ file. Don't forget to commit both files.
 
+** ~cabal.project.local.ci~
+
+The [[../cabal.project.local.ci][cabal.project.local.ci]] file is used by the CI workflow to alter ~ghc-options~,
+enabling e.g. ~-Werror~ and ~-Wunused-packages~. You can copy this to ~cabal.project.local~
+to have the same build configuration:
+
+#+begin_src shell
+cp cabal.project.local.ci cabal.project.local
+#+end_src
+
 * Changelogs
 
 Since the packages are used by others as dependencies in production environments,
