@@ -13,7 +13,7 @@ module System.Nix.Store.Remote.Client
 
 import Control.Monad (unless, when)
 import Control.Monad.Except (throwError)
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Serialize.Put (Put, runPut)
 
 import qualified Data.Bool
@@ -26,17 +26,30 @@ import System.Nix.Store.Remote.Socket (sockPutS, sockGetS)
 import System.Nix.Store.Remote.Serializer (bool, enum, int, mapErrorS, protoVersion, text, trustedFlag, workerMagic)
 import System.Nix.Store.Remote.Types.Handshake (Handshake(..))
 import System.Nix.Store.Remote.Types.Logger (Logger)
-import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..), ourProtoVersion)
-import System.Nix.Store.Remote.Types.StoreConfig (PreStoreConfig, preStoreConfigToStoreConfig)
+import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion, ProtoVersion(..), ourProtoVersion)
+import System.Nix.Store.Remote.Types.StoreConfig (HasStoreSocket, PreStoreConfig, StoreConfig, preStoreConfigToStoreConfig)
 import System.Nix.Store.Remote.Types.WorkerMagic (WorkerMagic(..))
 import System.Nix.Store.Remote.Types.WorkerOp (WorkerOp)
 
-type Run a = IO (Either RemoteStoreError a, [Logger])
-
-simpleOp :: WorkerOp -> MonadRemoteStore Bool
+simpleOp
+  :: ( Monad m
+     , MonadIO m
+     , HasProtoVersion r
+     , HasStoreSocket r
+     )
+  => WorkerOp
+  -> RemoteStoreT r m Bool
 simpleOp op = simpleOpArgs op $ pure ()
 
-simpleOpArgs :: WorkerOp -> Put -> MonadRemoteStore Bool
+simpleOpArgs
+  :: ( Monad m
+     , MonadIO m
+     , HasProtoVersion r
+     , HasStoreSocket r
+     )
+  => WorkerOp
+  -> Put
+  -> RemoteStoreT r m Bool
 simpleOpArgs op args = do
   runOpArgs op args
   err <- gotError
@@ -48,21 +61,41 @@ simpleOpArgs op args = do
     )
     err
 
-runOp :: WorkerOp -> MonadRemoteStore ()
+runOp
+  :: ( Monad m
+     , MonadIO m
+     , HasProtoVersion r
+     , HasStoreSocket r
+     )
+  => WorkerOp
+  -> RemoteStoreT r m ()
 runOp op = runOpArgs op $ pure ()
 
-runOpArgs :: WorkerOp -> Put -> MonadRemoteStore ()
+runOpArgs
+  :: ( Monad m
+     , MonadIO m
+     , HasProtoVersion r
+     , HasStoreSocket r
+     )
+  => WorkerOp
+  -> Put
+  -> RemoteStoreT r m ()
 runOpArgs op args =
   runOpArgsIO
     op
     (\encode -> encode $ runPut args)
 
 runOpArgsIO
-  :: WorkerOp
-  -> ((Data.ByteString.ByteString -> MonadRemoteStore ())
-       -> MonadRemoteStore ()
+  :: ( Monad m
+     , MonadIO m
+     , HasProtoVersion r
+     , HasStoreSocket r
      )
-  -> MonadRemoteStore ()
+  => WorkerOp
+  -> ((Data.ByteString.ByteString -> RemoteStoreT r m ())
+       -> RemoteStoreT r m ()
+     )
+  -> RemoteStoreT r m ()
 runOpArgsIO op encoder = do
   sockPutS (mapErrorS RemoteStoreError_SerializerPut enum) op
 
@@ -76,10 +109,15 @@ runOpArgsIO op encoder = do
     -- TODO: don't use show
     getErrors >>= throwError . RemoteStoreError_Fixme . show
 
+type Run m a = m (Either RemoteStoreError a, [Logger])
+
 runStoreSocket
-  :: PreStoreConfig
-  -> MonadRemoteStore a
-  -> Run a
+  :: ( Monad m
+     , MonadIO m
+     )
+  => PreStoreConfig
+  -> RemoteStoreT StoreConfig m a
+  -> Run m a
 runStoreSocket preStoreConfig code =
   runRemoteStoreT preStoreConfig $ do
     Handshake{..} <- greet
@@ -88,7 +126,9 @@ runStoreSocket preStoreConfig code =
       code
 
   where
-    greet :: MonadRemoteStoreHandshake Handshake
+    greet
+      :: MonadIO m
+      => RemoteStoreT PreStoreConfig m Handshake
     greet = do
 
       sockPutS

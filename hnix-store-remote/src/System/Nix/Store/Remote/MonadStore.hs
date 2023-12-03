@@ -7,9 +7,6 @@ module System.Nix.Store.Remote.MonadStore
   , RemoteStoreT
   , runRemoteStoreT
   , mapStoreConfig
-  , MonadRemoteStore0
-  , MonadRemoteStore
-  , MonadRemoteStoreHandshake
   -- * Reader helpers
   , getStoreDir
   , getStoreSocket
@@ -41,7 +38,7 @@ import System.Nix.StorePath (HasStoreDir(..), StoreDir)
 import System.Nix.Store.Remote.Serializer (HandshakeSError, LoggerSError, SError)
 import System.Nix.Store.Remote.Types.Logger (Logger, isError)
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion)
-import System.Nix.Store.Remote.Types.StoreConfig (HasStoreSocket(..), PreStoreConfig, StoreConfig)
+import System.Nix.Store.Remote.Types.StoreConfig (HasStoreSocket(..))
 
 data RemoteStoreState = RemoteStoreState {
     remoteStoreState_logs :: [Logger]
@@ -111,15 +108,9 @@ runRemoteStoreT r =
       , remoteStoreState_mData = Nothing
       }
 
-type MonadRemoteStore0 r = RemoteStoreT r IO
-
-type MonadRemoteStore = MonadRemoteStore0 StoreConfig
-
-type MonadRemoteStoreHandshake = MonadRemoteStore0 PreStoreConfig
-
 mapStoreConfig
   :: (rb -> ra)
-  -> (MonadRemoteStore0 ra a -> MonadRemoteStore0 rb a)
+  -> (RemoteStoreT ra m a -> RemoteStoreT rb m a)
 mapStoreConfig f =
   RemoteStoreT
   . ( mapExceptT
@@ -129,43 +120,55 @@ mapStoreConfig f =
   . _unRemoteStoreT
 
 -- | Ask for a @StoreDir@
-getStoreDir :: HasStoreDir r => MonadRemoteStore0 r StoreDir
+getStoreDir
+  :: ( Monad m
+     , HasStoreDir r
+     )
+  => RemoteStoreT r m StoreDir
 getStoreDir = hasStoreDir <$> RemoteStoreT ask
 
 -- | Ask for a @StoreDir@
-getStoreSocket :: HasStoreSocket r => MonadRemoteStore0 r Socket
+getStoreSocket
+  :: ( Monad m
+     , HasStoreSocket r
+     )
+  => RemoteStoreT r m Socket
 getStoreSocket = hasStoreSocket <$> RemoteStoreT ask
 
 -- | Ask for a @StoreDir@
-getProtoVersion :: HasProtoVersion r => MonadRemoteStore0 r ProtoVersion
+getProtoVersion
+  :: ( Monad m
+     , HasProtoVersion r
+     )
+  => RemoteStoreT r m ProtoVersion
 getProtoVersion = hasProtoVersion <$> RemoteStoreT ask
 
 -- * Logs
 
-gotError :: MonadRemoteStore0 r Bool
+gotError :: Monad m => RemoteStoreT r m Bool
 gotError = any isError <$> getLogs
 
-getErrors :: MonadRemoteStore0 r [Logger]
+getErrors :: Monad m => RemoteStoreT r m [Logger]
 getErrors = filter isError <$> getLogs
 
-appendLogs :: [Logger] -> MonadRemoteStore0 r ()
+appendLogs :: Monad m => [Logger] -> RemoteStoreT r m ()
 appendLogs x = RemoteStoreT
   $ modify
   $ \s -> s { remoteStoreState_logs = remoteStoreState_logs s <> x }
 
-getLogs :: MonadRemoteStore0 r [Logger]
+getLogs :: Monad m => RemoteStoreT r m [Logger]
 getLogs = remoteStoreState_logs <$> RemoteStoreT get
 
-flushLogs :: MonadRemoteStore0 r ()
+flushLogs :: Monad m => RemoteStoreT r m ()
 flushLogs = RemoteStoreT $ modify $ \s -> s { remoteStoreState_logs = mempty }
 
 -- * Data required from client
 
-getData :: MonadRemoteStore0 r (Maybe ByteString)
+getData :: Monad m => RemoteStoreT r m (Maybe ByteString)
 getData = remoteStoreState_mData <$> RemoteStoreT get
 
-setData :: ByteString -> MonadRemoteStore0 r ()
+setData :: Monad m => ByteString -> RemoteStoreT r m ()
 setData x = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mData = pure x }
 
-clearData :: MonadRemoteStore0 r ()
+clearData :: Monad m => RemoteStoreT r m ()
 clearData = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mData = Nothing }

@@ -72,7 +72,7 @@ import qualified System.Nix.Hash
 import qualified System.Nix.Signature
 import qualified System.Nix.StorePath
 
-import System.Nix.Store.Remote.MonadStore (MonadRemoteStore, getStoreDir, RemoteStoreError(RemoteStoreError_GetAddrInfoFailed))
+import System.Nix.Store.Remote.MonadStore (RemoteStoreT, getStoreDir, RemoteStoreError(RemoteStoreError_GetAddrInfoFailed))
 import System.Nix.Store.Remote.Client (Run, runStoreSocket, runOp, runOpArgs, runOpArgsIO, simpleOp, simpleOpArgs)
 import System.Nix.Store.Remote.Socket
 import System.Nix.Store.Remote.Types
@@ -83,11 +83,11 @@ import System.Nix.Store.Remote.Serialize.Prim
 
 -- * Compat
 
-type MonadStore = MonadRemoteStore
+type MonadStore = RemoteStoreT StoreConfig IO
 
 -- * Runners
 
-runStore :: MonadStore a -> Run a
+runStore :: MonadStore a -> Run IO a
 runStore = runStoreOpts defaultSockPath def
   where
     defaultSockPath :: String
@@ -97,7 +97,7 @@ runStoreOpts
   :: FilePath
   -> StoreDir
   -> MonadStore a
-  -> Run a
+  -> Run IO a
 runStoreOpts socketPath =
   runStoreOpts'
     Network.Socket.AF_UNIX
@@ -108,7 +108,7 @@ runStoreOptsTCP
   -> Int
   -> StoreDir
   -> MonadStore a
-  -> Run a
+  -> Run IO a
 runStoreOptsTCP host port sd code = do
   Network.Socket.getAddrInfo
     (Just Network.Socket.defaultHints)
@@ -128,7 +128,7 @@ runStoreOpts'
   -> SockAddr
   -> StoreDir
   -> MonadStore a
-  -> Run a
+  -> Run IO a
 runStoreOpts' sockFamily sockAddr storeRootDir code =
   Control.Exception.bracket
     open

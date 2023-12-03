@@ -9,7 +9,7 @@ import Data.Serialize.Get (Get, Result(..))
 import Data.Serialize.Put (Put, runPut)
 import Network.Socket.ByteString (recv, sendAll)
 import System.Nix.StorePath (HasStoreDir, StorePath)
-import System.Nix.Store.Remote.MonadStore (MonadRemoteStore0, RemoteStoreError(..), getStoreDir, getStoreSocket)
+import System.Nix.Store.Remote.MonadStore (RemoteStoreT, RemoteStoreError(..), getStoreDir, getStoreSocket)
 import System.Nix.Store.Remote.Serializer (NixSerializer, runP, runSerialT)
 import System.Nix.Store.Remote.Serialize.Prim (getInt, getByteString, getByteStrings, getPath, getPathsOrFail)
 import System.Nix.Store.Remote.Types (HasStoreSocket(..))
@@ -34,16 +34,22 @@ genericIncremental getsome parser = do
   go (Fail msg _leftover) = error msg
 
 sockGet8
-  :: HasStoreSocket r
-  => MonadRemoteStore0 r ByteString
+  :: ( Monad m
+     , MonadIO m
+     , HasStoreSocket r
+     )
+  => RemoteStoreT r m ByteString
 sockGet8 = do
   soc <- getStoreSocket
   liftIO $ recv soc 8
 
 sockPut
-  :: HasStoreSocket r
+  :: ( Monad m
+     , MonadIO m
+     , HasStoreSocket r
+     )
   => Put
-  -> MonadRemoteStore0 r ()
+  -> RemoteStoreT r m ()
 sockPut p = do
   soc <- getStoreSocket
   liftIO $ sendAll soc $ runPut p
@@ -93,44 +99,63 @@ sockGetS s = do
 -- * Obsolete
 
 getSocketIncremental
-  :: HasStoreSocket r
+  :: ( Monad m
+     , MonadIO m
+     , HasStoreSocket r
+     )
   => Get a
-  -> MonadRemoteStore0 r a
+  -> RemoteStoreT r m a
 getSocketIncremental = genericIncremental sockGet8
 
 sockGet
-  :: HasStoreSocket r
+  :: ( Monad m
+     , MonadIO m
+     , HasStoreSocket r
+     )
   => Get a
-  -> MonadRemoteStore0 r a
+  -> RemoteStoreT r m a
 sockGet = getSocketIncremental
 
 sockGetInt
-  :: ( HasStoreSocket r
+  :: ( Monad m
+     , MonadIO m
+     , HasStoreSocket r
      , Integral a
      )
-  => MonadRemoteStore0 r a
+  => RemoteStoreT r m a
 sockGetInt = getSocketIncremental getInt
 
 sockGetBool
-  :: HasStoreSocket r
-  => MonadRemoteStore0 r Bool
+  :: ( Monad m
+     , MonadIO m
+     , HasStoreSocket r
+     )
+  => RemoteStoreT r m Bool
 sockGetBool = (== (1 :: Int)) <$> sockGetInt
 
 sockGetStr
-  :: HasStoreSocket r
-  => MonadRemoteStore0 r ByteString
+  :: ( Monad m
+     , MonadIO m
+     , HasStoreSocket r
+     )
+  => RemoteStoreT r m ByteString
 sockGetStr = getSocketIncremental getByteString
 
 sockGetStrings
-  :: HasStoreSocket r
-  => MonadRemoteStore0 r [ByteString]
+  :: ( Monad m
+     , MonadIO m
+     , HasStoreSocket r
+     )
+  => RemoteStoreT r m [ByteString]
 sockGetStrings = getSocketIncremental getByteStrings
 
 sockGetPath
-  :: ( HasStoreDir r
+  :: ( Monad m
+     , MonadIO m
+     , HasStoreDir r
      , HasStoreSocket r
      )
-  => MonadRemoteStore0 r StorePath
+  => RemoteStoreT r m StorePath
 sockGetPath = do
   sd  <- getStoreDir
   pth <- getSocketIncremental (getPath sd)
@@ -140,10 +165,12 @@ sockGetPath = do
     pth
 
 sockGetPathMay
-  :: ( HasStoreDir r
+  :: ( Monad m
+     , MonadIO m
+     , HasStoreDir r
      , HasStoreSocket r
      )
-  => MonadRemoteStore0 r (Maybe StorePath)
+  => RemoteStoreT r m (Maybe StorePath)
 sockGetPathMay = do
   sd  <- getStoreDir
   pth <- getSocketIncremental (getPath sd)
@@ -154,10 +181,12 @@ sockGetPathMay = do
       pth
 
 sockGetPaths
-  :: ( HasStoreDir r
+  :: ( Monad m
+     , MonadIO m
+     , HasStoreDir r
      , HasStoreSocket r
      )
-  => MonadRemoteStore0 r (HashSet StorePath)
+  => RemoteStoreT r m (HashSet StorePath)
 sockGetPaths = do
   sd <- getStoreDir
   getSocketIncremental (getPathsOrFail sd)

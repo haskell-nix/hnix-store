@@ -3,12 +3,13 @@ module System.Nix.Store.Remote.Logger
   ) where
 
 import Control.Monad.Except (throwError)
+import Control.Monad.IO.Class (MonadIO)
 import Data.ByteString (ByteString)
 import Data.Serialize (Result(..))
 import System.Nix.Store.Remote.Serialize.Prim (putByteString)
 import System.Nix.Store.Remote.Serializer (LoggerSError, logger, runSerialT)
 import System.Nix.Store.Remote.Socket (sockGet8, sockPut)
-import System.Nix.Store.Remote.MonadStore (MonadRemoteStore0, RemoteStoreError(..), clearData, getData, getProtoVersion)
+import System.Nix.Store.Remote.MonadStore (RemoteStoreT, RemoteStoreError(..), clearData, getData, getProtoVersion)
 import System.Nix.Store.Remote.Types.Logger (Logger(..))
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion)
 import System.Nix.Store.Remote.Types.StoreConfig (HasStoreSocket(..))
@@ -18,10 +19,12 @@ import qualified Data.Serialize.Get
 import qualified Data.Serializer
 
 processOutput
-  :: ( HasProtoVersion r
+  :: ( Monad m
+     , MonadIO m
+     , HasProtoVersion r
      , HasStoreSocket r
      )
-  => MonadRemoteStore0 r [Logger]
+  => RemoteStoreT r m [Logger]
 processOutput = do
  protoVersion <- getProtoVersion
  sockGet8 >>= go . (decoder protoVersion)
@@ -35,11 +38,13 @@ processOutput = do
       (runSerialT protoVersion $ Data.Serializer.getS logger)
 
   go
-    :: ( HasProtoVersion r
+    :: ( Monad m
+       , MonadIO m
+       , HasProtoVersion r
        , HasStoreSocket r
        )
     => Result (Either LoggerSError Logger)
-    -> MonadRemoteStore0 r [Logger]
+    -> RemoteStoreT r m [Logger]
   go (Done ectrl leftover) = do
 
     Control.Monad.unless (leftover == mempty) $
