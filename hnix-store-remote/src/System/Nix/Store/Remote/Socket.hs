@@ -20,7 +20,9 @@ import qualified Data.Serializer
 import qualified Data.Serialize.Get
 
 genericIncremental
-  :: MonadIO m
+  :: ( MonadIO m
+     , MonadError RemoteStoreError m
+     )
   => m ByteString
   -> Get a
   -> m a
@@ -28,11 +30,22 @@ genericIncremental getsome parser = do
   getsome >>= go . decoder
  where
   decoder = Data.Serialize.Get.runGetPartial parser
+  go (Done _ leftover) | leftover /= mempty =
+    throwError
+    $ RemoteStoreError_GenericIncrementalLeftovers
+        leftover
+
   go (Done x _leftover) = pure x
+
   go (Partial k) = do
     chunk <- getsome
     go (k chunk)
-  go (Fail msg _leftover) = error msg
+
+  go (Fail msg leftover) =
+    throwError
+    $ RemoteStoreError_GenericIncrementalFail
+        msg
+        leftover
 
 sockGet8
   :: ( MonadIO m
