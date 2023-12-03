@@ -86,8 +86,6 @@ processConnection workerHelper preStoreConfig = do
         , handshakeProtoVersion = ourProtoVersion
         -- TODO: doesn't make sense for server
         , handshakeRemoteProtoVersion = ourProtoVersion
-        -- TODO: try this
-        , handshakeLogs = mempty
         }
 
   ~() <- void $ runRemoteStoreT preStoreConfig $ do

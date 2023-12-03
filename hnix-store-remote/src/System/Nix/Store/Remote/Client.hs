@@ -21,7 +21,6 @@ import Control.Monad.Reader (ask)
 import Data.Serialize.Put (Put, runPut)
 import Data.Some (Some(Some))
 
-import qualified Data.Bool
 import qualified Data.ByteString
 import qualified Network.Socket.ByteString
 
@@ -35,7 +34,7 @@ import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types.Handshake (Handshake(..))
 import System.Nix.Store.Remote.Types.Logger (Logger)
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion, ProtoVersion(..), ourProtoVersion)
-import System.Nix.Store.Remote.Types.StoreConfig (HasStoreSocket, PreStoreConfig, StoreConfig, preStoreConfigToStoreConfig)
+import System.Nix.Store.Remote.Types.StoreConfig (PreStoreConfig, StoreConfig, preStoreConfigToStoreConfig)
 import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
 import System.Nix.Store.Remote.Types.WorkerMagic (WorkerMagic(..))
 import System.Nix.Store.Remote.Types.WorkerOp (WorkerOp)
@@ -46,88 +45,58 @@ import System.Nix.StorePath (StorePathName)
 import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
 
 simpleOp
-  :: ( MonadIO m
-     , HasStoreDir r
-     , HasStoreSocket r
-     , HasProtoVersion r
-     )
+  :: MonadRemoteStore m
   => WorkerOp
-  -> RemoteStoreT r m Bool
+  -> m Bool
 simpleOp op = simpleOpArgs op $ pure ()
 
 simpleOpArgs
-  :: ( MonadIO m
-     , HasStoreDir r
-     , HasStoreSocket r
-     , HasProtoVersion r
-     )
+  :: MonadRemoteStore m
   => WorkerOp
   -> Put
-  -> RemoteStoreT r m Bool
+  -> m Bool
 simpleOpArgs op args = do
   runOpArgs op args
-  err <- gotError
-  Data.Bool.bool
-    (sockGetS $ mapErrorS RemoteStoreError_SerializerGet bool)
-    (do
-      -- TODO: don't use show
-      getErrors >>= throwError . RemoteStoreError_Fixme . show
-    )
-    err
+  errored <- gotError
+  if errored
+  then throwError RemoteStoreError_OperationFailed
+  else sockGetS $ mapErrorS RemoteStoreError_SerializerGet bool
 
 runOp
-  :: ( MonadIO m
-     , HasStoreDir r
-     , HasStoreSocket r
-     , HasProtoVersion r
-     )
+  :: MonadRemoteStore m
   => WorkerOp
-  -> RemoteStoreT r m ()
+  -> m ()
 runOp op = runOpArgs op $ pure ()
 
 runOpArgs
-  :: ( MonadIO m
-     , HasStoreDir r
-     , HasStoreSocket r
-     , HasProtoVersion r
-     )
+  :: MonadRemoteStore m
   => WorkerOp
   -> Put
-  -> RemoteStoreT r m ()
+  -> m ()
 runOpArgs op args =
   runOpArgsIO
     op
     (\encode -> encode $ runPut args)
 
 runOpArgsIO
-  :: ( MonadIO m
-     , HasStoreDir r
-     , HasStoreSocket r
-     , HasProtoVersion r
-     )
+  :: MonadRemoteStore m
   => WorkerOp
-  -> ((Data.ByteString.ByteString -> RemoteStoreT r m ())
-       -> RemoteStoreT r m ()
+  -> ((Data.ByteString.ByteString -> m ())
+       -> m ()
      )
-  -> RemoteStoreT r m ()
+  -> m ()
 runOpArgsIO op encoder = do
   sockPutS (mapErrorS RemoteStoreError_SerializerPut enum) op
 
   soc <- getStoreSocket
   encoder (liftIO . Network.Socket.ByteString.sendAll soc)
 
-  out <- processOutput
-  appendLogs out
-  err <- gotError
-  when err $ do
-    -- TODO: don't use show
-    getErrors >>= throwError . RemoteStoreError_Fixme . show
+  processOutput
 
 doReq
-  :: forall m r a
+  :: forall m a
    . ( MonadIO m
-     , MonadRemoteStoreR r m
-     , HasProtoVersion r
+     , MonadRemoteStore m
      , StoreReply a
      )
   => StoreRequest a
@@ -149,7 +118,9 @@ doReq = \case
 
       _ -> pure ()
 
-    _ <- either (throwError @RemoteStoreError @m) appendLogs . fst <$> runRemoteStoreT cfg processOutput
+    --either (throwError @RemoteStoreError @m) (\() -> pure ()) . fst
+    --       <$> runRemoteStoreT cfg processOutput
+    processOutput
     --either throwError pure . fst <$> runRemoteStoreT cfg $
     eres <- runRemoteStoreT cfg $
       sockGetS (mapErrorS RemoteStoreError_SerializerGet (getReply @a))
@@ -268,15 +239,13 @@ runStoreSocket preStoreConfig code =
             $ mapErrorS RemoteStoreError_SerializerHandshake trustedFlag
         else pure Nothing
 
-      logs <-
-        mapStoreConfig
-          (preStoreConfigToStoreConfig minimumCommonVersion)
-          processOutput
+      mapStoreConfig
+        (preStoreConfigToStoreConfig minimumCommonVersion)
+        processOutput
 
       pure Handshake
         { handshakeNixVersion = daemonNixVersion
         , handshakeTrust = remoteTrustsUs
         , handshakeProtoVersion = minimumCommonVersion
         , handshakeRemoteProtoVersion = daemonVersion
-        , handshakeLogs = logs
         }

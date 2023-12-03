@@ -16,7 +16,7 @@ module System.Nix.Store.Remote.MonadStore
 
 import Control.Monad.Except (MonadError)
 import Control.Monad.IO.Class (MonadIO)
-import Control.Monad.Reader (MonadReader, ask)
+import Control.Monad.Reader (MonadReader, ask, asks)
 import Control.Monad.State.Strict (get, modify)
 import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.State.Strict (StateT, runStateT, mapStateT)
@@ -28,12 +28,13 @@ import Network.Socket (Socket)
 import System.Nix.Nar (NarSource)
 import System.Nix.StorePath (HasStoreDir(..), StoreDir)
 import System.Nix.Store.Remote.Serializer (HandshakeSError, LoggerSError, SError)
-import System.Nix.Store.Remote.Types.Logger (Logger, isError)
+import System.Nix.Store.Remote.Types.Logger (Logger)
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion)
 import System.Nix.Store.Remote.Types.StoreConfig (HasStoreSocket(..), StoreConfig)
 
 data RemoteStoreState = RemoteStoreState {
     remoteStoreState_logs :: [Logger]
+  , remoteStoreState_gotError :: Bool
   , remoteStoreState_mData :: Maybe ByteString
   , remoteStoreState_mNarSource :: Maybe (NarSource IO)
   }
@@ -50,6 +51,7 @@ data RemoteStoreError
   | RemoteStoreError_SerializerPut SError
   | RemoteStoreError_NoDataProvided
   | RemoteStoreError_NoNarSourceProvided
+  | RemoteStoreError_OperationFailed
   | RemoteStoreError_ProtocolMismatch
   | RemoteStoreError_RapairNotSupportedByRemoteStore -- "repairing is not supported when building through the Nix daemon"
   | RemoteStoreError_WorkerMagic2Mismatch
@@ -113,6 +115,7 @@ runRemoteStoreT r =
   where
     emptyState = RemoteStoreState
       { remoteStoreState_logs = mempty
+      , remoteStoreState_gotError = False
       , remoteStoreState_mData = Nothing
       , remoteStoreState_mNarSource = Nothing
       }
@@ -136,15 +139,33 @@ class ( MonadIO m
       )
       => MonadRemoteStoreR r m where
 
-  appendLogs :: [Logger] -> m ()
-  default appendLogs
+  appendLog :: Logger -> m ()
+  default appendLog
     :: ( MonadTrans t
        , MonadRemoteStoreR r m'
        , m ~ t m'
        )
-    => [Logger]
+    => Logger
     -> m ()
-  appendLogs = lift . appendLogs
+  appendLog = lift . appendLog
+
+  setError :: m ()
+  default setError
+    :: ( MonadTrans t
+       , MonadRemoteStoreR r m'
+       , m ~ t m'
+       )
+    => m ()
+  setError = lift setError
+
+  clearError :: m ()
+  default clearError
+    :: ( MonadTrans t
+       , MonadRemoteStoreR r m'
+       , m ~ t m'
+       )
+    => m ()
+  clearError = lift clearError
 
   gotError :: m Bool
   default gotError
@@ -154,33 +175,6 @@ class ( MonadIO m
        )
     => m Bool
   gotError = lift gotError
-
-  getErrors :: m [Logger]
-  default getErrors
-    :: ( MonadTrans t
-       , MonadRemoteStoreR r m'
-       , m ~ t m'
-       )
-    => m [Logger]
-  getErrors = lift getErrors
-
-  getLogs :: m [Logger]
-  default getLogs
-    :: ( MonadTrans t
-       , MonadRemoteStoreR r m'
-       , m ~ t m'
-       )
-    => m [Logger]
-  getLogs = lift getLogs
-
-  flushLogs :: m ()
-  default flushLogs
-    :: ( MonadTrans t
-       , MonadRemoteStoreR r m'
-       , m ~ t m'
-       )
-    => m ()
-  flushLogs = lift flushLogs
 
   setData :: ByteString -> m ()
   default setData
@@ -262,17 +256,14 @@ instance ( MonadIO m
   getStoreDir = hasStoreDir <$> RemoteStoreT ask
   getStoreSocket = hasStoreSocket <$> RemoteStoreT ask
 
-  appendLogs x =
+  appendLog x =
     RemoteStoreT
     $ modify
-    $ \s -> s { remoteStoreState_logs = remoteStoreState_logs s <> x }
-  getLogs = remoteStoreState_logs <$> RemoteStoreT get
-  flushLogs =
-    RemoteStoreT
-    $ modify
-    $ \s -> s { remoteStoreState_logs = mempty }
-  gotError = any isError <$> getLogs
-  getErrors = filter isError <$> getLogs
+    $ \s -> s { remoteStoreState_logs = remoteStoreState_logs s ++ [x] }
+
+  setError = RemoteStoreT $ modify $ \s -> s { remoteStoreState_gotError = True }
+  clearError = RemoteStoreT $ modify $ \s -> s { remoteStoreState_gotError = False }
+  gotError = remoteStoreState_gotError <$> RemoteStoreT get
 
   getData = remoteStoreState_mData <$> RemoteStoreT get
   setData x = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mData = pure x }
@@ -286,8 +277,8 @@ instance ( MonadIO m
 
 -- | Ask for a @StoreDir@
 getProtoVersion
-  :: ( Monad m
+  :: ( MonadRemoteStoreR r m
      , HasProtoVersion r
      )
-  => RemoteStoreT r m ProtoVersion
-getProtoVersion = hasProtoVersion <$> RemoteStoreT ask
+  => m ProtoVersion
+getProtoVersion = asks hasProtoVersion
