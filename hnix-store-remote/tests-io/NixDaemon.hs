@@ -159,7 +159,7 @@ withPath action = do
   path <- addTextToStore "hnix-store" "test" mempty RepairMode_DontRepair
   action path
 
--- | dummy path, adds <tmp>/dummpy with "Hello World" contents
+-- | dummy path, adds <tmp>/dummy with "Hello World" contents
 dummy :: MonadStore StorePath
 dummy = do
   let name = Data.Either.fromRight (error "impossible") $ makeStorePathName "dummy"
