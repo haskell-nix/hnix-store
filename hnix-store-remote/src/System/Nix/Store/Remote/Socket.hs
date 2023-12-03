@@ -9,7 +9,7 @@ import Data.Serialize.Get (Get, Result(..))
 import Data.Serialize.Put (Put, runPut)
 import Network.Socket.ByteString (recv, sendAll)
 import System.Nix.StorePath (HasStoreDir, StorePath)
-import System.Nix.Store.Remote.MonadStore (RemoteStoreT, RemoteStoreError(..), getStoreDir, getStoreSocket)
+import System.Nix.Store.Remote.MonadStore (RemoteStoreT, RemoteStoreError(..), getStoreDir)
 import System.Nix.Store.Remote.Serializer (NixSerializer, runP, runSerialT)
 import System.Nix.Store.Remote.Serialize.Prim (getInt, getByteString, getByteStrings, getPath, getPathsOrFail)
 import System.Nix.Store.Remote.Types (HasStoreSocket(..))
@@ -40,7 +40,7 @@ sockGet8
      )
   => RemoteStoreT r m ByteString
 sockGet8 = do
-  soc <- getStoreSocket
+  soc <- asks hasStoreSocket
   liftIO $ recv soc 8
 
 sockPut
@@ -51,7 +51,7 @@ sockPut
   => Put
   -> RemoteStoreT r m ()
 sockPut p = do
-  soc <- getStoreSocket
+  soc <- asks hasStoreSocket
   liftIO $ sendAll soc $ runPut p
 
 sockPutS

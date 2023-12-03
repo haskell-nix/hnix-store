@@ -6,6 +6,7 @@ import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (MonadIO)
 import Data.ByteString (ByteString)
 import Data.Serialize (Result(..))
+import System.Nix.StorePath (HasStoreDir(..))
 import System.Nix.Store.Remote.Serialize.Prim (putByteString)
 import System.Nix.Store.Remote.Serializer (LoggerSError, logger, runSerialT)
 import System.Nix.Store.Remote.Socket (sockGet8, sockPut)
@@ -22,6 +23,7 @@ processOutput
   :: ( Monad m
      , MonadIO m
      , HasProtoVersion r
+     , HasStoreDir r
      , HasStoreSocket r
      )
   => RemoteStoreT r m [Logger]
@@ -41,6 +43,7 @@ processOutput = do
     :: ( Monad m
        , MonadIO m
        , HasProtoVersion r
+       , HasStoreDir r
        , HasStoreSocket r
        )
     => Result (Either LoggerSError Logger)

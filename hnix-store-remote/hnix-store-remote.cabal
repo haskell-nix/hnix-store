@@ -20,6 +20,7 @@ common commons
   ghc-options:  -Wall
   default-extensions:
       DataKinds
+    , DefaultSignatures
     , DeriveGeneric
     , DeriveDataTypeable
     , DeriveFunctor
@@ -34,6 +35,7 @@ common commons
     , ScopedTypeVariables
     , StandaloneDeriving
     , TypeApplications
+    , TypeOperators
     , TypeSynonymInstances
     , InstanceSigs
     , KindSignatures

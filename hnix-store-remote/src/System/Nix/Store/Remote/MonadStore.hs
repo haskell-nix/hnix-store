@@ -7,20 +7,8 @@ module System.Nix.Store.Remote.MonadStore
   , RemoteStoreT
   , runRemoteStoreT
   , mapStoreConfig
-  -- * Reader helpers
-  , getStoreDir
-  , getStoreSocket
+  , MonadRemoteStore(..)
   , getProtoVersion
-  -- * Logs
-  , appendLogs
-  , getLogs
-  , flushLogs
-  , gotError
-  , getErrors
-  -- * Data required from client
-  , getData
-  , setData
-  , clearData
   ) where
 
 import Control.Monad.Except (MonadError)
@@ -119,21 +107,131 @@ mapStoreConfig f =
     ) f
   . _unRemoteStoreT
 
--- | Ask for a @StoreDir@
-getStoreDir
-  :: ( Monad m
-     , HasStoreDir r
-     )
-  => RemoteStoreT r m StoreDir
-getStoreDir = hasStoreDir <$> RemoteStoreT ask
+class ( Monad m
+      , MonadError RemoteStoreError m
+      )
+      => MonadRemoteStore m where
 
--- | Ask for a @StoreDir@
-getStoreSocket
-  :: ( Monad m
-     , HasStoreSocket r
-     )
-  => RemoteStoreT r m Socket
-getStoreSocket = hasStoreSocket <$> RemoteStoreT ask
+  appendLogs :: [Logger] -> m ()
+  default appendLogs
+    :: ( MonadTrans t
+       , MonadRemoteStore m'
+       , m ~ t m'
+       )
+    => [Logger]
+    -> m ()
+  appendLogs = lift . appendLogs
+
+  gotError :: m Bool
+  default gotError
+    :: ( MonadTrans t
+       , MonadRemoteStore m'
+       , m ~ t m'
+       )
+    => m Bool
+  gotError = lift gotError
+
+  getErrors :: m [Logger]
+  default getErrors
+    :: ( MonadTrans t
+       , MonadRemoteStore m'
+       , m ~ t m'
+       )
+    => m [Logger]
+  getErrors = lift getErrors
+
+  getLogs :: m [Logger]
+  default getLogs
+    :: ( MonadTrans t
+       , MonadRemoteStore m'
+       , m ~ t m'
+       )
+    => m [Logger]
+  getLogs = lift getLogs
+
+  flushLogs :: m ()
+  default flushLogs
+    :: ( MonadTrans t
+       , MonadRemoteStore m'
+       , m ~ t m'
+       )
+    => m ()
+  flushLogs = lift flushLogs
+
+  setData :: ByteString -> m ()
+  default setData
+   :: ( MonadTrans t
+      , MonadRemoteStore m'
+      , m ~ t m'
+      )
+   => ByteString
+   -> m ()
+  setData = lift . setData
+
+  getData :: m (Maybe ByteString)
+  default getData
+    :: ( MonadTrans t
+       , MonadRemoteStore m'
+       , m ~ t m'
+       )
+    => m (Maybe ByteString)
+  getData = lift getData
+
+  clearData :: m ()
+  default clearData
+    :: ( MonadTrans t
+       , MonadRemoteStore m'
+       , m ~ t m'
+       )
+    => m ()
+  clearData = lift clearData
+
+  getStoreDir :: m StoreDir
+  default getStoreDir
+    :: ( MonadTrans t
+       , MonadRemoteStore m'
+       , m ~ t m'
+       )
+    => m StoreDir
+  getStoreDir = lift getStoreDir
+
+  getStoreSocket :: m Socket
+  default getStoreSocket
+    :: ( MonadTrans t
+       , MonadRemoteStore m'
+       , m ~ t m'
+       )
+    => m Socket
+  getStoreSocket = lift getStoreSocket
+
+instance MonadRemoteStore m => MonadRemoteStore (StateT s m)
+instance MonadRemoteStore m => MonadRemoteStore (ReaderT r m)
+instance MonadRemoteStore m => MonadRemoteStore (ExceptT RemoteStoreError m)
+
+instance ( Monad m
+         , HasStoreDir r
+         , HasStoreSocket r
+         )
+         => MonadRemoteStore (RemoteStoreT r m) where
+
+  getStoreDir = hasStoreDir <$> RemoteStoreT ask
+  getStoreSocket = hasStoreSocket <$> RemoteStoreT ask
+
+  appendLogs x =
+    RemoteStoreT
+    $ modify
+    $ \s -> s { remoteStoreState_logs = remoteStoreState_logs s <> x }
+  getLogs = remoteStoreState_logs <$> RemoteStoreT get
+  flushLogs =
+    RemoteStoreT
+    $ modify
+    $ \s -> s { remoteStoreState_logs = mempty }
+  gotError = any isError <$> getLogs
+  getErrors = filter isError <$> getLogs
+
+  getData = remoteStoreState_mData <$> RemoteStoreT get
+  setData x = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mData = pure x }
+  clearData = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mData = Nothing }
 
 -- | Ask for a @StoreDir@
 getProtoVersion
@@ -142,33 +240,3 @@ getProtoVersion
      )
   => RemoteStoreT r m ProtoVersion
 getProtoVersion = hasProtoVersion <$> RemoteStoreT ask
-
--- * Logs
-
-gotError :: Monad m => RemoteStoreT r m Bool
-gotError = any isError <$> getLogs
-
-getErrors :: Monad m => RemoteStoreT r m [Logger]
-getErrors = filter isError <$> getLogs
-
-appendLogs :: Monad m => [Logger] -> RemoteStoreT r m ()
-appendLogs x = RemoteStoreT
-  $ modify
-  $ \s -> s { remoteStoreState_logs = remoteStoreState_logs s <> x }
-
-getLogs :: Monad m => RemoteStoreT r m [Logger]
-getLogs = remoteStoreState_logs <$> RemoteStoreT get
-
-flushLogs :: Monad m => RemoteStoreT r m ()
-flushLogs = RemoteStoreT $ modify $ \s -> s { remoteStoreState_logs = mempty }
-
--- * Data required from client
-
-getData :: Monad m => RemoteStoreT r m (Maybe ByteString)
-getData = remoteStoreState_mData <$> RemoteStoreT get
-
-setData :: Monad m => ByteString -> RemoteStoreT r m ()
-setData x = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mData = pure x }
-
-clearData :: Monad m => RemoteStoreT r m ()
-clearData = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mData = Nothing }

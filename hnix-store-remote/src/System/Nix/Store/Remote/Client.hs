@@ -20,6 +20,7 @@ import qualified Data.Bool
 import qualified Data.ByteString
 import qualified Network.Socket.ByteString
 
+import System.Nix.StorePath (HasStoreDir(..))
 import System.Nix.Store.Remote.Logger (processOutput)
 import System.Nix.Store.Remote.MonadStore
 import System.Nix.Store.Remote.Socket (sockPutS, sockGetS)
@@ -32,20 +33,20 @@ import System.Nix.Store.Remote.Types.WorkerMagic (WorkerMagic(..))
 import System.Nix.Store.Remote.Types.WorkerOp (WorkerOp)
 
 simpleOp
-  :: ( Monad m
-     , MonadIO m
-     , HasProtoVersion r
+  :: ( MonadIO m
+     , HasStoreDir r
      , HasStoreSocket r
+     , HasProtoVersion r
      )
   => WorkerOp
   -> RemoteStoreT r m Bool
 simpleOp op = simpleOpArgs op $ pure ()
 
 simpleOpArgs
-  :: ( Monad m
-     , MonadIO m
-     , HasProtoVersion r
+  :: ( MonadIO m
+     , HasStoreDir r
      , HasStoreSocket r
+     , HasProtoVersion r
      )
   => WorkerOp
   -> Put
@@ -62,20 +63,20 @@ simpleOpArgs op args = do
     err
 
 runOp
-  :: ( Monad m
-     , MonadIO m
-     , HasProtoVersion r
+  :: ( MonadIO m
+     , HasStoreDir r
      , HasStoreSocket r
+     , HasProtoVersion r
      )
   => WorkerOp
   -> RemoteStoreT r m ()
 runOp op = runOpArgs op $ pure ()
 
 runOpArgs
-  :: ( Monad m
-     , MonadIO m
-     , HasProtoVersion r
+  :: ( MonadIO m
+     , HasStoreDir r
      , HasStoreSocket r
+     , HasProtoVersion r
      )
   => WorkerOp
   -> Put
@@ -86,10 +87,10 @@ runOpArgs op args =
     (\encode -> encode $ runPut args)
 
 runOpArgsIO
-  :: ( Monad m
-     , MonadIO m
-     , HasProtoVersion r
+  :: ( MonadIO m
+     , HasStoreDir r
      , HasStoreSocket r
+     , HasProtoVersion r
      )
   => WorkerOp
   -> ((Data.ByteString.ByteString -> RemoteStoreT r m ())
