@@ -41,7 +41,10 @@ processOutput = do
           sockGet8 >>= go . (decoder protoVersion)
 
     Control.Monad.unless (leftover == mempty) $
-      throwError $ RemoteStoreError_LoggerLeftovers leftover
+      throwError
+      $ RemoteStoreError_LoggerLeftovers
+          (show ectrl)
+          leftover
 
     case ectrl of
       Left e -> throwError $ RemoteStoreError_SerializerLogger e

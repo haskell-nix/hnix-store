@@ -98,6 +98,7 @@ doReq
    . ( MonadIO m
      , MonadRemoteStore m
      , StoreReply a
+     , Show a
      )
   => StoreRequest a
   -> m a

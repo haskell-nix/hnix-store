@@ -46,14 +46,14 @@ data RemoteStoreError
   | RemoteStoreError_ClientVersionTooOld
   | RemoteStoreError_Disconnected
   | RemoteStoreError_GetAddrInfoFailed
-  | RemoteStoreError_GenericIncrementalLeftovers ByteString -- when there are bytes left over after genericIncremental parser is done
+  | RemoteStoreError_GenericIncrementalLeftovers String ByteString -- when there are bytes left over after genericIncremental parser is done, (Done x leftover), first param is show x
   | RemoteStoreError_GenericIncrementalFail String ByteString -- when genericIncremental parser returns ((Fail msg leftover) :: Result)
   | RemoteStoreError_SerializerGet SError
   | RemoteStoreError_SerializerHandshake HandshakeSError
   | RemoteStoreError_SerializerLogger LoggerSError
   | RemoteStoreError_SerializerPut SError
   | RemoteStoreError_IOException SomeException
-  | RemoteStoreError_LoggerLeftovers ByteString -- when there are bytes left over after incremental logger parser is done
+  | RemoteStoreError_LoggerLeftovers String ByteString -- when there are bytes left over after incremental logger parser is done, (Done x leftover), first param is show x
   | RemoteStoreError_LoggerParserFail String ByteString -- when incremental parser returns ((Fail msg leftover) :: Result)
   | RemoteStoreError_NoDataProvided
   | RemoteStoreError_NoNarSourceProvided

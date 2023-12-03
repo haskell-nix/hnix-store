@@ -22,6 +22,7 @@ import qualified Data.Serialize.Get
 genericIncremental
   :: ( MonadIO m
      , MonadError RemoteStoreError m
+     , Show a
      )
   => m ByteString
   -> Get a
@@ -30,9 +31,10 @@ genericIncremental getsome parser = do
   getsome >>= go . decoder
  where
   decoder = Data.Serialize.Get.runGetPartial parser
-  go (Done _ leftover) | leftover /= mempty =
+  go (Done x leftover) | leftover /= mempty =
     throwError
     $ RemoteStoreError_GenericIncrementalLeftovers
+        (show x)
         leftover
 
   go (Done x _leftover) = pure x
@@ -99,6 +101,8 @@ sockGetS
      , MonadError e m
      , MonadReader r m
      , MonadIO m
+     , Show a
+     , Show e
      )
   => NixSerializer r e a
   -> m a
@@ -114,19 +118,19 @@ sockGetS s = do
 -- * Obsolete
 
 getSocketIncremental
-  :: MonadRemoteStore m
+  :: (MonadRemoteStore m, Show a)
   => Get a
   -> m a
 getSocketIncremental = genericIncremental sockGet8
 
 sockGet
-  :: MonadRemoteStore m
+  :: (MonadRemoteStore m, Show a)
   => Get a
   -> m a
 sockGet = getSocketIncremental
 
 sockGetInt
-  :: (Integral a, MonadRemoteStore m)
+  :: (Integral a, MonadRemoteStore m, Show a)
   => m a
 sockGetInt = getSocketIncremental getInt
 
