@@ -41,6 +41,10 @@ data RemoteStoreState = RemoteStoreState {
   -- as the daemon requests chunks of size @Word64@.
   -- If the function returns Nothing and daemon tries to read more
   -- data an error is thrown.
+  -- Used by @AddToStoreNar@ and @ImportPaths@ operations.
+  , remoteStoreState_mDataSink :: Maybe (ByteString -> IO ())
+  -- ^ Sink for @Logger_Write@, called repeatedly by the daemon
+  -- to dump us some data. Used by @ExportPath@ operation.
   , remoteStoreState_mNarSource :: Maybe (NarSource IO)
   }
 
@@ -61,6 +65,7 @@ data RemoteStoreError
   | RemoteStoreError_LoggerParserFail String ByteString -- when incremental parser returns ((Fail msg leftover) :: Result)
   | RemoteStoreError_NoDataSourceProvided -- remoteStoreState_mDataSource is required but it is Nothing
   | RemoteStoreError_DataSourceExhausted -- remoteStoreState_mDataSource returned Nothing but more data was requested
+  | RemoteStoreError_NoDataSinkProvided -- remoteStoreState_mDataSink is required but it is Nothing
   | RemoteStoreError_NoNarSourceProvided
   | RemoteStoreError_OperationFailed
   | RemoteStoreError_ProtocolMismatch
@@ -128,6 +133,7 @@ runRemoteStoreT r =
       { remoteStoreState_logs = mempty
       , remoteStoreState_gotError = False
       , remoteStoreState_mDataSource = Nothing
+      , remoteStoreState_mDataSink = Nothing
       , remoteStoreState_mNarSource = Nothing
       }
 
@@ -252,7 +258,33 @@ class ( MonadIO m
     => m ()
   clearDataSource = lift clearDataSource
 
+  setDataSink :: (ByteString -> IO ()) -> m ()
+  default setDataSink
+   :: ( MonadTrans t
+      , MonadRemoteStoreR r m'
+      , m ~ t m'
+      )
+   => (ByteString -> IO ())
+   -> m ()
+  setDataSink x = lift (setDataSink x)
 
+  getDataSink :: m (Maybe (ByteString -> IO ()))
+  default getDataSink
+   :: ( MonadTrans t
+      , MonadRemoteStoreR r m'
+      , m ~ t m'
+      )
+   => m (Maybe (ByteString -> IO ()))
+  getDataSink = lift getDataSink
+
+  clearDataSink :: m ()
+  default clearDataSink
+    :: ( MonadTrans t
+       , MonadRemoteStoreR r m'
+       , m ~ t m'
+       )
+    => m ()
+  clearDataSink = lift clearDataSink
 
 instance MonadRemoteStoreR r m => MonadRemoteStoreR r (StateT s m)
 instance MonadRemoteStoreR r m => MonadRemoteStoreR r (ReaderT r m)
@@ -281,6 +313,10 @@ instance ( MonadIO m
   setDataSource x = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mDataSource = pure x }
   getDataSource = remoteStoreState_mDataSource <$> RemoteStoreT get
   clearDataSource = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mDataSource = Nothing }
+
+  setDataSink x = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mDataSink = pure x }
+  getDataSink = remoteStoreState_mDataSink <$> RemoteStoreT get
+  clearDataSink = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mDataSink = Nothing }
 
   setNarSource x = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mNarSource = pure x }
   takeNarSource = RemoteStoreT $ do

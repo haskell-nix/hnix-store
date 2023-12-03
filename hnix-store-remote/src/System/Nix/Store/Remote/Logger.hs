@@ -8,7 +8,7 @@ import Data.ByteString (ByteString)
 import Data.Serialize (Result(..))
 import System.Nix.Store.Remote.Serializer (LoggerSError, logger, runSerialT)
 import System.Nix.Store.Remote.Socket (sockGet8)
-import System.Nix.Store.Remote.MonadStore (MonadRemoteStore, RemoteStoreError(..), appendLog, getDataSource, getStoreSocket, getProtoVersion, setError)
+import System.Nix.Store.Remote.MonadStore (MonadRemoteStore, RemoteStoreError(..), appendLog, getDataSource, getDataSink, getStoreSocket, getProtoVersion, setError)
 import System.Nix.Store.Remote.Types.Logger (Logger(..))
 import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion)
 
@@ -72,9 +72,14 @@ processOutput = do
             loop
 
           -- Write data to sink
-          -- used with tunnel sink in ExportPath operation
-          Logger_Write _out -> do
-            -- TODO: handle me
+          Logger_Write out -> do
+            mSink <- getDataSink
+            case mSink of
+              Nothing   ->
+                throwError RemoteStoreError_NoDataSinkProvided
+              Just sink -> do
+                liftIO $ sink out
+
             loop
 
           -- Following we just append and loop
