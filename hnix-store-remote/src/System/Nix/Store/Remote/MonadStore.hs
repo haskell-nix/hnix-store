@@ -49,6 +49,8 @@ data RemoteStoreError
   | RemoteStoreError_SerializerHandshake HandshakeSError
   | RemoteStoreError_SerializerLogger LoggerSError
   | RemoteStoreError_SerializerPut SError
+  | RemoteStoreError_LoggerLeftovers ByteString -- when there are bytes left over after incremental logger parser is done
+  | RemoteStoreError_LoggerParserFail String ByteString -- when incremental parser returns ((Fail msg leftover) :: Result)
   | RemoteStoreError_NoDataProvided
   | RemoteStoreError_NoNarSourceProvided
   | RemoteStoreError_OperationFailed

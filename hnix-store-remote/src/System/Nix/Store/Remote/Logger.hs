@@ -41,12 +41,10 @@ processOutput = do
           sockGet8 >>= go . (decoder protoVersion)
 
     Control.Monad.unless (leftover == mempty) $
-      -- TODO: throwError
-      error $ "Leftovers detected: '" ++ show leftover ++ "'"
+      throwError $ RemoteStoreError_LoggerLeftovers leftover
 
     case ectrl of
-      -- TODO: tie this with throwError and better error type
-      Left e -> error $ show e
+      Left e -> throwError $ RemoteStoreError_SerializerLogger e
       Right ctrl -> do
         case ctrl of
           -- These two terminate the logger loop
@@ -60,6 +58,8 @@ processOutput = do
               Nothing   -> throwError RemoteStoreError_NoDataProvided
               Just part -> do
                 -- XXX: we should check/assert part size against n of (Read n)
+                -- ^ not really, this is just an indicator how big of a chunk
+                -- to read from the source
                 sockPut $ putByteString part
                 clearData
 
@@ -82,4 +82,8 @@ processOutput = do
     chunk <- sockGet8
     go (k chunk)
 
-  go (Fail msg _leftover) = error msg
+  go (Fail msg leftover) =
+    throwError
+    $ RemoteStoreError_LoggerParserFail
+        msg
+        leftover
