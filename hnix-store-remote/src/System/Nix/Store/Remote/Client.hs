@@ -9,28 +9,40 @@ module System.Nix.Store.Remote.Client
   , runOpArgsIO
   , runStoreSocket
   , ourProtoVersion
+  , doReq
+  , addToStore
+  , isValidPath
   ) where
 
 import Control.Monad (unless, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Serialize.Put (Put, runPut)
+import Data.Some (Some(Some))
 
 import qualified Data.Bool
 import qualified Data.ByteString
 import qualified Network.Socket.ByteString
 
-import System.Nix.StorePath (HasStoreDir(..))
+import System.Nix.Nar (NarSource)
+import System.Nix.StorePath (HasStoreDir(..), StorePath)
 import System.Nix.Store.Remote.Logger (processOutput)
 import System.Nix.Store.Remote.MonadStore
 import System.Nix.Store.Remote.Socket (sockPutS, sockGetS)
-import System.Nix.Store.Remote.Serializer (bool, enum, int, mapErrorS, protoVersion, text, trustedFlag, workerMagic)
+--import System.Nix.Store.Remote.Serializer (NixSerializer, SError, bool, enum, int, mapErrorS, protoVersion, storeRequest, text, trustedFlag, workerMagic)
+import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types.Handshake (Handshake(..))
 import System.Nix.Store.Remote.Types.Logger (Logger)
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion, ProtoVersion(..), ourProtoVersion)
 import System.Nix.Store.Remote.Types.StoreConfig (HasStoreSocket, PreStoreConfig, StoreConfig, preStoreConfigToStoreConfig)
+import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
 import System.Nix.Store.Remote.Types.WorkerMagic (WorkerMagic(..))
 import System.Nix.Store.Remote.Types.WorkerOp (WorkerOp)
+
+-- WIP ops
+import System.Nix.Hash (HashAlgo(..))
+import System.Nix.StorePath (StorePathName)
+import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
 
 simpleOp
   :: ( MonadIO m
@@ -109,6 +121,67 @@ runOpArgsIO op encoder = do
   when err $ do
     -- TODO: don't use show
     getErrors >>= throwError . RemoteStoreError_Fixme . show
+
+doReq
+  :: ( MonadIO m
+     , StoreReply a
+     )
+  => StoreRequest a
+  -> RemoteStoreT StoreConfig m a
+doReq = \case
+  x -> do
+    sockPutS (mapErrorS RemoteStoreError_SerializerPut storeRequest) (Some x)
+    case x of
+      AddToStore {} -> do
+
+        ms <- takeNarSource
+        case ms of
+          Just (stream :: NarSource IO) -> do
+            soc <- getStoreSocket
+            liftIO $ stream $ Network.Socket.ByteString.sendAll soc
+          Nothing -> throwError RemoteStoreError_NoNarSourceProvided
+
+      _ -> pure ()
+    out <- processOutput
+    appendLogs out
+    sockGetS (mapErrorS RemoteStoreError_SerializerGet getReply)
+
+class StoreReply a where
+  getReply
+    :: ( HasStoreDir r
+       , HasProtoVersion r
+       )
+    => NixSerializer r SError a
+
+instance StoreReply Bool where
+  getReply = bool
+
+instance StoreReply StorePath where
+  getReply = storePath
+
+-- | Pack `Nar` and add it to the store.
+addToStore
+  :: MonadIO m
+  => StorePathName        -- ^ Name part of the newly created `StorePath`
+  -> NarSource IO         -- ^ Provide nar stream
+  -> FileIngestionMethod  -- ^ Add target directory recursively
+  -> Some HashAlgo        -- ^
+  -> RepairMode           -- ^ Only used by local store backend
+  -> RemoteStoreT StoreConfig m StorePath
+addToStore name source method hashAlgo repair = do
+  Control.Monad.when
+    (repair == RepairMode_DoRepair)
+    $ throwError RemoteStoreError_RapairNotSupportedByRemoteStore
+
+  setNarSource source
+  doReq (AddToStore name method hashAlgo repair)
+
+isValidPath :: MonadIO m => StorePath -> RemoteStoreT StoreConfig m Bool
+isValidPath = doReq . IsValidPath
+
+-- TOOD: want this, but Logger.processOutput is fixed to RemoteStoreT r m
+--isValidPath' :: MonadRemoteStore m => StorePath -> m Bool
+--isValidPath' = doReq . IsValidPath
 
 type Run m a = m (Either RemoteStoreError a, [Logger])
 

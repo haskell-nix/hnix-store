@@ -49,6 +49,7 @@ data RemoteStoreError
   | RemoteStoreError_NoDataProvided
   | RemoteStoreError_NoNarSourceProvided
   | RemoteStoreError_ProtocolMismatch
+  | RemoteStoreError_RapairNotSupportedByRemoteStore -- "repairing is not supported when building through the Nix daemon"
   | RemoteStoreError_WorkerMagic2Mismatch
   | RemoteStoreError_WorkerError WorkerError
   -- bad / redundant
