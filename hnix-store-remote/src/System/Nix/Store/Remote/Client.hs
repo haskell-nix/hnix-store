@@ -17,7 +17,6 @@ module System.Nix.Store.Remote.Client
 import Control.Monad (unless, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Reader (ask)
 import Data.Serialize.Put (Put, runPut)
 import Data.Some (Some(Some))
 
@@ -104,9 +103,7 @@ doReq
   -> m a
 doReq = \case
   x -> do
-    cfg <- ask
-    _ <- runRemoteStoreT cfg $
-      sockPutS (mapErrorS RemoteStoreError_SerializerPut storeRequest) (Some x)
+    sockPutS (mapErrorS RemoteStoreError_SerializerPut storeRequest) (Some x)
     case x of
       AddToStore {} -> do
 
@@ -119,16 +116,9 @@ doReq = \case
 
       _ -> pure ()
 
-    --either (throwError @RemoteStoreError @m) (\() -> pure ()) . fst
-    --       <$> runRemoteStoreT cfg processOutput
     processOutput
-    --either throwError pure . fst <$> runRemoteStoreT cfg $
-    eres <- runRemoteStoreT cfg $
-      sockGetS (mapErrorS RemoteStoreError_SerializerGet (getReply @a))
+    sockGetS (mapErrorS RemoteStoreError_SerializerGet (getReply @a))
 
-    case eres of
-      (Left e, _logs) -> throwError e
-      (Right res, _logs) -> pure res
 
 class StoreReply a where
   getReply
