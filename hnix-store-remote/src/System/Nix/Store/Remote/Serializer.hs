@@ -117,8 +117,9 @@ import System.Nix.Build (BuildMode, BuildResult(..))
 import System.Nix.ContentAddress (ContentAddress)
 import System.Nix.Derivation (Derivation(..), DerivationOutput(..))
 import System.Nix.DerivedPath (DerivedPath, ParseOutputsError)
-import System.Nix.Hash (HashAlgo)
+import System.Nix.Hash (HashAlgo(..))
 import System.Nix.Signature (Signature, NarSignature)
+import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
 import System.Nix.StorePath (HasStoreDir(..), InvalidPathError, StorePath, StorePathHashPart, StorePathName)
 import System.Nix.StorePath.Metadata (Metadata(..), StorePathTrust(..))
 import System.Nix.Store.Remote.Types
@@ -984,16 +985,20 @@ storeRequest = Serializer
   { getS = getS workerOp >>= \case
       WorkerOp_AddToStore -> do
         pathName <- getS storePathName
+        _fixed <- getS bool -- obsolete
         recursive <- getS enum
         hashAlgo <- getS someHashAlgo
-        repairMode <- getS enum
-        pure $ Some (AddToStore pathName recursive hashAlgo repairMode)
+
+        -- not supported by ProtoVersion < 1.25
+        let repair = RepairMode_DontRepair
+
+        pure $ Some (AddToStore pathName recursive hashAlgo repair)
 
       WorkerOp_AddTextToStore -> do
         txt <- getS storeText
         paths <- getS (hashSet storePath)
-        repairMode <- getS enum
-        pure $ Some (AddTextToStore txt paths repairMode)
+        let repair = RepairMode_DontRepair
+        pure $ Some (AddTextToStore txt paths repair)
 
       WorkerOp_AddSignatures -> do
         path <- getS storePath
@@ -1106,20 +1111,24 @@ storeRequest = Serializer
       WorkerOp_SetOptions -> undefined
 
   , putS = \case
-      Some (AddToStore pathName recursive hashAlgo repairMode) -> do
+      Some (AddToStore pathName recursive hashAlgo _repair) -> do
         putS workerOp WorkerOp_AddToStore
 
         putS storePathName pathName
-        putS enum recursive
-        putS someHashAlgo hashAlgo
-        putS enum repairMode
+        -- obsolete fixed
+        putS bool
+          $ not
+          $ hashAlgo == Some HashAlgo_SHA256
+            && (recursive == FileIngestionMethod_FileRecursive)
 
-      Some (AddTextToStore txt paths repairMode) -> do
+        putS bool (recursive == FileIngestionMethod_FileRecursive)
+        putS someHashAlgo hashAlgo
+
+      Some (AddTextToStore txt paths _repair) -> do
         putS workerOp WorkerOp_AddTextToStore
 
         putS storeText txt
         putS (hashSet storePath) paths
-        putS enum repairMode
 
       Some (AddSignatures path signatures) -> do
         putS workerOp WorkerOp_AddSignatures
