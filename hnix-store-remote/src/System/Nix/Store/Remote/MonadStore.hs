@@ -23,6 +23,7 @@ import Control.Monad.Trans.Reader (ReaderT, runReaderT, withReaderT)
 import Data.ByteString (ByteString)
 import Data.Word (Word64)
 import Network.Socket (Socket)
+import System.Nix.Nar (NarSource)
 import System.Nix.StorePath (HasStoreDir(..), StoreDir)
 import System.Nix.Store.Remote.Serializer (HandshakeSError, LoggerSError, SError)
 import System.Nix.Store.Remote.Types.Logger (Logger, isError)
@@ -32,7 +33,8 @@ import System.Nix.Store.Remote.Types.StoreConfig (HasStoreSocket(..))
 data RemoteStoreState = RemoteStoreState {
     remoteStoreState_logs :: [Logger]
   , remoteStoreState_mData :: Maybe ByteString
-  } deriving (Eq, Ord, Show)
+  , remoteStoreState_mNarSource :: Maybe (NarSource IO)
+  }
 
 data RemoteStoreError
   = RemoteStoreError_Fixme String
@@ -45,6 +47,7 @@ data RemoteStoreError
   | RemoteStoreError_SerializerLogger LoggerSError
   | RemoteStoreError_SerializerPut SError
   | RemoteStoreError_NoDataProvided
+  | RemoteStoreError_NoNarSourceProvided
   | RemoteStoreError_ProtocolMismatch
   | RemoteStoreError_WorkerMagic2Mismatch
   | RemoteStoreError_WorkerError WorkerError
@@ -108,6 +111,7 @@ runRemoteStoreT r =
     emptyState = RemoteStoreState
       { remoteStoreState_logs = mempty
       , remoteStoreState_mData = Nothing
+      , remoteStoreState_mNarSource = Nothing
       }
 
 mapStoreConfig
@@ -218,6 +222,25 @@ class ( Monad m
     => m Socket
   getStoreSocket = lift getStoreSocket
 
+  setNarSource :: NarSource IO -> m ()
+  default setNarSource
+   :: ( MonadTrans t
+      , MonadRemoteStore m'
+      , m ~ t m'
+      )
+   => NarSource IO
+   -> m ()
+  setNarSource x = lift (setNarSource x)
+
+  takeNarSource :: m (Maybe (NarSource IO))
+  default takeNarSource
+   :: ( MonadTrans t
+      , MonadRemoteStore m'
+      , m ~ t m'
+      )
+   => m (Maybe (NarSource IO))
+  takeNarSource = lift takeNarSource
+
 instance MonadRemoteStore m => MonadRemoteStore (StateT s m)
 instance MonadRemoteStore m => MonadRemoteStore (ReaderT r m)
 instance MonadRemoteStore m => MonadRemoteStore (ExceptT RemoteStoreError m)
@@ -246,6 +269,12 @@ instance ( Monad m
   getData = remoteStoreState_mData <$> RemoteStoreT get
   setData x = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mData = pure x }
   clearData = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mData = Nothing }
+
+  setNarSource x = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mNarSource = pure x }
+  takeNarSource = RemoteStoreT $ do
+    x <- remoteStoreState_mNarSource <$> get
+    modify $ \s -> s { remoteStoreState_mNarSource = Nothing }
+    pure x
 
 -- | Ask for a @StoreDir@
 getProtoVersion
