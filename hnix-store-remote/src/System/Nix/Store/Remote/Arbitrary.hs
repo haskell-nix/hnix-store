@@ -5,6 +5,7 @@ module System.Nix.Store.Remote.Arbitrary where
 
 import Data.Some (Some(Some))
 import System.Nix.Arbitrary ()
+import System.Nix.Store.Types (RepairMode(..))
 import System.Nix.Store.Remote.Types
 
 import Test.QuickCheck (Arbitrary(..), oneof, suchThat)
@@ -95,8 +96,8 @@ deriving via GenericArbitrary WorkerOp
 
 instance Arbitrary (Some StoreRequest) where
   arbitrary = oneof
-    [ Some <$> (AddToStore <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)
-    , Some <$> (AddTextToStore <$> arbitrary <*> arbitrary <*> arbitrary)
+    [ Some <$> (AddToStore <$> arbitrary <*> arbitrary <*> arbitrary <*> pure RepairMode_DontRepair)
+    , Some <$> (AddTextToStore <$> arbitrary <*> arbitrary <*> pure RepairMode_DontRepair)
     , Some <$> (AddSignatures <$> arbitrary <*> arbitrary)
     , Some . AddIndirectRoot  <$> arbitrary
     , Some . AddTempRoot <$> arbitrary
