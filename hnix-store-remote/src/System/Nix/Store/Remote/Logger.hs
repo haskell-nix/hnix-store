@@ -3,18 +3,19 @@ module System.Nix.Store.Remote.Logger
   ) where
 
 import Control.Monad.Except (throwError)
+import Control.Monad.IO.Class (liftIO)
 import Data.ByteString (ByteString)
 import Data.Serialize (Result(..))
-import System.Nix.Store.Remote.Serialize.Prim (putByteString)
 import System.Nix.Store.Remote.Serializer (LoggerSError, logger, runSerialT)
-import System.Nix.Store.Remote.Socket (sockGet8, sockPut)
-import System.Nix.Store.Remote.MonadStore (MonadRemoteStore, RemoteStoreError(..), appendLog, clearData, getData, getProtoVersion, setError)
+import System.Nix.Store.Remote.Socket (sockGet8)
+import System.Nix.Store.Remote.MonadStore (MonadRemoteStore, RemoteStoreError(..), appendLog, getDataSource, getStoreSocket, getProtoVersion, setError)
 import System.Nix.Store.Remote.Types.Logger (Logger(..))
 import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion)
 
 import qualified Control.Monad
 import qualified Data.Serialize.Get
 import qualified Data.Serializer
+import qualified Network.Socket.ByteString
 
 processOutput
   :: MonadRemoteStore m
@@ -55,16 +56,18 @@ processOutput = do
           Logger_Last -> appendLog Logger_Last
 
           -- Read data from source
-          Logger_Read _n -> do
-            mdata <- getData
-            case mdata of
-              Nothing   -> throwError RemoteStoreError_NoDataProvided
-              Just part -> do
-                -- XXX: we should check/assert part size against n of (Read n)
-                -- ^ not really, this is just an indicator how big of a chunk
-                -- to read from the source
-                sockPut $ putByteString part
-                clearData
+          Logger_Read size -> do
+            mSource <- getDataSource
+            case mSource of
+              Nothing   ->
+                throwError RemoteStoreError_NoDataSourceProvided
+              Just source -> do
+                mChunk <- liftIO $ source size
+                case mChunk of
+                  Nothing -> throwError RemoteStoreError_DataSourceExhausted
+                  Just chunk -> do
+                    sock <- getStoreSocket
+                    liftIO $ Network.Socket.ByteString.sendAll sock chunk
 
             loop
 

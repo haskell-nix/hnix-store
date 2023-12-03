@@ -36,7 +36,11 @@ import System.Nix.Store.Remote.Types.StoreConfig (HasStoreSocket(..), StoreConfi
 data RemoteStoreState = RemoteStoreState {
     remoteStoreState_logs :: [Logger]
   , remoteStoreState_gotError :: Bool
-  , remoteStoreState_mData :: Maybe ByteString
+  , remoteStoreState_mDataSource :: Maybe (Word64 -> IO (Maybe ByteString))
+  -- ^ Source for @Logger_Read@, this will be called repeatedly
+  -- as the daemon requests chunks of size @Word64@.
+  -- If the function returns Nothing and daemon tries to read more
+  -- data an error is thrown.
   , remoteStoreState_mNarSource :: Maybe (NarSource IO)
   }
 
@@ -55,7 +59,8 @@ data RemoteStoreError
   | RemoteStoreError_IOException SomeException
   | RemoteStoreError_LoggerLeftovers String ByteString -- when there are bytes left over after incremental logger parser is done, (Done x leftover), first param is show x
   | RemoteStoreError_LoggerParserFail String ByteString -- when incremental parser returns ((Fail msg leftover) :: Result)
-  | RemoteStoreError_NoDataProvided
+  | RemoteStoreError_NoDataSourceProvided -- remoteStoreState_mDataSource is required but it is Nothing
+  | RemoteStoreError_DataSourceExhausted -- remoteStoreState_mDataSource returned Nothing but more data was requested
   | RemoteStoreError_NoNarSourceProvided
   | RemoteStoreError_OperationFailed
   | RemoteStoreError_ProtocolMismatch
@@ -122,7 +127,7 @@ runRemoteStoreT r =
     emptyState = RemoteStoreState
       { remoteStoreState_logs = mempty
       , remoteStoreState_gotError = False
-      , remoteStoreState_mData = Nothing
+      , remoteStoreState_mDataSource = Nothing
       , remoteStoreState_mNarSource = Nothing
       }
 
@@ -182,34 +187,6 @@ class ( MonadIO m
     => m Bool
   gotError = lift gotError
 
-  setData :: ByteString -> m ()
-  default setData
-   :: ( MonadTrans t
-      , MonadRemoteStoreR r m'
-      , m ~ t m'
-      )
-   => ByteString
-   -> m ()
-  setData = lift . setData
-
-  getData :: m (Maybe ByteString)
-  default getData
-    :: ( MonadTrans t
-       , MonadRemoteStoreR r m'
-       , m ~ t m'
-       )
-    => m (Maybe ByteString)
-  getData = lift getData
-
-  clearData :: m ()
-  default clearData
-    :: ( MonadTrans t
-       , MonadRemoteStoreR r m'
-       , m ~ t m'
-       )
-    => m ()
-  clearData = lift clearData
-
   getStoreDir :: m StoreDir
   default getStoreDir
     :: ( MonadTrans t
@@ -247,6 +224,36 @@ class ( MonadIO m
    => m (Maybe (NarSource IO))
   takeNarSource = lift takeNarSource
 
+  setDataSource :: (Word64 -> IO (Maybe ByteString)) -> m ()
+  default setDataSource
+   :: ( MonadTrans t
+      , MonadRemoteStoreR r m'
+      , m ~ t m'
+      )
+   => (Word64 -> IO (Maybe ByteString))
+   -> m ()
+  setDataSource x = lift (setDataSource x)
+
+  getDataSource :: m (Maybe (Word64 -> IO (Maybe ByteString)))
+  default getDataSource
+   :: ( MonadTrans t
+      , MonadRemoteStoreR r m'
+      , m ~ t m'
+      )
+   => m (Maybe (Word64 -> IO (Maybe ByteString)))
+  getDataSource = lift getDataSource
+
+  clearDataSource :: m ()
+  default clearDataSource
+    :: ( MonadTrans t
+       , MonadRemoteStoreR r m'
+       , m ~ t m'
+       )
+    => m ()
+  clearDataSource = lift clearDataSource
+
+
+
 instance MonadRemoteStoreR r m => MonadRemoteStoreR r (StateT s m)
 instance MonadRemoteStoreR r m => MonadRemoteStoreR r (ReaderT r m)
 instance MonadRemoteStoreR r m => MonadRemoteStoreR r (ExceptT RemoteStoreError m)
@@ -271,9 +278,9 @@ instance ( MonadIO m
   clearError = RemoteStoreT $ modify $ \s -> s { remoteStoreState_gotError = False }
   gotError = remoteStoreState_gotError <$> RemoteStoreT get
 
-  getData = remoteStoreState_mData <$> RemoteStoreT get
-  setData x = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mData = pure x }
-  clearData = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mData = Nothing }
+  setDataSource x = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mDataSource = pure x }
+  getDataSource = remoteStoreState_mDataSource <$> RemoteStoreT get
+  clearDataSource = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mDataSource = Nothing }
 
   setNarSource x = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mNarSource = pure x }
   takeNarSource = RemoteStoreT $ do

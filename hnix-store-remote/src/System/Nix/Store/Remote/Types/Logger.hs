@@ -81,7 +81,7 @@ word64ToLoggerOpCode = \case
 
 data Logger
   = Logger_Next Text
-  | Logger_Read Int         -- data needed from source
+  | Logger_Read Word64      -- data needed from source
   | Logger_Write ByteString -- data for sink
   | Logger_Last
   | Logger_Error (Either BasicError ErrorInfo)
