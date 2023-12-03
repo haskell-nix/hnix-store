@@ -17,6 +17,7 @@ module System.Nix.Store.Remote.Client
 import Control.Monad (unless, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.DList (DList)
 import Data.Serialize.Put (Put, runPut)
 import Data.Some (Some(Some))
 
@@ -157,7 +158,7 @@ addToStore name source method hashAlgo repair = do
 isValidPath :: MonadRemoteStore m => StorePath -> m Bool
 isValidPath = doReq . IsValidPath
 
-type Run m a = m (Either RemoteStoreError a, [Logger])
+type Run m a = m (Either RemoteStoreError a, DList Logger)
 
 runStoreSocket
   :: ( Monad m

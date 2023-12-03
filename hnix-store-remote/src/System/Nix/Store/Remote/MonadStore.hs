@@ -24,6 +24,7 @@ import Control.Monad.Trans.State.Strict (StateT, runStateT, mapStateT)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, mapExceptT)
 import Control.Monad.Trans.Reader (ReaderT, runReaderT, withReaderT)
 import Data.ByteString (ByteString)
+import Data.DList (DList)
 import Data.Word (Word64)
 import Network.Socket (Socket)
 import System.Nix.Nar (NarSource)
@@ -33,8 +34,10 @@ import System.Nix.Store.Remote.Types.Logger (Logger)
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion)
 import System.Nix.Store.Remote.Types.StoreConfig (HasStoreSocket(..), StoreConfig)
 
+import qualified Data.DList
+
 data RemoteStoreState = RemoteStoreState {
-    remoteStoreState_logs :: [Logger]
+    remoteStoreState_logs :: DList Logger
   , remoteStoreState_gotError :: Bool
   , remoteStoreState_mDataSource :: Maybe (Word64 -> IO (Maybe ByteString))
   -- ^ Source for @Logger_Read@, this will be called repeatedly
@@ -121,7 +124,7 @@ runRemoteStoreT
      )
   => r
   -> RemoteStoreT r m a
-  -> m (Either RemoteStoreError a, [Logger])
+  -> m (Either RemoteStoreError a, DList Logger)
 runRemoteStoreT r =
     fmap (\(res, RemoteStoreState{..}) -> (res, remoteStoreState_logs))
   . (`runReaderT` r)
@@ -304,7 +307,7 @@ instance ( MonadIO m
   appendLog x =
     RemoteStoreT
     $ modify
-    $ \s -> s { remoteStoreState_logs = remoteStoreState_logs s ++ [x] }
+    $ \s -> s { remoteStoreState_logs = remoteStoreState_logs s `Data.DList.snoc` x }
 
   setError = RemoteStoreT $ modify $ \s -> s { remoteStoreState_gotError = True }
   clearError = RemoteStoreT $ modify $ \s -> s { remoteStoreState_gotError = False }

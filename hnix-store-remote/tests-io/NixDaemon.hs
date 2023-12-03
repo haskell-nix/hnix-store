@@ -29,6 +29,7 @@ import System.Nix.Build
 import System.Nix.StorePath
 import System.Nix.StorePath.Metadata
 import System.Nix.Store.Remote
+import System.Nix.Store.Remote.Client (Run)
 import System.Nix.Store.Remote.MonadStore (mapStoreConfig)
 
 import Crypto.Hash (SHA256)
@@ -89,7 +90,7 @@ error: changing ownership of path '/run/user/1000/test-nix-store-06b0d249e561612
 
 startDaemon
   :: FilePath
-  -> IO (P.ProcessHandle, MonadStore a -> IO (Either RemoteStoreError a, [Logger]))
+  -> IO (P.ProcessHandle, MonadStore a -> Run IO a)
 startDaemon fp = do
   writeConf (fp </> "etc" </> "nix.conf")
   p <- createProcessEnv fp "nix-daemon" []
@@ -110,7 +111,7 @@ enterNamespaces = do
   writeGroupMappings Nothing [GroupMapping 0 gid 1] True
 
 withNixDaemon
-  :: ((MonadStore a -> IO (Either RemoteStoreError a, [Logger])) -> IO a) -> IO a
+  :: ((MonadStore a -> Run IO a) -> IO a) -> IO a
 withNixDaemon action =
   withSystemTempDirectory "test-nix-store" $ \path -> do
 

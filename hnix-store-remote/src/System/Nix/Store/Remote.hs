@@ -121,7 +121,7 @@ runStoreOptsTCP host port sd code = do
           (Network.Socket.addrAddress sockAddr)
           sd
           code
-      _ -> pure (Left RemoteStoreError_GetAddrInfoFailed, [])
+      _ -> pure (Left RemoteStoreError_GetAddrInfoFailed, mempty)
 
 runStoreOpts'
   :: Family
