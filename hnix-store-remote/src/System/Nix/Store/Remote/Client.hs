@@ -17,6 +17,7 @@ module System.Nix.Store.Remote.Client
 import Control.Monad (unless, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.Reader (ask)
 import Data.Serialize.Put (Put, runPut)
 import Data.Some (Some(Some))
 
@@ -123,14 +124,19 @@ runOpArgsIO op encoder = do
     getErrors >>= throwError . RemoteStoreError_Fixme . show
 
 doReq
-  :: ( MonadIO m
+  :: forall m r a
+   . ( MonadIO m
+     , MonadRemoteStoreR r m
+     , HasProtoVersion r
      , StoreReply a
      )
   => StoreRequest a
-  -> RemoteStoreT StoreConfig m a
+  -> m a
 doReq = \case
   x -> do
-    sockPutS (mapErrorS RemoteStoreError_SerializerPut storeRequest) (Some x)
+    cfg <- ask
+    _ <- runRemoteStoreT cfg $
+      sockPutS (mapErrorS RemoteStoreError_SerializerPut storeRequest) (Some x)
     case x of
       AddToStore {} -> do
 
@@ -142,9 +148,15 @@ doReq = \case
           Nothing -> throwError RemoteStoreError_NoNarSourceProvided
 
       _ -> pure ()
-    out <- processOutput
-    appendLogs out
-    sockGetS (mapErrorS RemoteStoreError_SerializerGet getReply)
+
+    _ <- either (throwError @RemoteStoreError @m) appendLogs . fst <$> runRemoteStoreT cfg processOutput
+    --either throwError pure . fst <$> runRemoteStoreT cfg $
+    eres <- runRemoteStoreT cfg $
+      sockGetS (mapErrorS RemoteStoreError_SerializerGet (getReply @a))
+
+    case eres of
+      (Left e, _logs) -> throwError e
+      (Right res, _logs) -> pure res
 
 class StoreReply a where
   getReply
@@ -159,15 +171,15 @@ instance StoreReply Bool where
 instance StoreReply StorePath where
   getReply = storePath
 
--- | Pack `Nar` and add it to the store.
+-- | Add `NarSource` to the store
 addToStore
-  :: MonadIO m
+  :: MonadRemoteStore m
   => StorePathName        -- ^ Name part of the newly created `StorePath`
   -> NarSource IO         -- ^ Provide nar stream
   -> FileIngestionMethod  -- ^ Add target directory recursively
   -> Some HashAlgo        -- ^
   -> RepairMode           -- ^ Only used by local store backend
-  -> RemoteStoreT StoreConfig m StorePath
+  -> m StorePath
 addToStore name source method hashAlgo repair = do
   Control.Monad.when
     (repair == RepairMode_DoRepair)
@@ -176,12 +188,12 @@ addToStore name source method hashAlgo repair = do
   setNarSource source
   doReq (AddToStore name method hashAlgo repair)
 
-isValidPath :: MonadIO m => StorePath -> RemoteStoreT StoreConfig m Bool
-isValidPath = doReq . IsValidPath
+--isValidPath :: MonadIO m => StorePath -> RemoteStoreT StoreConfig m Bool
+--isValidPath = doReq . IsValidPath
 
 -- TOOD: want this, but Logger.processOutput is fixed to RemoteStoreT r m
---isValidPath' :: MonadRemoteStore m => StorePath -> m Bool
---isValidPath' = doReq . IsValidPath
+isValidPath :: MonadRemoteStore m => StorePath -> m Bool
+isValidPath = doReq . IsValidPath
 
 type Run m a = m (Either RemoteStoreError a, [Logger])
 

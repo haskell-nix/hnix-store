@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module System.Nix.Store.Remote.MonadStore
@@ -8,7 +9,8 @@ module System.Nix.Store.Remote.MonadStore
   , RemoteStoreT
   , runRemoteStoreT
   , mapStoreConfig
-  , MonadRemoteStore(..)
+  , MonadRemoteStoreR(..)
+  , MonadRemoteStore
   , getProtoVersion
   ) where
 
@@ -28,7 +30,7 @@ import System.Nix.StorePath (HasStoreDir(..), StoreDir)
 import System.Nix.Store.Remote.Serializer (HandshakeSError, LoggerSError, SError)
 import System.Nix.Store.Remote.Types.Logger (Logger, isError)
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion)
-import System.Nix.Store.Remote.Types.StoreConfig (HasStoreSocket(..))
+import System.Nix.Store.Remote.Types.StoreConfig (HasStoreSocket(..), StoreConfig)
 
 data RemoteStoreState = RemoteStoreState {
     remoteStoreState_logs :: [Logger]
@@ -126,15 +128,18 @@ mapStoreConfig f =
     ) f
   . _unRemoteStoreT
 
-class ( Monad m
+class ( MonadIO m
       , MonadError RemoteStoreError m
+      , HasStoreSocket r
+      , HasStoreDir r
+      , MonadReader r m
       )
-      => MonadRemoteStore m where
+      => MonadRemoteStoreR r m where
 
   appendLogs :: [Logger] -> m ()
   default appendLogs
     :: ( MonadTrans t
-       , MonadRemoteStore m'
+       , MonadRemoteStoreR r m'
        , m ~ t m'
        )
     => [Logger]
@@ -144,7 +149,7 @@ class ( Monad m
   gotError :: m Bool
   default gotError
     :: ( MonadTrans t
-       , MonadRemoteStore m'
+       , MonadRemoteStoreR r m'
        , m ~ t m'
        )
     => m Bool
@@ -153,7 +158,7 @@ class ( Monad m
   getErrors :: m [Logger]
   default getErrors
     :: ( MonadTrans t
-       , MonadRemoteStore m'
+       , MonadRemoteStoreR r m'
        , m ~ t m'
        )
     => m [Logger]
@@ -162,7 +167,7 @@ class ( Monad m
   getLogs :: m [Logger]
   default getLogs
     :: ( MonadTrans t
-       , MonadRemoteStore m'
+       , MonadRemoteStoreR r m'
        , m ~ t m'
        )
     => m [Logger]
@@ -171,7 +176,7 @@ class ( Monad m
   flushLogs :: m ()
   default flushLogs
     :: ( MonadTrans t
-       , MonadRemoteStore m'
+       , MonadRemoteStoreR r m'
        , m ~ t m'
        )
     => m ()
@@ -180,7 +185,7 @@ class ( Monad m
   setData :: ByteString -> m ()
   default setData
    :: ( MonadTrans t
-      , MonadRemoteStore m'
+      , MonadRemoteStoreR r m'
       , m ~ t m'
       )
    => ByteString
@@ -190,7 +195,7 @@ class ( Monad m
   getData :: m (Maybe ByteString)
   default getData
     :: ( MonadTrans t
-       , MonadRemoteStore m'
+       , MonadRemoteStoreR r m'
        , m ~ t m'
        )
     => m (Maybe ByteString)
@@ -199,7 +204,7 @@ class ( Monad m
   clearData :: m ()
   default clearData
     :: ( MonadTrans t
-       , MonadRemoteStore m'
+       , MonadRemoteStoreR r m'
        , m ~ t m'
        )
     => m ()
@@ -208,7 +213,7 @@ class ( Monad m
   getStoreDir :: m StoreDir
   default getStoreDir
     :: ( MonadTrans t
-       , MonadRemoteStore m'
+       , MonadRemoteStoreR r m'
        , m ~ t m'
        )
     => m StoreDir
@@ -217,7 +222,7 @@ class ( Monad m
   getStoreSocket :: m Socket
   default getStoreSocket
     :: ( MonadTrans t
-       , MonadRemoteStore m'
+       , MonadRemoteStoreR r m'
        , m ~ t m'
        )
     => m Socket
@@ -226,7 +231,7 @@ class ( Monad m
   setNarSource :: NarSource IO -> m ()
   default setNarSource
    :: ( MonadTrans t
-      , MonadRemoteStore m'
+      , MonadRemoteStoreR r m'
       , m ~ t m'
       )
    => NarSource IO
@@ -236,21 +241,23 @@ class ( Monad m
   takeNarSource :: m (Maybe (NarSource IO))
   default takeNarSource
    :: ( MonadTrans t
-      , MonadRemoteStore m'
+      , MonadRemoteStoreR r m'
       , m ~ t m'
       )
    => m (Maybe (NarSource IO))
   takeNarSource = lift takeNarSource
 
-instance MonadRemoteStore m => MonadRemoteStore (StateT s m)
-instance MonadRemoteStore m => MonadRemoteStore (ReaderT r m)
-instance MonadRemoteStore m => MonadRemoteStore (ExceptT RemoteStoreError m)
+instance MonadRemoteStoreR r m => MonadRemoteStoreR r (StateT s m)
+instance MonadRemoteStoreR r m => MonadRemoteStoreR r (ReaderT r m)
+instance MonadRemoteStoreR r m => MonadRemoteStoreR r (ExceptT RemoteStoreError m)
 
-instance ( Monad m
+type MonadRemoteStore m = MonadRemoteStoreR StoreConfig m
+
+instance ( MonadIO m
          , HasStoreDir r
          , HasStoreSocket r
          )
-         => MonadRemoteStore (RemoteStoreT r m) where
+         => MonadRemoteStoreR r (RemoteStoreT r m) where
 
   getStoreDir = hasStoreDir <$> RemoteStoreT ask
   getStoreSocket = hasStoreSocket <$> RemoteStoreT ask
