@@ -14,6 +14,7 @@ import System.Nix.Store.Remote.Serializer (NixSerializer, runP, runSerialT)
 import System.Nix.Store.Remote.Serialize.Prim (getInt, getByteString, getByteStrings, getPath, getPathsOrFail)
 import System.Nix.Store.Remote.Types (HasStoreSocket(..))
 
+import qualified Control.Exception
 import qualified Data.ByteString
 import qualified Data.Serializer
 import qualified Data.Serialize.Get
@@ -34,13 +35,24 @@ genericIncremental getsome parser = do
   go (Fail msg _leftover) = error msg
 
 sockGet8
-  :: ( MonadRemoteStoreR r m
+  :: ( MonadIO m
+     , MonadError RemoteStoreError m
+     , MonadReader r m
      , HasStoreSocket r
      )
   => m ByteString
 sockGet8 = do
   soc <- asks hasStoreSocket
-  liftIO $ recv soc 8
+  eresult <- liftIO $ Control.Exception.try $ recv soc 8
+  case eresult of
+    Left e ->
+      throwError $ RemoteStoreError_IOException e
+
+    Right result | Data.ByteString.length result == 0 ->
+      throwError RemoteStoreError_Disconnected
+
+    Right result | otherwise ->
+      pure result
 
 sockPut
   :: ( MonadRemoteStoreR r m
@@ -79,20 +91,12 @@ sockGetS
   -> m a
 sockGetS s = do
   r <- ask
-  res <- genericIncremental sockGet8'
+  res <- genericIncremental sockGet8
     $ runSerialT r $ Data.Serializer.getS s
 
   case res of
     Right x -> pure x
     Left e -> throwError e
- where
-  sockGet8' :: MonadError RemoteStoreError m => m ByteString
-  sockGet8' = do
-    soc <- asks hasStoreSocket
-    result <- liftIO $ recv soc 8
-    if Data.ByteString.length result == 0
-      then throwError RemoteStoreError_Disconnected
-      else pure result
 
 -- * Obsolete
 

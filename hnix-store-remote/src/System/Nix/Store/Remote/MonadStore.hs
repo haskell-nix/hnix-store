@@ -14,6 +14,7 @@ module System.Nix.Store.Remote.MonadStore
   , getProtoVersion
   ) where
 
+import Control.Exception (SomeException)
 import Control.Monad.Except (MonadError)
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (MonadReader, ask, asks)
@@ -49,6 +50,7 @@ data RemoteStoreError
   | RemoteStoreError_SerializerHandshake HandshakeSError
   | RemoteStoreError_SerializerLogger LoggerSError
   | RemoteStoreError_SerializerPut SError
+  | RemoteStoreError_IOException SomeException
   | RemoteStoreError_LoggerLeftovers ByteString -- when there are bytes left over after incremental logger parser is done
   | RemoteStoreError_LoggerParserFail String ByteString -- when incremental parser returns ((Fail msg leftover) :: Result)
   | RemoteStoreError_NoDataProvided
@@ -60,7 +62,7 @@ data RemoteStoreError
   | RemoteStoreError_WorkerError WorkerError
   -- bad / redundant
   | RemoteStoreError_WorkerException WorkerException
-  deriving (Eq, Show, Ord)
+  deriving Show
 
 -- | fatal error in worker interaction which should disconnect client.
 data WorkerException
