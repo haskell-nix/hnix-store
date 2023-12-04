@@ -32,7 +32,7 @@ instance Arbitrary StorePath where
 instance Arbitrary StorePathName where
   arbitrary =
       either undefined id
-    . System.Nix.StorePath.makeStorePathName
+    . System.Nix.StorePath.mkStorePathName
     . Data.Text.pack <$> ((:) <$> s1 <*> listOf sn)
    where
     alphanum = ['a' .. 'z'] <> ['A' .. 'Z'] <> ['0' .. '9']

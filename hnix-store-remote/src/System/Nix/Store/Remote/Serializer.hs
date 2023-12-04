@@ -494,7 +494,7 @@ storePathName :: NixSerializer r SError StorePathName
 storePathName =
   mapPrismSerializer
     (Data.Bifunctor.first SError_Path
-     . System.Nix.StorePath.makeStorePathName)
+     . System.Nix.StorePath.mkStorePathName)
     System.Nix.StorePath.unStorePathName
     text
 

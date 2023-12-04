@@ -47,7 +47,7 @@ parseOutputsSpec t
   | t == "*" = Right OutputsSpec_All
   | otherwise = do
   names <- mapM
-             (convertError . System.Nix.StorePath.makeStorePathName)
+             (convertError . System.Nix.StorePath.mkStorePathName)
              (Data.Text.splitOn "," t)
   if null names
     then Left ParseOutputsError_NoNames

@@ -18,7 +18,7 @@ module System.Nix.StorePath
   , mkStorePathHashPart
   , unStorePathHashPart
   , -- * Manipulating 'StorePathName'
-    makeStorePathName
+    mkStorePathName
   , validStorePathName
     -- * Reason why a path is not valid
   , InvalidPathError(..)
@@ -130,8 +130,8 @@ data InvalidPathError =
 
 -- | Make @StorePathName@ from @Text@ (name part of the @StorePath@)
 -- or fail with @InvalidPathError@ if it isn't valid
-makeStorePathName :: Text -> Either InvalidPathError StorePathName
-makeStorePathName n =
+mkStorePathName :: Text -> Either InvalidPathError StorePathName
+mkStorePathName n =
   if validStorePathName n
     then pure $ StorePathName n
     else Left $ reasonInvalid n
@@ -224,7 +224,7 @@ parsePath' expectedRoot stringyPath =
       HashDecodingFailure
       StorePathHashPart
       $ System.Nix.Base.decodeWith NixBase32 storeBasedHashPart
-    name = makeStorePathName . Data.Text.drop 1 $ namePart
+    name = mkStorePathName . Data.Text.drop 1 $ namePart
     --rootDir' = dropTrailingPathSeparator rootDir
     -- cannot use ^^ as it drops multiple slashes /a/b/// -> /a/b
     rootDir' = init rootDir
@@ -288,7 +288,7 @@ pathParser expectedRoot = do
     validStorePathNameChar
       <?> "Path name contains invalid character"
 
-  let name = makeStorePathName $ Data.Text.cons c0 rest
+  let name = mkStorePathName $ Data.Text.cons c0 rest
       hashPart = Data.Bifunctor.bimap
         HashDecodingFailure
         StorePathHashPart

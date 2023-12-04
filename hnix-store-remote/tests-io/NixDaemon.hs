@@ -163,12 +163,12 @@ withPath action = do
 -- | dummy path, adds <tmp>/dummy with "Hello World" contents
 dummy :: MonadStore StorePath
 dummy = do
-  let name = Data.Either.fromRight (error "impossible") $ makeStorePathName "dummy"
+  let name = Data.Either.fromRight (error "impossible") $ mkStorePathName "dummy"
   addToStore @SHA256 name (dumpPath "dummy") FileIngestionMethod_Flat RepairMode_DontRepair
 
 invalidPath :: StorePath
 invalidPath =
-  let name = Data.Either.fromRight (error "impossible") $ makeStorePathName "invalid"
+  let name = Data.Either.fromRight (error "impossible") $ mkStorePathName "invalid"
   in  unsafeMakeStorePath (mkStorePathHashPart @SHA256 "invalid") name
 
 withBuilder :: (StorePath -> MonadStore a) -> MonadStore a
@@ -276,7 +276,7 @@ spec_protocol = Hspec.around withNixDaemon $
     context "addToStore" $
       itRights "adds file to store" $ do
         fp <- liftIO $ writeSystemTempFile "addition" "lal"
-        let name = Data.Either.fromRight (error "impossible") $ makeStorePathName "tmp-addition"
+        let name = Data.Either.fromRight (error "impossible") $ mkStorePathName "tmp-addition"
         res <- addToStore @SHA256 name (dumpPath fp) FileIngestionMethod_Flat RepairMode_DontRepair
         liftIO $ print res
 
