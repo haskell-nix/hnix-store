@@ -29,7 +29,7 @@ import Data.Word (Word64)
 import Network.Socket (Socket)
 import System.Nix.Nar (NarSource)
 import System.Nix.StorePath (HasStoreDir(..), StoreDir)
-import System.Nix.Store.Remote.Serializer (HandshakeSError, LoggerSError, SError)
+import System.Nix.Store.Remote.Serializer (HandshakeSError, LoggerSError, RequestSError, SError)
 import System.Nix.Store.Remote.Types.Logger (Logger)
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion)
 import System.Nix.Store.Remote.Types.StoreConfig (HasStoreSocket(..), StoreConfig)
@@ -63,6 +63,7 @@ data RemoteStoreError
   | RemoteStoreError_SerializerHandshake HandshakeSError
   | RemoteStoreError_SerializerLogger LoggerSError
   | RemoteStoreError_SerializerPut SError
+  | RemoteStoreError_SerializerRequest RequestSError
   | RemoteStoreError_IOException SomeException
   | RemoteStoreError_LoggerLeftovers String ByteString -- when there are bytes left over after incremental logger parser is done, (Done x leftover), first param is show x
   | RemoteStoreError_LoggerParserFail String ByteString -- when incremental parser returns ((Fail msg leftover) :: Result)

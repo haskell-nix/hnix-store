@@ -107,7 +107,7 @@ doReq = \case
   x -> do
     sockPutS
       (mapErrorS
-        RemoteStoreError_SerializerPut
+        RemoteStoreError_SerializerRequest
           storeRequest
       )
       (Some x)

@@ -72,6 +72,7 @@ module System.Nix.Store.Remote.Serializer
   , trustedFlag
   -- * Worker protocol
   , storeText
+  , RequestSError(..)
   , workerOp
   , storeRequest
   ) where
@@ -973,6 +974,14 @@ storeText = Serializer
       putS text storeTextText
   }
 
+data RequestSError
+  = RequestSError_NotYetImplemented WorkerOp
+  | RequestSError_ReservedOp WorkerOp
+  | RequestSError_PrimGet SError
+  | RequestSError_PrimPut SError
+  | RequestSError_PrimWorkerOp SError
+  deriving (Eq, Ord, Generic, Show)
+
 workerOp :: NixSerializer r SError WorkerOp
 workerOp = enum
 
@@ -980,10 +989,10 @@ storeRequest
   :: ( HasProtoVersion r
      , HasStoreDir r
      )
-  => NixSerializer r SError (Some StoreRequest)
+  => NixSerializer r RequestSError (Some StoreRequest)
 storeRequest = Serializer
-  { getS = getS workerOp >>= \case
-      WorkerOp_AddToStore -> do
+  { getS = mapErrorST RequestSError_PrimWorkerOp (getS workerOp) >>= \case
+      WorkerOp_AddToStore -> mapGetE $ do
         pathName <- getS storePathName
         _fixed <- getS bool -- obsolete
         recursive <- getS enum
@@ -994,35 +1003,35 @@ storeRequest = Serializer
 
         pure $ Some (AddToStore pathName recursive hashAlgo repair)
 
-      WorkerOp_AddTextToStore -> do
+      WorkerOp_AddTextToStore -> mapGetE $ do
         txt <- getS storeText
         paths <- getS (hashSet storePath)
         let repair = RepairMode_DontRepair
         pure $ Some (AddTextToStore txt paths repair)
 
-      WorkerOp_AddSignatures -> do
+      WorkerOp_AddSignatures -> mapGetE $ do
         path <- getS storePath
         signatures <- getS (set signature)
         pure $ Some (AddSignatures path signatures)
 
-      WorkerOp_AddIndirectRoot ->
+      WorkerOp_AddIndirectRoot -> mapGetE $ do
         Some . AddIndirectRoot <$> getS storePath
 
-      WorkerOp_AddTempRoot ->
+      WorkerOp_AddTempRoot -> mapGetE $ do
         Some . AddTempRoot <$> getS storePath
 
-      WorkerOp_BuildPaths -> do
+      WorkerOp_BuildPaths -> mapGetE $ do
         derived <- getS (set derivedPath)
         buildMode' <- getS buildMode
         pure $ Some (BuildPaths derived buildMode')
 
-      WorkerOp_BuildDerivation -> do
+      WorkerOp_BuildDerivation -> mapGetE $ do
         path <- getS storePath
         drv <- getS derivation
         buildMode' <- getS buildMode
         pure $ Some (BuildDerivation path drv buildMode')
 
-      WorkerOp_CollectGarbage -> do
+      WorkerOp_CollectGarbage -> mapGetE $ do
         gcOptions_operation <- getS enum
         gcOptions_pathsToDelete <- getS (hashSet storePath)
         gcOptions_ignoreLiveness <- getS bool
@@ -1032,86 +1041,86 @@ storeRequest = Serializer
           $ pure $ getS (int @Word8)
         pure $ Some (CollectGarbage GCOptions{..})
 
-      WorkerOp_EnsurePath ->
+      WorkerOp_EnsurePath -> mapGetE $ do
         Some . EnsurePath <$> getS storePath
 
-      WorkerOp_FindRoots -> do
+      WorkerOp_FindRoots -> mapGetE $ do
         pure $ Some FindRoots
 
-      WorkerOp_IsValidPath ->
+      WorkerOp_IsValidPath -> mapGetE $ do
         Some . IsValidPath <$> getS storePath
 
-      WorkerOp_QueryValidPaths -> do
+      WorkerOp_QueryValidPaths -> mapGetE $ do
         paths <- getS (hashSet storePath)
         substituteMode <- getS enum
         pure $ Some (QueryValidPaths paths substituteMode)
 
-      WorkerOp_QueryAllValidPaths ->
+      WorkerOp_QueryAllValidPaths -> mapGetE $ do
         pure $ Some QueryAllValidPaths
 
-      WorkerOp_QuerySubstitutablePaths ->
+      WorkerOp_QuerySubstitutablePaths -> mapGetE $ do
         Some . QuerySubstitutablePaths <$> getS (hashSet storePath)
 
-      WorkerOp_QueryPathInfo ->
+      WorkerOp_QueryPathInfo -> mapGetE $ do
         Some . QueryPathInfo <$> getS storePath
 
-      WorkerOp_QueryReferrers ->
+      WorkerOp_QueryReferrers -> mapGetE $ do
         Some . QueryReferrers <$> getS storePath
 
-      WorkerOp_QueryValidDerivers ->
+      WorkerOp_QueryValidDerivers -> mapGetE $ do
         Some . QueryValidDerivers <$> getS storePath
 
-      WorkerOp_QueryDerivationOutputs ->
+      WorkerOp_QueryDerivationOutputs -> mapGetE $ do
         Some . QueryDerivationOutputs <$> getS storePath
 
-      WorkerOp_QueryDerivationOutputNames ->
+      WorkerOp_QueryDerivationOutputNames -> mapGetE $ do
         Some . QueryDerivationOutputNames <$> getS storePath
 
-      WorkerOp_QueryPathFromHashPart ->
+      WorkerOp_QueryPathFromHashPart -> mapGetE $ do
         Some . QueryPathFromHashPart <$> getS storePathHashPart
 
-      WorkerOp_QueryMissing ->
+      WorkerOp_QueryMissing -> mapGetE $ do
         Some . QueryMissing <$> getS (set derivedPath)
 
-      WorkerOp_OptimiseStore ->
+      WorkerOp_OptimiseStore -> mapGetE $ do
         pure $ Some OptimiseStore
 
-      WorkerOp_SyncWithGC ->
+      WorkerOp_SyncWithGC -> mapGetE $ do
         pure $ Some SyncWithGC
 
-      WorkerOp_VerifyStore -> do
+      WorkerOp_VerifyStore -> mapGetE $ do
         checkMode <- getS enum
         repairMode <- getS enum
 
         pure $ Some (VerifyStore checkMode repairMode)
 
-      WorkerOp_Reserved_0__ -> undefined
-      WorkerOp_Reserved_2__ -> undefined
-      WorkerOp_Reserved_15__ -> undefined
-      WorkerOp_Reserved_17__ -> undefined
+      w@WorkerOp_Reserved_0__ -> reserved w
+      w@WorkerOp_Reserved_2__ -> reserved w
+      w@WorkerOp_Reserved_15__ -> reserved w
+      w@WorkerOp_Reserved_17__ -> reserved w
 
-      WorkerOp_AddBuildLog -> undefined
-      WorkerOp_AddMultipleToStore -> undefined
-      WorkerOp_AddToStoreNar -> undefined
-      WorkerOp_BuildPathsWithResults -> undefined
-      WorkerOp_ClearFailedPaths -> undefined
-      WorkerOp_ExportPath -> undefined
-      WorkerOp_HasSubstitutes -> undefined
-      WorkerOp_ImportPaths -> undefined
-      WorkerOp_NarFromPath -> undefined
-      WorkerOp_QueryDerivationOutputMap -> undefined
-      WorkerOp_QueryDeriver -> undefined
-      WorkerOp_QueryFailedPaths -> undefined
-      WorkerOp_QueryPathHash -> undefined
-      WorkerOp_QueryRealisation -> undefined
-      WorkerOp_QuerySubstitutablePathInfo -> undefined
-      WorkerOp_QuerySubstitutablePathInfos -> undefined
-      WorkerOp_QueryReferences -> undefined
-      WorkerOp_RegisterDrvOutput -> undefined
-      WorkerOp_SetOptions -> undefined
+      w@WorkerOp_AddBuildLog -> notYet w
+      w@WorkerOp_AddMultipleToStore -> notYet w
+      w@WorkerOp_AddToStoreNar -> notYet w
+      w@WorkerOp_BuildPathsWithResults -> notYet w
+      w@WorkerOp_ClearFailedPaths -> notYet w
+      w@WorkerOp_ExportPath -> notYet w
+      w@WorkerOp_HasSubstitutes -> notYet w
+      w@WorkerOp_ImportPaths -> notYet w
+      w@WorkerOp_NarFromPath -> notYet w
+      w@WorkerOp_QueryDerivationOutputMap -> notYet w
+      w@WorkerOp_QueryDeriver -> notYet w
+      w@WorkerOp_QueryFailedPaths -> notYet w
+      w@WorkerOp_QueryPathHash -> notYet w
+      w@WorkerOp_QueryRealisation -> notYet w
+      w@WorkerOp_QuerySubstitutablePathInfo -> notYet w
+      w@WorkerOp_QuerySubstitutablePathInfos -> notYet w
+      w@WorkerOp_QueryReferences -> notYet w
+      w@WorkerOp_RegisterDrvOutput -> notYet w
+      w@WorkerOp_SetOptions -> notYet w
 
   , putS = \case
-      Some (AddToStore pathName recursive hashAlgo _repair) -> do
+      Some (AddToStore pathName recursive hashAlgo _repair) -> mapPutE $ do
         putS workerOp WorkerOp_AddToStore
 
         putS storePathName pathName
@@ -1124,40 +1133,40 @@ storeRequest = Serializer
         putS bool (recursive == FileIngestionMethod_FileRecursive)
         putS someHashAlgo hashAlgo
 
-      Some (AddTextToStore txt paths _repair) -> do
+      Some (AddTextToStore txt paths _repair) -> mapPutE $ do
         putS workerOp WorkerOp_AddTextToStore
 
         putS storeText txt
         putS (hashSet storePath) paths
 
-      Some (AddSignatures path signatures) -> do
+      Some (AddSignatures path signatures) -> mapPutE $ do
         putS workerOp WorkerOp_AddSignatures
 
         putS storePath path
         putS (set signature) signatures
 
-      Some (AddIndirectRoot path) -> do
+      Some (AddIndirectRoot path) -> mapPutE $ do
         putS workerOp WorkerOp_AddIndirectRoot
         putS storePath path
 
-      Some (AddTempRoot path) -> do
+      Some (AddTempRoot path) -> mapPutE $ do
         putS workerOp WorkerOp_AddTempRoot
         putS storePath path
 
-      Some (BuildPaths derived buildMode') -> do
+      Some (BuildPaths derived buildMode') -> mapPutE $ do
         putS workerOp WorkerOp_BuildPaths
 
         putS (set derivedPath) derived
         putS buildMode buildMode'
 
-      Some (BuildDerivation path drv buildMode') -> do
+      Some (BuildDerivation path drv buildMode') -> mapPutE $ do
         putS workerOp WorkerOp_BuildDerivation
 
         putS storePath path
         putS derivation drv
         putS buildMode buildMode'
 
-      Some (CollectGarbage GCOptions{..}) -> do
+      Some (CollectGarbage GCOptions{..}) -> mapPutE $ do
         putS workerOp WorkerOp_CollectGarbage
 
         putS enum gcOptions_operation
@@ -1168,66 +1177,91 @@ storeRequest = Serializer
         Control.Monad.forM_ [0..(2 :: Word8)]
           $ pure $ putS int (0 :: Word8)
 
-      Some (EnsurePath path) -> do
+      Some (EnsurePath path) -> mapPutE $ do
         putS workerOp WorkerOp_EnsurePath
         putS storePath path
 
-      Some FindRoots ->
+      Some FindRoots -> mapPutE $ do
         putS workerOp WorkerOp_FindRoots
 
-      Some (IsValidPath path) -> do
+      Some (IsValidPath path) -> mapPutE $ do
         putS workerOp WorkerOp_IsValidPath
         putS storePath path
 
-      Some (QueryValidPaths paths substituteMode) -> do
+      Some (QueryValidPaths paths substituteMode) -> mapPutE $ do
         putS workerOp WorkerOp_QueryValidPaths
 
         putS (hashSet storePath) paths
         putS enum substituteMode
 
-      Some QueryAllValidPaths ->
+      Some QueryAllValidPaths -> mapPutE $ do
         putS workerOp WorkerOp_QueryAllValidPaths
 
-      Some (QuerySubstitutablePaths paths) -> do
+      Some (QuerySubstitutablePaths paths) -> mapPutE $ do
         putS workerOp WorkerOp_QuerySubstitutablePaths
         putS (hashSet storePath) paths
 
-      Some (QueryPathInfo path) -> do
+      Some (QueryPathInfo path) -> mapPutE $ do
         putS workerOp WorkerOp_QueryPathInfo
         putS storePath path
 
-      Some (QueryReferrers path) -> do
+      Some (QueryReferrers path) -> mapPutE $ do
         putS workerOp WorkerOp_QueryReferrers
         putS storePath path
 
-      Some (QueryValidDerivers path) -> do
+      Some (QueryValidDerivers path) -> mapPutE $ do
         putS workerOp WorkerOp_QueryValidDerivers
         putS storePath path
 
-      Some (QueryDerivationOutputs path) -> do
+      Some (QueryDerivationOutputs path) -> mapPutE $ do
         putS workerOp WorkerOp_QueryDerivationOutputs
         putS storePath path
 
-      Some (QueryDerivationOutputNames path) -> do
+      Some (QueryDerivationOutputNames path) -> mapPutE $ do
         putS workerOp WorkerOp_QueryDerivationOutputNames
         putS storePath path
 
-      Some (QueryPathFromHashPart pathHashPart) -> do
+      Some (QueryPathFromHashPart pathHashPart) -> mapPutE $ do
         putS workerOp WorkerOp_QueryPathFromHashPart
         putS storePathHashPart pathHashPart
 
-      Some (QueryMissing derived) -> do
+      Some (QueryMissing derived) -> mapPutE $ do
         putS workerOp WorkerOp_QueryMissing
         putS (set derivedPath) derived
 
-      Some OptimiseStore ->
+      Some OptimiseStore -> mapPutE $ do
         putS workerOp WorkerOp_OptimiseStore
 
-      Some SyncWithGC ->
+      Some SyncWithGC -> mapPutE $ do
         putS workerOp WorkerOp_SyncWithGC
 
-      Some (VerifyStore checkMode repairMode) -> do
+      Some (VerifyStore checkMode repairMode) -> mapPutE $ do
         putS workerOp WorkerOp_VerifyStore
         putS enum checkMode
         putS enum repairMode
   }
+  where
+    mapGetE
+      :: Functor m
+      => SerialT r SError m a
+      -> SerialT r RequestSError m a
+    mapGetE = mapErrorST RequestSError_PrimGet
+
+    mapPutE
+      :: Functor m
+      => SerialT r SError m a
+      -> SerialT r RequestSError m a
+    mapPutE = mapErrorST RequestSError_PrimPut
+
+    notYet
+      :: MonadError RequestSError m
+      => WorkerOp
+      -> m a
+    notYet = throwError . RequestSError_NotYetImplemented
+
+    reserved
+      :: MonadError RequestSError m
+      => WorkerOp
+      -> m a
+    reserved = throwError . RequestSError_ReservedOp
+

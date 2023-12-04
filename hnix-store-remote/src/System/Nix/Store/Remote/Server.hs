@@ -110,7 +110,7 @@ processConnection workerHelper preStoreConfig = do
               someReq <-
                 sockGetS
                   $ mapErrorS
-                      RemoteStoreError_SerializerGet
+                      RemoteStoreError_SerializerRequest
                       storeRequest
 
               lift $ performOp' workerHelper tunnelLogger someReq
