@@ -72,9 +72,12 @@ module System.Nix.Store.Remote.Serializer
   , trustedFlag
   -- * Worker protocol
   , storeText
-  , RequestSError(..)
   , workerOp
+  -- ** Request
+  , RequestSError(..)
   , storeRequest
+  -- ** Reply
+  , ReplySError(..)
   ) where
 
 import Control.Monad.Except (MonadError, throwError, )
@@ -974,6 +977,11 @@ storeText = Serializer
       putS text storeTextText
   }
 
+workerOp :: NixSerializer r SError WorkerOp
+workerOp = enum
+
+-- * Request
+
 data RequestSError
   = RequestSError_NotYetImplemented WorkerOp
   | RequestSError_ReservedOp WorkerOp
@@ -981,9 +989,6 @@ data RequestSError
   | RequestSError_PrimPut SError
   | RequestSError_PrimWorkerOp SError
   deriving (Eq, Ord, Generic, Show)
-
-workerOp :: NixSerializer r SError WorkerOp
-workerOp = enum
 
 storeRequest
   :: ( HasProtoVersion r
@@ -1265,3 +1270,8 @@ storeRequest = Serializer
       -> m a
     reserved = throwError . RequestSError_ReservedOp
 
+-- * Reply
+
+data ReplySError
+  = ReplySError_Prim SError
+  deriving (Eq, Ord, Generic, Show)

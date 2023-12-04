@@ -130,7 +130,7 @@ doReq = \case
 
     processOutput
     sockGetS
-      (mapErrorS RemoteStoreError_SerializerGet
+      (mapErrorS RemoteStoreError_SerializerReply
         $ getReply @a
       )
 
@@ -139,13 +139,18 @@ class StoreReply a where
     :: ( HasStoreDir r
        , HasProtoVersion r
        )
-    => NixSerializer r SError a
+    => NixSerializer r ReplySError a
 
 instance StoreReply Bool where
-  getReply = bool
+  getReply = mapPrimE bool
 
 instance StoreReply StorePath where
-  getReply = storePath
+  getReply =  mapPrimE storePath
+
+mapPrimE
+  :: NixSerializer r SError a
+  -> NixSerializer r ReplySError a
+mapPrimE = mapErrorS ReplySError_Prim
 
 -- | Add `NarSource` to the store
 addToStore
