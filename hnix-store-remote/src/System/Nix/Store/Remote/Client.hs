@@ -93,6 +93,7 @@ runOpArgsIO op encoder = do
 
   processOutput
 
+-- | Perform @StoreRequest@
 doReq
   :: forall m a
    . ( MonadIO m
@@ -104,7 +105,13 @@ doReq
   -> m a
 doReq = \case
   x -> do
-    sockPutS (mapErrorS RemoteStoreError_SerializerPut storeRequest) (Some x)
+    sockPutS
+      (mapErrorS
+        RemoteStoreError_SerializerPut
+          storeRequest
+      )
+      (Some x)
+
     case x of
       AddToStore {} -> do
 
@@ -112,14 +119,20 @@ doReq = \case
         case ms of
           Just (stream :: NarSource IO) -> do
             soc <- getStoreSocket
-            liftIO $ stream $ Network.Socket.ByteString.sendAll soc
-          Nothing -> throwError RemoteStoreError_NoNarSourceProvided
+            liftIO
+              $ stream
+              $ Network.Socket.ByteString.sendAll soc
+          Nothing ->
+            throwError
+              RemoteStoreError_NoNarSourceProvided
 
       _ -> pure ()
 
     processOutput
-    sockGetS (mapErrorS RemoteStoreError_SerializerGet (getReply @a))
-
+    sockGetS
+      (mapErrorS RemoteStoreError_SerializerGet
+        $ getReply @a
+      )
 
 class StoreReply a where
   getReply
