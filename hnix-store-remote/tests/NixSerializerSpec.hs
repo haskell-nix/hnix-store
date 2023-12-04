@@ -3,7 +3,6 @@
 module NixSerializerSpec (spec) where
 
 import Crypto.Hash (MD5, SHA1, SHA256, SHA512)
-import Data.Dependent.Sum (DSum((:=>)))
 import Data.Some (Some(Some))
 import Data.Time (UTCTime)
 import Data.Word (Word64)
@@ -11,12 +10,9 @@ import Test.Hspec (Expectation, Spec, describe, it, parallel, shouldBe)
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck (Gen, arbitrary, forAll, suchThat)
 
-import qualified System.Nix.Hash
-
 import System.Nix.Arbitrary ()
 import System.Nix.Derivation (Derivation(inputDrvs))
 import System.Nix.StorePath (StoreDir)
-import System.Nix.StorePath.Metadata (Metadata(..))
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types.Logger (Logger(..))
@@ -81,14 +77,8 @@ spec = parallel $ do
     prop "StorePathName" $
       roundtripS storePathName
 
-    let narHashIsSHA256 Metadata{..} =
-          case metadataNarHash of
-            (System.Nix.Hash.HashAlgo_SHA256 :=> _) -> True
-            _ -> False
-
-    prop "Metadata (StorePath)"
-      $ \sd -> forAll (arbitrary `suchThat` (\m -> narHashIsSHA256 m && metadataNarBytes m /= Just 0))
-      $ roundtripSReader @StoreDir pathMetadata sd
+    prop "Metadata (StorePath)" $
+      roundtripSReader @StoreDir pathMetadata
 
     prop "Some HashAlgo" $
       roundtripS someHashAlgo
