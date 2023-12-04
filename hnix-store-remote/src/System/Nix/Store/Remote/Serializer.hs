@@ -704,21 +704,21 @@ buildMode = enum
 buildResult :: NixSerializer r SError BuildResult
 buildResult = Serializer
   { getS = do
-      status <- getS enum
-      errorMessage <- getS maybeText
-      timesBuilt <- getS int
-      isNonDeterministic <- getS bool
-      startTime <- getS time
-      stopTime <- getS time
+      buildResultStatus <- getS enum
+      buildResultErrorMessage <- getS maybeText
+      buildResultTimesBuilt <- getS int
+      buildResultIsNonDeterministic <- getS bool
+      buildResultStartTime <- getS time
+      buildResultStopTime <- getS time
       pure $ BuildResult{..}
 
   , putS = \BuildResult{..} -> do
-      putS enum status
-      putS maybeText errorMessage
-      putS int timesBuilt
-      putS bool isNonDeterministic
-      putS time startTime
-      putS time stopTime
+      putS enum buildResultStatus
+      putS maybeText buildResultErrorMessage
+      putS int buildResultTimesBuilt
+      putS bool buildResultIsNonDeterministic
+      putS time buildResultStartTime
+      putS time buildResultStopTime
   }
 
 -- * Logger

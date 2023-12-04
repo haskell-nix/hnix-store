@@ -42,23 +42,23 @@ data BuildStatus =
 -- | Result of the build
 data BuildResult = BuildResult
   { -- | build status, MiscFailure should be default
-    status             :: !BuildStatus
+    buildResultStatus             :: !BuildStatus
   , -- | possible build error message
-    errorMessage       :: !(Maybe Text)
+    buildResultErrorMessage       :: !(Maybe Text)
   , -- | How many times this build was performed
-    timesBuilt         :: !Int
+    buildResultTimesBuilt         :: !Int
   , -- | If timesBuilt > 1, whether some builds did not produce the same result
-    isNonDeterministic :: !Bool
+    buildResultIsNonDeterministic :: !Bool
   ,  -- Start time of this build
-    startTime          :: !UTCTime
+    buildResultStartTime          :: !UTCTime
   ,  -- Stop time of this build
-    stopTime           :: !UTCTime
+    buildResultStopTime           :: !UTCTime
   }
   deriving (Eq, Generic, Ord, Show)
 
 buildSuccess :: BuildResult -> Bool
 buildSuccess BuildResult {..} =
-  status `elem`
+  buildResultStatus `elem`
     [ BuildStatus_Built
     , BuildStatus_Substituted
     , BuildStatus_AlreadyValid

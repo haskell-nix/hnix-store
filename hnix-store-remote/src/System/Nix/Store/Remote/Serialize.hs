@@ -41,25 +41,25 @@ instance Serialize BuildStatus where
 
 instance Serialize BuildResult where
   get = do
-    status <- get
-    errorMessage <-
+    buildResultStatus <- get
+    buildResultErrorMessage <-
       (\em -> Data.Bool.bool (Just em) Nothing (Data.Text.null em))
       <$> get
-    timesBuilt <- getInt
-    isNonDeterministic <- getBool
-    startTime <- getTime
-    stopTime <- getTime
+    buildResultTimesBuilt <- getInt
+    buildResultIsNonDeterministic <- getBool
+    buildResultStartTime <- getTime
+    buildResultStopTime <- getTime
     pure $ BuildResult{..}
 
   put BuildResult{..} = do
-    put status
-    case errorMessage of
+    put buildResultStatus
+    case buildResultErrorMessage of
       Just err -> putText err
       Nothing -> putText mempty
-    putInt timesBuilt
-    putBool isNonDeterministic
-    putTime startTime
-    putTime stopTime
+    putInt buildResultTimesBuilt
+    putBool buildResultIsNonDeterministic
+    putTime buildResultStartTime
+    putTime buildResultStopTime
 
 -- * GCAction
 --

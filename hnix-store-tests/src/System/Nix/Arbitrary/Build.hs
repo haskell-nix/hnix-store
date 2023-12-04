@@ -18,12 +18,12 @@ deriving via GenericArbitrary BuildStatus
 
 instance Arbitrary BuildResult where
   arbitrary = do
-    status <- arbitrary
+    buildResultStatus <- arbitrary
     -- we encode empty errorMessage as Nothing
-    errorMessage <- arbitrary `suchThat` (/= Just mempty)
-    timesBuilt <- arbitrary
-    isNonDeterministic <- arbitrary
-    startTime <- arbitrary
-    stopTime <- arbitrary
+    buildResultErrorMessage <- arbitrary `suchThat` (/= Just mempty)
+    buildResultTimesBuilt <- arbitrary
+    buildResultIsNonDeterministic <- arbitrary
+    buildResultStartTime <- arbitrary
+    buildResultStopTime <- arbitrary
 
     pure $ BuildResult{..}
