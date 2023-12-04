@@ -712,13 +712,13 @@ buildResult = Serializer
       stopTime <- getS time
       pure $ BuildResult{..}
 
- , putS = \BuildResult{..} -> do
-    putS enum status
-    putS maybeText errorMessage
-    putS int timesBuilt
-    putS bool isNonDeterministic
-    putS time startTime
-    putS time stopTime
+  , putS = \BuildResult{..} -> do
+      putS enum status
+      putS maybeText errorMessage
+      putS int timesBuilt
+      putS bool isNonDeterministic
+      putS time startTime
+      putS time stopTime
   }
 
 -- * Logger
