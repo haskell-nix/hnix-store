@@ -82,12 +82,12 @@ spec = parallel $ do
       roundtripS storePathName
 
     let narHashIsSHA256 Metadata{..} =
-          case narHash of
+          case metadataNarHash of
             (System.Nix.Hash.HashAlgo_SHA256 :=> _) -> True
             _ -> False
 
     prop "Metadata (StorePath)"
-      $ \sd -> forAll (arbitrary `suchThat` (\m -> narHashIsSHA256 m && narBytes m /= Just 0))
+      $ \sd -> forAll (arbitrary `suchThat` (\m -> narHashIsSHA256 m && metadataNarBytes m /= Just 0))
       $ roundtripSReader @StoreDir pathMetadata sd
 
     prop "Some HashAlgo" $

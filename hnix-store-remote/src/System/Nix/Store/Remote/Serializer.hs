@@ -501,25 +501,25 @@ pathMetadata
   => NixSerializer r SError (Metadata StorePath)
 pathMetadata = Serializer
   { getS = do
-      deriverPath <- getS maybePath
+      metadataDeriverPath <- getS maybePath
 
       digest' <- getS $ digest NixBase32
-      let narHash = System.Nix.Hash.HashAlgo_SHA256 :=> digest'
+      let metadataNarHash = System.Nix.Hash.HashAlgo_SHA256 :=> digest'
 
-      references <- getS $ hashSet storePath
-      registrationTime <- getS time
-      narBytes <- (\case
+      metadataReferences <- getS $ hashSet storePath
+      metadataRegistrationTime <- getS time
+      metadataNarBytes <- (\case
                       0 -> Nothing
                       size -> Just size) <$> getS int
-      trust <- getS storePathTrust
+      metadataTrust <- getS storePathTrust
 
-      sigs <- getS $ set narSignature
-      contentAddress <- getS maybeContentAddress
+      metadataSigs <- getS $ set narSignature
+      metadataContentAddress <- getS maybeContentAddress
 
       pure $ Metadata{..}
 
   , putS = \Metadata{..} -> do
-      putS maybePath deriverPath
+      putS maybePath metadataDeriverPath
 
       let putNarHash
             :: DSum HashAlgo Digest
@@ -529,14 +529,14 @@ pathMetadata = Serializer
               -> putS (digest @SHA256 NixBase32) d
             _ -> throwError SError_NarHashMustBeSHA256
 
-      putNarHash narHash
+      putNarHash metadataNarHash
 
-      putS (hashSet storePath) references
-      putS time registrationTime
-      putS int $ Prelude.maybe 0 id $ narBytes
-      putS storePathTrust trust
-      putS (set narSignature) sigs
-      putS maybeContentAddress contentAddress
+      putS (hashSet storePath) metadataReferences
+      putS time metadataRegistrationTime
+      putS int $ Prelude.maybe 0 id $ metadataNarBytes
+      putS storePathTrust metadataTrust
+      putS (set narSignature) metadataSigs
+      putS maybeContentAddress metadataContentAddress
   }
   where
     maybeContentAddress

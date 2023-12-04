@@ -227,7 +227,7 @@ spec_protocol = Hspec.around withNixDaemon $
     context "queryPathInfoUncached" $
       itRights "queries path info" $ withPath $ \path -> do
         meta <- queryPathInfoUncached path
-        references meta `shouldSatisfy` HS.null
+        metadataReferences meta `shouldSatisfy` HS.null
 
     context "ensurePath" $
       itRights "simple ensure" $ withPath ensurePath

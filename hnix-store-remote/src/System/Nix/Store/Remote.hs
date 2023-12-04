@@ -328,34 +328,34 @@ queryPathInfoUncached path = do
   valid <- sockGetBool
   Control.Monad.unless valid $ error "Path is not valid"
 
-  deriverPath <- sockGetPathMay
+  metadataDeriverPath <- sockGetPathMay
 
   narHashText <- Data.Text.Encoding.decodeUtf8 <$> sockGetStr
   let
-    narHash =
+    metadataNarHash =
       case
         decodeDigestWith @SHA256 Base16 narHashText
         of
         Left  e -> error e
         Right d -> System.Nix.Hash.HashAlgo_SHA256 :=> d
 
-  references       <- sockGetPaths
-  registrationTime <- sockGet getTime
-  narBytes         <- Just <$> sockGetInt
+  metadataReferences       <- sockGetPaths
+  metadataRegistrationTime <- sockGet getTime
+  metadataNarBytes         <- Just <$> sockGetInt
   ultimate         <- sockGetBool
 
   sigStrings       <- fmap Data.Text.Encoding.decodeUtf8 <$> sockGetStrings
   caString         <- Data.Text.Encoding.decodeUtf8 <$> sockGetStr
 
   let
-      sigs = case
+      metadataSigs = case
                Data.Set.fromList
                <$> mapM System.Nix.Signature.parseNarSignature sigStrings
                of
                Left e -> error e
                Right x -> x
 
-      contentAddress =
+      metadataContentAddress =
         if Data.Text.null caString then Nothing else
         case
           Data.Attoparsec.Text.parseOnly
@@ -365,7 +365,7 @@ queryPathInfoUncached path = do
           Left  e -> error e
           Right x -> Just x
 
-      trust = if ultimate then BuiltLocally else BuiltElsewhere
+      metadataTrust = if ultimate then BuiltLocally else BuiltElsewhere
 
   pure $ Metadata{..}
 

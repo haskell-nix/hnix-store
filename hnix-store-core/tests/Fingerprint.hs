@@ -31,7 +31,11 @@ spec_fingerprint = do
 
     it "allows a successful signature verification" $ do
       let msg = Text.encodeUtf8 $ metadataFingerprint def exampleStorePath exampleMetadata
-          Signature sig' = head $ sig <$> filter (\(NarSignature publicKey _) -> publicKey == "cache.nixos.org-1") (Set.toList (sigs exampleMetadata))
+          Signature sig' =
+            head
+            $ sig
+            <$> filter (\(NarSignature publicKey _) -> publicKey == "cache.nixos.org-1")
+            (Set.toList (metadataSigs exampleMetadata))
       sig' `shouldSatisfy` Ed25519.verify pubkey msg
 
 exampleFingerprint :: Text
@@ -42,14 +46,14 @@ exampleStorePath = forceRight $ parsePath def "/nix/store/syd87l2rxw8cbsxmxl853h
 
 exampleMetadata :: Metadata StorePath
 exampleMetadata = Metadata
-  { deriverPath = Just $ forceRight $ parsePath def "/nix/store/5rwxzi7pal3qhpsyfc16gzkh939q1np6-curl-7.82.0.drv"
-  , narHash = forceRight $ mkNamedDigest "sha256" "1b4sb93wp679q4zx9k1ignby1yna3z7c4c2ri3wphylbc2dwsys0"
-  , references = HashSet.fromList $ forceRight . parsePath def <$> ["/nix/store/0jqd0rlxzra1rs38rdxl43yh6rxchgc6-curl-7.82.0","/nix/store/6w8g7njm4mck5dmjxws0z1xnrxvl81xa-glibc-2.34-115","/nix/store/j5jxw3iy7bbz4a57fh9g2xm2gxmyal8h-zlib-1.2.12","/nix/store/yxvjs9drzsphm9pcf42a4byzj1kb9m7k-openssl-1.1.1n"]
-  , registrationTime = UTCTime (fromOrdinalDate 0 0) 0
-  , narBytes = Just 196040
-  , trust = BuiltElsewhere
-  , sigs = Set.fromList $ forceRight . parseNarSignature <$> ["cache.nixos.org-1:TsTTb3WGTZKphvYdBHXwo6weVILmTytUjLB+vcX89fOjjRicCHmKA4RCPMVLkj6TMJ4GMX3HPVWRdD1hkeKZBQ==", "test1:519iiVLx/c4Rdt5DNt6Y2Jm6hcWE9+XY69ygiWSZCNGVcmOcyL64uVAJ3cV8vaTusIZdbTnYo9Y7vDNeTmmMBQ=="]
-  , contentAddress = Nothing
+  { metadataDeriverPath = Just $ forceRight $ parsePath def "/nix/store/5rwxzi7pal3qhpsyfc16gzkh939q1np6-curl-7.82.0.drv"
+  , metadataNarHash = forceRight $ mkNamedDigest "sha256" "1b4sb93wp679q4zx9k1ignby1yna3z7c4c2ri3wphylbc2dwsys0"
+  , metadataReferences = HashSet.fromList $ forceRight . parsePath def <$> ["/nix/store/0jqd0rlxzra1rs38rdxl43yh6rxchgc6-curl-7.82.0","/nix/store/6w8g7njm4mck5dmjxws0z1xnrxvl81xa-glibc-2.34-115","/nix/store/j5jxw3iy7bbz4a57fh9g2xm2gxmyal8h-zlib-1.2.12","/nix/store/yxvjs9drzsphm9pcf42a4byzj1kb9m7k-openssl-1.1.1n"]
+  , metadataRegistrationTime = UTCTime (fromOrdinalDate 0 0) 0
+  , metadataNarBytes = Just 196040
+  , metadataTrust = BuiltElsewhere
+  , metadataSigs = Set.fromList $ forceRight . parseNarSignature <$> ["cache.nixos.org-1:TsTTb3WGTZKphvYdBHXwo6weVILmTytUjLB+vcX89fOjjRicCHmKA4RCPMVLkj6TMJ4GMX3HPVWRdD1hkeKZBQ==", "test1:519iiVLx/c4Rdt5DNt6Y2Jm6hcWE9+XY69ygiWSZCNGVcmOcyL64uVAJ3cV8vaTusIZdbTnYo9Y7vDNeTmmMBQ=="]
+  , metadataContentAddress = Nothing
   }
 
 pubkey :: Ed25519.PublicKey
