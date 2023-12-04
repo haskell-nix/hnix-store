@@ -27,3 +27,6 @@ instance Arbitrary BuildResult where
     buildResultStopTime <- arbitrary
 
     pure $ BuildResult{..}
+
+deriving via GenericArbitrary OldBuildResult
+  instance Arbitrary OldBuildResult

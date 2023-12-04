@@ -5,15 +5,17 @@ Maintainer  : srk <srk@48.io>
 module System.Nix.Build
   ( BuildMode(..)
   , BuildStatus(..)
-  , BuildResult(..)
   , buildSuccess
+  , BuildResult(..)
+  , OldBuildResult(..)
   ) where
 
 import Data.Time (UTCTime)
 import Data.Text (Text)
 import GHC.Generics (Generic)
 
--- keep the order of these Enums to match enums from reference implementations
+-- | Mode of the build operation
+-- Keep the order of these Enums to match enums from reference implementations
 -- src/libstore/store-api.hh
 data BuildMode
   = BuildMode_Normal
@@ -41,9 +43,9 @@ data BuildStatus =
 
 -- | Result of the build
 data BuildResult = BuildResult
-  { -- | build status, MiscFailure should be default
+  { -- | Build status, MiscFailure should be the default
     buildResultStatus             :: !BuildStatus
-  , -- | possible build error message
+  , -- | Possible build error message
     buildResultErrorMessage       :: !(Maybe Text)
   , -- | How many times this build was performed
     buildResultTimesBuilt         :: !Int
@@ -56,10 +58,19 @@ data BuildResult = BuildResult
   }
   deriving (Eq, Generic, Ord, Show)
 
-buildSuccess :: BuildResult -> Bool
-buildSuccess BuildResult {..} =
-  buildResultStatus `elem`
+buildSuccess :: BuildStatus -> Bool
+buildSuccess x =
+  x `elem`
     [ BuildStatus_Built
     , BuildStatus_Substituted
     , BuildStatus_AlreadyValid
     ]
+
+-- | Result of the build, for protocol version <= 1.27
+data OldBuildResult = OldBuildResult
+  { -- | Build status, MiscFailure should be the default
+    oldBuildResultStatus       :: !BuildStatus
+  , -- | Possible build error message
+    oldBuildResultErrorMessage :: !(Maybe Text)
+  }
+  deriving (Eq, Generic, Ord, Show)

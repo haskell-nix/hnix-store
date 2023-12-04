@@ -20,7 +20,7 @@ import qualified Data.Text
 import qualified Data.Vector
 
 import System.Nix.Derivation (Derivation(..), DerivationOutput(..))
-import System.Nix.Build (BuildMode(..), BuildStatus(..), BuildResult(..))
+import System.Nix.Build (BuildMode(..), BuildStatus(..), BuildResult(..), OldBuildResult(..))
 import System.Nix.StorePath (StoreDir, StorePath)
 import System.Nix.Store.Remote.Serialize.Prim
 import System.Nix.Store.Remote.Types
@@ -49,7 +49,7 @@ instance Serialize BuildResult where
     buildResultIsNonDeterministic <- getBool
     buildResultStartTime <- getTime
     buildResultStopTime <- getTime
-    pure $ BuildResult{..}
+    pure BuildResult{..}
 
   put BuildResult{..} = do
     put buildResultStatus
@@ -60,6 +60,20 @@ instance Serialize BuildResult where
     putBool buildResultIsNonDeterministic
     putTime buildResultStartTime
     putTime buildResultStopTime
+
+instance Serialize OldBuildResult where
+  get = do
+    oldBuildResultStatus <- get
+    oldBuildResultErrorMessage <-
+      (\em -> Data.Bool.bool (Just em) Nothing (Data.Text.null em))
+      <$> get
+    pure OldBuildResult{..}
+
+  put OldBuildResult{..} = do
+    put oldBuildResultStatus
+    case oldBuildResultErrorMessage of
+      Just err -> putText err
+      Nothing -> putText mempty
 
 -- * GCAction
 --

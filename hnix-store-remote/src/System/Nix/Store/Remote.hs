@@ -52,7 +52,7 @@ import Network.Socket (Family, SockAddr(SockAddrUnix))
 import System.Nix.Nar (NarSource)
 import System.Nix.Derivation (Derivation)
 import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
-import System.Nix.Build (BuildMode, BuildResult)
+import System.Nix.Build (BuildMode, OldBuildResult)
 import System.Nix.Hash (NamedAlgo(..), BaseEncoding(Base16), decodeDigestWith)
 import System.Nix.StorePath (StoreDir(..), StorePath, StorePathName, StorePathHashPart, InvalidPathError)
 import System.Nix.StorePath.Metadata  (Metadata(..), StorePathTrust(..))
@@ -226,7 +226,7 @@ buildDerivation
   :: StorePath
   -> Derivation StorePath Text
   -> BuildMode
-  -> MonadStore BuildResult
+  -> MonadStore OldBuildResult
 buildDerivation p drv buildMode = do
   storeDir <- getStoreDir
   runOpArgs WorkerOp_BuildDerivation $ do

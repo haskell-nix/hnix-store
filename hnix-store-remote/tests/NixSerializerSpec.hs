@@ -67,6 +67,7 @@ spec = parallel $ do
 
   describe "Complex" $ do
     prop "BuildResult" $ roundtripS buildResult
+    prop "OldBuildResult" $ roundtripS oldBuildResult
 
     prop "StorePath" $
       roundtripSReader @StoreDir storePath

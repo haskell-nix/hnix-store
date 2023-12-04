@@ -54,6 +54,7 @@ module System.Nix.Store.Remote.Serializer
   -- * Build
   , buildMode
   , buildResult
+  , oldBuildResult
   -- * Logger
   , LoggerSError(..)
   , activityID
@@ -117,7 +118,7 @@ import qualified Data.Vector
 
 import Data.Serializer
 import System.Nix.Base (BaseEncoding(NixBase32))
-import System.Nix.Build (BuildMode, BuildResult(..))
+import System.Nix.Build (BuildMode, BuildResult(..), OldBuildResult(..))
 import System.Nix.ContentAddress (ContentAddress)
 import System.Nix.Derivation (Derivation(..), DerivationOutput(..))
 import System.Nix.DerivedPath (DerivedPath, ParseOutputsError)
@@ -710,7 +711,7 @@ buildResult = Serializer
       buildResultIsNonDeterministic <- getS bool
       buildResultStartTime <- getS time
       buildResultStopTime <- getS time
-      pure $ BuildResult{..}
+      pure BuildResult{..}
 
   , putS = \BuildResult{..} -> do
       putS enum buildResultStatus
@@ -719,6 +720,18 @@ buildResult = Serializer
       putS bool buildResultIsNonDeterministic
       putS time buildResultStartTime
       putS time buildResultStopTime
+  }
+
+oldBuildResult :: NixSerializer r SError OldBuildResult
+oldBuildResult = Serializer
+  { getS = do
+      oldBuildResultStatus <- getS enum
+      oldBuildResultErrorMessage <- getS maybeText
+      pure OldBuildResult{..}
+
+  , putS = \OldBuildResult{..} -> do
+      putS enum oldBuildResultStatus
+      putS maybeText oldBuildResultErrorMessage
   }
 
 -- * Logger
