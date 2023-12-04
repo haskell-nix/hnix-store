@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module System.Nix.Store.Remote.Client
   ( Run
   , simpleOp
