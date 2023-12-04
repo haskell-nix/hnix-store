@@ -108,6 +108,7 @@ import qualified Data.Bits
 import qualified Data.ByteString
 import qualified Data.HashSet
 import qualified Data.Map.Strict
+import qualified Data.Maybe
 import qualified Data.Serialize.Get
 import qualified Data.Serialize.Put
 import qualified Data.Set
@@ -338,7 +339,7 @@ maybeText = mapIsoSerializer
     t | Data.Text.null t -> Nothing
     t | otherwise -> Just t
   )
-  (maybe mempty id)
+  (Data.Maybe.fromMaybe mempty)
   text
 
 -- * UTCTime
@@ -534,7 +535,7 @@ pathMetadata = Serializer
 
       putS (hashSet storePath) metadataReferences
       putS time metadataRegistrationTime
-      putS int $ Prelude.maybe 0 id $ metadataNarBytes
+      putS int $ Data.Maybe.fromMaybe 0 metadataNarBytes
       putS storePathTrust metadataTrust
       putS (set narSignature) metadataSigs
       putS maybeContentAddress metadataContentAddress
@@ -793,7 +794,7 @@ trace = Serializer
       traceHint <- mapPrimE $ getS text
       pure Trace{..}
   , putS = \Trace{..} -> do
-      maybe (putS (int @Int) 0) (putS int) $ tracePosition
+      putS int $ Data.Maybe.fromMaybe 0 tracePosition
       mapPrimE $ putS text traceHint
   }
 
@@ -830,7 +831,7 @@ errorInfo = Serializer
       mapPrimE $ do
         putS text $ Data.Text.pack "Error" -- removed error name
         putS text errorInfoMessage
-        maybe (putS (int @Word8) 0) (putS int) errorInfoPosition
+        putS int $ Data.Maybe.fromMaybe 0 errorInfoPosition
       putS (list trace) errorInfoTraces
   }
 
