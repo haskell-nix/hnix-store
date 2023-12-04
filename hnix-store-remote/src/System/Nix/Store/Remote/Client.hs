@@ -24,24 +24,21 @@ import Data.Some (Some(Some))
 import qualified Data.ByteString
 import qualified Network.Socket.ByteString
 
+import System.Nix.Hash (HashAlgo(..))
 import System.Nix.Nar (NarSource)
-import System.Nix.StorePath (HasStoreDir(..), StorePath)
+import System.Nix.StorePath (StorePath, StorePathName)
 import System.Nix.Store.Remote.Logger (processOutput)
 import System.Nix.Store.Remote.MonadStore
 import System.Nix.Store.Remote.Socket (sockPutS, sockGetS)
---import System.Nix.Store.Remote.Serializer (NixSerializer, SError, bool, enum, int, mapErrorS, protoVersion, storeRequest, text, trustedFlag, workerMagic)
-import System.Nix.Store.Remote.Serializer
+import System.Nix.Store.Remote.Serializer (bool, enum, int, mapErrorS, protoVersion, storeRequest, text, trustedFlag, workerMagic)
 import System.Nix.Store.Remote.Types.Handshake (Handshake(..))
 import System.Nix.Store.Remote.Types.Logger (Logger)
-import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion, ProtoVersion(..), ourProtoVersion)
+import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..), ourProtoVersion)
 import System.Nix.Store.Remote.Types.StoreConfig (PreStoreConfig, StoreConfig, preStoreConfigToStoreConfig)
 import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
+import System.Nix.Store.Remote.Types.StoreReply (StoreReply(..))
 import System.Nix.Store.Remote.Types.WorkerMagic (WorkerMagic(..))
 import System.Nix.Store.Remote.Types.WorkerOp (WorkerOp)
-
--- WIP ops
-import System.Nix.Hash (HashAlgo(..))
-import System.Nix.StorePath (StorePathName)
 import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
 
 simpleOp
@@ -131,26 +128,8 @@ doReq = \case
     processOutput
     sockGetS
       (mapErrorS RemoteStoreError_SerializerReply
-        $ getReply @a
+        $ getReplyS @a
       )
-
-class StoreReply a where
-  getReply
-    :: ( HasStoreDir r
-       , HasProtoVersion r
-       )
-    => NixSerializer r ReplySError a
-
-instance StoreReply Bool where
-  getReply = mapPrimE bool
-
-instance StoreReply StorePath where
-  getReply =  mapPrimE storePath
-
-mapPrimE
-  :: NixSerializer r SError a
-  -> NixSerializer r ReplySError a
-mapPrimE = mapErrorS ReplySError_Prim
 
 -- | Add `NarSource` to the store
 addToStore
