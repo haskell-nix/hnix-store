@@ -35,26 +35,36 @@ listOf element = do
     return es
 
 -- | Parse a derivation
-parseDerivation :: Parser (Derivation FilePath Text)
-parseDerivation = parseDerivationWith filepathParser textParser
+parseDerivation :: Parser (Derivation FilePath Text Text DerivationOutput)
+parseDerivation =
+  parseDerivationWith
+    filepathParser
+    textParser
+    textParser
+    (parseDerivationOutputWith filepathParser)
 
 -- | Parse a derivation using custom
--- parsers for filepaths and text fields
-parseDerivationWith :: (Ord fp, Ord txt) => Parser fp -> Parser txt -> Parser (Derivation fp txt)
-parseDerivationWith filepath string = do
+-- parsers for filepaths, texts, outputNames and derivation outputs
+parseDerivationWith
+  :: ( Ord fp
+     , Ord txt
+     , Ord outputName
+     )
+  => Parser fp
+  -> Parser txt
+  -> Parser outputName
+  -> Parser (drvOutput fp)
+  -> Parser (Derivation fp txt outputName drvOutput)
+parseDerivationWith filepath string outputName parseOutput = do
     "Derive("
 
     let keyValue0 = do
             "("
-            key <- string
+            key <- outputName
             ","
-            path <- filepath
-            ","
-            hashAlgo <- string
-            ","
-            hash <- string
+            out <- parseOutput
             ")"
-            return (key, DerivationOutput {..})
+            pure (key, out)
     outputs <- mapOf keyValue0
 
     ","
@@ -86,18 +96,28 @@ parseDerivationWith filepath string = do
 
     ","
 
-    let keyValue2 = do
+    let keyValue1 = do
             "("
             key <- string
             ","
             value <- string
             ")"
             return (key, value)
-    env <- mapOf keyValue2
+    env <- mapOf keyValue1
 
     ")"
 
     return (Derivation {..})
+
+-- | Parse a derivation output
+parseDerivationOutputWith :: Parser fp -> Parser (DerivationOutput fp)
+parseDerivationOutputWith filepath = do
+    path <- filepath
+    ","
+    hashAlgo <- textParser
+    ","
+    hash <- textParser
+    pure DerivationOutput {..}
 
 textParser :: Parser Text
 textParser = do

@@ -12,15 +12,15 @@ module Nix.Derivation.Types
     ) where
 
 import Control.DeepSeq (NFData)
-import Data.Bifunctor (Bifunctor(bimap))
 import Data.Map (Map)
 import Data.Set (Set)
+import Data.Text (Text)
 import Data.Vector (Vector)
 import GHC.Generics (Generic)
 
 -- | A Nix derivation
-data Derivation fp txt = Derivation
-    { outputs   :: Map txt (DerivationOutput fp txt)
+data Derivation fp txt outputName drvOutput = Derivation
+    { outputs   :: Map outputName (drvOutput fp)
     -- ^ Outputs produced by this derivation where keys are output names
     , inputDrvs :: Map fp (Set txt)
     -- ^ Inputs that are derivations where keys specify derivation paths and
@@ -38,30 +38,21 @@ data Derivation fp txt = Derivation
     -- derivation
     } deriving (Eq, Generic, Ord, Show)
 
-instance (NFData a, NFData b) => NFData (Derivation a b)
+instance ( NFData fp
+         , NFData txt
+         , NFData outputName
+         , NFData (drvOutput fp)
+         )
+         => NFData (Derivation fp txt outputName drvOutput)
 
 -- | An output of a Nix derivation
-data DerivationOutput fp txt = DerivationOutput
+data DerivationOutput fp = DerivationOutput
     { path     :: fp
     -- ^ Path where the output will be saved
-    , hashAlgo :: txt
+    , hashAlgo :: Text
     -- ^ Hash used for expected hash computation
-    , hash     :: txt
+    , hash     :: Text
     -- ^ Expected hash
     } deriving (Eq, Generic, Ord, Show)
 
-instance (NFData a, NFData b) => NFData (DerivationOutput a b)
-
-instance Functor (DerivationOutput fp) where
-  fmap f DerivationOutput{..} = DerivationOutput
-    { path = path
-    , hashAlgo = f hashAlgo
-    , hash = f hash
-    }
-
-instance Bifunctor DerivationOutput where
-  bimap f g DerivationOutput{..} = DerivationOutput
-    { path = f path
-    , hashAlgo = g hashAlgo
-    , hash = g hash
-    }
+instance (NFData a) => NFData (DerivationOutput a)

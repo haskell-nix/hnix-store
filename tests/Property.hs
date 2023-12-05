@@ -26,14 +26,14 @@ instance Arbitrary Text where
 instance Arbitrary a => Arbitrary (Vector a) where
     arbitrary = fmap Data.Vector.fromList arbitrary
 
-instance Arbitrary (DerivationOutput FilePath Text) where
+instance Arbitrary (DerivationOutput FilePath) where
     arbitrary = do
         path     <- arbitrary
         hashAlgo <- arbitrary
         hash     <- arbitrary
         return (DerivationOutput {..})
 
-instance Arbitrary (Derivation FilePath Text) where
+instance Arbitrary (Derivation FilePath Text Text DerivationOutput) where
     arbitrary = do
         outputs   <- arbitrary
         inputDrvs <- arbitrary
@@ -44,7 +44,7 @@ instance Arbitrary (Derivation FilePath Text) where
         env       <- arbitrary
         return (Derivation {..})
 
-property :: Derivation FilePath Text -> Bool
+property :: Derivation FilePath Text Text DerivationOutput -> Bool
 property derivation0 = either == Right derivation0
   where
     builder = Nix.Derivation.buildDerivation derivation0

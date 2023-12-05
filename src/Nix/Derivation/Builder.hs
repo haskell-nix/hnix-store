@@ -23,16 +23,24 @@ import qualified Data.Text.Lazy.Builder
 import qualified Data.Vector
 
 -- | Render a derivation as a `Builder`
-buildDerivation :: Derivation FilePath Text -> Builder
-buildDerivation = buildDerivationWith filepath' string'
+buildDerivation :: Derivation FilePath Text Text DerivationOutput -> Builder
+buildDerivation =
+    buildDerivationWith
+        filepath'
+        string'
+        string'
+        (buildDerivationOutputWith filepath')
 
 -- | Render a derivation as a `Builder` using custom
--- renderer for filepath and string
-buildDerivationWith :: (fp -> Builder)
-                    -> (txt -> Builder)
-                    -> Derivation fp txt
-                    -> Builder
-buildDerivationWith filepath string (Derivation {..}) =
+-- renderer for filepaths, texts, outputNames and @DerivationOutput@s
+buildDerivationWith
+    :: (fp -> Builder)
+    -> (txt -> Builder)
+    -> (outputName -> Builder)
+    -> (drvOutput fp -> Builder)
+    -> Derivation fp txt outputName drvOutput
+    -> Builder
+buildDerivationWith filepath string outputName drvOutput (Derivation {..}) =
         "Derive("
     <>  mapOf keyValue0 outputs
     <>  ","
@@ -49,15 +57,11 @@ buildDerivationWith filepath string (Derivation {..}) =
     <>  mapOf keyValue2 env
     <>  ")"
   where
-    keyValue0 (key, DerivationOutput {..}) =
+    keyValue0 (key, output) =
             "("
-        <>  string key
+        <>  outputName key
         <>  ","
-        <>  filepath path
-        <>  ","
-        <>  string hashAlgo
-        <>  ","
-        <>  string hash
+        <>  drvOutput output
         <>  ")"
 
     keyValue1 (key, value) =
@@ -74,13 +78,26 @@ buildDerivationWith filepath string (Derivation {..}) =
         <>  string value
         <>  ")"
 
+-- | Render a @DerivationOutput@ as a `Builder` using custom
+-- renderer for filepaths
+buildDerivationOutputWith
+    :: (fp -> Builder)
+    -> DerivationOutput fp
+    -> Builder
+buildDerivationOutputWith filepath (DerivationOutput {..}) =
+        filepath path
+    <>  ","
+    <>  string' hashAlgo
+    <>  ","
+    <>  string' hash
+
 mapOf :: ((k, v) -> Builder) -> Map k v -> Builder
 mapOf keyValue m = listOf keyValue (Data.Map.toList m)
 
 listOf :: (a -> Builder) -> [a] -> Builder
 listOf _          []  = "[]"
 listOf element (x:xs) =
-        "[" 
+        "["
     <>  element x
     <>  foldMap rest xs
     <>  "]"
