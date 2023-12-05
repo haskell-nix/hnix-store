@@ -6,6 +6,7 @@ module System.Nix.Arbitrary.DerivedPath where
 import qualified Data.Set
 import Test.QuickCheck (Arbitrary(..), oneof)
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
+import System.Nix.Arbitrary.OutputName ()
 import System.Nix.Arbitrary.StorePath ()
 import System.Nix.DerivedPath (DerivedPath, OutputsSpec(..))
 

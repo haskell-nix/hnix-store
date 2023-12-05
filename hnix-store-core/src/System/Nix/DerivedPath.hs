@@ -13,17 +13,19 @@ module System.Nix.DerivedPath (
 import GHC.Generics (Generic)
 import Data.Set (Set)
 import Data.Text (Text)
-import System.Nix.StorePath (StoreDir(..), StorePath, StorePathName, InvalidNameError, InvalidPathError)
+import System.Nix.OutputName (OutputName, InvalidNameError)
+import System.Nix.StorePath (StoreDir(..), StorePath, InvalidPathError)
 
 import qualified Data.Bifunctor
 import qualified Data.ByteString.Char8
 import qualified Data.Set
 import qualified Data.Text
+import qualified System.Nix.OutputName
 import qualified System.Nix.StorePath
 
 data OutputsSpec =
     OutputsSpec_All
-  | OutputsSpec_Names (Set StorePathName)
+  | OutputsSpec_Names (Set OutputName)
   deriving (Eq, Generic, Ord, Show)
 
 data DerivedPath =
@@ -45,7 +47,7 @@ parseOutputsSpec t
   names <- mapM
              ( Data.Bifunctor.first
                  ParseOutputsError_InvalidName
-             . System.Nix.StorePath.mkStorePathName
+             . System.Nix.OutputName.mkOutputName
              )
              (Data.Text.splitOn "," t)
   if null names
@@ -56,7 +58,11 @@ outputsSpecToText :: OutputsSpec -> Text
 outputsSpecToText = \case
   OutputsSpec_All -> "*"
   OutputsSpec_Names ns ->
-    Data.Text.intercalate "," (fmap System.Nix.StorePath.unStorePathName (Data.Set.toList ns))
+    Data.Text.intercalate
+      ","
+      (fmap System.Nix.OutputName.unOutputName
+        (Data.Set.toList ns)
+      )
 
 parseDerivedPath
   :: StoreDir
