@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures    #-}
-{-# LANGUAGE RecordWildCards   #-}
 
 -- | Shared types
 

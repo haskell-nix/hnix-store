@@ -170,9 +170,7 @@ textParser = do
 
                     pure (text0 : Data.Text.singleton char2 : textChunks)
 
-    textChunks <- loop
-
-    pure (Data.Text.concat textChunks)
+    Data.Text.concat <$> loop
 
 filepathParser :: Parser FilePath
 filepathParser = do
