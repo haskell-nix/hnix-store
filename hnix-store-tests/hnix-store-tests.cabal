@@ -47,6 +47,7 @@ library
     , System.Nix.Arbitrary.DerivedPath
     , System.Nix.Arbitrary.Hash
     , System.Nix.Arbitrary.OutputName
+    , System.Nix.Arbitrary.Realisation
     , System.Nix.Arbitrary.Signature
     , System.Nix.Arbitrary.Store.Types
     , System.Nix.Arbitrary.StorePath

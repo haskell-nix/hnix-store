@@ -66,6 +66,7 @@ library
     , System.Nix.Hash
     , System.Nix.Hash.Truncation
     , System.Nix.OutputName
+    , System.Nix.Realisation
     , System.Nix.Signature
     , System.Nix.Store.Types
     , System.Nix.StorePath
