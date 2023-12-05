@@ -80,6 +80,7 @@ test-suite props
       ContentAddressSpec
       DerivationSpec
       DerivedPathSpec
+      RealisationSpec
       StorePathSpec
       SignatureSpec
   hs-source-dirs:

@@ -134,7 +134,7 @@ import System.Nix.Derivation (Derivation(..), DerivationOutput(..))
 import System.Nix.DerivedPath (DerivedPath, ParseOutputsError)
 import System.Nix.Hash (HashAlgo(..))
 import System.Nix.OutputName (OutputName)
-import System.Nix.Realisation (Realisation(..))
+import System.Nix.Realisation (DerivationOutputError, Realisation(..))
 import System.Nix.Signature (Signature, NarSignature)
 import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
 import System.Nix.StorePath (HasStoreDir(..), InvalidNameError, InvalidPathError, StorePath, StorePathHashPart, StorePathName)
@@ -232,6 +232,7 @@ data SError
       }
   | SError_ContentAddress String
   | SError_DerivedPath ParseOutputsError
+  | SError_DerivationOutput DerivationOutputError
   | SError_Digest String
   | SError_EnumOutOfMinBound Int
   | SError_EnumOutOfMaxBound Int
@@ -347,6 +348,7 @@ text = mapIsoSerializer
   Data.Text.Encoding.encodeUtf8
   byteString
 
+-- TODO Parser Builder
 _textBuilder :: NixSerializer r SError Builder
 _textBuilder = Serializer
   { getS = Data.Text.Lazy.Builder.fromText <$> getS text
@@ -596,15 +598,18 @@ outputName =
 -- * Realisation
 
 derivationOutputTyped :: NixSerializer r SError (System.Nix.Realisation.DerivationOutput OutputName)
-derivationOutputTyped = Serializer
-  { getS = do
-      derivationOutputHash <- getS namedDigest
-      derivationOutputName <- getS outputName
-      pure System.Nix.Realisation.DerivationOutput{..}
-  , putS = \System.Nix.Realisation.DerivationOutput{..} -> do
-      putS namedDigest derivationOutputHash
-      putS outputName derivationOutputName
-  }
+derivationOutputTyped =
+  mapPrismSerializer
+    ( Data.Bifunctor.first SError_DerivationOutput
+      . System.Nix.Realisation.derivationOutputParser
+          System.Nix.OutputName.mkOutputName
+    )
+    ( Data.Text.Lazy.toStrict
+      . Data.Text.Lazy.Builder.toLazyText
+      . System.Nix.Realisation.derivationOutputBuilder
+          System.Nix.OutputName.unOutputName
+    )
+    text
 
 realisation
   :: HasStoreDir r
