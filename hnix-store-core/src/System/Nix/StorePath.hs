@@ -20,6 +20,7 @@ module System.Nix.StorePath
     -- * Manipulating 'StorePathName'
   , InvalidNameError(..)
   , mkStorePathName
+  , parseNameText
     -- * Reason why a path is not valid
   , InvalidPathError(..)
   , -- * Rendering out 'StorePath's
@@ -136,7 +137,11 @@ data InvalidPathError
 -- | Make @StorePathName@ from @Text@ (name part of the @StorePath@)
 -- or fail with @InvalidNameError@ if it isn't valid
 mkStorePathName :: Text -> Either InvalidNameError StorePathName
-mkStorePathName n
+mkStorePathName = fmap StorePathName . parseNameText
+
+-- | Parse name (either @StorePathName@ or @OutputName@)
+parseNameText :: Text -> Either InvalidNameError Text
+parseNameText n
   | n == ""
     = Left EmptyName
   | Data.Text.length n > 211
@@ -151,7 +156,7 @@ mkStorePathName n
     = Left
       $ InvalidCharacters
       $ Data.Text.filter (not . validStorePathNameChar) n
-  | otherwise = pure $ StorePathName n
+  | otherwise = pure n
 
 validStorePathNameChar :: Char -> Bool
 validStorePathNameChar c =
