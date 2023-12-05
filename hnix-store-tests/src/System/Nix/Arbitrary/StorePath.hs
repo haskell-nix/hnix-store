@@ -15,7 +15,7 @@ import System.Nix.StorePath (StoreDir(..)
   )
 import qualified System.Nix.StorePath
 
-import Test.QuickCheck (Arbitrary(arbitrary), elements, listOf, oneof)
+import Test.QuickCheck (Arbitrary(arbitrary), choose, elements, oneof, vectorOf)
 
 instance Arbitrary StoreDir where
   arbitrary =
@@ -33,11 +33,14 @@ instance Arbitrary StorePathName where
   arbitrary =
       either undefined id
     . System.Nix.StorePath.mkStorePathName
-    . Data.Text.pack <$> ((:) <$> s1 <*> listOf sn)
+    . Data.Text.pack <$> ((:) <$> s1 <*> limited sn)
    where
     alphanum = ['a' .. 'z'] <> ['A' .. 'Z'] <> ['0' .. '9']
-    s1       = elements $ alphanum <> "+-_?="
-    sn       = elements $ alphanum <> "+-._?="
+    s1 = elements $ alphanum <> "+-_?="
+    sn = elements $ alphanum <> "+-._?="
+    limited n = do
+      k <- choose (0, 210)
+      vectorOf k n
 
 instance Arbitrary StorePathHashPart where
   arbitrary =
