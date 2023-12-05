@@ -75,20 +75,25 @@ spec = parallel $ do
         $ \pv ->
             roundtripSReader @TestStoreConfig buildResult (TestStoreConfig sd pv)
             . (\x -> x { buildResultBuiltOutputs = Nothing })
+            . (\x -> x { buildResultTimesBuilt = Nothing
+                       , buildResultIsNonDeterministic = Nothing
+                       , buildResultStartTime = Nothing
+                       , buildResultStopTime = Nothing
+                       }
+              )
       prop "= 1.28"
         $ \sd ->
             roundtripSReader @TestStoreConfig buildResult (TestStoreConfig sd (ProtoVersion 1 28))
+            . (\x -> x { buildResultTimesBuilt = Nothing
+                       , buildResultIsNonDeterministic = Nothing
+                       , buildResultStartTime = Nothing
+                       , buildResultStopTime = Nothing
+                       }
+              )
       prop "> 1.28"
         $ \sd -> forAll (arbitrary `suchThat` ((> 28) . protoVersion_minor))
         $ \pv ->
             roundtripSReader @TestStoreConfig buildResult (TestStoreConfig sd pv)
-
---    prop "OldBuildResult"
---      $ \testStoreConfig ->
---          forAll (arbitrary
---                  `suchThat`
---                  (restrictProtoVersionBuildResult (hasProtoVersion testStoreConfig)))
---      $ roundtripSReader oldBuildResult testStoreConfig
 
     prop "StorePath" $
       roundtripSReader @StoreDir storePath

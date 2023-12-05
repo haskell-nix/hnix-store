@@ -13,14 +13,13 @@ import Data.Word (Word8, Word32)
 
 import qualified Control.Monad
 import qualified Data.Bits
-import qualified Data.Bool
 import qualified Data.Map
 import qualified Data.Set
 import qualified Data.Text
 import qualified Data.Vector
 
+import System.Nix.Build (BuildMode, BuildStatus)
 import System.Nix.Derivation (Derivation(..), DerivationOutput(..))
-import System.Nix.Build (BuildMode(..), BuildStatus(..), BuildResult(..), OldBuildResult(..))
 import System.Nix.StorePath (StoreDir, StorePath)
 import System.Nix.Store.Remote.Serialize.Prim
 import System.Nix.Store.Remote.Types
@@ -29,7 +28,7 @@ instance Serialize Text where
   get = getText
   put = putText
 
--- * BuildResult
+-- * Build
 
 instance Serialize BuildMode where
   get = getEnum
@@ -38,45 +37,6 @@ instance Serialize BuildMode where
 instance Serialize BuildStatus where
   get = getEnum
   put = putEnum
-
-instance Serialize BuildResult where
-  get = do
-    buildResultStatus <- get
-    buildResultErrorMessage <-
-      (\em -> Data.Bool.bool (Just em) Nothing (Data.Text.null em))
-      <$> get
-    buildResultTimesBuilt <- getInt
-    buildResultIsNonDeterministic <- getBool
-    buildResultStartTime <- getTime
-    buildResultStopTime <- getTime
-
-    buildResultBuiltOutputs <- pure Nothing
-    pure BuildResult{..}
-
-  put BuildResult{..} = do
-    put buildResultStatus
-    case buildResultErrorMessage of
-      Just err -> putText err
-      Nothing -> putText mempty
-    putInt buildResultTimesBuilt
-    putBool buildResultIsNonDeterministic
-    putTime buildResultStartTime
-    putTime buildResultStopTime
-
-instance Serialize OldBuildResult where
-  get = do
-    oldBuildResultStatus <- get
-    oldBuildResultErrorMessage <-
-      (\em -> Data.Bool.bool (Just em) Nothing (Data.Text.null em))
-      <$> get
-    oldBuildResultBuiltOutputs <- pure Nothing
-    pure OldBuildResult{..}
-
-  put OldBuildResult{..} = do
-    put oldBuildResultStatus
-    case oldBuildResultErrorMessage of
-      Just err -> putText err
-      Nothing -> putText mempty
 
 -- * GCAction
 --

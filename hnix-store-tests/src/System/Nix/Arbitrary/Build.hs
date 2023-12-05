@@ -3,14 +3,17 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 module System.Nix.Arbitrary.Build where
 
+import Data.Time (UTCTime)
 import Data.Text.Arbitrary ()
-import Test.QuickCheck (Arbitrary(..), suchThat)
+import Test.QuickCheck (Arbitrary(..), scale, suchThat)
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
 import System.Nix.Arbitrary.OutputName ()
 import System.Nix.Arbitrary.Realisation ()
 import System.Nix.Arbitrary.UTCTime ()
 
 import System.Nix.Build
+
+import qualified Data.Time.Clock.POSIX
 
 deriving via GenericArbitrary BuildMode
   instance Arbitrary BuildMode
@@ -22,20 +25,13 @@ instance Arbitrary BuildResult where
   arbitrary = do
     buildResultStatus <- arbitrary
     buildResultErrorMessage <- arbitrary
-    buildResultTimesBuilt <- arbitrary
-    buildResultIsNonDeterministic <- arbitrary
-    buildResultStartTime <- arbitrary
-    buildResultStopTime <- arbitrary
-    buildResultBuiltOutputs <- arbitrary `suchThat` (/= Nothing)
+    buildResultTimesBuilt <- arbitrary `suchThat` (/= Just 0)
+    buildResultIsNonDeterministic <- arbitrary  `suchThat` (/= Nothing)
+    buildResultStartTime <- arbitrary `suchThat` (/= Just t0)
+    buildResultStopTime <- arbitrary `suchThat` (/= Just t0)
+    buildResultBuiltOutputs <- scale (`div` 10) (arbitrary `suchThat` (/= Nothing))
 
     pure BuildResult{..}
-
-instance Arbitrary OldBuildResult where
-  arbitrary = do
-    oldBuildResultStatus <- arbitrary
-    oldBuildResultErrorMessage <- arbitrary
-    oldBuildResultBuiltOutputs <- arbitrary `suchThat` (/= Just mempty)
-
-    pure OldBuildResult{..}
-
-
+    where
+      t0 :: UTCTime
+      t0 = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0

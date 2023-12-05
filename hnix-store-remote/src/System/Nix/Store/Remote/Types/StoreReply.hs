@@ -2,6 +2,7 @@ module System.Nix.Store.Remote.Types.StoreReply
   ( StoreReply(..)
   ) where
 
+import System.Nix.Build (BuildResult)
 import System.Nix.StorePath (HasStoreDir(..), StorePath)
 import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion)
@@ -20,6 +21,9 @@ class StoreReply a where
 
 instance StoreReply Bool where
   getReplyS = mapPrimE bool
+
+instance StoreReply BuildResult where
+  getReplyS = mapPrimE buildResult
 
 instance StoreReply StorePath where
   getReplyS = mapPrimE storePath

@@ -11,7 +11,6 @@ module System.Nix.Store.Remote
   , addIndirectRoot
   , addTempRoot
   , buildPaths
-  , buildDerivation
   , deleteSpecific
   , ensurePath
   , findRoots
@@ -30,6 +29,7 @@ module System.Nix.Store.Remote
   , syncWithGC
   , verifyStore
   , module System.Nix.Store.Types
+  , module System.Nix.Store.Remote.Client
   , module System.Nix.Store.Remote.MonadStore
   , module System.Nix.Store.Remote.Types
   -- * Compat
@@ -50,9 +50,8 @@ import Data.Text (Text)
 import Data.Word (Word64)
 import Network.Socket (Family, SockAddr(SockAddrUnix))
 import System.Nix.Nar (NarSource)
-import System.Nix.Derivation (Derivation)
 import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
-import System.Nix.Build (BuildMode, OldBuildResult)
+import System.Nix.Build (BuildMode)
 import System.Nix.Hash (NamedAlgo(..), BaseEncoding(Base16), decodeDigestWith)
 import System.Nix.StorePath (StoreDir(..), StorePath, StorePathName, StorePathHashPart, InvalidPathError)
 import System.Nix.StorePath.Metadata  (Metadata(..), StorePathTrust(..))
@@ -74,11 +73,9 @@ import qualified System.Nix.StorePath
 
 import System.Nix.Store.Remote.MonadStore (RemoteStoreT, getStoreDir, RemoteStoreError(RemoteStoreError_GetAddrInfoFailed))
 import System.Nix.Store.Remote.Client (Run, runStoreSocket, runOp, runOpArgs, runOpArgsIO, simpleOp, simpleOpArgs)
+import System.Nix.Store.Remote.Client (buildDerivation)
 import System.Nix.Store.Remote.Socket
 import System.Nix.Store.Remote.Types
-
-import Data.Serialize (get)
-import System.Nix.Store.Remote.Serialize (putDerivation)
 import System.Nix.Store.Remote.Serialize.Prim
 
 -- * Compat
@@ -221,25 +218,6 @@ buildPaths ps bm = do
   Control.Monad.void $ simpleOpArgs WorkerOp_BuildPaths $ do
     putPaths storeDir ps
     putInt $ fromEnum bm
-
-buildDerivation
-  :: StorePath
-  -> Derivation StorePath Text
-  -> BuildMode
-  -> MonadStore OldBuildResult
-buildDerivation p drv buildMode = do
-  storeDir <- getStoreDir
-  runOpArgs WorkerOp_BuildDerivation $ do
-    putPath storeDir p
-    putDerivation storeDir drv
-    putEnum buildMode
-    -- XXX: reason for this is unknown
-    -- but without it protocol just hangs waiting for
-    -- more data. Needs investigation.
-    -- Intentionally the only warning that should pop-up.
-    putInt (0 :: Int)
-
-  getSocketIncremental get
 
 -- | Delete store paths
 deleteSpecific

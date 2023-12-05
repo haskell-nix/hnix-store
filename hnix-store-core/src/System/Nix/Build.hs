@@ -7,7 +7,6 @@ module System.Nix.Build
   , BuildStatus(..)
   , buildSuccess
   , BuildResult(..)
-  , OldBuildResult(..)
   ) where
 
 import Data.Map (Map)
@@ -48,23 +47,21 @@ data BuildStatus =
 
 -- | Result of the build
 data BuildResult = BuildResult
-  { buildResultStatus             :: !BuildStatus
+  { buildResultStatus             :: BuildStatus
   -- ^ Build status, MiscFailure should be the default
-  , buildResultErrorMessage       :: !(Maybe Text)
+  , buildResultErrorMessage       :: Maybe Text
   -- ^ Possible build error message
-  , buildResultTimesBuilt         :: !Int
-  -- ^ How many times this build was performed
-  , buildResultIsNonDeterministic :: !Bool
-  -- ^ If timesBuilt > 1, whether some builds did not produce the same result
-  , buildResultStartTime          :: !UTCTime
-  -- ^ Start time of this build
-  , buildResultStopTime           :: !UTCTime
-  -- ^ Stop time of this build
-  , buildResultBuiltOutputs       :: !(Maybe (Map OutputName Realisation))
-  -- ^ Mapping of the output names to @Realisation@s
+  , buildResultTimesBuilt         :: Maybe Int
+  -- ^ How many times this build was performed (since 1.29)
+  , buildResultIsNonDeterministic :: Maybe Bool
+  -- ^ If timesBuilt > 1, whether some builds did not produce the same result (since 1.29)
+  , buildResultStartTime          :: Maybe UTCTime
+  -- ^ Start time of this build (since 1.29)
+  , buildResultStopTime           :: Maybe UTCTime
+  -- ^ Stop time of this build (since 1.29)
+  , buildResultBuiltOutputs       :: Maybe (Map OutputName Realisation)
+  -- ^ Mapping of the output names to @Realisation@s (since 1.28)
   -- (paths with additional info and their dependencies)
-  --
-  -- Available for protocol version >= 1.28
   }
   deriving (Eq, Generic, Ord, Show)
 
@@ -75,17 +72,3 @@ buildSuccess x =
     , BuildStatus_Substituted
     , BuildStatus_AlreadyValid
     ]
-
--- | Result of the build, for protocol version <= 1.28
-data OldBuildResult = OldBuildResult
-  { oldBuildResultStatus       :: !BuildStatus
-  -- ^ Build status, MiscFailure should be the default
-  , oldBuildResultErrorMessage :: !(Maybe Text)
-  -- ^ Possible build error message
-  , oldBuildResultBuiltOutputs :: !(Maybe (Map OutputName Realisation))
-  -- ^ Mapping of the output names to @Realisation@s
-  -- (paths with additional info and their dependencies)
-  --
-  -- Available for protocol version >= 1.28
-  }
-  deriving (Eq, Generic, Ord, Show)

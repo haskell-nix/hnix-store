@@ -61,7 +61,6 @@ module System.Nix.Store.Remote.Serializer
   -- * Build
   , buildMode
   , buildResult
-  , oldBuildResult
   -- * Logger
   , LoggerSError(..)
   , activityID
@@ -129,7 +128,7 @@ import qualified Data.Vector
 
 import Data.Serializer
 import System.Nix.Base (BaseEncoding(NixBase32))
-import System.Nix.Build (BuildMode, BuildResult(..), OldBuildResult(..))
+import System.Nix.Build (BuildMode, BuildResult(..))
 import System.Nix.ContentAddress (ContentAddress)
 import System.Nix.Derivation (Derivation(..), DerivationOutput(..))
 import System.Nix.DerivedPath (DerivedPath, ParseOutputsError)
@@ -791,13 +790,25 @@ buildResult
   => NixSerializer r SError BuildResult
 buildResult = Serializer
   { getS = do
+      pv <- Control.Monad.Reader.asks hasProtoVersion
+
       buildResultStatus <- getS enum
       buildResultErrorMessage <- getS maybeText
-      buildResultTimesBuilt <- getS int
-      buildResultIsNonDeterministic <- getS bool
-      buildResultStartTime <- getS time
-      buildResultStopTime <- getS time
-      pv <- Control.Monad.Reader.asks hasProtoVersion
+
+      ( buildResultTimesBuilt
+        , buildResultIsNonDeterministic
+        , buildResultStartTime
+        , buildResultStopTime
+        ) <-
+        if protoVersion_minor pv >= 29
+        then do
+          tb <- (\case 0 -> Nothing; x -> Just x) <$> getS int
+          nondet <- getS bool
+          start <- (\case x | x == t0 -> Nothing; x -> Just x) <$> getS time
+          end <- (\case x | x == t0 -> Nothing; x -> Just x) <$> getS time
+          pure $ (tb, pure nondet, start, end)
+        else pure $ (Nothing, Nothing, Nothing, Nothing)
+
       buildResultBuiltOutputs <-
         if protoVersion_minor pv >= 28
         then pure <$> getS (mapS outputName realisation)
@@ -805,44 +816,22 @@ buildResult = Serializer
       pure BuildResult{..}
 
   , putS = \BuildResult{..} -> do
+      pv <- Control.Monad.Reader.asks hasProtoVersion
+
       putS enum buildResultStatus
       putS maybeText buildResultErrorMessage
-      putS int buildResultTimesBuilt
-      putS bool buildResultIsNonDeterministic
-      putS time buildResultStartTime
-      putS time buildResultStopTime
-      pv <- Control.Monad.Reader.asks hasProtoVersion
-      if protoVersion_minor pv >= 28
-      then putS (mapS outputName realisation)
-             $ Data.Maybe.fromMaybe mempty buildResultBuiltOutputs
-      else pure ()
+      Control.Monad.when (protoVersion_minor pv >= 29) $ do
+        putS int $ Data.Maybe.fromMaybe 0 buildResultTimesBuilt
+        putS bool $ Data.Maybe.fromMaybe False buildResultIsNonDeterministic
+        putS time $ Data.Maybe.fromMaybe t0 buildResultStartTime
+        putS time $ Data.Maybe.fromMaybe t0 buildResultStopTime
+      Control.Monad.when (protoVersion_minor pv >= 28)
+        $ putS (mapS outputName realisation)
+        $ Data.Maybe.fromMaybe mempty buildResultBuiltOutputs
   }
-
-oldBuildResult
-  :: ( HasProtoVersion r
-     , HasStoreDir r
-     )
-  => NixSerializer r SError OldBuildResult
-oldBuildResult = Serializer
-  { getS = do
-      oldBuildResultStatus <- getS enum
-      oldBuildResultErrorMessage <- getS maybeText
-      pv <- Control.Monad.Reader.asks hasProtoVersion
-      oldBuildResultBuiltOutputs <-
-        if protoVersion_minor pv >= 28
-        then pure <$> getS (mapS outputName realisation)
-        else pure Nothing
-      pure OldBuildResult{..}
-
-  , putS = \OldBuildResult{..} -> do
-      putS enum oldBuildResultStatus
-      putS maybeText oldBuildResultErrorMessage
-      pv <- Control.Monad.Reader.asks hasProtoVersion
-      if protoVersion_minor pv >= 28
-      then putS (mapS outputName realisation)
-             $ Data.Maybe.fromMaybe mempty oldBuildResultBuiltOutputs
-      else pure ()
-  }
+  where
+    t0 :: UTCTime
+    t0 = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
 
 -- * Logger
 

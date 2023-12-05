@@ -9,6 +9,7 @@ module System.Nix.Store.Remote.Client
   , ourProtoVersion
   , doReq
   , addToStore
+  , buildDerivation
   , isValidPath
   ) where
 
@@ -38,6 +39,10 @@ import System.Nix.Store.Remote.Types.StoreReply (StoreReply(..))
 import System.Nix.Store.Remote.Types.WorkerMagic (WorkerMagic(..))
 import System.Nix.Store.Remote.Types.WorkerOp (WorkerOp)
 import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
+
+import Data.Text
+import System.Nix.Build
+import System.Nix.Derivation (Derivation)
 
 simpleOp
   :: MonadRemoteStore m
@@ -145,6 +150,14 @@ addToStore name source method hashAlgo repair = do
 
   setNarSource source
   doReq (AddToStore name method hashAlgo repair)
+
+buildDerivation
+  :: MonadRemoteStore m
+  => StorePath
+  -> Derivation StorePath Text
+  -> BuildMode
+  -> m BuildResult
+buildDerivation a b c = doReq (BuildDerivation a b c)
 
 --isValidPath :: MonadIO m => StorePath -> RemoteStoreT StoreConfig m Bool
 --isValidPath = doReq . IsValidPath
