@@ -20,7 +20,6 @@ module System.Nix.StorePath
     -- * Manipulating 'StorePathName'
   , InvalidNameError(..)
   , mkStorePathName
-  , validStorePathName
     -- * Reason why a path is not valid
   , InvalidPathError(..)
   , -- * Rendering out 'StorePath's
@@ -119,9 +118,9 @@ mkStorePathHashPart =
 -- | Reason why a path name or output name is not valid
 data InvalidNameError
   = EmptyName
-  | NameTooLong
+  | NameTooLong Int
   | LeadingDot
-  | InvalidCharacter
+  | InvalidCharacters Text
   deriving (Eq, Generic, Hashable, Ord, Show)
 
 -- | Reason why a path is not valid
@@ -137,24 +136,22 @@ data InvalidPathError
 -- | Make @StorePathName@ from @Text@ (name part of the @StorePath@)
 -- or fail with @InvalidNameError@ if it isn't valid
 mkStorePathName :: Text -> Either InvalidNameError StorePathName
-mkStorePathName n =
-  if validStorePathName n
-    then pure $ StorePathName n
-    else Left $ reasonInvalid n
-
-reasonInvalid :: Text -> InvalidNameError
-reasonInvalid n
-  | n == ""                  = EmptyName
-  | Data.Text.length n > 211 = NameTooLong
-  | Data.Text.head n == '.'  = LeadingDot
-  | otherwise                = InvalidCharacter
-
-validStorePathName :: Text -> Bool
-validStorePathName n =
-  n /= ""
-  && Data.Text.length n <= 211
-  && Data.Text.head n /= '.'
-  && Data.Text.all validStorePathNameChar n
+mkStorePathName n
+  | n == ""
+    = Left EmptyName
+  | Data.Text.length n > 211
+    = Left $ NameTooLong (Data.Text.length n)
+  | Data.Text.head n == '.'
+    = Left $ LeadingDot
+  | not
+    $ Data.Text.null
+    $ Data.Text.filter
+        (not . validStorePathNameChar)
+        n
+    = Left
+      $ InvalidCharacters
+      $ Data.Text.filter (not . validStorePathNameChar) n
+  | otherwise = pure $ StorePathName n
 
 validStorePathNameChar :: Char -> Bool
 validStorePathNameChar c =
