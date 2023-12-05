@@ -49,6 +49,8 @@ instance Serialize BuildResult where
     buildResultIsNonDeterministic <- getBool
     buildResultStartTime <- getTime
     buildResultStopTime <- getTime
+
+    buildResultBuiltOutputs <- pure Nothing
     pure BuildResult{..}
 
   put BuildResult{..} = do
@@ -67,6 +69,7 @@ instance Serialize OldBuildResult where
     oldBuildResultErrorMessage <-
       (\em -> Data.Bool.bool (Just em) Nothing (Data.Text.null em))
       <$> get
+    oldBuildResultBuiltOutputs <- pure Nothing
     pure OldBuildResult{..}
 
   put OldBuildResult{..} = do

@@ -14,7 +14,7 @@ import qualified Data.Either
 import qualified Data.HashSet
 
 import System.Nix.Arbitrary ()
-import System.Nix.Build (BuildMode(..), BuildResult, BuildStatus(..), OldBuildResult(..))
+import System.Nix.Build (BuildMode(..), BuildStatus(..))
 import System.Nix.Derivation (Derivation(inputDrvs))
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serialize (getDerivation, putDerivation)
@@ -75,8 +75,6 @@ spec = parallel $ do
     prop "Text" $ roundtripS @Text
     prop "BuildMode" $ roundtripS @BuildMode
     prop "BuildStatus" $ roundtripS @BuildStatus
-    prop "BuildResult" $ roundtripS @BuildResult
-    prop "OldBuildResult" $ roundtripS @OldBuildResult
 
     prop "ProtoVersion" $ roundtripS @ProtoVersion
 

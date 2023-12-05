@@ -40,6 +40,11 @@ module System.Nix.Store.Remote.Serializer
   , storePathName
   -- * Metadata
   , pathMetadata
+  -- * OutputName
+  , outputName
+  -- * Realisation
+  , derivationOutputTyped
+  , realisation
   -- * Signatures
   , signature
   , narSignature
@@ -47,6 +52,8 @@ module System.Nix.Store.Remote.Serializer
   , someHashAlgo
   -- * Digest
   , digest
+  -- * DSum HashAlgo Digest
+  , namedDigest
   -- * Derivation
   , derivation
   -- * Derivation
@@ -96,6 +103,7 @@ import Data.Map (Map)
 import Data.Set (Set)
 import Data.Some (Some(Some))
 import Data.Text (Text)
+import Data.Text.Lazy.Builder (Builder)
 import Data.Time (NominalDiffTime, UTCTime)
 import Data.Vector (Vector)
 import Data.Word (Word8, Word32, Word64)
@@ -114,6 +122,8 @@ import qualified Data.Serialize.Put
 import qualified Data.Set
 import qualified Data.Text
 import qualified Data.Text.Encoding
+import qualified Data.Text.Lazy
+import qualified Data.Text.Lazy.Builder
 import qualified Data.Time.Clock.POSIX
 import qualified Data.Vector
 
@@ -124,6 +134,8 @@ import System.Nix.ContentAddress (ContentAddress)
 import System.Nix.Derivation (Derivation(..), DerivationOutput(..))
 import System.Nix.DerivedPath (DerivedPath, ParseOutputsError)
 import System.Nix.Hash (HashAlgo(..))
+import System.Nix.OutputName (OutputName)
+import System.Nix.Realisation (Realisation(..))
 import System.Nix.Signature (Signature, NarSignature)
 import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
 import System.Nix.StorePath (HasStoreDir(..), InvalidNameError, InvalidPathError, StorePath, StorePathHashPart, StorePathName)
@@ -137,6 +149,8 @@ import qualified System.Nix.Base
 import qualified System.Nix.ContentAddress
 import qualified System.Nix.DerivedPath
 import qualified System.Nix.Hash
+import qualified System.Nix.OutputName
+import qualified System.Nix.Realisation
 import qualified System.Nix.Signature
 import qualified System.Nix.StorePath
 
@@ -333,6 +347,12 @@ text = mapIsoSerializer
   Data.Text.Encoding.decodeUtf8
   Data.Text.Encoding.encodeUtf8
   byteString
+
+_textBuilder :: NixSerializer r SError Builder
+_textBuilder = Serializer
+  { getS = Data.Text.Lazy.Builder.fromText <$> getS text
+  , putS = putS text . Data.Text.Lazy.toStrict . Data.Text.Lazy.Builder.toLazyText
+  }
 
 maybeText :: NixSerializer r SError (Maybe Text)
 maybeText = mapIsoSerializer
@@ -564,6 +584,44 @@ pathMetadata = Serializer
         (\case BuiltElsewhere -> False; BuiltLocally -> True)
         bool
 
+-- * OutputName
+
+outputName :: NixSerializer r SError OutputName
+outputName =
+  mapPrismSerializer
+    (Data.Bifunctor.first SError_Name
+     . System.Nix.OutputName.mkOutputName)
+    System.Nix.OutputName.unOutputName
+    text
+
+-- * Realisation
+
+derivationOutputTyped :: NixSerializer r SError (System.Nix.Realisation.DerivationOutput OutputName)
+derivationOutputTyped = Serializer
+  { getS = do
+      derivationOutputHash <- getS namedDigest
+      derivationOutputName <- getS outputName
+      pure System.Nix.Realisation.DerivationOutput{..}
+  , putS = \System.Nix.Realisation.DerivationOutput{..} -> do
+      putS namedDigest derivationOutputHash
+      putS outputName derivationOutputName
+  }
+
+realisation
+  :: HasStoreDir r
+  => NixSerializer r SError Realisation
+realisation = Serializer
+  { getS = do
+      realisationOutPath <- getS storePath
+      realisationSignatures <- getS (set signature)
+      realisationDependencies <- getS (mapS derivationOutputTyped storePath)
+      pure Realisation{..}
+  , putS = \Realisation{..} -> do
+      putS storePath realisationOutPath
+      putS (set signature) realisationSignatures
+      putS (mapS derivationOutputTyped storePath) realisationDependencies
+  }
+
 -- * Signatures
 
 signature
@@ -612,6 +670,28 @@ digest base =
          . System.Nix.Hash.decodeDigestWith @a base)
         (System.Nix.Hash.encodeDigestWith base)
         $ text
+
+-- * DSum HashAlgo Digest
+
+namedDigest :: NixSerializer r SError (DSum HashAlgo Digest)
+namedDigest = Serializer
+  { getS = do
+      sriHash <- getS text
+      let (sriName, _h) = Data.Text.breakOn (Data.Text.singleton '-') sriHash
+      -- bit hacky since mkNamedDigest does the check
+      -- that the expected matches but we don't know
+      -- what we expect here (i.e. handle each HashAlgo)
+      case System.Nix.Hash.mkNamedDigest sriName sriHash of
+        Left e -> throwError $ SError_Digest e
+        Right x -> pure x
+  -- TODO: we also lack a builder for SRI hashes
+  -- , putS = putS textBuilder . System.Nix.Hash.algoDigestBuilder
+  , putS = \(algo :=> d) -> do
+      putS text
+        $  System.Nix.Hash.algoToText algo
+        <> (Data.Text.singleton '-')
+        <> System.Nix.Hash.encodeDigestWith NixBase32 d
+  }
 
 derivationOutput
   :: HasStoreDir r
@@ -704,7 +784,11 @@ derivedPath = Serializer
 buildMode :: NixSerializer r SError BuildMode
 buildMode = enum
 
-buildResult :: NixSerializer r SError BuildResult
+buildResult
+  :: ( HasProtoVersion r
+     , HasStoreDir r
+     )
+  => NixSerializer r SError BuildResult
 buildResult = Serializer
   { getS = do
       buildResultStatus <- getS enum
@@ -713,6 +797,11 @@ buildResult = Serializer
       buildResultIsNonDeterministic <- getS bool
       buildResultStartTime <- getS time
       buildResultStopTime <- getS time
+      pv <- Control.Monad.Reader.asks hasProtoVersion
+      buildResultBuiltOutputs <-
+        if protoVersion_minor pv >= 28
+        then pure <$> getS (mapS outputName realisation)
+        else pure Nothing
       pure BuildResult{..}
 
   , putS = \BuildResult{..} -> do
@@ -722,18 +811,37 @@ buildResult = Serializer
       putS bool buildResultIsNonDeterministic
       putS time buildResultStartTime
       putS time buildResultStopTime
+      pv <- Control.Monad.Reader.asks hasProtoVersion
+      if protoVersion_minor pv >= 28
+      then putS (mapS outputName realisation)
+             $ Data.Maybe.fromMaybe mempty buildResultBuiltOutputs
+      else pure ()
   }
 
-oldBuildResult :: NixSerializer r SError OldBuildResult
+oldBuildResult
+  :: ( HasProtoVersion r
+     , HasStoreDir r
+     )
+  => NixSerializer r SError OldBuildResult
 oldBuildResult = Serializer
   { getS = do
       oldBuildResultStatus <- getS enum
       oldBuildResultErrorMessage <- getS maybeText
+      pv <- Control.Monad.Reader.asks hasProtoVersion
+      oldBuildResultBuiltOutputs <-
+        if protoVersion_minor pv >= 28
+        then pure <$> getS (mapS outputName realisation)
+        else pure Nothing
       pure OldBuildResult{..}
 
   , putS = \OldBuildResult{..} -> do
       putS enum oldBuildResultStatus
       putS maybeText oldBuildResultErrorMessage
+      pv <- Control.Monad.Reader.asks hasProtoVersion
+      if protoVersion_minor pv >= 28
+      then putS (mapS outputName realisation)
+             $ Data.Maybe.fromMaybe mempty oldBuildResultBuiltOutputs
+      else pure ()
   }
 
 -- * Logger

@@ -10,9 +10,13 @@ module System.Nix.Build
   , OldBuildResult(..)
   ) where
 
+import Data.Map (Map)
 import Data.Time (UTCTime)
 import Data.Text (Text)
 import GHC.Generics (Generic)
+
+import System.Nix.OutputName (OutputName)
+import System.Nix.Realisation (Realisation)
 
 -- | Mode of the build operation
 -- Keep the order of these Enums to match enums from reference implementations
@@ -56,6 +60,11 @@ data BuildResult = BuildResult
   -- ^ Start time of this build
   , buildResultStopTime           :: !UTCTime
   -- ^ Stop time of this build
+  , buildResultBuiltOutputs       :: !(Maybe (Map OutputName Realisation))
+  -- ^ Mapping of the output names to @Realisation@s
+  -- (paths with additional info and their dependencies)
+  --
+  -- Available for protocol version >= 1.28
   }
   deriving (Eq, Generic, Ord, Show)
 
@@ -67,11 +76,16 @@ buildSuccess x =
     , BuildStatus_AlreadyValid
     ]
 
--- | Result of the build, for protocol version <= 1.27
+-- | Result of the build, for protocol version <= 1.28
 data OldBuildResult = OldBuildResult
   { oldBuildResultStatus       :: !BuildStatus
   -- ^ Build status, MiscFailure should be the default
   , oldBuildResultErrorMessage :: !(Maybe Text)
   -- ^ Possible build error message
+  , oldBuildResultBuiltOutputs :: !(Maybe (Map OutputName Realisation))
+  -- ^ Mapping of the output names to @Realisation@s
+  -- (paths with additional info and their dependencies)
+  --
+  -- Available for protocol version >= 1.28
   }
   deriving (Eq, Generic, Ord, Show)

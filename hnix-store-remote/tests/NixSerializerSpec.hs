@@ -12,12 +12,13 @@ import Test.QuickCheck (Gen, arbitrary, forAll, suchThat)
 
 import System.Nix.Arbitrary ()
 import System.Nix.Derivation (Derivation(inputDrvs))
+import System.Nix.Build (BuildResult(..))
 import System.Nix.StorePath (StoreDir)
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types.Logger (Logger(..))
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion(..))
-import System.Nix.Store.Remote.Types.StoreConfig (TestStoreConfig)
+import System.Nix.Store.Remote.Types.StoreConfig (TestStoreConfig(..))
 import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
 import System.Nix.Store.Remote.Types.WorkerOp (WorkerOp(..))
 
@@ -66,8 +67,28 @@ spec = parallel $ do
     prop "mapS" $ roundtripS (mapS (int @Int) byteString)
 
   describe "Complex" $ do
-    prop "BuildResult" $ roundtripS buildResult
-    prop "OldBuildResult" $ roundtripS oldBuildResult
+    prop "DSum HashAlgo Digest" $ roundtripS namedDigest
+
+    describe "BuildResult" $ do
+      prop "< 1.28"
+        $ \sd -> forAll (arbitrary `suchThat` ((< 28) . protoVersion_minor))
+        $ \pv ->
+            roundtripSReader @TestStoreConfig buildResult (TestStoreConfig sd pv)
+            . (\x -> x { buildResultBuiltOutputs = Nothing })
+      prop "= 1.28"
+        $ \sd ->
+            roundtripSReader @TestStoreConfig buildResult (TestStoreConfig sd (ProtoVersion 1 28))
+      prop "> 1.28"
+        $ \sd -> forAll (arbitrary `suchThat` ((> 28) . protoVersion_minor))
+        $ \pv ->
+            roundtripSReader @TestStoreConfig buildResult (TestStoreConfig sd pv)
+
+--    prop "OldBuildResult"
+--      $ \testStoreConfig ->
+--          forAll (arbitrary
+--                  `suchThat`
+--                  (restrictProtoVersionBuildResult (hasProtoVersion testStoreConfig)))
+--      $ roundtripSReader oldBuildResult testStoreConfig
 
     prop "StorePath" $
       roundtripSReader @StoreDir storePath
