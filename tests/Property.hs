@@ -34,14 +34,14 @@ instance Arbitrary (DerivationInputs FilePath Text) where
     arbitrary = do
         drvs <- arbitrary
         srcs <- arbitrary
-        return (DerivationInputs {..})
+        pure DerivationInputs {..}
 
 instance Arbitrary (DerivationOutput FilePath) where
     arbitrary = do
         path     <- arbitrary
         hashAlgo <- arbitrary
         hash     <- arbitrary
-        return (DerivationOutput {..})
+        pure DerivationOutput {..}
 
 instance Arbitrary (Derivation FilePath Text Text DerivationOutput DerivationInputs) where
     arbitrary = do
@@ -51,7 +51,7 @@ instance Arbitrary (Derivation FilePath Text Text DerivationOutput DerivationInp
         builder   <- arbitrary
         args      <- arbitrary
         env       <- arbitrary
-        return (Derivation {..})
+        pure Derivation {..}
 
 property :: Derivation FilePath Text Text DerivationOutput DerivationInputs -> Bool
 property derivation0 = either == Right derivation0

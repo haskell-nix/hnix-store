@@ -104,7 +104,6 @@ buildDerivationInputsWith filepath outputName (DerivationInputs {..}) =
         mapOf keyValue drvs
     <>  ","
     <>  setOf filepath srcs
-
   where
     keyValue (key, value) =
             "("

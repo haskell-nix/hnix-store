@@ -36,36 +36,36 @@ listOf element = do
     "["
     es <- Data.Attoparsec.Text.Lazy.sepBy element ","
     "]"
-    return es
+    pure es
 
 -- | Parse a derivation
 parseDerivation
-  :: Parser (Derivation
-                FilePath
-                Text
-                Text
-                DerivationOutput
-                DerivationInputs
-            )
+    :: Parser (Derivation
+                  FilePath
+                  Text
+                  Text
+                  DerivationOutput
+                  DerivationInputs
+              )
 parseDerivation =
-  parseDerivationWith
-    textParser
-    textParser
-    (parseDerivationOutputWith filepathParser)
-    (parseDerivationInputsWith filepathParser textParser)
+    parseDerivationWith
+        textParser
+        textParser
+        (parseDerivationOutputWith filepathParser)
+        (parseDerivationInputsWith filepathParser textParser)
 
 -- | Parse a derivation using custom
 -- parsers for filepaths, texts, outputNames and derivation inputs/outputs
 parseDerivationWith
-  :: ( Ord fp
-     , Ord txt
-     , Ord outputName
-     )
-  => Parser txt
-  -> Parser outputName
-  -> Parser (drvOutput fp)
-  -> Parser (drvInputs fp outputName)
-  -> Parser (Derivation fp txt outputName drvOutput drvInputs)
+    :: ( Ord fp
+       , Ord txt
+       , Ord outputName
+       )
+    => Parser txt
+    -> Parser outputName
+    -> Parser (drvOutput fp)
+    -> Parser (drvInputs fp outputName)
+    -> Parser (Derivation fp txt outputName drvOutput drvInputs)
 parseDerivationWith string outputName parseOutput parseInputs = do
     "Derive("
 
@@ -102,12 +102,12 @@ parseDerivationWith string outputName parseOutput parseInputs = do
             ","
             value <- string
             ")"
-            return (key, value)
+            pure (key, value)
     env <- mapOf keyValue1
 
     ")"
 
-    return (Derivation {..})
+    pure Derivation {..}
 
 -- | Parse a derivation output
 parseDerivationOutputWith :: Parser fp -> Parser (DerivationOutput fp)
@@ -134,7 +134,7 @@ parseDerivationInputsWith filepath outputName = do
             ","
             value <- setOf outputName
             ")"
-            return (key, value)
+            pure (key, value)
     drvs <- mapOf keyValue
 
     ","
@@ -155,24 +155,24 @@ textParser = do
 
             case char0 of
                 '"'  -> do
-                    return [ text0 ]
+                    pure [ text0 ]
 
                 _    -> do
                     char1 <- Data.Attoparsec.Text.anyChar
 
                     char2 <- case char1 of
-                        'n' -> return '\n'
-                        'r' -> return '\r'
-                        't' -> return '\t'
-                        _   -> return char1
+                        'n' -> pure '\n'
+                        'r' -> pure '\r'
+                        't' -> pure '\t'
+                        _   -> pure char1
 
                     textChunks <- loop
 
-                    return (text0 : Data.Text.singleton char2 : textChunks)
+                    pure (text0 : Data.Text.singleton char2 : textChunks)
 
     textChunks <- loop
 
-    return (Data.Text.concat textChunks)
+    pure (Data.Text.concat textChunks)
 
 filepathParser :: Parser FilePath
 filepathParser = do
@@ -180,21 +180,21 @@ filepathParser = do
     let str = Data.Text.unpack text
     case (Data.Text.uncons text, System.FilePath.isValid str) of
         (Just ('/', _), True) -> do
-            return str
+            pure str
         _ -> do
             fail ("bad path ‘" <> Data.Text.unpack text <> "’ in derivation")
 
 setOf :: Ord a => Parser a -> Parser (Set a)
 setOf element = do
     es <- listOf element
-    return (Data.Set.fromList es)
+    pure (Data.Set.fromList es)
 
 vectorOf :: Parser a -> Parser (Vector a)
 vectorOf element = do
     es <- listOf element
-    return (Data.Vector.fromList es)
+    pure (Data.Vector.fromList es)
 
 mapOf :: Ord k => Parser (k, v) -> Parser (Map k v)
 mapOf keyValue = do
     keyValues <- listOf keyValue
-    return (Data.Map.fromList keyValues)
+    pure (Data.Map.fromList keyValues)
