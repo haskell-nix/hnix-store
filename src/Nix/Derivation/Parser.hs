@@ -17,7 +17,11 @@ import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Vector (Vector)
-import Nix.Derivation.Types (Derivation(..), DerivationOutput(..))
+import Nix.Derivation.Types
+    ( Derivation(..)
+    , DerivationInputs(..)
+    , DerivationOutput(..)
+    )
 
 import qualified Data.Attoparsec.Text
 import qualified Data.Attoparsec.Text.Lazy
@@ -35,27 +39,34 @@ listOf element = do
     return es
 
 -- | Parse a derivation
-parseDerivation :: Parser (Derivation FilePath Text Text DerivationOutput)
+parseDerivation
+  :: Parser (Derivation
+                FilePath
+                Text
+                Text
+                DerivationOutput
+                DerivationInputs
+            )
 parseDerivation =
   parseDerivationWith
-    filepathParser
     textParser
     textParser
     (parseDerivationOutputWith filepathParser)
+    (parseDerivationInputsWith filepathParser textParser)
 
 -- | Parse a derivation using custom
--- parsers for filepaths, texts, outputNames and derivation outputs
+-- parsers for filepaths, texts, outputNames and derivation inputs/outputs
 parseDerivationWith
   :: ( Ord fp
      , Ord txt
      , Ord outputName
      )
-  => Parser fp
-  -> Parser txt
+  => Parser txt
   -> Parser outputName
   -> Parser (drvOutput fp)
-  -> Parser (Derivation fp txt outputName drvOutput)
-parseDerivationWith filepath string outputName parseOutput = do
+  -> Parser (drvInputs fp outputName)
+  -> Parser (Derivation fp txt outputName drvOutput drvInputs)
+parseDerivationWith string outputName parseOutput parseInputs = do
     "Derive("
 
     let keyValue0 = do
@@ -69,18 +80,7 @@ parseDerivationWith filepath string outputName parseOutput = do
 
     ","
 
-    let keyValue1 = do
-            "("
-            key <- filepath
-            ","
-            value <- setOf string
-            ")"
-            return (key, value)
-    inputDrvs <- mapOf keyValue1
-
-    ","
-
-    inputSrcs <- setOf filepath
+    inputs <- parseInputs
 
     ","
 
@@ -118,6 +118,29 @@ parseDerivationOutputWith filepath = do
     ","
     hash <- textParser
     pure DerivationOutput {..}
+
+-- | Parse a derivation inputs
+parseDerivationInputsWith
+    :: ( Ord fp
+       , Ord outputName
+       )
+    => Parser fp
+    -> Parser outputName
+    -> Parser (DerivationInputs fp outputName)
+parseDerivationInputsWith filepath outputName = do
+    let keyValue = do
+            "("
+            key <- filepath
+            ","
+            value <- setOf outputName
+            ")"
+            return (key, value)
+    drvs <- mapOf keyValue
+
+    ","
+
+    srcs <- setOf filepath
+    pure DerivationInputs {..}
 
 textParser :: Parser Text
 textParser = do

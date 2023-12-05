@@ -14,7 +14,11 @@ import Data.Set (Set)
 import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder)
 import Data.Vector (Vector)
-import Nix.Derivation.Types (Derivation(..), DerivationOutput(..))
+import Nix.Derivation.Types
+    ( Derivation(..)
+    , DerivationInputs(..)
+    , DerivationOutput(..)
+    )
 
 import qualified Data.Map
 import qualified Data.Set
@@ -23,30 +27,35 @@ import qualified Data.Text.Lazy.Builder
 import qualified Data.Vector
 
 -- | Render a derivation as a `Builder`
-buildDerivation :: Derivation FilePath Text Text DerivationOutput -> Builder
+buildDerivation
+    :: Derivation
+           FilePath
+           Text
+           Text
+           DerivationOutput
+           DerivationInputs
+    -> Builder
 buildDerivation =
     buildDerivationWith
-        filepath'
         string'
         string'
         (buildDerivationOutputWith filepath')
+        (buildDerivationInputsWith filepath' string')
 
 -- | Render a derivation as a `Builder` using custom
--- renderer for filepaths, texts, outputNames and @DerivationOutput@s
+-- renderer for filepaths, texts, outputNames and derivation inputs/outputs
 buildDerivationWith
-    :: (fp -> Builder)
-    -> (txt -> Builder)
+    :: (txt -> Builder)
     -> (outputName -> Builder)
     -> (drvOutput fp -> Builder)
-    -> Derivation fp txt outputName drvOutput
+    -> (drvInputs fp outputName -> Builder)
+    -> Derivation fp txt outputName drvOutput drvInputs
     -> Builder
-buildDerivationWith filepath string outputName drvOutput (Derivation {..}) =
+buildDerivationWith string outputName drvOutput drvInputs (Derivation {..}) =
         "Derive("
     <>  mapOf keyValue0 outputs
     <>  ","
-    <>  mapOf keyValue1 inputDrvs
-    <>  ","
-    <>  setOf filepath inputSrcs
+    <>  drvInputs inputs
     <>  ","
     <>  string platform
     <>  ","
@@ -54,7 +63,7 @@ buildDerivationWith filepath string outputName drvOutput (Derivation {..}) =
     <>  ","
     <>  vectorOf string args
     <>  ","
-    <>  mapOf keyValue2 env
+    <>  mapOf keyValue1 env
     <>  ")"
   where
     keyValue0 (key, output) =
@@ -65,13 +74,6 @@ buildDerivationWith filepath string outputName drvOutput (Derivation {..}) =
         <>  ")"
 
     keyValue1 (key, value) =
-            "("
-        <>  filepath key
-        <>  ","
-        <>  setOf string value
-        <>  ")"
-
-    keyValue2 (key, value) =
             "("
         <>  string key
         <>  ","
@@ -90,6 +92,26 @@ buildDerivationOutputWith filepath (DerivationOutput {..}) =
     <>  string' hashAlgo
     <>  ","
     <>  string' hash
+
+-- | Render a @DerivationInputs@ as a `Builder` using custom
+-- renderer for filepaths and output names
+buildDerivationInputsWith
+    :: (fp -> Builder)
+    -> (outputName -> Builder)
+    -> DerivationInputs fp outputName
+    -> Builder
+buildDerivationInputsWith filepath outputName (DerivationInputs {..}) =
+        mapOf keyValue drvs
+    <>  ","
+    <>  setOf filepath srcs
+
+  where
+    keyValue (key, value) =
+            "("
+        <>  filepath key
+        <>  ","
+        <>  setOf outputName value
+        <>  ")"
 
 mapOf :: ((k, v) -> Builder) -> Map k v -> Builder
 mapOf keyValue m = listOf keyValue (Data.Map.toList m)

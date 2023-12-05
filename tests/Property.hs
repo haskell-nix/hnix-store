@@ -9,7 +9,11 @@ module Main where
 import Data.Text (Text)
 import Data.Vector (Vector)
 import System.FilePath
-import Nix.Derivation (Derivation(..), DerivationOutput(..))
+import Nix.Derivation
+    ( Derivation(..)
+    , DerivationInputs(..)
+    , DerivationOutput(..)
+    )
 import Prelude hiding (FilePath, either)
 import Test.QuickCheck (Arbitrary(..))
 
@@ -26,6 +30,12 @@ instance Arbitrary Text where
 instance Arbitrary a => Arbitrary (Vector a) where
     arbitrary = fmap Data.Vector.fromList arbitrary
 
+instance Arbitrary (DerivationInputs FilePath Text) where
+    arbitrary = do
+        drvs <- arbitrary
+        srcs <- arbitrary
+        return (DerivationInputs {..})
+
 instance Arbitrary (DerivationOutput FilePath) where
     arbitrary = do
         path     <- arbitrary
@@ -33,18 +43,17 @@ instance Arbitrary (DerivationOutput FilePath) where
         hash     <- arbitrary
         return (DerivationOutput {..})
 
-instance Arbitrary (Derivation FilePath Text Text DerivationOutput) where
+instance Arbitrary (Derivation FilePath Text Text DerivationOutput DerivationInputs) where
     arbitrary = do
         outputs   <- arbitrary
-        inputDrvs <- arbitrary
-        inputSrcs <- arbitrary
+        inputs    <- arbitrary
         platform  <- arbitrary
         builder   <- arbitrary
         args      <- arbitrary
         env       <- arbitrary
         return (Derivation {..})
 
-property :: Derivation FilePath Text Text DerivationOutput -> Bool
+property :: Derivation FilePath Text Text DerivationOutput DerivationInputs -> Bool
 property derivation0 = either == Right derivation0
   where
     builder = Nix.Derivation.buildDerivation derivation0

@@ -8,6 +8,7 @@
 module Nix.Derivation.Types
     ( -- * Types
       Derivation(..)
+    , DerivationInputs(..)
     , DerivationOutput(..)
     ) where
 
@@ -19,14 +20,11 @@ import Data.Vector (Vector)
 import GHC.Generics (Generic)
 
 -- | A Nix derivation
-data Derivation fp txt outputName drvOutput = Derivation
+data Derivation fp txt outputName drvOutput drvInputs = Derivation
     { outputs   :: Map outputName (drvOutput fp)
     -- ^ Outputs produced by this derivation where keys are output names
-    , inputDrvs :: Map fp (Set txt)
-    -- ^ Inputs that are derivations where keys specify derivation paths and
-    -- values specify which output names are used by this derivation
-    , inputSrcs :: Set fp
-    -- ^ Inputs that are sources
+    , inputs    :: drvInputs fp outputName
+    -- ^ Inputs (sources and derivations)
     , platform  :: txt
     -- ^ Platform required for this derivation
     , builder   :: txt
@@ -42,8 +40,19 @@ instance ( NFData fp
          , NFData txt
          , NFData outputName
          , NFData (drvOutput fp)
+         , NFData (drvInputs fp outputName)
          )
-         => NFData (Derivation fp txt outputName drvOutput)
+         => NFData (Derivation fp txt outputName drvOutput drvInputs)
+
+data DerivationInputs fp drvOutput = DerivationInputs
+    { drvs :: Map fp (Set drvOutput)
+    -- ^ Inputs that are derivations where keys specify derivation paths and
+    -- values specify which output names are used by this derivation
+    , srcs :: Set fp
+    -- ^ Inputs that are sources
+    } deriving (Eq, Generic, Ord, Show)
+
+instance (NFData a, NFData b) => NFData (DerivationInputs a b)
 
 -- | An output of a Nix derivation
 data DerivationOutput fp = DerivationOutput
