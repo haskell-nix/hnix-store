@@ -10,12 +10,12 @@ module System.Nix.DerivedPath (
   , derivedPathToText
   ) where
 
-import Data.Bifunctor (first)
 import GHC.Generics (Generic)
 import Data.Set (Set)
 import Data.Text (Text)
-import System.Nix.StorePath (StoreDir(..), StorePath, StorePathName, InvalidPathError)
+import System.Nix.StorePath (StoreDir(..), StorePath, StorePathName, InvalidNameError, InvalidPathError)
 
+import qualified Data.Bifunctor
 import qualified Data.ByteString.Char8
 import qualified Data.Set
 import qualified Data.Text
@@ -33,21 +33,20 @@ data DerivedPath =
 
 data ParseOutputsError =
     ParseOutputsError_InvalidPath InvalidPathError
+  | ParseOutputsError_InvalidName InvalidNameError
   | ParseOutputsError_NoNames
   | ParseOutputsError_NoPrefix StoreDir Text
   deriving (Eq, Ord, Show)
-
-convertError
-  :: Either InvalidPathError a
-  -> Either ParseOutputsError a
-convertError = first ParseOutputsError_InvalidPath
 
 parseOutputsSpec :: Text -> Either ParseOutputsError OutputsSpec
 parseOutputsSpec t
   | t == "*" = Right OutputsSpec_All
   | otherwise = do
   names <- mapM
-             (convertError . System.Nix.StorePath.mkStorePathName)
+             ( Data.Bifunctor.first
+                 ParseOutputsError_InvalidName
+             . System.Nix.StorePath.mkStorePathName
+             )
              (Data.Text.splitOn "," t)
   if null names
     then Left ParseOutputsError_NoNames
@@ -89,6 +88,11 @@ parseDerivedPath root@(StoreDir sd) path =
                        (textRoot <> pathNoPrefix)
                    )
                <*> parseOutputsSpec (Data.Text.drop (Data.Text.length "!") r)
+  where
+    convertError
+      :: Either InvalidPathError a
+      -> Either ParseOutputsError a
+    convertError = Data.Bifunctor.first ParseOutputsError_InvalidPath
 
 derivedPathToText :: StoreDir -> DerivedPath -> Text
 derivedPathToText root = \case

@@ -126,7 +126,7 @@ import System.Nix.DerivedPath (DerivedPath, ParseOutputsError)
 import System.Nix.Hash (HashAlgo(..))
 import System.Nix.Signature (Signature, NarSignature)
 import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
-import System.Nix.StorePath (HasStoreDir(..), InvalidPathError, StorePath, StorePathHashPart, StorePathName)
+import System.Nix.StorePath (HasStoreDir(..), InvalidNameError, InvalidPathError, StorePath, StorePathHashPart, StorePathName)
 import System.Nix.StorePath.Metadata (Metadata(..), StorePathTrust(..))
 import System.Nix.Store.Remote.Types
 
@@ -227,6 +227,7 @@ data SError
   | SError_InvalidNixBase32
   | SError_NarHashMustBeSHA256
   | SError_NotYetImplemented String (ForPV ProtoVersion)
+  | SError_Name InvalidNameError
   | SError_Path InvalidPathError
   | SError_Signature String
   deriving (Eq, Ord, Generic, Show)
@@ -493,7 +494,7 @@ storePathHashPart =
 storePathName :: NixSerializer r SError StorePathName
 storePathName =
   mapPrismSerializer
-    (Data.Bifunctor.first SError_Path
+    (Data.Bifunctor.first SError_Name
      . System.Nix.StorePath.mkStorePathName)
     System.Nix.StorePath.unStorePathName
     text

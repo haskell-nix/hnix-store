@@ -17,8 +17,9 @@ module System.Nix.StorePath
   , StorePathHashPart
   , mkStorePathHashPart
   , unStorePathHashPart
-  , -- * Manipulating 'StorePathName'
-    mkStorePathName
+    -- * Manipulating 'StorePathName'
+  , InvalidNameError(..)
+  , mkStorePathName
   , validStorePathName
     -- * Reason why a path is not valid
   , InvalidPathError(..)
@@ -115,12 +116,17 @@ mkStorePathHashPart =
   StorePathHashPart
   . System.Nix.Hash.mkStorePathHash @hashAlgo
 
--- | Reason why a path is not valid
-data InvalidPathError =
-    EmptyName
-  | PathTooLong
+-- | Reason why a path name or output name is not valid
+data InvalidNameError
+  = EmptyName
+  | NameTooLong
   | LeadingDot
   | InvalidCharacter
+  deriving (Eq, Generic, Hashable, Ord, Show)
+
+-- | Reason why a path is not valid
+data InvalidPathError
+  = PathNameInvalid InvalidNameError
   | HashDecodingFailure String
   | RootDirMismatch
       { rdMismatchExpected :: StoreDir
@@ -129,17 +135,17 @@ data InvalidPathError =
   deriving (Eq, Generic, Hashable, Ord, Show)
 
 -- | Make @StorePathName@ from @Text@ (name part of the @StorePath@)
--- or fail with @InvalidPathError@ if it isn't valid
-mkStorePathName :: Text -> Either InvalidPathError StorePathName
+-- or fail with @InvalidNameError@ if it isn't valid
+mkStorePathName :: Text -> Either InvalidNameError StorePathName
 mkStorePathName n =
   if validStorePathName n
     then pure $ StorePathName n
     else Left $ reasonInvalid n
 
-reasonInvalid :: Text -> InvalidPathError
+reasonInvalid :: Text -> InvalidNameError
 reasonInvalid n
   | n == ""                  = EmptyName
-  | Data.Text.length n > 211 = PathTooLong
+  | Data.Text.length n > 211 = NameTooLong
   | Data.Text.head n == '.'  = LeadingDot
   | otherwise                = InvalidCharacter
 
@@ -220,11 +226,15 @@ parsePath' expectedRoot stringyPath =
   let
     (rootDir, fname) = System.FilePath.splitFileName stringyPath
     (storeBasedHashPart, namePart) = Data.Text.breakOn "-" $ Data.Text.pack fname
-    hashPart = Data.Bifunctor.bimap
-      HashDecodingFailure
-      StorePathHashPart
-      $ System.Nix.Base.decodeWith NixBase32 storeBasedHashPart
-    name = mkStorePathName . Data.Text.drop 1 $ namePart
+    hashPart =
+      Data.Bifunctor.bimap
+        HashDecodingFailure
+        StorePathHashPart
+        $ System.Nix.Base.decodeWith NixBase32 storeBasedHashPart
+    name =
+      Data.Bifunctor.first
+        PathNameInvalid
+        $ mkStorePathName . Data.Text.drop 1 $ namePart
     --rootDir' = dropTrailingPathSeparator rootDir
     -- cannot use ^^ as it drops multiple slashes /a/b/// -> /a/b
     rootDir' = init rootDir
@@ -288,11 +298,15 @@ pathParser expectedRoot = do
     validStorePathNameChar
       <?> "Path name contains invalid character"
 
-  let name = mkStorePathName $ Data.Text.cons c0 rest
-      hashPart = Data.Bifunctor.bimap
-        HashDecodingFailure
-        StorePathHashPart
-        digest
+  let name =
+        Data.Bifunctor.first
+          PathNameInvalid
+          $ mkStorePathName $ Data.Text.cons c0 rest
+      hashPart =
+        Data.Bifunctor.bimap
+          HashDecodingFailure
+          StorePathHashPart
+          digest
 
   either
     (fail . show)
