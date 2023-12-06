@@ -1,3 +1,5 @@
+-- due to Illegal equational constraint Test.QuickCheck.Arbitrary.Generic.TypesDiffer
+{-# LANGUAGE TypeFamilies #-}
 -- due to recent generic-arbitrary
 {-# OPTIONS_GHC -fconstraint-solver-iterations=0 #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
