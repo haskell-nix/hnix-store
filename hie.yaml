@@ -12,6 +12,12 @@ cradle:
     - path: "./hnix-store-db/tests"
       component: "hnix-store-db:test:db"
 
+    - path: "./hnix-store-json/src"
+      component: "lib:hnix-store-json"
+
+    - path: "./hnix-store-json/tests"
+      component: "hnix-store-json:test:json"
+
     - path: "./hnix-store-nar/src"
       component: "lib:hnix-store-nar"
 

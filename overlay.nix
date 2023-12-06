@@ -56,6 +56,12 @@ in
       [
         haskellLib.compose.buildFromSdist
       ];
+  hnix-store-json =
+    lib.pipe
+      (hself.callCabal2nix "hnix-store-json" ./hnix-store-json {})
+      [
+        haskellLib.compose.buildFromSdist
+      ];
   hnix-store-nar =
     lib.pipe
       (hself.callCabal2nix "hnix-store-nar" ./hnix-store-nar {})

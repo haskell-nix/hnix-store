@@ -4,6 +4,7 @@ benchmarks: true
 packages:
   ./hnix-store-core/hnix-store-core.cabal
   ./hnix-store-db/hnix-store-db.cabal
+  ./hnix-store-json/hnix-store-json.cabal
   ./hnix-store-nar/hnix-store-nar.cabal
   ./hnix-store-readonly/hnix-store-readonly.cabal
   ./hnix-store-remote/hnix-store-remote.cabal

@@ -1,0 +1,64 @@
+cabal-version:       2.2
+name:                hnix-store-json
+version:             0.1.0.0
+synopsis:            JSON serialization for core types
+description:
+  Aeson instances for core types
+homepage:            https://github.com/haskell-nix/hnix-store
+license:             Apache-2.0
+license-file:        LICENSE
+author:              Richard Marko
+maintainer:          srk@48.io
+copyright:           2023 Richard Marko
+category:            Nix
+build-type:          Simple
+extra-source-files:
+    CHANGELOG.md
+  , README.md
+
+common commons
+  ghc-options:  -Wall
+  default-extensions:
+      DataKinds
+    , DeriveAnyClass
+    , DeriveGeneric
+    , DerivingVia
+    , FlexibleInstances
+    , LambdaCase
+    , RecordWildCards
+    , StandaloneDeriving
+    , TypeApplications
+  default-language: Haskell2010
+
+library
+  import: commons
+  exposed-modules:
+      System.Nix.JSON
+  build-depends:
+      base >=4.12 && <5
+    , hnix-store-core >= 0.8
+    , aeson >= 2.0 && < 3.0
+    , attoparsec
+    , deriving-aeson >= 0.2
+    , text
+  hs-source-dirs:      src
+
+test-suite json
+  import: commons
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+    JSONSpec
+  hs-source-dirs:
+    tests
+  build-tool-depends:
+    hspec-discover:hspec-discover
+  build-depends:
+      base
+    , hnix-store-core
+    , hnix-store-json
+    , hnix-store-tests
+    , aeson
+    , containers
+    , data-default-class
+    , hspec
