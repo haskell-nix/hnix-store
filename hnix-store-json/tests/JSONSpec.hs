@@ -95,10 +95,10 @@ spec = do
         encode sampleDerivationOutput `shouldBe` "\"sha256:1b4sb93wp679q4zx9k1ignby1yna3z7c4c2ri3wphylbc2dwsys0!foo\""
 
       it "sampleRealisation0 matches preimage" $
-        encode sampleRealisation0 `shouldBe` "{\"outPath\":\"cdips4lakfk1qbf1x68fq18wnn3r5r14-builder.sh\",\"signatures\":[],\"dependentRealisations\":[]}"
+        encode sampleRealisation0 `shouldBe` "{\"outPath\":\"cdips4lakfk1qbf1x68fq18wnn3r5r14-builder.sh\",\"signatures\":[],\"dependentRealisations\":{}}"
 
       it "sampleRealisation1 matches preimage" $
-        encode sampleRealisation1 `shouldBe` "{\"outPath\":\"5rwxzi7pal3qhpsyfc16gzkh939q1np6-curl-7.82.0.drv\",\"signatures\":[\"SMjnB3mPgXYjXacU+xN24BdzXlAgGAuFnYwPddU3bhjfHBeQus/OimdIPMgR/JMKFPHXORrk7pbjv68vecTEBA==\",\"fW3iEMfyx6IZzGNswD54BjclfkXiYzh0xRXddrXfJ1rp1l8p1xTi9/0g2EibbwLFb6p83cwIJv5KtTGksC54CQ==\"],\"dependentRealisations\":[[\"sha256:1b4sb93wp679q4zx9k1ignby1yna3z7c4c2ri3wphylbc2dwsys0!foo\",\"9472ijanf79nlkb5n1yh57s7867p1930-testFixed\"]]}"
+        encode sampleRealisation1 `shouldBe` "{\"outPath\":\"5rwxzi7pal3qhpsyfc16gzkh939q1np6-curl-7.82.0.drv\",\"signatures\":[\"SMjnB3mPgXYjXacU+xN24BdzXlAgGAuFnYwPddU3bhjfHBeQus/OimdIPMgR/JMKFPHXORrk7pbjv68vecTEBA==\",\"fW3iEMfyx6IZzGNswD54BjclfkXiYzh0xRXddrXfJ1rp1l8p1xTi9/0g2EibbwLFb6p83cwIJv5KtTGksC54CQ==\"],\"dependentRealisations\":{\"sha256:1b4sb93wp679q4zx9k1ignby1yna3z7c4c2ri3wphylbc2dwsys0!foo\":\"9472ijanf79nlkb5n1yh57s7867p1930-testFixed\"}}"
 
 forceRight
   :: Show a

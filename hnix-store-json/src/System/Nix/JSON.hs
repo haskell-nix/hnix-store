@@ -10,6 +10,7 @@ which is required for `-remote`.
 module System.Nix.JSON where
 
 import Data.Aeson
+import Data.Aeson.Types (toJSONKeyText)
 import Deriving.Aeson
 import System.Nix.Base (BaseEncoding(NixBase32))
 import System.Nix.OutputName (OutputName)
@@ -90,7 +91,13 @@ instance ToJSON (DerivationOutput OutputName) where
     . System.Nix.Realisation.derivationOutputBuilder
         System.Nix.OutputName.unOutputName
 
-instance ToJSONKey (DerivationOutput OutputName)
+instance ToJSONKey (DerivationOutput OutputName) where
+  toJSONKey =
+    toJSONKeyText
+    $ Data.Text.Lazy.toStrict
+    . Data.Text.Lazy.Builder.toLazyText
+    . System.Nix.Realisation.derivationOutputBuilder
+        System.Nix.OutputName.unOutputName
 
 instance FromJSON (DerivationOutput OutputName) where
   parseJSON =
@@ -102,7 +109,15 @@ instance FromJSON (DerivationOutput OutputName) where
         System.Nix.OutputName.mkOutputName
     )
 
-instance FromJSONKey (DerivationOutput OutputName)
+instance FromJSONKey (DerivationOutput OutputName) where
+  fromJSONKey =
+    FromJSONKeyTextParser
+    ( either
+        (fail . show)
+        pure
+    . System.Nix.Realisation.derivationOutputParser
+        System.Nix.OutputName.mkOutputName
+    )
 
 instance ToJSON Signature where
   toJSON = toJSON . System.Nix.Signature.signatureToText

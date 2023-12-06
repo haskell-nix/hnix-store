@@ -107,8 +107,10 @@ library
   build-depends:
       base >=4.12 && <5
     , hnix-store-core >= 0.8 && <0.9
+    , hnix-store-json >= 0.1
     , hnix-store-nar >= 0.1
     , hnix-store-tests >= 0.1
+    , aeson
     , attoparsec
     , bytestring
     , cereal

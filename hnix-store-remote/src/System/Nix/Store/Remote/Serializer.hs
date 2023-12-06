@@ -113,6 +113,7 @@ import qualified Control.Monad.Reader
 import qualified Data.Attoparsec.Text
 import qualified Data.Bits
 import qualified Data.ByteString
+import qualified Data.ByteString.Lazy
 import qualified Data.HashSet
 import qualified Data.Map.Strict
 import qualified Data.Maybe
@@ -133,6 +134,7 @@ import System.Nix.ContentAddress (ContentAddress)
 import System.Nix.Derivation (Derivation(..), DerivationOutput(..))
 import System.Nix.DerivedPath (DerivedPath, ParseOutputsError)
 import System.Nix.Hash (HashAlgo(..))
+import System.Nix.JSON ()
 import System.Nix.OutputName (OutputName)
 import System.Nix.Realisation (DerivationOutputError, Realisation(..))
 import System.Nix.Signature (Signature, NarSignature)
@@ -141,6 +143,7 @@ import System.Nix.StorePath (HasStoreDir(..), InvalidNameError, InvalidPathError
 import System.Nix.StorePath.Metadata (Metadata(..), StorePathTrust(..))
 import System.Nix.Store.Remote.Types
 
+import qualified Data.Aeson
 import qualified Data.Coerce
 import qualified Data.Bifunctor
 import qualified Data.Some
@@ -616,14 +619,11 @@ realisation
   => NixSerializer r SError Realisation
 realisation = Serializer
   { getS = do
-      realisationOutPath <- getS storePath
-      realisationSignatures <- getS (set signature)
-      realisationDependencies <- getS (mapS derivationOutputTyped storePath)
-      pure Realisation{..}
-  , putS = \Realisation{..} -> do
-      putS storePath realisationOutPath
-      putS (set signature) realisationSignatures
-      putS (mapS derivationOutputTyped storePath) realisationDependencies
+      rb <- getS byteString
+      case Data.Aeson.eitherDecode (Data.ByteString.Lazy.fromStrict rb) of
+        Left e -> error e
+        Right r -> pure r
+  , putS = putS byteString . Data.ByteString.Lazy.toStrict . Data.Aeson.encode
   }
 
 -- * Signatures
@@ -816,7 +816,11 @@ buildResult = Serializer
 
       buildResultBuiltOutputs <-
         if protoVersion_minor pv >= 28
-        then pure <$> getS (mapS outputName realisation)
+        then
+            pure
+          . Data.Map.Strict.mapKeys
+              System.Nix.Realisation.derivationOutputName
+          <$> getS (mapS derivationOutputTyped realisation)
         else pure Nothing
       pure BuildResult{..}
 
@@ -831,6 +835,7 @@ buildResult = Serializer
         putS time $ Data.Maybe.fromMaybe t0 buildResultStartTime
         putS time $ Data.Maybe.fromMaybe t0 buildResultStopTime
       Control.Monad.when (protoVersion_minor pv >= 28)
+        -- TODO realisation.id
         $ putS (mapS outputName realisation)
         $ Data.Maybe.fromMaybe mempty buildResultBuiltOutputs
   }
