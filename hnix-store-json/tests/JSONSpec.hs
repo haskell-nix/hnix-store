@@ -38,7 +38,7 @@ sampleDerivationOutput = DerivationOutput
       $ System.Nix.Hash.mkNamedDigest
           "sha256"
           "1b4sb93wp679q4zx9k1ignby1yna3z7c4c2ri3wphylbc2dwsys0"
-  , derivationOutputName =
+  , derivationOutputOutput =
       forceRight
       $ System.Nix.OutputName.mkOutputName "foo"
   }

@@ -28,11 +28,11 @@ import qualified Data.Text.Lazy.Builder
 import qualified System.Nix.Hash
 
 -- | Output of the derivation
-data DerivationOutput outputName = DerivationOutput
+data DerivationOutput a = DerivationOutput
   { derivationOutputHash :: DSum HashAlgo Digest
   -- ^ Hash modulo of the derivation
-  , derivationOutputName :: outputName
-  -- ^ Name of the output
+  , derivationOutputOutput :: a
+  -- ^ Output (either a OutputName or StorePatH)
   } deriving (Eq, Generic, Ord, Show)
 
 data DerivationOutputError
@@ -74,7 +74,7 @@ derivationOutputBuilder
 derivationOutputBuilder outputName DerivationOutput{..} =
      System.Nix.Hash.algoDigestBuilder derivationOutputHash
   <> Data.Text.Lazy.Builder.singleton '!'
-  <> Data.Text.Lazy.Builder.fromText (outputName derivationOutputName)
+  <> Data.Text.Lazy.Builder.fromText (outputName derivationOutputOutput)
 
 -- | Build realisation context
 --
