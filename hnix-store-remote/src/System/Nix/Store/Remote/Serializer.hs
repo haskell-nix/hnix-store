@@ -31,6 +31,8 @@ module System.Nix.Store.Remote.Serializer
   , set
   , hashSet
   , mapS
+  , vector
+  , json
   -- * ProtoVersion
   , protoVersion
   -- * StorePath
@@ -45,6 +47,7 @@ module System.Nix.Store.Remote.Serializer
   -- * Realisation
   , derivationOutputTyped
   , realisation
+  , realisationWithId
   -- * Signatures
   , signature
   , narSignature
@@ -93,6 +96,7 @@ import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Reader (ReaderT, runReaderT, withReaderT)
 import Control.Monad.Trans.Except (ExceptT, mapExceptT, runExceptT, withExceptT)
 import Crypto.Hash (Digest, HashAlgorithm, SHA256)
+import Data.Aeson (FromJSON, ToJSON)
 import Data.ByteString (ByteString)
 import Data.Dependent.Sum (DSum((:=>)))
 import Data.Fixed (Uni)
@@ -242,6 +246,7 @@ data SError
   | SError_HashAlgo String
   | SError_IllegalBool Word64
   | SError_InvalidNixBase32
+  | SError_JSONDecoding String
   | SError_NarHashMustBeSHA256
   | SError_NotYetImplemented String (ForPV ProtoVersion)
   | SError_Name InvalidNameError
@@ -447,6 +452,22 @@ vector =
     Data.Vector.toList
   . list
 
+json
+  :: ( FromJSON a
+     , ToJSON a
+     )
+  => NixSerializer r SError a
+json =
+  mapPrismSerializer
+    ( Data.Bifunctor.first SError_JSONDecoding
+      . Data.Aeson.eitherDecode
+    )
+    Data.Aeson.encode
+    $ mapIsoSerializer
+        Data.ByteString.Lazy.fromStrict
+        Data.ByteString.Lazy.toStrict
+        byteString
+
 -- * ProtoVersion
 
 -- protoVersion_major & 0xFF00
@@ -614,17 +635,11 @@ derivationOutputTyped =
     )
     text
 
-realisation
-  :: HasStoreDir r
-  => NixSerializer r SError Realisation
-realisation = Serializer
-  { getS = do
-      rb <- getS byteString
-      case Data.Aeson.eitherDecode (Data.ByteString.Lazy.fromStrict rb) of
-        Left e -> error e
-        Right r -> pure r
-  , putS = putS byteString . Data.ByteString.Lazy.toStrict . Data.Aeson.encode
-  }
+realisation :: NixSerializer r SError Realisation
+realisation = json
+
+realisationWithId :: NixSerializer r SError (System.Nix.Realisation.DerivationOutput OutputName, Realisation)
+realisationWithId = json
 
 -- * Signatures
 
@@ -818,9 +833,10 @@ buildResult = Serializer
         if protoVersion_minor pv >= 28
         then
             pure
-          . Data.Map.Strict.mapKeys
-              System.Nix.Realisation.derivationOutputName
-          <$> getS (mapS derivationOutputTyped realisation)
+          . Data.Map.Strict.fromList
+          . map (\(_, (a, b)) -> (a, b))
+          . Data.Map.Strict.toList
+          <$> getS (mapS derivationOutputTyped realisationWithId)
         else pure Nothing
       pure BuildResult{..}
 
@@ -835,8 +851,10 @@ buildResult = Serializer
         putS time $ Data.Maybe.fromMaybe t0 buildResultStartTime
         putS time $ Data.Maybe.fromMaybe t0 buildResultStopTime
       Control.Monad.when (protoVersion_minor pv >= 28)
-        -- TODO realisation.id
-        $ putS (mapS outputName realisation)
+        $ putS (mapS derivationOutputTyped realisationWithId)
+        $ Data.Map.Strict.fromList
+        $ map (\(a, b) -> (a, (a, b)))
+        $ Data.Map.Strict.toList
         $ Data.Maybe.fromMaybe mempty buildResultBuiltOutputs
   }
   where

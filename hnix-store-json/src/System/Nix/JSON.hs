@@ -10,7 +10,6 @@ which is required for `-remote`.
 module System.Nix.JSON where
 
 import Data.Aeson
-import Data.Aeson.Types (toJSONKeyText)
 import Deriving.Aeson
 import System.Nix.Base (BaseEncoding(NixBase32))
 import System.Nix.OutputName (OutputName)
@@ -18,6 +17,8 @@ import System.Nix.Realisation (DerivationOutput, Realisation)
 import System.Nix.Signature (Signature)
 import System.Nix.StorePath (StoreDir(..), StorePath, StorePathName, StorePathHashPart)
 
+import qualified Data.Aeson.KeyMap
+import qualified Data.Aeson.Types
 import qualified Data.Attoparsec.Text
 import qualified Data.Char
 import qualified Data.Text
@@ -93,7 +94,7 @@ instance ToJSON (DerivationOutput OutputName) where
 
 instance ToJSONKey (DerivationOutput OutputName) where
   toJSONKey =
-    toJSONKeyText
+    Data.Aeson.Types.toJSONKeyText
     $ Data.Text.Lazy.toStrict
     . Data.Text.Lazy.Builder.toLazyText
     . System.Nix.Realisation.derivationOutputBuilder
@@ -156,3 +157,20 @@ deriving
         ]
      ] Realisation
   instance FromJSON Realisation
+
+-- For a keyed version of Realisation
+-- we use (DerivationOutput OutputName, Realisation)
+-- instead of Realisation.id :: (DerivationOutput OutputName)
+-- field.
+instance {-# OVERLAPPING #-} ToJSON (DerivationOutput OutputName, Realisation) where
+  toJSON (drvOut, r) =
+    case toJSON r of
+      Object o -> Object $ Data.Aeson.KeyMap.insert "id" (toJSON drvOut) o
+      _ -> error "absurd"
+
+instance {-# OVERLAPPING #-} FromJSON (DerivationOutput OutputName, Realisation) where
+  parseJSON v@(Object o) = do
+    r <- parseJSON @Realisation v
+    drvOut <- o .: "id"
+    pure (drvOut, r)
+  parseJSON x = fail $ "Expected Object but got " ++ show x
