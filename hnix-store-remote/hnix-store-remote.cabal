@@ -119,7 +119,7 @@ library
     , crypton
     , data-default-class
     , dependent-sum > 0.7
-    , dependent-sum-template > 0.1.1 && < 0.3
+    , dependent-sum-template >= 0.2.0.1 && < 0.3
     , dlist >= 1.0
     , generic-arbitrary < 1.1
     , hashable
