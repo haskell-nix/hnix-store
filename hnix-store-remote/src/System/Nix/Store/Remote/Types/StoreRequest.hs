@@ -6,7 +6,6 @@ module System.Nix.Store.Remote.Types.StoreRequest
   ( StoreRequest(..)
   ) where
 
-import Data.ByteString (ByteString)
 import Data.GADT.Compare.TH (deriveGEq, deriveGCompare)
 import Data.GADT.Show.TH (deriveGShow)
 import Data.HashSet (HashSet)
@@ -24,7 +23,7 @@ import System.Nix.Signature (Signature)
 import System.Nix.Store.Types (FileIngestionMethod, RepairMode)
 import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart)
 import System.Nix.StorePath.Metadata (Metadata)
-import System.Nix.Store.Remote.Types.GC (GCOptions, GCResult)
+import System.Nix.Store.Remote.Types.GC (GCOptions, GCResult, GCRoot)
 import System.Nix.Store.Remote.Types.CheckMode (CheckMode)
 import System.Nix.Store.Remote.Types.Query.Missing (Missing)
 import System.Nix.Store.Remote.Types.StoreText (StoreText)
@@ -89,7 +88,7 @@ data StoreRequest :: Type -> Type where
 
   -- | Find garbage collector roots.
   FindRoots
-    :: StoreRequest (Map ByteString StorePath)
+    :: StoreRequest (Map GCRoot StorePath)
 
   IsValidPath
     :: StorePath

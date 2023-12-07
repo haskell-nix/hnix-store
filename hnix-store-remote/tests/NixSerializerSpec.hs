@@ -152,6 +152,7 @@ spec = parallel $ do
   describe "StoreReply" $ do
     prop "()" $ roundtripS opSuccess
     prop "GCResult" $ roundtripSReader @StoreDir gcResult
+    prop "GCRoot" $ roundtripS gcRoot
     prop "Missing" $ roundtripSReader @StoreDir missing
     prop "Maybe (Metadata StorePath)" $ roundtripSReader @StoreDir maybePathMetadata
 

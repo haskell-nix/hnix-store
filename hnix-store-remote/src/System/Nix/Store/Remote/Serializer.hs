@@ -93,6 +93,8 @@ module System.Nix.Store.Remote.Serializer
   , buildResult
   -- *** GCResult
   , gcResult
+  -- *** GCResult
+  , gcRoot
   -- *** Missing
   , missing
   -- *** Maybe (Metadata StorePath)
@@ -126,6 +128,7 @@ import qualified Control.Monad.Reader
 import qualified Data.Attoparsec.Text
 import qualified Data.Bits
 import qualified Data.ByteString
+import qualified Data.ByteString.Char8
 import qualified Data.ByteString.Lazy
 import qualified Data.HashSet
 import qualified Data.Map.Strict
@@ -1463,6 +1466,8 @@ buildResult = Serializer
     t0 :: UTCTime
     t0 = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
 
+-- *** GCResult
+
 gcResult
   :: HasStoreDir r
   => NixSerializer r ReplySError GCResult
@@ -1477,6 +1482,22 @@ gcResult = mapErrorS ReplySError_GCResult $ Serializer
       putS int gcResultBytesFreed
       putS (int @Word64) 0 -- obsolete
   }
+
+-- *** GCRoot
+
+gcRoot :: NixSerializer r ReplySError GCRoot
+gcRoot = Serializer
+  { getS = mapGetER $ do
+      getS byteString >>= \case
+        p | p == censored -> pure GCRoot_Censored
+        p -> pure (GCRoot_Path p)
+  , putS = mapPutER . putS byteString . \case
+      GCRoot_Censored -> censored
+      GCRoot_Path p -> p
+  }
+  where censored = Data.ByteString.Char8.pack "{censored}"
+
+-- *** Missing
 
 missing
   :: HasStoreDir r

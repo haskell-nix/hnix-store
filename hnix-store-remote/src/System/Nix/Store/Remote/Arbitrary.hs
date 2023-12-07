@@ -126,5 +126,8 @@ instance Arbitrary (Some StoreRequest) where
 deriving via GenericArbitrary GCResult
   instance Arbitrary GCResult
 
+deriving via GenericArbitrary GCRoot
+  instance Arbitrary GCRoot
+
 deriving via GenericArbitrary Missing
   instance Arbitrary Missing

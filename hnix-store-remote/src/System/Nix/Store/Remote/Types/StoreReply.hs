@@ -3,11 +3,12 @@ module System.Nix.Store.Remote.Types.StoreReply
   ) where
 
 import Data.HashSet (HashSet)
+import Data.Map (Map)
 import System.Nix.Build (BuildResult)
 import System.Nix.StorePath (HasStoreDir(..), StorePath, StorePathName)
 import System.Nix.StorePath.Metadata (Metadata)
 import System.Nix.Store.Remote.Serializer
-import System.Nix.Store.Remote.Types.GC (GCResult)
+import System.Nix.Store.Remote.Types.GC (GCResult, GCRoot)
 import System.Nix.Store.Remote.Types.Query.Missing (Missing)
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion)
 
@@ -34,6 +35,9 @@ instance StoreReply BuildResult where
 
 instance StoreReply GCResult where
   getReplyS = gcResult
+
+instance StoreReply (Map GCRoot StorePath) where
+  getReplyS = mapS gcRoot (mapPrimE storePath)
 
 instance StoreReply Missing where
   getReplyS = missing

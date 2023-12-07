@@ -6,12 +6,14 @@ module System.Nix.Store.Remote.Types.GC (
     GCAction(..)
   , GCOptions(..)
   , GCResult(..)
+  , GCRoot(..)
   ) where
 
 import Data.HashSet (HashSet)
 import Data.Word (Word64)
 import GHC.Generics (Generic)
 import System.Nix.StorePath (StorePath)
+import System.Posix.ByteString (RawFilePath)
 
 -- | Garbage collection action
 data GCAction
@@ -45,3 +47,9 @@ data GCResult = GCResult
    --      - @GCAction_DeleteSpecific@
  , gcResultBytesFreed :: Word64
  } deriving (Eq, Generic, Ord, Show)
+
+-- | Used as a part of the result of @FindRoots@ operation
+data GCRoot
+  = GCRoot_Censored -- ^ Source path is censored since the user is not trusted
+  | GCRoot_Path RawFilePath -- ^ Raw source path
+  deriving (Eq, Generic, Ord, Show)
