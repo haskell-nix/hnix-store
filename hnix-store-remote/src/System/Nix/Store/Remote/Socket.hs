@@ -4,14 +4,11 @@ import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.IO.Class (MonadIO(..))
 import Control.Monad.Reader (MonadReader, ask, asks)
 import Data.ByteString (ByteString)
-import Data.HashSet (HashSet)
 import Data.Serialize.Get (Get, Result(..))
 import Data.Serialize.Put (Put, runPut)
 import Network.Socket.ByteString (recv, sendAll)
-import System.Nix.StorePath (StorePath)
-import System.Nix.Store.Remote.MonadStore (MonadRemoteStore, MonadRemoteStoreR, RemoteStoreError(..), getStoreDir)
+import System.Nix.Store.Remote.MonadStore (MonadRemoteStoreR, RemoteStoreError(..))
 import System.Nix.Store.Remote.Serializer (NixSerializer, runP, runSerialT)
-import System.Nix.Store.Remote.Serialize.Prim (getInt, getByteString, getByteStrings, getPath, getPathsOrFail)
 import System.Nix.Store.Remote.Types (HasStoreSocket(..))
 
 import qualified Control.Exception
@@ -114,67 +111,3 @@ sockGetS s = do
   case res of
     Right x -> pure x
     Left e -> throwError e
-
--- * Obsolete
-
-getSocketIncremental
-  :: (MonadRemoteStore m, Show a)
-  => Get a
-  -> m a
-getSocketIncremental = genericIncremental sockGet8
-
-sockGet
-  :: (MonadRemoteStore m, Show a)
-  => Get a
-  -> m a
-sockGet = getSocketIncremental
-
-sockGetInt
-  :: (Integral a, MonadRemoteStore m, Show a)
-  => m a
-sockGetInt = getSocketIncremental getInt
-
-sockGetBool
-  :: MonadRemoteStore m
-  => m Bool
-sockGetBool = (== (1 :: Int)) <$> sockGetInt
-
-sockGetStr
-  :: MonadRemoteStore m
-  => m ByteString
-sockGetStr = getSocketIncremental getByteString
-
-sockGetStrings
-  :: MonadRemoteStore m
-  => m [ByteString]
-sockGetStrings = getSocketIncremental getByteStrings
-
-sockGetPath
-  :: MonadRemoteStore m
-  => m StorePath
-sockGetPath = do
-  sd  <- getStoreDir
-  pth <- getSocketIncremental (getPath sd)
-  either
-    (throwError . RemoteStoreError_Fixme . show)
-    pure
-    pth
-
-sockGetPathMay
-  :: MonadRemoteStore m
-  => m (Maybe StorePath)
-sockGetPathMay = do
-  sd  <- getStoreDir
-  pth <- getSocketIncremental (getPath sd)
-  pure $
-    either
-      (const Nothing)
-      Just
-      pth
-
-sockGetPaths
-  :: MonadRemoteStore m
-  => m (HashSet StorePath)
-sockGetPaths = do
-  sd <- getStoreDir
-  getSocketIncremental (getPathsOrFail sd)
