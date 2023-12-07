@@ -69,5 +69,5 @@ forceDecodeB64Pubkey b64EncodedPubkey = let
 forceRight :: Either a b -> b
 forceRight = \case
   Right x -> x
-  _ -> error "fromRight failed"
+  _ -> error "forceRight failed"
 

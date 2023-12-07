@@ -5,7 +5,7 @@ import Data.Aeson (ToJSON, FromJSON, decode, encode)
 import Data.Default.Class (Default(def))
 import Test.Hspec (Expectation, Spec, describe, it, shouldBe)
 import Test.Hspec.QuickCheck (prop)
-import Test.Hspec.Nix (roundtrips)
+import Test.Hspec.Nix (forceRight, roundtrips)
 
 import System.Nix.Arbitrary ()
 import System.Nix.JSON ()
@@ -99,11 +99,3 @@ spec = do
 
       it "sampleRealisation1 matches preimage" $
         encode sampleRealisation1 `shouldBe` "{\"outPath\":\"5rwxzi7pal3qhpsyfc16gzkh939q1np6-curl-7.82.0.drv\",\"signatures\":[\"SMjnB3mPgXYjXacU+xN24BdzXlAgGAuFnYwPddU3bhjfHBeQus/OimdIPMgR/JMKFPHXORrk7pbjv68vecTEBA==\",\"fW3iEMfyx6IZzGNswD54BjclfkXiYzh0xRXddrXfJ1rp1l8p1xTi9/0g2EibbwLFb6p83cwIJv5KtTGksC54CQ==\"],\"dependentRealisations\":{\"sha256:1b4sb93wp679q4zx9k1ignby1yna3z7c4c2ri3wphylbc2dwsys0!foo\":\"9472ijanf79nlkb5n1yh57s7867p1930-testFixed\"}}"
-
-forceRight
-  :: Show a
-  => Either a b
-  -> b
-forceRight = \case
-  Right x -> x
-  Left e -> error $ "fromRight failed: " ++ show e
