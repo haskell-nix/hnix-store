@@ -114,6 +114,7 @@ import Data.Fixed (Uni)
 import Data.Hashable (Hashable)
 import Data.HashSet (HashSet)
 import Data.Map (Map)
+import Data.Serializer
 import Data.Set (Set)
 import Data.Some (Some(Some))
 import Data.Text (Text)
@@ -122,28 +123,6 @@ import Data.Time (NominalDiffTime, UTCTime)
 import Data.Vector (Vector)
 import Data.Word (Word8, Word32, Word64)
 import GHC.Generics (Generic)
-
-import qualified Control.Monad
-import qualified Control.Monad.Reader
-import qualified Data.Attoparsec.Text
-import qualified Data.Bits
-import qualified Data.ByteString
-import qualified Data.ByteString.Char8
-import qualified Data.ByteString.Lazy
-import qualified Data.HashSet
-import qualified Data.Map.Strict
-import qualified Data.Maybe
-import qualified Data.Serialize.Get
-import qualified Data.Serialize.Put
-import qualified Data.Set
-import qualified Data.Text
-import qualified Data.Text.Encoding
-import qualified Data.Text.Lazy
-import qualified Data.Text.Lazy.Builder
-import qualified Data.Time.Clock.POSIX
-import qualified Data.Vector
-
-import Data.Serializer
 import System.Nix.Base (BaseEncoding(Base16, NixBase32))
 import System.Nix.Build (BuildMode, BuildResult(..))
 import System.Nix.ContentAddress (ContentAddress)
@@ -159,10 +138,29 @@ import System.Nix.StorePath (HasStoreDir(..), InvalidNameError, InvalidPathError
 import System.Nix.StorePath.Metadata (Metadata(..), StorePathTrust(..))
 import System.Nix.Store.Remote.Types
 
+import qualified Control.Monad
+import qualified Control.Monad.Reader
 import qualified Data.Aeson
-import qualified Data.Coerce
+import qualified Data.Attoparsec.Text
 import qualified Data.Bifunctor
+import qualified Data.Bits
+import qualified Data.ByteString
+import qualified Data.ByteString.Char8
+import qualified Data.ByteString.Lazy
+import qualified Data.Coerce
+import qualified Data.HashSet
+import qualified Data.Map.Strict
+import qualified Data.Maybe
+import qualified Data.Serialize.Get
+import qualified Data.Serialize.Put
+import qualified Data.Set
 import qualified Data.Some
+import qualified Data.Text
+import qualified Data.Text.Encoding
+import qualified Data.Text.Lazy
+import qualified Data.Text.Lazy.Builder
+import qualified Data.Time.Clock.POSIX
+import qualified Data.Vector
 import qualified System.Nix.Base
 import qualified System.Nix.ContentAddress
 import qualified System.Nix.DerivedPath
