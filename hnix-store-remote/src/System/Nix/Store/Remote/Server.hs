@@ -27,7 +27,7 @@ import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVer
 import System.Nix.Store.Remote.Types.Logger (BasicError(..), ErrorInfo, Logger(..))
 
 import System.Nix.Store.Remote.MonadStore (WorkerError(..), WorkerException(..), RemoteStoreError(..), RemoteStoreT, runRemoteStoreT, mapStoreConfig)
-import System.Nix.Store.Remote.Types.Handshake (Handshake(..))
+import System.Nix.Store.Remote.Types.Handshake (ServerHandshakeInput(..), ServerHandshakeOutput(..))
 import System.Nix.Store.Remote.Types.ProtoVersion (ourProtoVersion)
 import System.Nix.Store.Remote.Types.WorkerMagic (WorkerMagic(..))
 
@@ -79,28 +79,26 @@ processConnection
   -> PreStoreConfig
   -> m ()
 processConnection workerHelper preStoreConfig = do
-  let handshake = Handshake
-        { handshakeNixVersion = Just "nixVersion (hnix-store-remote)"
-        , handshakeTrust = Nothing
-        -- TODO: doesn't make sense for server
-        , handshakeProtoVersion = ourProtoVersion
-        -- TODO: doesn't make sense for server
-        , handshakeRemoteProtoVersion = ourProtoVersion
-        }
-
   ~() <- void $ runRemoteStoreT preStoreConfig $ do
 
-    minimumCommonVersion <- greet handshake
+    ServerHandshakeOutput{..}
+      <- greet
+          ServerHandshakeInput
+          { serverHandshakeInputNixVersion = "nixVersion (hnix-store-remote)"
+          , serverHandshakeInputOurVersion= ourProtoVersion
+          , serverHandshakeInputTrust = Nothing
+          }
 
     mapStoreConfig
-      (preStoreConfigToStoreConfig minimumCommonVersion)
+      (preStoreConfigToStoreConfig
+        serverHandshakeOutputLeastCommonVersion)
       $ do
 
         tunnelLogger <- liftIO $ newTunnelLogger
         -- Send startup error messages to the client.
         startWork tunnelLogger
 
-        -- TODO: do we need auth at all?  probably?
+        -- TODO: do we need auth at all? probably?
         -- If we can't accept clientVersion, then throw an error *here* (not above).
         --authHook(*store);
         stopWork tunnelLogger
@@ -124,9 +122,9 @@ processConnection workerHelper preStoreConfig = do
     -- Exchange the greeting.
     greet
       :: MonadIO m
-      => Handshake
-      -> RemoteStoreT PreStoreConfig m ProtoVersion
-    greet Handshake{..} = do
+      => ServerHandshakeInput
+      -> RemoteStoreT PreStoreConfig m ServerHandshakeOutput
+    greet ServerHandshakeInput{..} = do
       magic <-
         sockGetS
         $ mapErrorS
@@ -135,7 +133,9 @@ processConnection workerHelper preStoreConfig = do
 
       liftIO $ print ("magic" :: Text, magic)
       when (magic /= WorkerMagic_One)
-        $ throwError $ RemoteStoreError_WorkerException WorkerException_ProtocolMismatch
+        $ throwError
+        $ RemoteStoreError_WorkerException
+            WorkerException_ProtocolMismatch
 
       sockPutS
         (mapErrorS
@@ -144,13 +144,13 @@ processConnection workerHelper preStoreConfig = do
         )
         WorkerMagic_Two
 
-      sockPutS protoVersion ourProtoVersion
+      sockPutS protoVersion serverHandshakeInputOurVersion
 
       clientVersion <- sockGetS protoVersion
 
-      let minimumCommonVersion = min clientVersion ourProtoVersion
+      let leastCommonVersion = min clientVersion ourProtoVersion
 
-      liftIO $ print ("Versions client, min" :: Text, clientVersion, minimumCommonVersion)
+      liftIO $ print ("Versions client, min" :: Text, clientVersion, leastCommonVersion)
 
       when (clientVersion < ProtoVersion 1 10)
         $ throwError
@@ -174,8 +174,7 @@ processConnection workerHelper preStoreConfig = do
              RemoteStoreError_SerializerPut
              text
           )
-          -- TODO
-          (maybe undefined id handshakeNixVersion)
+          serverHandshakeInputNixVersion
 
       when (clientVersion >= ProtoVersion 1 35) $ do
         sockPutS
@@ -183,9 +182,12 @@ processConnection workerHelper preStoreConfig = do
              RemoteStoreError_SerializerHandshake
              trustedFlag
           )
-          handshakeTrust
+          serverHandshakeInputTrust
 
-      pure minimumCommonVersion
+      pure ServerHandshakeOutput
+        { serverHandshakeOutputLeastCommonVersion = leastCommonVersion
+        , serverHandshakeOutputClientVersion = clientVersion
+        }
 
 simpleOp
   :: ( MonadIO m

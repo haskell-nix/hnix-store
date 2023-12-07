@@ -30,7 +30,7 @@ import System.Nix.Store.Remote.Logger (processOutput)
 import System.Nix.Store.Remote.MonadStore
 import System.Nix.Store.Remote.Socket (sockPutS, sockGetS)
 import System.Nix.Store.Remote.Serializer (bool, enum, int, mapErrorS, protoVersion, storeRequest, text, trustedFlag, workerMagic)
-import System.Nix.Store.Remote.Types.Handshake (Handshake(..))
+import System.Nix.Store.Remote.Types.Handshake (ClientHandshakeInput(..), ClientHandshakeOutput(..))
 import System.Nix.Store.Remote.Types.Logger (Logger)
 import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..), ourProtoVersion)
 import System.Nix.Store.Remote.Types.StoreConfig (PreStoreConfig, StoreConfig, preStoreConfigToStoreConfig)
@@ -177,16 +177,23 @@ runStoreSocket
   -> Run m a
 runStoreSocket preStoreConfig code =
   runRemoteStoreT preStoreConfig $ do
-    Handshake{..} <- greet
+    ClientHandshakeOutput{..}
+      <- greet
+          ClientHandshakeInput
+          { clientHandshakeInputOurVersion = ourProtoVersion
+          }
+
     mapStoreConfig
-      (preStoreConfigToStoreConfig handshakeProtoVersion)
+      (preStoreConfigToStoreConfig
+        clientHandshakeOutputLeastCommonVerison)
       code
 
   where
     greet
       :: MonadIO m
-      => RemoteStoreT PreStoreConfig m Handshake
-    greet = do
+      => ClientHandshakeInput
+      -> RemoteStoreT PreStoreConfig m ClientHandshakeOutput
+    greet ClientHandshakeInput{..} = do
 
       sockPutS
         (mapErrorS
@@ -210,19 +217,19 @@ runStoreSocket preStoreConfig code =
       when (daemonVersion < ProtoVersion 1 10)
         $ throwError RemoteStoreError_ClientVersionTooOld
 
-      sockPutS protoVersion ourProtoVersion
+      sockPutS protoVersion clientHandshakeInputOurVersion
 
-      let minimumCommonVersion = min daemonVersion ourProtoVersion
+      let leastCommonVersion = min daemonVersion ourProtoVersion
 
-      when (minimumCommonVersion >= ProtoVersion 1 14)
+      when (leastCommonVersion >= ProtoVersion 1 14)
         $ sockPutS int (0 :: Int) -- affinity, obsolete
 
-      when (minimumCommonVersion >= ProtoVersion 1 11) $ do
+      when (leastCommonVersion >= ProtoVersion 1 11) $ do
         sockPutS
           (mapErrorS RemoteStoreError_SerializerPut bool)
           False -- reserveSpace, obsolete
 
-      daemonNixVersion <- if minimumCommonVersion >= ProtoVersion 1 33
+      daemonNixVersion <- if leastCommonVersion >= ProtoVersion 1 33
         then do
           -- If we were buffering I/O, we would flush the output here.
           txtVer <-
@@ -233,19 +240,19 @@ runStoreSocket preStoreConfig code =
           pure $ Just txtVer
         else pure Nothing
 
-      remoteTrustsUs <- if minimumCommonVersion >= ProtoVersion 1 35
+      remoteTrustsUs <- if leastCommonVersion >= ProtoVersion 1 35
         then do
           sockGetS
             $ mapErrorS RemoteStoreError_SerializerHandshake trustedFlag
         else pure Nothing
 
       mapStoreConfig
-        (preStoreConfigToStoreConfig minimumCommonVersion)
+        (preStoreConfigToStoreConfig leastCommonVersion)
         processOutput
 
-      pure Handshake
-        { handshakeNixVersion = daemonNixVersion
-        , handshakeTrust = remoteTrustsUs
-        , handshakeProtoVersion = minimumCommonVersion
-        , handshakeRemoteProtoVersion = daemonVersion
+      pure ClientHandshakeOutput
+        { clientHandshakeOutputNixVersion = daemonNixVersion
+        , clientHandshakeOutputTrust = remoteTrustsUs
+        , clientHandshakeOutputLeastCommonVerison = leastCommonVersion
+        , clientHandshakeOutputServerVersion = daemonVersion
         }
