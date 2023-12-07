@@ -36,15 +36,6 @@ data StoreRequest :: Type -> Type where
     :: StorePathName -- ^ Name part of the newly created @StorePath@
     -> FileIngestionMethod -- ^ Add target directory recursively
     -> Some HashAlgo -- ^ Nar hashing algorithm
---  -> (forall m . MonadIO m => NarSource m) -- ^ provide nar stream
--- Not part of StoreRequest
--- as it would require StoreRequest (m :: Type -> Type) :: Type -> Type
--- for which we cannot derive anything
---
--- Also the thing is the only special case
--- and it is always sent *after* the other
--- information so it can be handled
--- separately after that. Hopefully.
     -> RepairMode -- ^ Only used by local store backend
     -> StoreRequest StorePath
 
