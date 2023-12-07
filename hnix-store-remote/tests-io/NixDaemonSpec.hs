@@ -1,56 +1,67 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module NixDaemon where
+module NixDaemonSpec
+  ( enterNamespaces
+  , spec
+  ) where
 
-import Data.Either (isRight, isLeft)
-import Data.Bool (bool)
+import Control.Monad (forM_, unless, void)
+import Control.Monad.IO.Class (liftIO)
+import Crypto.Hash (SHA256)
 import Data.Some (Some(Some))
 import Data.Text (Text)
-import Control.Monad (forM_, void)
-import Control.Monad.IO.Class (liftIO)
-import qualified System.Environment
-import Control.Exception (bracket)
-import Control.Concurrent (threadDelay)
-import qualified Data.ByteString.Char8 as BSC
+import Test.Hspec (Spec, SpecWith, around, describe, context)
+import Test.Hspec.Expectations.Lifted
+import Test.Hspec.Nix (forceRight)
+import System.FilePath ((</>))
+import System.Linux.Namespaces (Namespace(..), GroupMapping(..), UserMapping(..))
+import System.Nix.Hash (HashAlgo(HashAlgo_SHA256))
+import System.Nix.Build (BuildMode(..))
+import System.Nix.DerivedPath (DerivedPath(..))
+import System.Nix.StorePath (StoreDir(..), StorePath)
+import System.Nix.StorePath.Metadata (Metadata(..))
+import System.Nix.Store.Remote
+import System.Nix.Store.Remote.MonadStore (MonadRemoteStore)
+import System.Process (CreateProcess(..), ProcessHandle)
+import qualified Control.Concurrent
+import qualified Control.Exception
+import qualified Data.ByteString.Char8
 import qualified Data.Either
-import qualified Data.HashSet as HS
-import qualified Data.Map.Strict as M
+import qualified Data.HashSet
+import qualified Data.Map
 import qualified Data.Set
 import qualified Data.Text
 import qualified Data.Text.Encoding
-import System.Directory
-import System.IO.Temp
-import qualified System.Process as P
-import System.Posix.User as U
-import System.Linux.Namespaces as NS
-import Test.Hspec (Spec, describe, context)
-import qualified Test.Hspec as Hspec
-import Test.Hspec.Expectations.Lifted
-import Test.Hspec.Nix (forceRight)
-import System.FilePath
-import System.Nix.Hash (HashAlgo(HashAlgo_SHA256))
-import System.Nix.Build
-import System.Nix.DerivedPath (DerivedPath(..))
-import System.Nix.StorePath
-import System.Nix.StorePath.Metadata
-import System.Nix.Store.Remote
-import System.Nix.Store.Remote.MonadStore (mapStoreConfig)
+import qualified System.Directory
+import qualified System.Environment
+import qualified System.IO.Temp
+import qualified System.Linux.Namespaces
+import qualified System.Nix.StorePath
+import qualified System.Nix.Nar
+import qualified System.Nix.Store.Remote.MonadStore
+import qualified System.Posix.User
+import qualified System.Process
+import qualified Test.Hspec
 
-import Crypto.Hash (SHA256)
-import System.Nix.Nar (dumpPath)
-
-createProcessEnv :: FilePath -> String -> [String] -> IO P.ProcessHandle
+createProcessEnv
+  :: FilePath
+  -> String
+  -> [String]
+  -> IO ProcessHandle
 createProcessEnv fp proc args = do
   mPath         <- System.Environment.lookupEnv "PATH"
 
   (_, _, _, ph) <-
-    P.createProcess (P.proc proc args)
-      { P.cwd = Just fp
-      , P.env = Just $ mockedEnv mPath fp
+    System.Process.createProcess (System.Process.proc proc args)
+      { cwd = Just fp
+      , env = Just $ mockedEnv mPath fp
       }
   pure ph
 
-mockedEnv :: Maybe String -> FilePath -> [(String, FilePath)]
+mockedEnv
+  :: Maybe String
+  -> FilePath
+  -> [(String, FilePath)]
 mockedEnv mEnvPath fp =
   [ ("NIX_STORE_DIR"     , fp </> "store")
   , ("NIX_LOCALSTATE_DIR", fp </> "var")
@@ -61,14 +72,16 @@ mockedEnv mEnvPath fp =
 --  , ("NIX_REMOTE", "daemon")
     ] <> foldMap (\x -> [("PATH", x)]) mEnvPath
 
-waitSocket :: FilePath -> Int -> IO ()
+waitSocket
+  :: FilePath
+  -> Int
+  -> IO ()
 waitSocket _  0 = fail "No socket"
 waitSocket fp x = do
-  ex <- doesFileExist fp
-  bool
-    (threadDelay 100000 >> waitSocket fp (x - 1))
-    (pure ())
-    ex
+  ex <- System.Directory.doesFileExist fp
+  unless ex $ do
+    Control.Concurrent.threadDelay 100000
+    waitSocket fp (x - 1)
 
 writeConf :: FilePath -> IO ()
 writeConf fp =
@@ -94,77 +107,117 @@ error: changing ownership of path '/run/user/1000/test-nix-store-06b0d249e561612
 
 startDaemon
   :: FilePath
-  -> IO (P.ProcessHandle, MonadStore a -> Run IO a)
+  -> IO (ProcessHandle, MonadStore a -> Run IO a)
 startDaemon fp = do
   writeConf (fp </> "etc" </> "nix.conf")
-  p <- createProcessEnv fp "nix-daemon" []
+  procHandle <- createProcessEnv fp "nix-daemon" []
   waitSocket sockFp 30
-  pure (p, runStoreOpts sockFp (StoreDir $ BSC.pack $ fp </> "store"))
+  pure ( procHandle
+       , runStoreOpts
+          sockFp
+          (StoreDir
+            $ Data.ByteString.Char8.pack
+            $ fp </> "store"
+          )
+       )
  where
   sockFp = fp </> "var/nix/daemon-socket/socket"
 
 enterNamespaces :: IO ()
 enterNamespaces = do
-  uid <- getEffectiveUserID
-  gid <- getEffectiveGroupID
+  uid <- System.Posix.User.getEffectiveUserID
+  gid <- System.Posix.User.getEffectiveGroupID
 
-  unshare [User, Network, Mount]
+  System.Linux.Namespaces.unshare
+    [User, Network, Mount]
+
   -- fmap our (parent) uid to root
-  writeUserMappings Nothing [UserMapping 0 uid 1]
+  System.Linux.Namespaces.writeUserMappings
+    Nothing
+    [ UserMapping
+        0    -- inside namespace
+        uid  -- outside namespace
+        1    --range
+    ]
+
   -- fmap our (parent) gid to root group
-  writeGroupMappings Nothing [GroupMapping 0 gid 1] True
+  System.Linux.Namespaces.writeGroupMappings
+    Nothing
+    [ GroupMapping 0 gid 1 ]
+    True
 
 withNixDaemon
-  :: ((MonadStore a -> Run IO a) -> IO a) -> IO a
+  :: ((MonadStore a -> Run IO a) -> IO a)
+  -> IO a
 withNixDaemon action =
-  withSystemTempDirectory "test-nix-store" $ \path -> do
+  System.IO.Temp.withSystemTempDirectory "test-nix-store" $ \path -> do
 
-    mapM_ (createDirectory . snd)
-          (filter ((/= "NIX_REMOTE") . fst) $ mockedEnv Nothing path)
+    mapM_ (System.Directory.createDirectory . snd)
+          (filter
+            ((/= "NIX_REMOTE") . fst)
+            $ mockedEnv Nothing path)
 
     ini <- createProcessEnv path "nix-store" ["--init"]
-    void $ P.waitForProcess ini
+    void $ System.Process.waitForProcess ini
 
     writeFile (path </> "dummy") "Hello World"
 
-    setCurrentDirectory path
+    System.Directory.setCurrentDirectory path
 
-    bracket (startDaemon path)
-            (P.terminateProcess . fst)
-            (action . snd)
+    Control.Exception.bracket
+      (startDaemon path)
+      (System.Process.terminateProcess . fst)
+      (action . snd)
 
-checks :: (Show a, Show b) => IO (a, b) -> (a -> Bool) -> IO ()
-checks action check = action >>= (`Hspec.shouldSatisfy` (check . fst))
+checks
+  :: ( Show a
+     , Show b
+     )
+  => IO (a, b)
+  -> (a -> Bool)
+  -> IO ()
+checks action check =
+  action >>= (`Test.Hspec.shouldSatisfy` (check . fst))
 
 it
   :: (Show a, Show b, Monad m)
   => String
   -> m c
   -> (a -> Bool)
-  -> Hspec.SpecWith (m () -> IO (a, b))
+  -> SpecWith (m () -> IO (a, b))
 it name action check =
-  Hspec.it name $ \run -> run (void $ action) `checks` check
+  Test.Hspec.it name $ \run -> run (void $ action) `checks` check
 
 itRights
-  :: (Show a, Show b, Show c, Monad m)
+  :: ( Show a
+     , Show b
+     , Show c
+     , Monad m
+     )
   => String
   -> m d
-  -> Hspec.SpecWith (m () -> IO (Either a b, c))
-itRights name action = it name action isRight
+  -> SpecWith (m () -> IO (Either a b, c))
+itRights name action = it name action Data.Either.isRight
 
 itLefts
-  :: (Show a, Show b, Show c, Monad m)
+  :: ( Show a
+     , Show b
+     , Show c
+     , Monad m
+     )
   => String
   -> m d
-  -> Hspec.SpecWith (m () -> IO (Either a b, c))
-itLefts name action = it name action isLeft
+  -> SpecWith (m () -> IO (Either a b, c))
+itLefts name action = it name action Data.Either.isLeft
 
-withPath :: (StorePath -> MonadStore a) -> MonadStore a
+withPath
+  :: (StorePath -> MonadStore a)
+  -> MonadStore a
 withPath action = do
   path <-
     addTextToStore
       (StoreText
-        (forceRight $ mkStorePathName "hnix-store")
+        (forceRight $ System.Nix.StorePath.mkStorePathName "hnix-store")
         "test"
       )
       mempty
@@ -175,22 +228,29 @@ withPath action = do
 dummy :: MonadStore StorePath
 dummy = do
   addToStore
-    (forceRight $ mkStorePathName "dummy")
-    (dumpPath "dummy")
+    (forceRight $ System.Nix.StorePath.mkStorePathName "dummy")
+    (System.Nix.Nar.dumpPath "dummy")
     FileIngestionMethod_Flat
     (Some HashAlgo_SHA256)
     RepairMode_DontRepair
 
 invalidPath :: StorePath
 invalidPath =
-  let name = Data.Either.fromRight (error "impossible") $ mkStorePathName "invalid"
-  in  unsafeMakeStorePath (mkStorePathHashPart @SHA256 "invalid") name
+  let name = forceRight $ System.Nix.StorePath.mkStorePathName "invalid"
+  in System.Nix.StorePath.unsafeMakeStorePath
+      (System.Nix.StorePath.mkStorePathHashPart
+        @SHA256
+        "invalid")
+      name
 
-withBuilder :: (StorePath -> MonadStore a) -> MonadStore a
-withBuilder action = do
-  path <- 
+_withBuilder
+  :: MonadRemoteStore m
+  => (StorePath -> m a)
+  -> m a
+_withBuilder action = do
+  path <-
     addTextToStore
-      (StoreText (forceRight $ mkStorePathName "builder") builderSh)
+      (StoreText (forceRight $ System.Nix.StorePath.mkStorePathName "builder") builderSh)
       mempty
       RepairMode_DontRepair
   action path
@@ -198,8 +258,8 @@ withBuilder action = do
 builderSh :: Text
 builderSh = "declare -xpexport > $out"
 
-spec_protocol :: Spec
-spec_protocol = Hspec.around withNixDaemon $
+spec :: Spec
+spec = around withNixDaemon $
 
   describe "store" $ do
 
@@ -234,14 +294,14 @@ spec_protocol = Hspec.around withNixDaemon $
         liftIO $ print path
         isValidPath path `shouldReturn` True
       itLefts "fails on invalid path"
-        $ mapStoreConfig
+        $ System.Nix.Store.Remote.MonadStore.mapStoreConfig
             (\sc -> sc { storeConfig_dir = StoreDir "/asdf" })
             $ isValidPath invalidPath
 
     context "queryAllValidPaths" $ do
       itRights "empty query" queryAllValidPaths
       itRights "non-empty query" $ withPath $ \path ->
-        queryAllValidPaths `shouldReturn` HS.fromList [path]
+        queryAllValidPaths `shouldReturn` Data.HashSet.fromList [path]
 
     context "queryPathInfo" $
       itRights "queries path info" $ withPath $ \path -> do
@@ -270,11 +330,11 @@ spec_protocol = Hspec.around withNixDaemon $
         buildPaths (toDerivedPathSet path) BuildMode_Repair
 
     context "roots" $ context "findRoots" $ do
-        itRights "empty roots" (findRoots `shouldReturn` M.empty)
+        itRights "empty roots" (findRoots `shouldReturn` mempty)
 
         itRights "path added as a temp root" $ withPath $ \_ -> do
           roots <- findRoots
-          roots `shouldSatisfy` ((== 1) . M.size)
+          roots `shouldSatisfy` ((== 1) . Data.Map.size)
 
     context "optimiseStore" $ itRights "optimises" optimiseStore
 
@@ -292,10 +352,15 @@ spec_protocol = Hspec.around withNixDaemon $
 
     context "addToStore" $
       itRights "adds file to store" $ do
-        fp <- liftIO $ writeSystemTempFile "addition" "lal"
+        fp <-
+          liftIO
+          $ System.IO.Temp.writeSystemTempFile
+              "addition"
+              "yolo"
+
         addToStore
-          (forceRight $ mkStorePathName "tmp-addition")
-          (dumpPath fp)
+          (forceRight $ System.Nix.StorePath.mkStorePathName "tmp-addition")
+          (System.Nix.Nar.dumpPath fp)
           FileIngestionMethod_Flat
           (Some HashAlgo_SHA256)
           RepairMode_DontRepair
@@ -305,7 +370,6 @@ spec_protocol = Hspec.around withNixDaemon $
 
       itRights "valid dummy" $ do
         path <- dummy
-        liftIO $ print path
         isValidPath path `shouldReturn` True
 
     context "collectGarbage" $ do
@@ -313,18 +377,21 @@ spec_protocol = Hspec.around withNixDaemon $
           -- clear temp gc roots so the delete works. restarting the nix daemon should also do this...
           storeDir <- getStoreDir
           let tempRootsDir = Data.Text.unpack $ mconcat [ Data.Text.Encoding.decodeUtf8 (unStoreDir storeDir), "/../var/nix/temproots/" ]
-          tempRootList <- liftIO $ listDirectory tempRootsDir
+          tempRootList <-
+            liftIO
+            $ System.Directory.listDirectory
+                tempRootsDir
           liftIO $ forM_ tempRootList $ \entry -> do
-            removeFile $ mconcat [ tempRootsDir, "/", entry ]
+            System.Directory.removeFile
+              $ mconcat [ tempRootsDir, "/", entry ]
 
           GCResult{..} <-
             collectGarbage
               GCOptions
                 { gcOptionsOperation = GCAction_DeleteSpecific
                 , gcOptionsIgnoreLiveness = False
-                , gcOptionsPathsToDelete = HS.fromList [path]
+                , gcOptionsPathsToDelete = Data.HashSet.fromList [path]
                 , gcOptionsMaxFreed = maxBound
                 }
-          gcResultDeletedPaths `shouldBe` HS.fromList [path]
+          gcResultDeletedPaths `shouldBe` Data.HashSet.fromList [path]
           gcResultBytesFreed `shouldBe` 4
-

@@ -193,15 +193,12 @@ test-suite remote-io
     buildable: False
 
   type:              exitcode-stdio-1.0
-  main-is:           Driver.hs
+  main-is:           Main.hs
   hs-source-dirs:    tests-io
   -- See https://github.com/redneb/hs-linux-namespaces/issues/3
   ghc-options:       -rtsopts -fprof-auto "-with-rtsopts -V0"
   other-modules:
-      NixDaemon
-    , Spec
-  build-tool-depends:
-    tasty-discover:tasty-discover
+      NixDaemonSpec
   build-depends:
       base >=4.12 && <5
     , hnix-store-core
@@ -218,8 +215,6 @@ test-suite remote-io
     , linux-namespaces
     , process
     , some
-    , tasty
-    , tasty-hspec
     , temporary
     , text
     , unix
