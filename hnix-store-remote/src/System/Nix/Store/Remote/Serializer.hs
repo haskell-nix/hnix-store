@@ -144,11 +144,11 @@ import qualified Data.Time.Clock.POSIX
 import qualified Data.Vector
 
 import Data.Serializer
-import System.Nix.Base (BaseEncoding(NixBase32))
+import System.Nix.Base (BaseEncoding(Base16, NixBase32))
 import System.Nix.Build (BuildMode, BuildResult(..))
 import System.Nix.ContentAddress (ContentAddress)
 import System.Nix.Derivation (Derivation(..), DerivationOutput(..))
-import System.Nix.DerivedPath (DerivedPath, ParseOutputsError)
+import System.Nix.DerivedPath (DerivedPath(..), ParseOutputsError)
 import System.Nix.Hash (HashAlgo(..))
 import System.Nix.JSON ()
 import System.Nix.OutputName (OutputName)
@@ -563,7 +563,7 @@ pathMetadata = Serializer
   { getS = do
       metadataDeriverPath <- getS maybePath
 
-      digest' <- getS $ digest NixBase32
+      digest' <- getS $ digest Base16
       let metadataNarHash = System.Nix.Hash.HashAlgo_SHA256 :=> digest'
 
       metadataReferences <- getS $ hashSet storePath
@@ -588,7 +588,7 @@ pathMetadata = Serializer
             -> SerialT r SError PutM ()
           putNarHash = \case
             System.Nix.Hash.HashAlgo_SHA256 :=> d
-              -> putS (digest @SHA256 NixBase32) d
+              -> putS (digest @SHA256 Base16) d
             _ -> throwError SError_NarHashMustBeSHA256
 
       putNarHash metadataNarHash
@@ -773,20 +773,17 @@ derivedPath = Serializer
   { getS = do
       pv <- Control.Monad.Reader.asks hasProtoVersion
       if pv < ProtoVersion 1 30
-        then
-          throwError
-          $ SError_NotYetImplemented
-              "DerivedPath"
-              (ForPV_Older pv)
+        then DerivedPath_Opaque <$> getS storePath
         else getS derivedPathNew
   , putS = \d -> do
       pv <- Control.Monad.Reader.asks hasProtoVersion
       if pv < ProtoVersion 1 30
-        then
-          throwError
-          $ SError_NotYetImplemented
-              "DerivedPath"
-              (ForPV_Older pv)
+        then case d of
+          DerivedPath_Opaque p -> putS storePath p
+          _ -> throwError
+                $ SError_NotYetImplemented
+                    "DerivedPath_Built"
+                    (ForPV_Older pv)
         else putS derivedPathNew d
   }
 

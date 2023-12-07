@@ -8,7 +8,7 @@ import Data.ByteString (ByteString)
 import Data.Serialize (Result(..))
 import System.Nix.Store.Remote.Serializer (LoggerSError, logger, runSerialT)
 import System.Nix.Store.Remote.Socket (sockGet8)
-import System.Nix.Store.Remote.MonadStore (MonadRemoteStore, RemoteStoreError(..), appendLog, getDataSource, getDataSink, getStoreSocket, getProtoVersion, setError)
+import System.Nix.Store.Remote.MonadStore (MonadRemoteStore, RemoteStoreError(..), appendLog, getDataSource, getDataSink, getStoreSocket, getProtoVersion)
 import System.Nix.Store.Remote.Types.Logger (Logger(..))
 import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion)
 
@@ -52,7 +52,7 @@ processOutput = do
       Right ctrl -> do
         case ctrl of
           -- These two terminate the logger loop
-          e@(Logger_Error _) -> setError >> appendLog e
+          Logger_Error e -> throwError $ RemoteStoreError_LoggerError e
           Logger_Last -> appendLog Logger_Last
 
           -- Read data from source

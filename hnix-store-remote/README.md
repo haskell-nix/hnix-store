@@ -16,6 +16,7 @@ via `nix-daemon`.
 
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
+import System.Nix.StorePath (mkStorePathName)
 import System.Nix.Store.Remote
 
 main :: IO ()
@@ -25,6 +26,12 @@ main = do
     roots <- findRoots
     liftIO $ print roots
 
-    res <- addTextToStore "hnix-store" "test" mempty RepairMode_DontRepair
+    res <- case mkStorePathName "hnix-store" of
+      Left e -> error (show e)
+      Right name ->
+        addTextToStore
+         (StoreText name "Hello World!")
+         mempty
+         RepairMode_DontRepair
     liftIO $ print res
 ```

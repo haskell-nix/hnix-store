@@ -30,7 +30,7 @@ import Network.Socket (Socket)
 import System.Nix.Nar (NarSource)
 import System.Nix.StorePath (HasStoreDir(..), StoreDir)
 import System.Nix.Store.Remote.Serializer (HandshakeSError, LoggerSError, RequestSError, ReplySError, SError)
-import System.Nix.Store.Remote.Types.Logger (Logger)
+import System.Nix.Store.Remote.Types.Logger (Logger, BasicError, ErrorInfo)
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion)
 import System.Nix.Store.Remote.Types.StoreConfig (HasStoreSocket(..), StoreConfig)
 
@@ -66,6 +66,7 @@ data RemoteStoreError
   | RemoteStoreError_SerializerRequest RequestSError
   | RemoteStoreError_SerializerReply ReplySError
   | RemoteStoreError_IOException SomeException
+  | RemoteStoreError_LoggerError (Either BasicError ErrorInfo)
   | RemoteStoreError_LoggerLeftovers String ByteString -- when there are bytes left over after incremental logger parser is done, (Done x leftover), first param is show x
   | RemoteStoreError_LoggerParserFail String ByteString -- when incremental parser returns ((Fail msg leftover) :: Result)
   | RemoteStoreError_NoDataSourceProvided -- remoteStoreState_mDataSource is required but it is Nothing
@@ -170,33 +171,6 @@ class ( MonadIO m
     => Logger
     -> m ()
   appendLog = lift . appendLog
-
-  setError :: m ()
-  default setError
-    :: ( MonadTrans t
-       , MonadRemoteStoreR r m'
-       , m ~ t m'
-       )
-    => m ()
-  setError = lift setError
-
-  clearError :: m ()
-  default clearError
-    :: ( MonadTrans t
-       , MonadRemoteStoreR r m'
-       , m ~ t m'
-       )
-    => m ()
-  clearError = lift clearError
-
-  gotError :: m Bool
-  default gotError
-    :: ( MonadTrans t
-       , MonadRemoteStoreR r m'
-       , m ~ t m'
-       )
-    => m Bool
-  gotError = lift gotError
 
   getStoreDir :: m StoreDir
   default getStoreDir
@@ -310,10 +284,6 @@ instance ( MonadIO m
     RemoteStoreT
     $ modify
     $ \s -> s { remoteStoreState_logs = remoteStoreState_logs s `Data.DList.snoc` x }
-
-  setError = RemoteStoreT $ modify $ \s -> s { remoteStoreState_gotError = True }
-  clearError = RemoteStoreT $ modify $ \s -> s { remoteStoreState_gotError = False }
-  gotError = remoteStoreState_gotError <$> RemoteStoreT get
 
   setDataSource x = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mDataSource = pure x }
   getDataSource = remoteStoreState_mDataSource <$> RemoteStoreT get

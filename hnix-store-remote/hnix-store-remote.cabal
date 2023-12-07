@@ -156,6 +156,7 @@ executable remote-readme
     buildable: False
   build-depends:
       base >=4.12 && <5
+    , hnix-store-core
     , hnix-store-remote
   build-tool-depends:
       markdown-unlit:markdown-unlit
@@ -212,6 +213,7 @@ test-suite remote-io
     , hnix-store-core
     , hnix-store-nar
     , hnix-store-remote
+    , hnix-store-tests
     , bytestring
     , containers
     , crypton
@@ -221,6 +223,7 @@ test-suite remote-io
     , hspec-expectations-lifted
     , linux-namespaces
     , process
+    , some
     , tasty
     , tasty-hspec
     , temporary

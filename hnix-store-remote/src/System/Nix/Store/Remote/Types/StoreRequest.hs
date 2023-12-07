@@ -53,13 +53,13 @@ data StoreRequest :: Type -> Type where
     -> Set Signature
     -> StoreRequest ()
 
-  -- | Add temporary garbage collector root.
-  --
-  -- This root is removed as soon as the client exits.
   AddIndirectRoot
     :: StorePath
     -> StoreRequest ()
 
+  -- | Add temporary garbage collector root.
+  --
+  -- This root is removed as soon as the client exits.
   AddTempRoot
     :: StorePath
     -> StoreRequest ()

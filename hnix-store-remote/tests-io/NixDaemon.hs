@@ -2,9 +2,10 @@
 
 module NixDaemon where
 
-import Data.Text (Text)
 import Data.Either (isRight, isLeft)
 import Data.Bool (bool)
+import Data.Some (Some(Some))
+import Data.Text (Text)
 import Control.Monad (forM_, void)
 import Control.Monad.IO.Class (liftIO)
 import qualified System.Environment
@@ -14,6 +15,7 @@ import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Either
 import qualified Data.HashSet as HS
 import qualified Data.Map.Strict as M
+import qualified Data.Set
 import qualified Data.Text
 import qualified Data.Text.Encoding
 import System.Directory
@@ -24,8 +26,11 @@ import System.Linux.Namespaces as NS
 import Test.Hspec (Spec, describe, context)
 import qualified Test.Hspec as Hspec
 import Test.Hspec.Expectations.Lifted
+import Test.Hspec.Nix (forceRight)
 import System.FilePath
+import System.Nix.Hash (HashAlgo(HashAlgo_SHA256))
 import System.Nix.Build
+import System.Nix.DerivedPath (DerivedPath(..))
 import System.Nix.StorePath
 import System.Nix.StorePath.Metadata
 import System.Nix.Store.Remote
@@ -156,14 +161,25 @@ itLefts name action = it name action isLeft
 
 withPath :: (StorePath -> MonadStore a) -> MonadStore a
 withPath action = do
-  path <- addTextToStore "hnix-store" "test" mempty RepairMode_DontRepair
+  path <-
+    addTextToStore
+      (StoreText
+        (forceRight $ mkStorePathName "hnix-store")
+        "test"
+      )
+      mempty
+      RepairMode_DontRepair
   action path
 
 -- | dummy path, adds <tmp>/dummy with "Hello World" contents
 dummy :: MonadStore StorePath
 dummy = do
-  let name = Data.Either.fromRight (error "impossible") $ mkStorePathName "dummy"
-  addToStore @SHA256 name (dumpPath "dummy") FileIngestionMethod_Flat RepairMode_DontRepair
+  addToStore
+    (forceRight $ mkStorePathName "dummy")
+    (dumpPath "dummy")
+    FileIngestionMethod_Flat
+    (Some HashAlgo_SHA256)
+    RepairMode_DontRepair
 
 invalidPath :: StorePath
 invalidPath =
@@ -172,7 +188,11 @@ invalidPath =
 
 withBuilder :: (StorePath -> MonadStore a) -> MonadStore a
 withBuilder action = do
-  path <- addTextToStore "builder" builderSh mempty RepairMode_DontRepair
+  path <- 
+    addTextToStore
+      (StoreText (forceRight $ mkStorePathName "builder") builderSh)
+      mempty
+      RepairMode_DontRepair
   action path
 
 builderSh :: Text
@@ -209,24 +229,24 @@ spec_protocol = Hspec.around withNixDaemon $
     context "addTextToStore" $
       itRights "adds text to store" $ withPath pure
 
-    context "isValidPathUncached" $ do
+    context "isValidPath" $ do
       itRights "validates path" $ withPath $ \path -> do
         liftIO $ print path
-        isValidPathUncached path `shouldReturn` True
+        isValidPath path `shouldReturn` True
       itLefts "fails on invalid path"
         $ mapStoreConfig
             (\sc -> sc { storeConfig_dir = StoreDir "/asdf" })
-            $ isValidPathUncached invalidPath
+            $ isValidPath invalidPath
 
     context "queryAllValidPaths" $ do
       itRights "empty query" queryAllValidPaths
       itRights "non-empty query" $ withPath $ \path ->
         queryAllValidPaths `shouldReturn` HS.fromList [path]
 
-    context "queryPathInfoUncached" $
+    context "queryPathInfo" $
       itRights "queries path info" $ withPath $ \path -> do
-        meta <- queryPathInfoUncached path
-        metadataReferences meta `shouldSatisfy` HS.null
+        meta <- queryPathInfo path
+        (metadataReferences <$> meta) `shouldBe` (Just mempty)
 
     context "ensurePath" $
       itRights "simple ensure" $ withPath ensurePath
@@ -237,18 +257,17 @@ spec_protocol = Hspec.around withNixDaemon $
     context "addIndirectRoot" $
       itRights "simple addition" $ withPath addIndirectRoot
 
+    let toDerivedPathSet p = Data.Set.fromList [DerivedPath_Opaque p]
+
     context "buildPaths" $ do
       itRights "build Normal" $ withPath $ \path -> do
-        let pathSet = HS.fromList [path]
-        buildPaths pathSet BuildMode_Normal
+        buildPaths (toDerivedPathSet path) BuildMode_Normal
 
       itRights "build Check" $ withPath $ \path -> do
-        let pathSet = HS.fromList [path]
-        buildPaths pathSet BuildMode_Check
+        buildPaths (toDerivedPathSet path) BuildMode_Check
 
       itLefts "build Repair" $ withPath $ \path -> do
-        let pathSet = HS.fromList [path]
-        buildPaths pathSet BuildMode_Repair
+        buildPaths (toDerivedPathSet path) BuildMode_Repair
 
     context "roots" $ context "findRoots" $ do
         itRights "empty roots" (findRoots `shouldReturn` M.empty)
@@ -261,8 +280,7 @@ spec_protocol = Hspec.around withNixDaemon $
 
     context "queryMissing" $
       itRights "queries" $ withPath $ \path -> do
-        let pathSet = HS.fromList [path]
-        queryMissing pathSet
+        queryMissing (toDerivedPathSet path)
         `shouldReturn`
         Missing
           { missingWillBuild = mempty
@@ -275,9 +293,12 @@ spec_protocol = Hspec.around withNixDaemon $
     context "addToStore" $
       itRights "adds file to store" $ do
         fp <- liftIO $ writeSystemTempFile "addition" "lal"
-        let name = Data.Either.fromRight (error "impossible") $ mkStorePathName "tmp-addition"
-        res <- addToStore @SHA256 name (dumpPath fp) FileIngestionMethod_Flat RepairMode_DontRepair
-        liftIO $ print res
+        addToStore
+          (forceRight $ mkStorePathName "tmp-addition")
+          (dumpPath fp)
+          FileIngestionMethod_Flat
+          (Some HashAlgo_SHA256)
+          RepairMode_DontRepair
 
     context "with dummy" $ do
       itRights "adds dummy" dummy
@@ -285,10 +306,10 @@ spec_protocol = Hspec.around withNixDaemon $
       itRights "valid dummy" $ do
         path <- dummy
         liftIO $ print path
-        isValidPathUncached path `shouldReturn` True
+        isValidPath path `shouldReturn` True
 
-    context "deleteSpecific" $
-      itRights "delete a path from the store" $ withPath $ \path -> do
+    context "collectGarbage" $ do
+      itRights "delete a specific path from the store" $ withPath $ \path -> do
           -- clear temp gc roots so the delete works. restarting the nix daemon should also do this...
           storeDir <- getStoreDir
           let tempRootsDir = Data.Text.unpack $ mconcat [ Data.Text.Encoding.decodeUtf8 (unStoreDir storeDir), "/../var/nix/temproots/" ]
@@ -296,7 +317,14 @@ spec_protocol = Hspec.around withNixDaemon $
           liftIO $ forM_ tempRootList $ \entry -> do
             removeFile $ mconcat [ tempRootsDir, "/", entry ]
 
-          GCResult{..} <- deleteSpecific (HS.fromList [path])
+          GCResult{..} <-
+            collectGarbage
+              GCOptions
+                { gcOptionsOperation = GCAction_DeleteSpecific
+                , gcOptionsIgnoreLiveness = False
+                , gcOptionsPathsToDelete = HS.fromList [path]
+                , gcOptionsMaxFreed = maxBound
+                }
           gcResultDeletedPaths `shouldBe` HS.fromList [path]
           gcResultBytesFreed `shouldBe` 4
 
