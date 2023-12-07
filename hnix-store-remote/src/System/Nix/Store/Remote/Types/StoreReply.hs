@@ -23,7 +23,7 @@ instance StoreReply Bool where
   getReplyS = mapPrimE bool
 
 instance StoreReply BuildResult where
-  getReplyS = mapPrimE buildResult
+  getReplyS = buildResult
 
 instance StoreReply StorePath where
   getReplyS = mapPrimE storePath
@@ -31,4 +31,4 @@ instance StoreReply StorePath where
 mapPrimE
   :: NixSerializer r SError a
   -> NixSerializer r ReplySError a
-mapPrimE = mapErrorS ReplySError_Prim
+mapPrimE = mapErrorS ReplySError_PrimGet

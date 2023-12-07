@@ -44,10 +44,6 @@ module System.Nix.Store.Remote.Serializer
   , pathMetadata
   -- * OutputName
   , outputName
-  -- * Realisation
-  , derivationOutputTyped
-  , realisation
-  , realisationWithId
   -- * Signatures
   , signature
   , narSignature
@@ -63,7 +59,6 @@ module System.Nix.Store.Remote.Serializer
   , derivedPath
   -- * Build
   , buildMode
-  , buildResult
   -- * Logger
   , LoggerSError(..)
   , activityID
@@ -89,6 +84,12 @@ module System.Nix.Store.Remote.Serializer
   , storeRequest
   -- ** Reply
   , ReplySError(..)
+  -- *** Realisation
+  , derivationOutputTyped
+  , realisation
+  , realisationWithId
+  -- *** BuildResult
+  , buildResult
   ) where
 
 import Control.Monad.Except (MonadError, throwError, )
@@ -620,28 +621,6 @@ outputName =
     System.Nix.OutputName.unOutputName
     text
 
--- * Realisation
-
-derivationOutputTyped :: NixSerializer r SError (System.Nix.Realisation.DerivationOutput OutputName)
-derivationOutputTyped =
-  mapPrismSerializer
-    ( Data.Bifunctor.first SError_DerivationOutput
-      . System.Nix.Realisation.derivationOutputParser
-          System.Nix.OutputName.mkOutputName
-    )
-    ( Data.Text.Lazy.toStrict
-      . Data.Text.Lazy.Builder.toLazyText
-      . System.Nix.Realisation.derivationOutputBuilder
-          System.Nix.OutputName.unOutputName
-    )
-    text
-
-realisation :: NixSerializer r SError Realisation
-realisation = json
-
-realisationWithId :: NixSerializer r SError (System.Nix.Realisation.DerivationOutput OutputName, Realisation)
-realisationWithId = json
-
 -- * Signatures
 
 signature
@@ -803,64 +782,6 @@ derivedPath = Serializer
 
 buildMode :: NixSerializer r SError BuildMode
 buildMode = enum
-
-buildResult
-  :: ( HasProtoVersion r
-     , HasStoreDir r
-     )
-  => NixSerializer r SError BuildResult
-buildResult = Serializer
-  { getS = do
-      pv <- Control.Monad.Reader.asks hasProtoVersion
-
-      buildResultStatus <- getS enum
-      buildResultErrorMessage <- getS maybeText
-
-      ( buildResultTimesBuilt
-        , buildResultIsNonDeterministic
-        , buildResultStartTime
-        , buildResultStopTime
-        ) <-
-        if protoVersion_minor pv >= 29
-        then do
-          tb <- (\case 0 -> Nothing; x -> Just x) <$> getS int
-          nondet <- getS bool
-          start <- (\case x | x == t0 -> Nothing; x -> Just x) <$> getS time
-          end <- (\case x | x == t0 -> Nothing; x -> Just x) <$> getS time
-          pure $ (tb, pure nondet, start, end)
-        else pure $ (Nothing, Nothing, Nothing, Nothing)
-
-      buildResultBuiltOutputs <-
-        if protoVersion_minor pv >= 28
-        then
-            pure
-          . Data.Map.Strict.fromList
-          . map (\(_, (a, b)) -> (a, b))
-          . Data.Map.Strict.toList
-          <$> getS (mapS derivationOutputTyped realisationWithId)
-        else pure Nothing
-      pure BuildResult{..}
-
-  , putS = \BuildResult{..} -> do
-      pv <- Control.Monad.Reader.asks hasProtoVersion
-
-      putS enum buildResultStatus
-      putS maybeText buildResultErrorMessage
-      Control.Monad.when (protoVersion_minor pv >= 29) $ do
-        putS int $ Data.Maybe.fromMaybe 0 buildResultTimesBuilt
-        putS bool $ Data.Maybe.fromMaybe False buildResultIsNonDeterministic
-        putS time $ Data.Maybe.fromMaybe t0 buildResultStartTime
-        putS time $ Data.Maybe.fromMaybe t0 buildResultStopTime
-      Control.Monad.when (protoVersion_minor pv >= 28)
-        $ putS (mapS derivationOutputTyped realisationWithId)
-        $ Data.Map.Strict.fromList
-        $ map (\(a, b) -> (a, (a, b)))
-        $ Data.Map.Strict.toList
-        $ Data.Maybe.fromMaybe mempty buildResultBuiltOutputs
-  }
-  where
-    t0 :: UTCTime
-    t0 = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
 
 -- * Logger
 
@@ -1414,5 +1335,103 @@ storeRequest = Serializer
 -- * Reply
 
 data ReplySError
-  = ReplySError_Prim SError
+  = ReplySError_PrimGet SError
+  | ReplySError_PrimPut SError
+  | ReplySError_DerivationOutput SError
+  | ReplySError_Realisation SError
+  | ReplySError_RealisationWithId SError
   deriving (Eq, Ord, Generic, Show)
+
+mapGetER
+  :: Functor m
+  => SerialT r SError m a
+  -> SerialT r ReplySError m a
+mapGetER = mapErrorST ReplySError_PrimGet
+
+mapPutER
+  :: Functor m
+  => SerialT r SError m a
+  -> SerialT r ReplySError m a
+mapPutER = mapErrorST ReplySError_PrimPut
+
+-- *** Realisation
+
+derivationOutputTyped :: NixSerializer r ReplySError (System.Nix.Realisation.DerivationOutput OutputName)
+derivationOutputTyped = mapErrorS ReplySError_DerivationOutput $
+  mapPrismSerializer
+    ( Data.Bifunctor.first SError_DerivationOutput
+      . System.Nix.Realisation.derivationOutputParser
+          System.Nix.OutputName.mkOutputName
+    )
+    ( Data.Text.Lazy.toStrict
+      . Data.Text.Lazy.Builder.toLazyText
+      . System.Nix.Realisation.derivationOutputBuilder
+          System.Nix.OutputName.unOutputName
+    )
+    text
+
+realisation :: NixSerializer r ReplySError Realisation
+realisation = mapErrorS ReplySError_Realisation json
+
+realisationWithId :: NixSerializer r ReplySError (System.Nix.Realisation.DerivationOutput OutputName, Realisation)
+realisationWithId = mapErrorS ReplySError_RealisationWithId json
+
+-- *** BuildResult
+
+buildResult
+  :: ( HasProtoVersion r
+     , HasStoreDir r
+     )
+  => NixSerializer r ReplySError BuildResult
+buildResult = Serializer
+  { getS = do
+      pv <- Control.Monad.Reader.asks hasProtoVersion
+
+      buildResultStatus <- mapGetER $ getS enum
+      buildResultErrorMessage <- mapGetER $ getS maybeText
+
+      ( buildResultTimesBuilt
+        , buildResultIsNonDeterministic
+        , buildResultStartTime
+        , buildResultStopTime
+        ) <-
+        if protoVersion_minor pv >= 29
+        then mapGetER $ do
+          tb <- (\case 0 -> Nothing; x -> Just x) <$> getS int
+          nondet <- getS bool
+          start <- (\case x | x == t0 -> Nothing; x -> Just x) <$> getS time
+          end <- (\case x | x == t0 -> Nothing; x -> Just x) <$> getS time
+          pure $ (tb, pure nondet, start, end)
+        else pure $ (Nothing, Nothing, Nothing, Nothing)
+
+      buildResultBuiltOutputs <-
+        if protoVersion_minor pv >= 28
+        then
+            pure
+          . Data.Map.Strict.fromList
+          . map (\(_, (a, b)) -> (a, b))
+          . Data.Map.Strict.toList
+          <$> getS (mapS derivationOutputTyped realisationWithId)
+        else pure Nothing
+      pure BuildResult{..}
+
+  , putS = \BuildResult{..} -> do
+      pv <- Control.Monad.Reader.asks hasProtoVersion
+
+      mapPutER $ putS enum buildResultStatus
+      mapPutER $ putS maybeText buildResultErrorMessage
+      Control.Monad.when (protoVersion_minor pv >= 29) $ mapPutER $ do
+        putS int $ Data.Maybe.fromMaybe 0 buildResultTimesBuilt
+        putS bool $ Data.Maybe.fromMaybe False buildResultIsNonDeterministic
+        putS time $ Data.Maybe.fromMaybe t0 buildResultStartTime
+        putS time $ Data.Maybe.fromMaybe t0 buildResultStopTime
+      Control.Monad.when (protoVersion_minor pv >= 28)
+        $ putS (mapS derivationOutputTyped realisationWithId)
+        $ Data.Map.Strict.fromList
+        $ map (\(a, b) -> (a, (a, b)))
+        $ Data.Map.Strict.toList
+        $ Data.Maybe.fromMaybe mempty buildResultBuiltOutputs
+  }
+  where
+    t0 :: UTCTime
+    t0 = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
