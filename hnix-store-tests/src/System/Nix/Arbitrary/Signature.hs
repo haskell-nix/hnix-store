@@ -9,7 +9,6 @@ import Crypto.Random (drgNewTest, withDRG)
 import qualified Data.ByteString as BS
 import qualified Data.Text as Text
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
-import Test.QuickCheck.Instances ()
 import Test.QuickCheck
 
 import System.Nix.Signature

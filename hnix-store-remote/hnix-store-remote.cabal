@@ -20,6 +20,7 @@ common commons
   ghc-options:  -Wall
   default-extensions:
       DataKinds
+    , DefaultSignatures
     , DeriveGeneric
     , DeriveDataTypeable
     , DeriveFunctor
@@ -34,6 +35,7 @@ common commons
     , ScopedTypeVariables
     , StandaloneDeriving
     , TypeApplications
+    , TypeOperators
     , TypeSynonymInstances
     , InstanceSigs
     , KindSignatures
@@ -75,35 +77,49 @@ library
     , Data.Serializer.Example
     , System.Nix.Store.Remote
     , System.Nix.Store.Remote.Arbitrary
+    , System.Nix.Store.Remote.Client
+    , System.Nix.Store.Remote.Client.Core
     , System.Nix.Store.Remote.Logger
     , System.Nix.Store.Remote.MonadStore
-    , System.Nix.Store.Remote.Protocol
-    , System.Nix.Store.Remote.Serialize
-    , System.Nix.Store.Remote.Serialize.Prim
     , System.Nix.Store.Remote.Serializer
+    , System.Nix.Store.Remote.Server
     , System.Nix.Store.Remote.Socket
     , System.Nix.Store.Remote.Types
     , System.Nix.Store.Remote.Types.Activity
     , System.Nix.Store.Remote.Types.CheckMode
     , System.Nix.Store.Remote.Types.GC
+    , System.Nix.Store.Remote.Types.Handshake
     , System.Nix.Store.Remote.Types.Logger
     , System.Nix.Store.Remote.Types.ProtoVersion
+    , System.Nix.Store.Remote.Types.Query
+    , System.Nix.Store.Remote.Types.Query.Missing
     , System.Nix.Store.Remote.Types.StoreConfig
+    , System.Nix.Store.Remote.Types.StoreRequest
+    , System.Nix.Store.Remote.Types.StoreReply
+    , System.Nix.Store.Remote.Types.StoreText
     , System.Nix.Store.Remote.Types.SubstituteMode
+    , System.Nix.Store.Remote.Types.TrustedFlag
     , System.Nix.Store.Remote.Types.Verbosity
+    , System.Nix.Store.Remote.Types.WorkerMagic
     , System.Nix.Store.Remote.Types.WorkerOp
 
   build-depends:
       base >=4.12 && <5
     , hnix-store-core >= 0.8 && <0.9
+    , hnix-store-json >= 0.1
     , hnix-store-nar >= 0.1
+    , hnix-store-tests >= 0.1
+    , aeson
     , attoparsec
     , bytestring
     , cereal
     , containers
+    , concurrency
     , crypton
     , data-default-class
-    , dependent-sum > 0.7 && < 1
+    , dependent-sum > 0.7
+    , dependent-sum-template >= 0.2.0.1 && < 0.3
+    , dlist >= 1.0
     , generic-arbitrary < 1.1
     , hashable
     , text
@@ -112,8 +128,8 @@ library
     , network
     , mtl
     , QuickCheck
-    , quickcheck-instances
     , unordered-containers
+    , unix >= 2.7
     , vector
   hs-source-dirs:      src
   ghc-options:         -Wall
@@ -138,6 +154,7 @@ executable remote-readme
     buildable: False
   build-depends:
       base >=4.12 && <5
+    , hnix-store-core
     , hnix-store-remote
   build-tool-depends:
       markdown-unlit:markdown-unlit
@@ -153,8 +170,8 @@ test-suite remote
   ghc-options:       -Wall -threaded -rtsopts "-with-rtsopts -N"
   other-modules:
       Data.SerializerSpec
+      EnumSpec
       NixSerializerSpec
-      SerializeSpec
   build-tool-depends:
     hspec-discover:hspec-discover
   build-depends:
@@ -162,16 +179,12 @@ test-suite remote
     , hnix-store-core
     , hnix-store-remote
     , hnix-store-tests
-    , cereal
+    , bytestring
     , crypton
-    , dependent-sum > 0.7 && < 1
     , some > 1.0.5 && < 2
-    , text
     , time
     , hspec
     , QuickCheck
-    , quickcheck-instances
-    , unordered-containers
 
 test-suite remote-io
   import: tests
@@ -180,20 +193,18 @@ test-suite remote-io
     buildable: False
 
   type:              exitcode-stdio-1.0
-  main-is:           Driver.hs
+  main-is:           Main.hs
   hs-source-dirs:    tests-io
   -- See https://github.com/redneb/hs-linux-namespaces/issues/3
   ghc-options:       -rtsopts -fprof-auto "-with-rtsopts -V0"
   other-modules:
-      NixDaemon
-    , Spec
-  build-tool-depends:
-    tasty-discover:tasty-discover
+      NixDaemonSpec
   build-depends:
       base >=4.12 && <5
     , hnix-store-core
     , hnix-store-nar
     , hnix-store-remote
+    , hnix-store-tests
     , bytestring
     , containers
     , crypton
@@ -203,8 +214,7 @@ test-suite remote-io
     , hspec-expectations-lifted
     , linux-namespaces
     , process
-    , tasty
-    , tasty-hspec
+    , some
     , temporary
     , text
     , unix

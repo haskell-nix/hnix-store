@@ -3,27 +3,22 @@
 module NixSerializerSpec (spec) where
 
 import Crypto.Hash (MD5, SHA1, SHA256, SHA512)
-import Data.Dependent.Sum (DSum((:=>)))
-import Data.Fixed (Uni)
-import Data.Time (NominalDiffTime)
+import Data.Some (Some(Some))
+import Data.Time (UTCTime)
 import Test.Hspec (Expectation, Spec, describe, parallel, shouldBe)
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck (Gen, arbitrary, forAll, suchThat)
-import Test.QuickCheck.Instances ()
-
-import qualified Data.Time.Clock.POSIX
-import qualified Data.Serializer
-import qualified System.Nix.Build
-import qualified System.Nix.Hash
 
 import System.Nix.Arbitrary ()
-import System.Nix.Build (BuildResult)
 import System.Nix.Derivation (Derivation(inputDrvs))
+import System.Nix.Build (BuildResult(..))
 import System.Nix.StorePath (StoreDir)
-import System.Nix.StorePath.Metadata (Metadata(..))
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
-import System.Nix.Store.Remote.Types (ErrorInfo(..), Logger(..), ProtoVersion(..), Trace(..))
+import System.Nix.Store.Remote.Types.Logger (Logger(..))
+import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion(..))
+import System.Nix.Store.Remote.Types.StoreConfig (TestStoreConfig(..))
+import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
 
 -- | Test for roundtrip using @NixSerializer@
 roundtripSReader
@@ -60,22 +55,8 @@ spec = parallel $ do
     prop "Bool" $ roundtripS bool
     prop "ByteString" $ roundtripS byteString
     prop "Text" $ roundtripS text
-    prop "Maybe Text"
-      $ forAll (arbitrary `suchThat` (/= Just ""))
-      $ roundtripS maybeText
-    prop "UTCTime" $ do
-      let
-        -- scale to seconds and back
-        toSeconds :: Int -> NominalDiffTime
-        toSeconds n = realToFrac (toEnum n :: Uni)
-        fromSeconds :: NominalDiffTime -> Int
-        fromSeconds = (fromEnum :: Uni -> Int) . realToFrac
-
-      roundtripS @Int @() $
-        Data.Serializer.mapIsoSerializer
-          (fromSeconds . Data.Time.Clock.POSIX.utcTimeToPOSIXSeconds)
-          (Data.Time.Clock.POSIX.posixSecondsToUTCTime . toSeconds)
-          time
+    prop "Maybe Text" $ roundtripS maybeText
+    prop "UTCTime" $ roundtripS @UTCTime @() time
 
   describe "Combinators" $ do
     prop "list" $ roundtripS @[Int] @() (list int)
@@ -84,14 +65,33 @@ spec = parallel $ do
     prop "mapS" $ roundtripS (mapS (int @Int) byteString)
 
   describe "Complex" $ do
-    prop "BuildResult"
-      $ forAll (arbitrary `suchThat` ((/= Just "") . System.Nix.Build.errorMessage))
-      $ \br ->
-          roundtripS @BuildResult buildResult
-            -- fix time to 0 as we test UTCTime above
-            $ br { System.Nix.Build.startTime = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
-                 , System.Nix.Build.stopTime  = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
-                 }
+    prop "DSum HashAlgo Digest" $ roundtripS namedDigest
+
+    describe "BuildResult" $ do
+      prop "< 1.28"
+        $ \sd -> forAll (arbitrary `suchThat` ((< 28) . protoVersion_minor))
+        $ \pv ->
+            roundtripSReader @TestStoreConfig buildResult (TestStoreConfig sd pv)
+            . (\x -> x { buildResultBuiltOutputs = Nothing })
+            . (\x -> x { buildResultTimesBuilt = Nothing
+                       , buildResultIsNonDeterministic = Nothing
+                       , buildResultStartTime = Nothing
+                       , buildResultStopTime = Nothing
+                       }
+              )
+      prop "= 1.28"
+        $ \sd ->
+            roundtripSReader @TestStoreConfig buildResult (TestStoreConfig sd (ProtoVersion 1 28))
+            . (\x -> x { buildResultTimesBuilt = Nothing
+                       , buildResultIsNonDeterministic = Nothing
+                       , buildResultStartTime = Nothing
+                       , buildResultStopTime = Nothing
+                       }
+              )
+      prop "> 1.28"
+        $ \sd -> forAll (arbitrary `suchThat` ((> 28) . protoVersion_minor))
+        $ \pv ->
+            roundtripSReader @TestStoreConfig buildResult (TestStoreConfig sd pv)
 
     prop "StorePath" $
       roundtripSReader @StoreDir storePath
@@ -102,17 +102,8 @@ spec = parallel $ do
     prop "StorePathName" $
       roundtripS storePathName
 
-    let narHashIsSHA256 Metadata{..} =
-          case narHash of
-            (System.Nix.Hash.HashAlgo_SHA256 :=> _) -> True
-            _ -> False
-
-    prop "Metadata (StorePath)"
-      $ \sd -> forAll (arbitrary `suchThat` (\m -> narHashIsSHA256 m && narBytes m /= Just 0))
-      $ roundtripSReader @StoreDir pathMetadata sd
-        . (\m -> m
-            { registrationTime = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
-            })
+    prop "Metadata (StorePath)" $
+      roundtripSReader @StoreDir pathMetadata
 
     prop "Some HashAlgo" $
       roundtripS someHashAlgo
@@ -134,19 +125,9 @@ spec = parallel $ do
       prop "Maybe Activity" $ roundtripS maybeActivity
       prop "ActivityResult" $ roundtripS activityResult
       prop "Field" $ roundtripS field
-      prop "Trace"
-        $ forAll (arbitrary `suchThat` ((/= Just 0) . tracePosition))
-        $ roundtripS trace
+      prop "Trace" $ roundtripS trace
       prop "BasicError" $ roundtripS basicError
-      prop "ErrorInfo"
-        $ forAll (arbitrary
-                  `suchThat`
-                    (\ErrorInfo{..}
-                        -> errorInfoPosition /= Just 0
-                           && all ((/= Just 0) . tracePosition) errorInfoTraces
-                    )
-                 )
-        $ roundtripS errorInfo
+      prop "ErrorInfo" $ roundtripS errorInfo
       prop "LoggerOpCode" $ roundtripS loggerOpCode
       prop "Verbosity" $ roundtripS verbosity
       prop "Logger"
@@ -154,11 +135,35 @@ spec = parallel $ do
         $ \pv ->
             forAll (arbitrary `suchThat` errorInfoIf (protoVersion_minor pv >= 26))
         $ roundtripSReader logger pv
-        where
-          errorInfoIf True (Logger_Error (Right x)) = noJust0s x
-          errorInfoIf False (Logger_Error (Left _)) = True
-          errorInfoIf _ (Logger_Error _) = False
-          errorInfoIf _ _ = True
-          noJust0s ErrorInfo{..} =
-            errorInfoPosition /= Just 0
-            && all ((/= Just 0) . tracePosition) errorInfoTraces
+
+  describe "Handshake" $ do
+    prop "WorkerMagic" $ roundtripS workerMagic
+    prop "TrustedFlag" $ roundtripS trustedFlag
+
+  describe "Worker protocol" $ do
+    prop "WorkerOp" $ roundtripS workerOp
+    prop "StoreText" $ roundtripS storeText
+
+    prop "StoreRequest"
+      $ \testStoreConfig ->
+          forAll (arbitrary `suchThat` (restrictProtoVersion (hasProtoVersion testStoreConfig)))
+          $ roundtripSReader @TestStoreConfig storeRequest testStoreConfig
+
+  describe "StoreReply" $ do
+    prop "()" $ roundtripS opSuccess
+    prop "GCResult" $ roundtripSReader @StoreDir gcResult
+    prop "GCRoot" $ roundtripS gcRoot
+    prop "Missing" $ roundtripSReader @StoreDir missing
+    prop "Maybe (Metadata StorePath)" $ roundtripSReader @StoreDir maybePathMetadata
+
+restrictProtoVersion :: ProtoVersion -> Some StoreRequest -> Bool
+restrictProtoVersion v (Some (BuildPaths _ _)) | v < ProtoVersion 1 30 = False
+restrictProtoVersion _ (Some (BuildDerivation _ drv _)) = inputDrvs drv == mempty
+restrictProtoVersion v (Some (QueryMissing _)) | v < ProtoVersion 1 30 = False
+restrictProtoVersion _ _ = True
+
+errorInfoIf :: Bool -> Logger -> Bool
+errorInfoIf True  (Logger_Error (Right _)) = True
+errorInfoIf False (Logger_Error (Left _))  = True
+errorInfoIf _     (Logger_Error _)         = False
+errorInfoIf _     _                        = True

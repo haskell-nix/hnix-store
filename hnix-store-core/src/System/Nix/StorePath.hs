@@ -17,9 +17,10 @@ module System.Nix.StorePath
   , StorePathHashPart
   , mkStorePathHashPart
   , unStorePathHashPart
-  , -- * Manipulating 'StorePathName'
-    makeStorePathName
-  , validStorePathName
+    -- * Manipulating 'StorePathName'
+  , InvalidNameError(..)
+  , mkStorePathName
+  , parseNameText
     -- * Reason why a path is not valid
   , InvalidPathError(..)
   , -- * Rendering out 'StorePath's
@@ -115,12 +116,17 @@ mkStorePathHashPart =
   StorePathHashPart
   . System.Nix.Hash.mkStorePathHash @hashAlgo
 
--- | Reason why a path is not valid
-data InvalidPathError =
-    EmptyName
-  | PathTooLong
+-- | Reason why a path name or output name is not valid
+data InvalidNameError
+  = EmptyName
+  | NameTooLong Int
   | LeadingDot
-  | InvalidCharacter
+  | InvalidCharacters Text
+  deriving (Eq, Generic, Hashable, Ord, Show)
+
+-- | Reason why a path is not valid
+data InvalidPathError
+  = PathNameInvalid InvalidNameError
   | HashDecodingFailure String
   | RootDirMismatch
       { rdMismatchExpected :: StoreDir
@@ -129,26 +135,28 @@ data InvalidPathError =
   deriving (Eq, Generic, Hashable, Ord, Show)
 
 -- | Make @StorePathName@ from @Text@ (name part of the @StorePath@)
--- or fail with @InvalidPathError@ if it isn't valid
-makeStorePathName :: Text -> Either InvalidPathError StorePathName
-makeStorePathName n =
-  if validStorePathName n
-    then pure $ StorePathName n
-    else Left $ reasonInvalid n
+-- or fail with @InvalidNameError@ if it isn't valid
+mkStorePathName :: Text -> Either InvalidNameError StorePathName
+mkStorePathName = fmap StorePathName . parseNameText
 
-reasonInvalid :: Text -> InvalidPathError
-reasonInvalid n
-  | n == ""                  = EmptyName
-  | Data.Text.length n > 211 = PathTooLong
-  | Data.Text.head n == '.'  = LeadingDot
-  | otherwise                = InvalidCharacter
-
-validStorePathName :: Text -> Bool
-validStorePathName n =
-  n /= ""
-  && Data.Text.length n <= 211
-  && Data.Text.head n /= '.'
-  && Data.Text.all validStorePathNameChar n
+-- | Parse name (either @StorePathName@ or @OutputName@)
+parseNameText :: Text -> Either InvalidNameError Text
+parseNameText n
+  | n == ""
+    = Left EmptyName
+  | Data.Text.length n > 211
+    = Left $ NameTooLong (Data.Text.length n)
+  | Data.Text.head n == '.'
+    = Left $ LeadingDot
+  | not
+    $ Data.Text.null
+    $ Data.Text.filter
+        (not . validStorePathNameChar)
+        n
+    = Left
+      $ InvalidCharacters
+      $ Data.Text.filter (not . validStorePathNameChar) n
+  | otherwise = pure n
 
 validStorePathNameChar :: Char -> Bool
 validStorePathNameChar c =
@@ -220,11 +228,15 @@ parsePath' expectedRoot stringyPath =
   let
     (rootDir, fname) = System.FilePath.splitFileName stringyPath
     (storeBasedHashPart, namePart) = Data.Text.breakOn "-" $ Data.Text.pack fname
-    hashPart = Data.Bifunctor.bimap
-      HashDecodingFailure
-      StorePathHashPart
-      $ System.Nix.Base.decodeWith NixBase32 storeBasedHashPart
-    name = makeStorePathName . Data.Text.drop 1 $ namePart
+    hashPart =
+      Data.Bifunctor.bimap
+        HashDecodingFailure
+        StorePathHashPart
+        $ System.Nix.Base.decodeWith NixBase32 storeBasedHashPart
+    name =
+      Data.Bifunctor.first
+        PathNameInvalid
+        $ mkStorePathName . Data.Text.drop 1 $ namePart
     --rootDir' = dropTrailingPathSeparator rootDir
     -- cannot use ^^ as it drops multiple slashes /a/b/// -> /a/b
     rootDir' = init rootDir
@@ -288,11 +300,15 @@ pathParser expectedRoot = do
     validStorePathNameChar
       <?> "Path name contains invalid character"
 
-  let name = makeStorePathName $ Data.Text.cons c0 rest
-      hashPart = Data.Bifunctor.bimap
-        HashDecodingFailure
-        StorePathHashPart
-        digest
+  let name =
+        Data.Bifunctor.first
+          PathNameInvalid
+          $ mkStorePathName $ Data.Text.cons c0 rest
+      hashPart =
+        Data.Bifunctor.bimap
+          HashDecodingFailure
+          StorePathHashPart
+          digest
 
   either
     (fail . show)

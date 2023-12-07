@@ -1,5 +1,6 @@
 module Test.Hspec.Nix
-  ( roundtrips
+  ( forceRight
+  , roundtrips
   ) where
 
 import Test.Hspec (Expectation, shouldBe)
@@ -18,3 +19,11 @@ roundtrips
   -> Expectation
 roundtrips encode decode x =
   decode (encode x) `shouldBe` pure x
+
+forceRight
+  :: Show a
+  => Either a b
+  -> b
+forceRight = \case
+  Right x -> x
+  Left e -> error $ "forceRight failed: " ++ show e

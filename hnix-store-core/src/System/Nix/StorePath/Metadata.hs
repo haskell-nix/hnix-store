@@ -35,25 +35,25 @@ data StorePathTrust
 data Metadata a = Metadata
   { -- | The path to the derivation file that built this path, if any
     -- and known.
-    deriverPath :: !(Maybe a)
+    metadataDeriverPath :: !(Maybe a)
   , -- | The hash of the nar serialization of the path.
-    narHash :: !(DSum HashAlgo Digest)
+    metadataNarHash :: !(DSum HashAlgo Digest)
   , -- | The paths that this path directly references
-    references :: !(HashSet a)
+    metadataReferences :: !(HashSet a)
   , -- | When was this path registered valid in the store?
-    registrationTime :: !UTCTime
+    metadataRegistrationTime :: !UTCTime
   , -- | The size of the nar serialization of the path, in bytes.
-    narBytes :: !(Maybe Word64)
+    metadataNarBytes :: !(Maybe Word64)
   , -- | How much we trust this path. Nix-es ultimate
-    trust :: !StorePathTrust
+    metadataTrust :: !StorePathTrust
   , -- | A set of cryptographic attestations of this path's validity.
     --
     -- There is no guarantee from this type alone that these
     -- signatures are valid.
-    sigs :: !(Set NarSignature)
+    metadataSigs :: !(Set NarSignature)
   , -- | Whether and how this store path is content-addressable.
     --
     -- There is no guarantee from this type alone that this address
     -- is actually correct for this store path.
-    contentAddress :: !(Maybe ContentAddress)
+    metadataContentAddress :: !(Maybe ContentAddress)
   } deriving (Eq, Generic, Ord, Show)

@@ -26,8 +26,13 @@ import qualified Data.Text as Text
 -- | Produce the message signed by a NAR signature
 metadataFingerprint :: StoreDir -> StorePath -> Metadata StorePath -> Text
 metadataFingerprint storeDir storePath Metadata{..} = let
-  narSize = fromMaybe 0 narBytes
-  in fingerprint storeDir storePath narHash narSize (HashSet.toList references)
+  narSize = fromMaybe 0 metadataNarBytes
+  in fingerprint
+       storeDir
+       storePath
+       metadataNarHash
+       narSize
+       (HashSet.toList metadataReferences)
 
 -- | Produce the message signed by a NAR signature
 fingerprint :: StoreDir

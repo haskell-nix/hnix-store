@@ -3,23 +3,25 @@ module System.Nix.Store.Remote.Logger
   ) where
 
 import Control.Monad.Except (throwError)
+import Control.Monad.IO.Class (liftIO)
 import Data.ByteString (ByteString)
 import Data.Serialize (Result(..))
-import System.Nix.Store.Remote.Serialize.Prim (putByteString)
 import System.Nix.Store.Remote.Serializer (LoggerSError, logger, runSerialT)
-import System.Nix.Store.Remote.Socket (sockGet8, sockPut)
-import System.Nix.Store.Remote.MonadStore (MonadStore, clearData)
-import System.Nix.Store.Remote.Types (Logger(..), ProtoVersion, hasProtoVersion)
+import System.Nix.Store.Remote.Socket (sockGet8)
+import System.Nix.Store.Remote.MonadStore (MonadRemoteStore, RemoteStoreError(..), appendLog, getDataSource, getDataSink, getStoreSocket, getProtoVersion)
+import System.Nix.Store.Remote.Types.Logger (Logger(..))
+import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion)
 
 import qualified Control.Monad
-import qualified Control.Monad.Reader
-import qualified Control.Monad.State.Strict
 import qualified Data.Serialize.Get
 import qualified Data.Serializer
+import qualified Network.Socket.ByteString
 
-processOutput :: MonadStore [Logger]
+processOutput
+  :: MonadRemoteStore m
+  => m ()
 processOutput = do
- protoVersion <- Control.Monad.Reader.asks hasProtoVersion
+ protoVersion <- getProtoVersion
  sockGet8 >>= go . (decoder protoVersion)
  where
   decoder
@@ -30,38 +32,69 @@ processOutput = do
     Data.Serialize.Get.runGetPartial
       (runSerialT protoVersion $ Data.Serializer.getS logger)
 
-  go :: Result (Either LoggerSError Logger) -> MonadStore [Logger]
+  go
+    :: MonadRemoteStore m
+    => Result (Either LoggerSError Logger)
+    -> m ()
   go (Done ectrl leftover) = do
+    let loop = do
+          protoVersion <- getProtoVersion
+          sockGet8 >>= go . (decoder protoVersion)
 
     Control.Monad.unless (leftover == mempty) $
-      -- TODO: throwError
-      error $ "Leftovers detected: '" ++ show leftover ++ "'"
+      throwError
+      $ RemoteStoreError_LoggerLeftovers
+          (show ectrl)
+          leftover
 
-    protoVersion <- Control.Monad.Reader.asks hasProtoVersion
     case ectrl of
-      -- TODO: tie this with throwError and better error type
-      Left e -> error $ show e
+      Left e -> throwError $ RemoteStoreError_SerializerLogger e
       Right ctrl -> do
         case ctrl of
-          e@(Logger_Error _) -> pure [e]
-          Logger_Last -> pure [Logger_Last]
-          Logger_Read _n -> do
-            (mdata, _) <- Control.Monad.State.Strict.get
-            case mdata of
-              Nothing   -> throwError "No data to read provided"
-              Just part -> do
-                -- XXX: we should check/assert part size against n of (Read n)
-                sockPut $ putByteString part
-                clearData
+          -- These two terminate the logger loop
+          Logger_Error e -> throwError $ RemoteStoreError_LoggerError e
+          Logger_Last -> appendLog Logger_Last
 
-            sockGet8 >>= go . (decoder protoVersion)
+          -- Read data from source
+          Logger_Read size -> do
+            mSource <- getDataSource
+            case mSource of
+              Nothing   ->
+                throwError RemoteStoreError_NoDataSourceProvided
+              Just source -> do
+                mChunk <- liftIO $ source size
+                case mChunk of
+                  Nothing -> throwError RemoteStoreError_DataSourceExhausted
+                  Just chunk -> do
+                    sock <- getStoreSocket
+                    liftIO $ Network.Socket.ByteString.sendAll sock chunk
 
-          -- we should probably handle Read here as well
-          x -> do
-            next <- sockGet8 >>= go . (decoder protoVersion)
-            pure $ x : next
+            loop
+
+          -- Write data to sink
+          Logger_Write out -> do
+            mSink <- getDataSink
+            case mSink of
+              Nothing   ->
+                throwError RemoteStoreError_NoDataSinkProvided
+              Just sink -> do
+                liftIO $ sink out
+
+            loop
+
+          -- Following we just append and loop
+          -- but listed here explicitely for posterity
+          x@(Logger_Next _) -> appendLog x >> loop
+          x@(Logger_StartActivity {}) -> appendLog x >> loop
+          x@(Logger_StopActivity {}) -> appendLog x >> loop
+          x@(Logger_Result {}) -> appendLog x >> loop
+
   go (Partial k) = do
     chunk <- sockGet8
     go (k chunk)
 
-  go (Fail msg _leftover) = error msg
+  go (Fail msg leftover) =
+    throwError
+    $ RemoteStoreError_LoggerParserFail
+        msg
+        leftover

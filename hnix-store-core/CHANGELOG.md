@@ -1,6 +1,7 @@
 # Next
 
 * Changes:
+   * `System.Nix.StorePath.makeStorePathName` renamed to `System.Nix.StorePath.mkStorePathName`
    * `System.Nix.ReadOnlyStore` moved to `hnix-store-readonly` package
      and renamed to `System.Nix.Store.ReadOnly` [#247](https://github.com/haskell-nix/hnix-store/pull/247)
    * `System.Nix.Nar*` moved to `hnix-store-nar` package [#247](https://github.com/haskell-nix/hnix-store/pull/247)

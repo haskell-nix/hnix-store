@@ -7,7 +7,6 @@ import System.Nix.Base
 
 import Test.QuickCheck (Arbitrary(..))
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
-import Test.QuickCheck.Instances ()
 
 deriving via GenericArbitrary BaseEncoding
   instance Arbitrary BaseEncoding

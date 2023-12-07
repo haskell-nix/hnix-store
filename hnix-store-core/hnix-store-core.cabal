@@ -65,6 +65,8 @@ library
     , System.Nix.Fingerprint
     , System.Nix.Hash
     , System.Nix.Hash.Truncation
+    , System.Nix.OutputName
+    , System.Nix.Realisation
     , System.Nix.Signature
     , System.Nix.Store.Types
     , System.Nix.StorePath
@@ -80,7 +82,7 @@ library
     , crypton
     , data-default-class
     , dependent-sum > 0.7
-    , dependent-sum-template > 0.1.1 && < 0.3
+    , dependent-sum-template >= 0.2.0.1 && < 0.3
     , filepath
     , hashable
     -- Required for crypton low-level type convertion
@@ -102,6 +104,7 @@ test-suite core
     Fingerprint
     Hash
     Signature
+    StorePath
   hs-source-dirs:
     tests
   build-tool-depends:

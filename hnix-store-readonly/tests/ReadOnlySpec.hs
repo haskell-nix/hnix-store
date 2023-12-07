@@ -21,7 +21,7 @@ testDigest = Crypto.Hash.hash @ByteString "testDigest"
 testName :: StorePathName
 testName =
     either undefined id
-  $ System.Nix.StorePath.makeStorePathName "testFixed"
+  $ System.Nix.StorePath.mkStorePathName "testFixed"
 
 testPath :: StorePath
 testPath =

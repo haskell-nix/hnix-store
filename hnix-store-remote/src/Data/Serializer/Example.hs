@@ -39,13 +39,19 @@ import Data.ByteString (ByteString)
 import Data.Int (Int8)
 import Data.GADT.Show (GShow(..), defaultGshowsPrec)
 import Data.Kind (Type)
-import Data.Type.Equality
-import Data.Serialize.Get (getInt8)
-import Data.Serialize.Put (putInt8)
+import Data.Type.Equality (TestEquality(..), (:~:)(Refl))
+import Data.Serialize.Get (Get, getInt8)
+import Data.Serialize.Put (Putter, PutM, putInt8)
 import Data.Serializer
+  ( Serializer(..)
+  , GetSerializerError
+  , runGetS
+  , runPutS
+  , transformGetError
+  , transformPutError
+  )
 import Data.Some (Some(..))
-import GHC.Generics
-import System.Nix.Store.Remote.Serialize.Prim (getBool, putBool, getEnum, putEnum)
+import GHC.Generics (Generic)
 
 import Test.QuickCheck (Arbitrary(..), oneof)
 
@@ -274,3 +280,40 @@ cmdSRest = Serializer
         else lift (putInt8 i)
       Some (Cmd_Bool b) -> putS opcode OpCode_Bool >> lift (putBool b)
   }
+
+-- Primitives helpers
+
+getInt :: Integral a => Get a
+getInt = fromIntegral <$> getInt8
+
+putInt :: Integral a => Putter a
+putInt = putInt8 . fromIntegral
+
+-- | Deserialize @Bool@ from integer
+getBool :: Get Bool
+getBool = (getInt :: Get Int8) >>= \case
+  0 -> pure False
+  1 -> pure True
+  x -> fail $ "illegal bool value " ++ show x
+
+-- | Serialize @Bool@ into integer
+putBool :: Putter Bool
+putBool True  = putInt (1 :: Int8)
+putBool False = putInt (0 :: Int8)
+
+-- | Utility toEnum version checking bounds using Bounded class
+toEnumCheckBounds :: Enum a => Int -> Either String a
+toEnumCheckBounds = \case
+  x | x < minBound -> Left $ "enum out of min bound " ++ show x
+  x | x > maxBound -> Left $ "enum out of max bound " ++ show x
+  x | otherwise -> Right $ toEnum x
+
+-- | Deserialize @Enum@ to integer
+getEnum :: Enum a => Get a
+getEnum =
+  toEnumCheckBounds <$> getInt
+  >>= either fail pure
+
+-- | Serialize @Enum@ to integer
+putEnum :: Enum a => Putter a
+putEnum = putInt . fromEnum

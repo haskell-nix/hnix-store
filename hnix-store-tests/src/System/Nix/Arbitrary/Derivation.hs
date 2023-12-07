@@ -4,12 +4,13 @@
 module System.Nix.Arbitrary.Derivation where
 
 import Data.Text (Text)
+import Data.Text.Arbitrary ()
+import Data.Vector.Arbitrary ()
 import System.Nix.Derivation
 import System.Nix.StorePath (StorePath)
 
 import Test.QuickCheck (Arbitrary(..))
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
-import Test.QuickCheck.Instances ()
 import System.Nix.Arbitrary.StorePath ()
 
 deriving via GenericArbitrary (Derivation StorePath Text)

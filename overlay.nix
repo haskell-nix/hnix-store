@@ -23,17 +23,12 @@ in
       sha256 = "sha256-AnjaUzSlsLi3lIURrEfs92Jo5FzX49RyNdfDSfFV3Kk=";
     } {};
 
-  # srk 2023-11-19: default in unstable is 0.1.1.1 which
-  # fails to compile test on ghc8107
-  # but for for ghc963 we hit
-  # https://github.com/obsidiansystems/dependent-sum-template/issues/10
-  # so we use 0.1.1.1 for ghc963 and 0.2.0.0 for the rest
-  # - some weird interaction in unstable as this builds
-  # with cabal and 0.2.0.0
-  dependent-sum-template =
-    if compiler == "ghc8107" || compiler == "ghc902" || compiler == "ghc928"
-    then hsuper.dependent-sum-template_0_2_0_0
-    else hsuper.dependent-sum-template;
+  # srk 2023-12-06: until in unstable
+  dependent-sum-template = hself.callHackageDirect
+    { pkg = "dependent-sum-template";
+      ver = "0.2.0.1";
+      sha256 = "sha256-quwgFuEBrK96JZenJZcyfk/O0Gp+ukwKEpe1hMqDbIg=";
+    } {};
 
   # srk 2023-11-19: wider unix bound via CPP
   # Required for ghc963 since linux-namespaces is pinned
@@ -53,6 +48,12 @@ in
   hnix-store-db =
     lib.pipe
       (hself.callCabal2nix "hnix-store-db" ./hnix-store-db {})
+      [
+        haskellLib.compose.buildFromSdist
+      ];
+  hnix-store-json =
+    lib.pipe
+      (hself.callCabal2nix "hnix-store-json" ./hnix-store-json {})
       [
         haskellLib.compose.buildFromSdist
       ];

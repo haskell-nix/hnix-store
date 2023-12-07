@@ -22,6 +22,7 @@ in {
   inherit (haskellPackages)
     hnix-store-core
     hnix-store-db
+    hnix-store-json
     hnix-store-nar
     hnix-store-readonly
     hnix-store-remote

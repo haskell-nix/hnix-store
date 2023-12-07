@@ -4,20 +4,32 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 module System.Nix.Arbitrary.StorePath.Metadata where
 
+import Data.Dependent.Sum (DSum((:=>)))
+import Data.HashSet.Arbitrary ()
 import System.Nix.Arbitrary.ContentAddress ()
 import System.Nix.Arbitrary.Hash ()
 import System.Nix.Arbitrary.Signature ()
 import System.Nix.Arbitrary.StorePath ()
+import System.Nix.Arbitrary.UTCTime ()
 import System.Nix.StorePath (StorePath)
-import System.Nix.StorePath.Metadata (Metadata, StorePathTrust)
+import System.Nix.StorePath.Metadata (Metadata(..), StorePathTrust)
 
-import Test.QuickCheck (Arbitrary(..))
+import qualified System.Nix.Hash
+
+import Test.QuickCheck (Arbitrary(..), suchThat)
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
-import Test.QuickCheck.Instances ()
 
 deriving via GenericArbitrary StorePathTrust
   instance Arbitrary StorePathTrust
 
-deriving via GenericArbitrary (Metadata StorePath)
-  instance Arbitrary (Metadata StorePath)
-
+instance Arbitrary (Metadata StorePath) where
+  arbitrary = do
+    metadataDeriverPath <- arbitrary
+    metadataNarHash <- (System.Nix.Hash.HashAlgo_SHA256 :=>) <$> arbitrary
+    metadataReferences <- arbitrary
+    metadataRegistrationTime <- arbitrary
+    metadataNarBytes <- arbitrary `suchThat` (/= Just 0)
+    metadataTrust <- arbitrary
+    metadataSigs <- arbitrary
+    metadataContentAddress <- arbitrary
+    pure Metadata{..}
