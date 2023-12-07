@@ -81,8 +81,6 @@ library
     , System.Nix.Store.Remote.Client.Core
     , System.Nix.Store.Remote.Logger
     , System.Nix.Store.Remote.MonadStore
-    , System.Nix.Store.Remote.Serialize
-    , System.Nix.Store.Remote.Serialize.Prim
     , System.Nix.Store.Remote.Serializer
     , System.Nix.Store.Remote.Server
     , System.Nix.Store.Remote.Socket
@@ -174,7 +172,6 @@ test-suite remote
       Data.SerializerSpec
       EnumSpec
       NixSerializerSpec
-      SerializeSpec
   build-tool-depends:
     hspec-discover:hspec-discover
   build-depends:
@@ -183,14 +180,11 @@ test-suite remote
     , hnix-store-remote
     , hnix-store-tests
     , bytestring
-    , cereal
     , crypton
     , some > 1.0.5 && < 2
-    , text
     , time
     , hspec
     , QuickCheck
-    , unordered-containers
 
 test-suite remote-io
   import: tests
