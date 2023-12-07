@@ -149,6 +149,9 @@ spec = parallel $ do
           forAll (arbitrary `suchThat` (restrictProtoVersion (hasProtoVersion testStoreConfig)))
           $ roundtripSReader @TestStoreConfig storeRequest testStoreConfig
 
+  describe "StoreReply" $ do
+    prop "GCResult" $ roundtripSReader @StoreDir gcResult
+
 restrictProtoVersion :: ProtoVersion -> Some StoreRequest -> Bool
 restrictProtoVersion v (Some (BuildPaths _ _)) | v < ProtoVersion 1 30 = False
 restrictProtoVersion _ (Some (BuildDerivation _ drv _)) = inputDrvs drv == mempty

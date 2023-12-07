@@ -90,6 +90,8 @@ module System.Nix.Store.Remote.Serializer
   , realisationWithId
   -- *** BuildResult
   , buildResult
+  -- *** GCResult
+  , gcResult
   ) where
 
 import Control.Monad.Except (MonadError, throwError, )
@@ -1338,6 +1340,7 @@ data ReplySError
   = ReplySError_PrimGet SError
   | ReplySError_PrimPut SError
   | ReplySError_DerivationOutput SError
+  | ReplySError_GCResult SError
   | ReplySError_Realisation SError
   | ReplySError_RealisationWithId SError
   deriving (Eq, Ord, Generic, Show)
@@ -1435,3 +1438,18 @@ buildResult = Serializer
   where
     t0 :: UTCTime
     t0 = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
+
+gcResult
+  :: HasStoreDir r
+  => NixSerializer r ReplySError GCResult
+gcResult = mapErrorS ReplySError_GCResult $ Serializer
+  { getS = do
+      gcResult_deletedPaths <- getS (hashSet storePath)
+      gcResult_bytesFreed <- getS int
+      Control.Monad.void $ getS (int @Word64) -- obsolete
+      pure GCResult{..}
+  , putS = \GCResult{..} -> do
+      putS (hashSet storePath) gcResult_deletedPaths
+      putS int gcResult_bytesFreed
+      putS (int @Word64) 0 -- obsolete
+  }
