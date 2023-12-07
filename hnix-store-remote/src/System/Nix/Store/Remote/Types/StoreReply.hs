@@ -22,6 +22,9 @@ class StoreReply a where
        )
     => NixSerializer r ReplySError a
 
+instance StoreReply () where
+  getReplyS = opSuccess
+
 instance StoreReply Bool where
   getReplyS = mapPrimE bool
 

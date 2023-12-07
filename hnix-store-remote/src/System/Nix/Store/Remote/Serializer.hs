@@ -84,6 +84,7 @@ module System.Nix.Store.Remote.Serializer
   , storeRequest
   -- ** Reply
   , ReplySError(..)
+  , opSuccess
   -- *** Realisation
   , derivationOutputTyped
   , realisation
@@ -1340,7 +1341,7 @@ storeRequest = Serializer
       -> m a
     reserved = throwError . RequestSError_ReservedOp
 
--- * Reply
+-- ** Reply
 
 data ReplySError
   = ReplySError_PrimGet SError
@@ -1351,6 +1352,7 @@ data ReplySError
   | ReplySError_Missing SError
   | ReplySError_Realisation SError
   | ReplySError_RealisationWithId SError
+  | ReplySError_UnexpectedFalseOpSuccess
   deriving (Eq, Ord, Generic, Show)
 
 mapGetER
@@ -1364,6 +1366,20 @@ mapPutER
   => SerialT r SError m a
   -> SerialT r ReplySError m a
 mapPutER = mapErrorST ReplySError_PrimPut
+
+-- | Parse a bool returned at the end of simple operations.
+-- This is always 1 (@True@) so we assert that it really is so.
+-- Errors for these operations are indicated via @Logger_Error@.
+opSuccess :: NixSerializer r ReplySError ()
+opSuccess = Serializer
+  { getS = do
+      retCode <- mapGetER $ getS bool
+      Control.Monad.unless
+        (retCode == True)
+        $ throwError ReplySError_UnexpectedFalseOpSuccess
+      pure ()
+  , putS = \_ -> mapPutER $ putS bool True
+  }
 
 -- *** Realisation
 
