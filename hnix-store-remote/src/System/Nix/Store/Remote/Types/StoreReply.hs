@@ -4,6 +4,7 @@ module System.Nix.Store.Remote.Types.StoreReply
 
 import System.Nix.Build (BuildResult)
 import System.Nix.StorePath (HasStoreDir(..), StorePath)
+import System.Nix.StorePath.Metadata (Metadata)
 import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types.GC (GCResult)
 import System.Nix.Store.Remote.Types.Query.Missing (Missing)
@@ -32,6 +33,9 @@ instance StoreReply GCResult where
 
 instance StoreReply Missing where
   getReplyS = missing
+
+instance StoreReply (Maybe (Metadata StorePath)) where
+  getReplyS = maybePathMetadata
 
 instance StoreReply StorePath where
   getReplyS = mapPrimE storePath

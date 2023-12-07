@@ -94,6 +94,8 @@ module System.Nix.Store.Remote.Serializer
   , gcResult
   -- *** Missing
   , missing
+  -- *** Maybe (Metadata StorePath)
+  , maybePathMetadata
   ) where
 
 import Control.Monad.Except (MonadError, throwError, )
@@ -562,9 +564,11 @@ pathMetadata = Serializer
 
       metadataReferences <- getS $ hashSet storePath
       metadataRegistrationTime <- getS time
-      metadataNarBytes <- (\case
-                      0 -> Nothing
-                      size -> Just size) <$> getS int
+      metadataNarBytes <-
+        (\case
+          0 -> Nothing
+          size -> Just size
+        ) <$> getS int
       metadataTrust <- getS storePathTrust
 
       metadataSigs <- getS $ set narSignature
@@ -1343,6 +1347,7 @@ data ReplySError
   | ReplySError_PrimPut SError
   | ReplySError_DerivationOutput SError
   | ReplySError_GCResult SError
+  | ReplySError_Metadata SError
   | ReplySError_Missing SError
   | ReplySError_Realisation SError
   | ReplySError_RealisationWithId SError
@@ -1475,4 +1480,20 @@ missing = mapErrorS ReplySError_Missing $ Serializer
       putS (hashSet storePath) missingUnknownPaths
       putS int missingDownloadSize
       putS int missingNarSize
+  }
+
+-- *** Maybe (Metadata StorePath)
+
+maybePathMetadata
+  :: HasStoreDir r
+  => NixSerializer r ReplySError (Maybe (Metadata StorePath))
+maybePathMetadata = mapErrorS ReplySError_Metadata $ Serializer
+  { getS = do
+      valid <- getS bool
+      if valid
+      then pure <$> getS pathMetadata
+      else pure Nothing
+  , putS = \case
+      Nothing -> putS bool False
+      Just pm -> putS bool True >> putS pathMetadata pm
   }
