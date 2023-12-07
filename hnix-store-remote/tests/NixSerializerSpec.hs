@@ -5,8 +5,7 @@ module NixSerializerSpec (spec) where
 import Crypto.Hash (MD5, SHA1, SHA256, SHA512)
 import Data.Some (Some(Some))
 import Data.Time (UTCTime)
-import Data.Word (Word64)
-import Test.Hspec (Expectation, Spec, describe, it, parallel, shouldBe)
+import Test.Hspec (Expectation, Spec, describe, parallel, shouldBe)
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck (Gen, arbitrary, forAll, suchThat)
 
@@ -20,7 +19,6 @@ import System.Nix.Store.Remote.Types.Logger (Logger(..))
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion(..))
 import System.Nix.Store.Remote.Types.StoreConfig (TestStoreConfig(..))
 import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
-import System.Nix.Store.Remote.Types.WorkerOp (WorkerOp(..))
 
 -- | Test for roundtrip using @NixSerializer@
 roundtripSReader
@@ -137,18 +135,6 @@ spec = parallel $ do
         $ \pv ->
             forAll (arbitrary `suchThat` errorInfoIf (protoVersion_minor pv >= 26))
         $ roundtripSReader logger pv
-
-  describe "Enums" $ do
-    let it' name constr value =
-          it name
-            $ (runP enum () constr)
-            `shouldBe`
-            (runP (int @Word64) () value)
-
-    describe "WorkerOp enum order matches Nix" $ do
-      it' "IsValidPath"           WorkerOp_IsValidPath            1
-      it' "BuildPathsWithResults" WorkerOp_BuildPathsWithResults 46
-
 
   describe "Handshake" $ do
     prop "WorkerMagic" $ roundtripS workerMagic

@@ -68,6 +68,7 @@ module System.Nix.Store.Remote.Serializer
   , LoggerSError(..)
   , activityID
   , maybeActivity
+  , activity
   , activityResult
   , field
   , trace
@@ -886,12 +887,12 @@ maybeActivity = Serializer
       Nothing -> putS (int @Int) 0
       Just act -> putS activity act
   }
-  where
-    activity :: NixSerializer r LoggerSError Activity
-    activity = Serializer
-      { getS = mapPrimE $ getS int >>= toEnumCheckBoundsM . (+(-100))
-      , putS = putS int . (+100) . fromEnum
-      }
+
+activity :: NixSerializer r LoggerSError Activity
+activity = Serializer
+  { getS = mapPrimE $ getS int >>= toEnumCheckBoundsM . (+(-100))
+  , putS = putS int . (+100) . fromEnum
+  }
 
 activityID :: NixSerializer r LoggerSError ActivityID
 activityID = mapIsoSerializer ActivityID unActivityID int

@@ -170,6 +170,7 @@ test-suite remote
   ghc-options:       -Wall -threaded -rtsopts "-with-rtsopts -N"
   other-modules:
       Data.SerializerSpec
+      EnumSpec
       NixSerializerSpec
       SerializeSpec
   build-tool-depends:
@@ -179,6 +180,7 @@ test-suite remote
     , hnix-store-core
     , hnix-store-remote
     , hnix-store-tests
+    , bytestring
     , cereal
     , crypton
     , some > 1.0.5 && < 2
