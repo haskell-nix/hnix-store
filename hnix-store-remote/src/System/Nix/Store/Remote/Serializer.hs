@@ -92,6 +92,8 @@ module System.Nix.Store.Remote.Serializer
   , buildResult
   -- *** GCResult
   , gcResult
+  -- *** Missing
+  , missing
   ) where
 
 import Control.Monad.Except (MonadError, throwError, )
@@ -1341,6 +1343,7 @@ data ReplySError
   | ReplySError_PrimPut SError
   | ReplySError_DerivationOutput SError
   | ReplySError_GCResult SError
+  | ReplySError_Missing SError
   | ReplySError_Realisation SError
   | ReplySError_RealisationWithId SError
   deriving (Eq, Ord, Generic, Show)
@@ -1452,4 +1455,24 @@ gcResult = mapErrorS ReplySError_GCResult $ Serializer
       putS (hashSet storePath) gcResultDeletedPaths
       putS int gcResultBytesFreed
       putS (int @Word64) 0 -- obsolete
+  }
+
+missing
+  :: HasStoreDir r
+  => NixSerializer r ReplySError Missing
+missing = mapErrorS ReplySError_Missing $ Serializer
+  { getS = do
+      missingWillBuild <- getS (hashSet storePath)
+      missingWillSubstitute <- getS (hashSet storePath)
+      missingUnknownPaths <- getS (hashSet storePath)
+      missingDownloadSize <- getS int
+      missingNarSize <- getS int
+
+      pure Missing{..}
+  , putS = \Missing{..} -> do
+      putS (hashSet storePath) missingWillBuild
+      putS (hashSet storePath) missingWillSubstitute
+      putS (hashSet storePath) missingUnknownPaths
+      putS int missingDownloadSize
+      putS int missingNarSize
   }

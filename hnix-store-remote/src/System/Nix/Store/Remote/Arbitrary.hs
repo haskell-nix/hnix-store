@@ -78,9 +78,6 @@ deriving via GenericArbitrary GCAction
 deriving via GenericArbitrary GCOptions
   instance Arbitrary GCOptions
 
-deriving via GenericArbitrary GCResult
-  instance Arbitrary GCResult
-
 -- * Handshake
 
 deriving via GenericArbitrary WorkerMagic
@@ -93,6 +90,8 @@ deriving via GenericArbitrary TrustedFlag
 
 deriving via GenericArbitrary WorkerOp
   instance Arbitrary WorkerOp
+
+-- ** Request
 
 instance Arbitrary (Some StoreRequest) where
   arbitrary = oneof
@@ -121,3 +120,11 @@ instance Arbitrary (Some StoreRequest) where
     , pure $ Some SyncWithGC
     , Some <$> (VerifyStore <$> arbitrary <*> arbitrary)
     ]
+
+-- ** Reply
+
+deriving via GenericArbitrary GCResult
+  instance Arbitrary GCResult
+
+deriving via GenericArbitrary Missing
+  instance Arbitrary Missing

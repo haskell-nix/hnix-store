@@ -6,6 +6,7 @@ import System.Nix.Build (BuildResult)
 import System.Nix.StorePath (HasStoreDir(..), StorePath)
 import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types.GC (GCResult)
+import System.Nix.Store.Remote.Types.Query.Missing (Missing)
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion)
 
 -- | Get @NixSerializer@ for some type @a@
@@ -28,6 +29,9 @@ instance StoreReply BuildResult where
 
 instance StoreReply GCResult where
   getReplyS = gcResult
+
+instance StoreReply Missing where
+  getReplyS = missing
 
 instance StoreReply StorePath where
   getReplyS = mapPrimE storePath

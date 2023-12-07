@@ -151,6 +151,7 @@ spec = parallel $ do
 
   describe "StoreReply" $ do
     prop "GCResult" $ roundtripSReader @StoreDir gcResult
+    prop "Missing" $ roundtripSReader @StoreDir missing
 
 restrictProtoVersion :: ProtoVersion -> Some StoreRequest -> Bool
 restrictProtoVersion v (Some (BuildPaths _ _)) | v < ProtoVersion 1 30 = False
