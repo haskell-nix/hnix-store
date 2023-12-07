@@ -2,8 +2,9 @@ module System.Nix.Store.Remote.Types.StoreReply
   ( StoreReply(..)
   ) where
 
+import Data.HashSet (HashSet)
 import System.Nix.Build (BuildResult)
-import System.Nix.StorePath (HasStoreDir(..), StorePath)
+import System.Nix.StorePath (HasStoreDir(..), StorePath, StorePathName)
 import System.Nix.StorePath.Metadata (Metadata)
 import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types.GC (GCResult)
@@ -42,6 +43,12 @@ instance StoreReply (Maybe (Metadata StorePath)) where
 
 instance StoreReply StorePath where
   getReplyS = mapPrimE storePath
+
+instance StoreReply (HashSet StorePath) where
+  getReplyS = mapPrimE (hashSet storePath)
+
+instance StoreReply (HashSet StorePathName) where
+  getReplyS = mapPrimE (hashSet storePathName)
 
 mapPrimE
   :: NixSerializer r SError a
