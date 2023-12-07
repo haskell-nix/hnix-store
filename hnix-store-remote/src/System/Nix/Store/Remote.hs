@@ -234,9 +234,9 @@ deleteSpecific paths = do
     putInt (0::Int)
     putInt (0::Int)
   getSocketIncremental $ do
-    gcResult_deletedPaths <- getPathsOrFail storeDir
-    gcResult_bytesFreed <- getInt
-    -- TODO: who knows
+    gcResultDeletedPaths <- getPathsOrFail storeDir
+    gcResultBytesFreed <- getInt
+    -- TODO: obsolete
     _ :: Int <- getInt
     pure GCResult{..}
 

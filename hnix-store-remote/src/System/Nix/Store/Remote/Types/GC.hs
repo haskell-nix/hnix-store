@@ -24,24 +24,24 @@ data GCAction
 -- | Garbage collector operation options
 data GCOptions = GCOptions
   { -- | Operation
-    gcOptions_operation :: GCAction
+    gcOptionsOperation :: GCAction
     -- | If set, then reachability from the roots is ignored (unused)
-  , gcOptions_ignoreLiveness :: Bool
+  , gcOptionsIgnoreLiveness :: Bool
     -- | Paths to delete for @GCAction_DeleteSpecific@
-  , gcOptions_pathsToDelete :: HashSet StorePath
+  , gcOptionsPathsToDelete :: HashSet StorePath
     -- | Stop after `gcOptions_maxFreed` bytes have been freed
-  , gcOptions_maxFreed :: Word64
+  , gcOptionsMaxFreed :: Word64
   } deriving (Eq, Generic, Ord, Show)
 
 -- | Result of the garbage collection operation
 data GCResult = GCResult
  { -- | Depending on the action, the GC roots,
    -- or the paths that would be or have been deleted
-   gcResult_deletedPaths :: HashSet StorePath
+   gcResultDeletedPaths :: HashSet StorePath
    -- | The number of bytes that would be or was freed for
    --
    --      - @GCAction_ReturnDead@
    --      - @GCAction_DeleteDead@
    --      - @GCAction_DeleteSpecific@
- , gcResult_bytesFreed :: Word64
+ , gcResultBytesFreed :: Word64
  } deriving (Eq, Generic, Ord, Show)

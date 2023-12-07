@@ -297,6 +297,6 @@ spec_protocol = Hspec.around withNixDaemon $
             removeFile $ mconcat [ tempRootsDir, "/", entry ]
 
           GCResult{..} <- deleteSpecific (HS.fromList [path])
-          gcResult_deletedPaths `shouldBe` HS.fromList [path]
-          gcResult_bytesFreed `shouldBe` 4
+          gcResultDeletedPaths `shouldBe` HS.fromList [path]
+          gcResultBytesFreed `shouldBe` 4
 

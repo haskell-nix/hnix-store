@@ -1101,10 +1101,10 @@ storeRequest = Serializer
         pure $ Some (BuildDerivation path drv buildMode')
 
       WorkerOp_CollectGarbage -> mapGetE $ do
-        gcOptions_operation <- getS enum
-        gcOptions_pathsToDelete <- getS (hashSet storePath)
-        gcOptions_ignoreLiveness <- getS bool
-        gcOptions_maxFreed <- getS int
+        gcOptionsOperation <- getS enum
+        gcOptionsPathsToDelete <- getS (hashSet storePath)
+        gcOptionsIgnoreLiveness <- getS bool
+        gcOptionsMaxFreed <- getS int
         -- obsolete fields
         Control.Monad.forM_ [0..(2 :: Word8)]
           $ pure $ getS (int @Word8)
@@ -1238,10 +1238,10 @@ storeRequest = Serializer
       Some (CollectGarbage GCOptions{..}) -> mapPutE $ do
         putS workerOp WorkerOp_CollectGarbage
 
-        putS enum gcOptions_operation
-        putS (hashSet storePath) gcOptions_pathsToDelete
-        putS bool gcOptions_ignoreLiveness
-        putS int gcOptions_maxFreed
+        putS enum gcOptionsOperation
+        putS (hashSet storePath) gcOptionsPathsToDelete
+        putS bool gcOptionsIgnoreLiveness
+        putS int gcOptionsMaxFreed
         -- obsolete fields
         Control.Monad.forM_ [0..(2 :: Word8)]
           $ pure $ putS int (0 :: Word8)
@@ -1444,12 +1444,12 @@ gcResult
   => NixSerializer r ReplySError GCResult
 gcResult = mapErrorS ReplySError_GCResult $ Serializer
   { getS = do
-      gcResult_deletedPaths <- getS (hashSet storePath)
-      gcResult_bytesFreed <- getS int
+      gcResultDeletedPaths <- getS (hashSet storePath)
+      gcResultBytesFreed <- getS int
       Control.Monad.void $ getS (int @Word64) -- obsolete
       pure GCResult{..}
   , putS = \GCResult{..} -> do
-      putS (hashSet storePath) gcResult_deletedPaths
-      putS int gcResult_bytesFreed
+      putS (hashSet storePath) gcResultDeletedPaths
+      putS int gcResultBytesFreed
       putS (int @Word64) 0 -- obsolete
   }
