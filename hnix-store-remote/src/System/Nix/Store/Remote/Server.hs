@@ -22,16 +22,25 @@ import System.Nix.StorePath (StoreDir)
 import System.Nix.Store.Remote.Serializer as RB
 import System.Nix.Store.Remote.Socket
 import System.Nix.Store.Remote.Types.StoreRequest as R
+import System.Nix.Store.Remote.Types.StoreReply
 import System.Nix.Store.Remote.Types.StoreConfig (HasStoreSocket(..), StoreConfig(..), PreStoreConfig(..), preStoreConfigToStoreConfig)
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion(..))
 import System.Nix.Store.Remote.Types.Logger (BasicError(..), ErrorInfo, Logger(..))
-
 import System.Nix.Store.Remote.MonadStore (WorkerError(..), WorkerException(..), RemoteStoreError(..), RemoteStoreT, runRemoteStoreT, mapStoreConfig)
 import System.Nix.Store.Remote.Types.Handshake (ServerHandshakeInput(..), ServerHandshakeOutput(..))
 import System.Nix.Store.Remote.Types.ProtoVersion (ourProtoVersion)
 import System.Nix.Store.Remote.Types.WorkerMagic (WorkerMagic(..))
 
-type WorkerHelper m = forall a. StoreRequest a -> m a
+-- wip
+-- import Data.Some (traverseSome)
+import Data.Functor.Identity
+
+type WorkerHelper m
+  = forall a
+  . ( Show a
+    , StoreReply a
+    )
+  => StoreRequest a -> m a
 
 -- | Run an emulated nix daemon on given socket address.
 -- The deamon will close when the continuation returns.
@@ -39,8 +48,6 @@ runDaemonSocket
   :: forall m a
   . ( MonadIO m
     , MonadConc m
-    , MonadError RemoteStoreError m
-    , MonadReader StoreConfig m
     )
   => StoreDir
   -> WorkerHelper m
@@ -63,7 +70,9 @@ runDaemonSocket sd workerHelper lsock k = do
               }
 
         -- TODO: this, but without the space leak
-        fmap fst $ concurrently listener $ processConnection workerHelper preStoreConfig
+        fmap fst
+          $ concurrently listener
+          $ processConnection workerHelper preStoreConfig
 
   either absurd id <$> race listener k
 
@@ -71,10 +80,8 @@ runDaemonSocket sd workerHelper lsock k = do
 --
 -- this function should take care to not throw errors from client connections.
 processConnection
-  :: ( MonadIO m
-     , MonadError RemoteStoreError m
-     , MonadReader StoreConfig m
-     )
+  :: forall m
+  .  MonadIO m
   => WorkerHelper m
   -> PreStoreConfig
   -> m ()
@@ -103,6 +110,22 @@ processConnection workerHelper preStoreConfig = do
         --authHook(*store);
         stopWork tunnelLogger
 
+        let perform
+              :: ( Show a
+                 , StoreReply a
+                 )
+              => StoreRequest a
+              -> RemoteStoreT StoreConfig m (Identity a)
+            perform req = do
+              resp <- bracketLogger tunnelLogger $ lift $ workerHelper req
+              sockPutS
+                (mapErrorS
+                   RemoteStoreError_SerializerReply
+                   $ getReplyS
+                )
+                resp
+              pure (Identity resp)
+
         -- Process client requests.
         let loop = do
               someReq <-
@@ -111,7 +134,26 @@ processConnection workerHelper preStoreConfig = do
                       RemoteStoreError_SerializerRequest
                       storeRequest
 
-              lift $ performOp' workerHelper tunnelLogger someReq
+              -- • Could not deduce (Show a) arising from a use of ‘perform’
+              -- and also (StoreReply a)
+              -- traverseSome perform someReq
+              void $ do
+                case someReq of
+                  Some req@(IsValidPath {}) -> do
+                    --  • Couldn't match type ‘a0’ with ‘Bool’
+                    --    Expected: StoreRequest a0
+                    --      Actual: StoreRequest a
+                    --  • ‘a0’ is untouchable
+                    --      inside the constraints: a ~ Bool
+                    --      bound by a pattern with constructor:
+                    --                 IsValidPath :: StorePath -> StoreRequest Bool
+                    -- runIdentity <$> perform req
+
+                    void $ perform req
+                    pure undefined
+
+                  _ -> throwError unimplemented
+
               loop
         loop
 
@@ -189,48 +231,9 @@ processConnection workerHelper preStoreConfig = do
         , serverHandshakeOutputClientVersion = clientVersion
         }
 
-simpleOp
-  :: ( MonadIO m
-     , HasStoreSocket r
-     , HasProtoVersion r
-     , MonadError RemoteStoreError m
-     , MonadReader r m
-     )
-  => (StoreRequest () -> m ())
-  -> TunnelLogger r
-  -> m (StoreRequest ())
-  -> m ()
-simpleOp workerHelper tunnelLogger m = do
-  req <- m
-  bracketLogger tunnelLogger $ workerHelper req
-  sockPutS
-    (mapErrorS
-       RemoteStoreError_SerializerPut
-       bool
-    )
-    True
-
-simpleOpRet
-  :: ( MonadIO m
-     , HasStoreSocket r
-     , HasProtoVersion r
-     , MonadError RemoteStoreError m
-     , MonadReader r m
-     )
-  => (StoreRequest a -> m a)
-  -> TunnelLogger r
-  -> NixSerializer r SError a
-  -> m (StoreRequest a)
-  -> m ()
-simpleOpRet workerHelper tunnelLogger s m = do
-  req <- m
-  resp <- bracketLogger tunnelLogger $ workerHelper req
-  sockPutS
-    (mapErrorS
-       RemoteStoreError_SerializerPut
-       s
-    )
-    resp
+{-# WARNING unimplemented "not yet implemented" #-}
+unimplemented :: RemoteStoreError
+unimplemented = RemoteStoreError_WorkerException $ WorkerException_Error $ WorkerError_NotYetImplemented
 
 bracketLogger
   :: ( MonadIO m
@@ -247,34 +250,6 @@ bracketLogger tunnelLogger m = do
   a <- m
   stopWork tunnelLogger
   pure a
-
-{-# WARNING unimplemented "not yet implemented" #-}
-unimplemented :: WorkerException
-unimplemented = WorkerException_Error $ WorkerError_NotYetImplemented
-
-performOp'
-  :: forall m
-   . ( MonadIO m
-     , MonadError RemoteStoreError m
-     , MonadReader StoreConfig m
-     )
-  => WorkerHelper m
-  -> TunnelLogger StoreConfig
-  -> Some StoreRequest
-  -> m ()
-performOp' workerHelper tunnelLogger op = do
-  let _simpleOp' = simpleOp workerHelper tunnelLogger
-  let simpleOpRet'
-        :: NixSerializer StoreConfig SError a
-        -> m (StoreRequest a)
-        -> m ()
-      simpleOpRet' = simpleOpRet workerHelper tunnelLogger
-
-  case op of
-    Some (IsValidPath path) -> simpleOpRet' bool $ do
-      pure $ R.IsValidPath path
-
-    _ -> undefined
 
 ---
 

@@ -114,13 +114,16 @@ library
     , data-default-class
     , dependent-sum > 0.7
     , dependent-sum-template >= 0.2.0.1 && < 0.3
+    , directory
     , dlist >= 1.0
+    , exceptions
     , generic-arbitrary < 1.1
     , hashable
     , text
     , time
     , transformers
     , network
+    , monad-control
     , mtl
     , QuickCheck
     , unordered-containers
