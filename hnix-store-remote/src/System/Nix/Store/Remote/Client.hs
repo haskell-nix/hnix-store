@@ -32,10 +32,8 @@ import Data.HashSet (HashSet)
 import Data.Map (Map)
 import Data.Set (Set)
 import Data.Some (Some)
-import Data.Text (Text)
 
 import System.Nix.Build (BuildMode, BuildResult)
-import System.Nix.Derivation (Derivation)
 import System.Nix.DerivedPath (DerivedPath)
 import System.Nix.Hash (HashAlgo(..))
 import System.Nix.Nar (NarSource)
@@ -51,6 +49,12 @@ import System.Nix.Store.Remote.Types.StoreText (StoreText)
 import System.Nix.Store.Remote.Types.SubstituteMode (SubstituteMode)
 import System.Nix.Store.Remote.Client.Core
 import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
+
+import qualified Control.Monad.IO.Class
+import qualified Data.Attoparsec.Text
+import qualified Data.Text.IO
+import qualified System.Nix.Derivation
+import qualified System.Nix.StorePath
 
 -- | Add `NarSource` to the store
 addToStore
@@ -114,10 +118,18 @@ addIndirectRoot = doReq . AddIndirectRoot
 buildDerivation
   :: MonadRemoteStore m
   => StorePath
-  -> Derivation StorePath Text
   -> BuildMode
   -> m BuildResult
-buildDerivation a b c = doReq (BuildDerivation a b c)
+buildDerivation sp mode = do
+  sd <- getStoreDir
+  drvContents <-
+    Control.Monad.IO.Class.liftIO
+    $ Data.Text.IO.readFile
+    $ System.Nix.StorePath.storePathToFilePath sd sp
+  case Data.Attoparsec.Text.parseOnly
+    (System.Nix.Derivation.parseDerivation sd) drvContents of
+      Left e -> throwError $ RemoteStoreError_DerivationParse e
+      Right drv -> doReq (BuildDerivation sp drv mode)
 
 -- | Build paths if they are an actual derivations.
 --

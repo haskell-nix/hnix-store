@@ -137,7 +137,6 @@ executable build-derivation
     buildable: False
   build-depends:
       base >=4.12 && <5
-    , attoparsec
     , hnix-store-core
     , hnix-store-remote
     , data-default-class

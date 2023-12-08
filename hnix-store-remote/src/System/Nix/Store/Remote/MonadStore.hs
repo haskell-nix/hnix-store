@@ -55,6 +55,7 @@ data RemoteStoreError
   = RemoteStoreError_Fixme String
   | RemoteStoreError_BuildFailed
   | RemoteStoreError_ClientVersionTooOld
+  | RemoteStoreError_DerivationParse String
   | RemoteStoreError_Disconnected
   | RemoteStoreError_GetAddrInfoFailed
   | RemoteStoreError_GenericIncrementalLeftovers String ByteString -- when there are bytes left over after genericIncremental parser is done, (Done x leftover), first param is show x
