@@ -13,7 +13,7 @@ import Data.Aeson
 import Deriving.Aeson
 import System.Nix.Base (BaseEncoding(NixBase32))
 import System.Nix.OutputName (OutputName)
-import System.Nix.Realisation (DerivationOutput, Realisation)
+import System.Nix.Realisation (DerivationOutput, Realisation, RealisationWithId(..))
 import System.Nix.Signature (Signature)
 import System.Nix.StorePath (StoreDir(..), StorePath, StorePathName, StorePathHashPart)
 
@@ -159,18 +159,18 @@ deriving
   instance FromJSON Realisation
 
 -- For a keyed version of Realisation
--- we use (DerivationOutput OutputName, Realisation)
+-- we use RealisationWithId (DerivationOutput OutputName, Realisation)
 -- instead of Realisation.id :: (DerivationOutput OutputName)
 -- field.
-instance {-# OVERLAPPING #-} ToJSON (DerivationOutput OutputName, Realisation) where
-  toJSON (drvOut, r) =
+instance ToJSON RealisationWithId where
+  toJSON (RealisationWithId (drvOut, r)) =
     case toJSON r of
       Object o -> Object $ Data.Aeson.KeyMap.insert "id" (toJSON drvOut) o
       _ -> error "absurd"
 
-instance {-# OVERLAPPING #-} FromJSON (DerivationOutput OutputName, Realisation) where
+instance FromJSON RealisationWithId where
   parseJSON v@(Object o) = do
     r <- parseJSON @Realisation v
     drvOut <- o .: "id"
-    pure (drvOut, r)
+    pure (RealisationWithId (drvOut, r))
   parseJSON x = fail $ "Expected Object but got " ++ show x

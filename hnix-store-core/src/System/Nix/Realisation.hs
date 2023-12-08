@@ -8,6 +8,7 @@ module System.Nix.Realisation (
   , derivationOutputBuilder
   , derivationOutputParser
   , Realisation(..)
+  , RealisationWithId(..)
   ) where
 
 import Crypto.Hash (Digest)
@@ -80,8 +81,7 @@ derivationOutputBuilder outputName DerivationOutput{..} =
 --
 -- realisationId is ommited since it is a key
 -- of type @DerivationOutput OutputName@ so
--- we will use a tuple like @(DerivationOutput OutputName, Realisation)@
--- instead.
+-- we will use @RealisationWithId@ newtype
 data Realisation = Realisation
   { realisationOutPath :: StorePath
   -- ^ Output path
@@ -90,3 +90,14 @@ data Realisation = Realisation
   , realisationDependencies :: Map (DerivationOutput OutputName) StorePath
   -- ^ Dependent realisations required for this one to be valid
   } deriving (Eq, Generic, Ord, Show)
+
+-- | For wire protocol
+--
+-- We store this normalized in @Build.buildResultBuiltOutputs@
+-- as @Map (DerivationOutput OutputName) Realisation@
+-- but wire protocol needs it de-normalized so we
+-- need a special (From|To)JSON instances for it
+newtype RealisationWithId = RealisationWithId
+  { unRealisationWithId :: (DerivationOutput OutputName, Realisation)
+  }
+  deriving (Eq, Generic, Ord, Show)
