@@ -1,24 +1,16 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 module System.Nix.Store.Remote.Types.StoreConfig
-  ( PreStoreConfig(..)
+  ( ProtoStoreConfig(..)
   , StoreConfig(..)
   , TestStoreConfig(..)
   , HasStoreSocket(..)
-  , preStoreConfigToStoreConfig
   ) where
 
+import Data.Default.Class (Default(def))
 import GHC.Generics (Generic)
 import Network.Socket (Socket)
 import System.Nix.StorePath (HasStoreDir(..), StoreDir)
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion)
-
-data PreStoreConfig = PreStoreConfig
-  { preStoreConfig_dir :: StoreDir
-  , preStoreConfig_socket :: Socket
-  }
-
-instance HasStoreDir PreStoreConfig where
-  hasStoreDir = preStoreConfig_dir
 
 class HasStoreSocket r where
   hasStoreSocket :: r -> Socket
@@ -26,27 +18,29 @@ class HasStoreSocket r where
 instance HasStoreSocket Socket where
   hasStoreSocket = id
 
-instance HasStoreSocket PreStoreConfig where
-  hasStoreSocket = preStoreConfig_socket
-
-data StoreConfig = StoreConfig
-  { storeConfig_dir :: StoreDir
-  , storeConfig_protoVersion :: ProtoVersion
-  , storeConfig_socket :: Socket
+data ProtoStoreConfig = ProtoStoreConfig
+  { protoStoreConfig_dir :: StoreDir
+  , protoStoreConfig_protoVersion :: ProtoVersion
   }
+
+instance Default ProtoStoreConfig where
+  def = ProtoStoreConfig def def
 
 instance HasStoreDir StoreDir where
   hasStoreDir = id
 
-instance HasStoreDir StoreConfig where
-  hasStoreDir = storeConfig_dir
+instance HasStoreDir ProtoStoreConfig where
+  hasStoreDir = protoStoreConfig_dir
 
-instance HasProtoVersion StoreConfig where
-  hasProtoVersion = storeConfig_protoVersion
+instance HasProtoVersion ProtoStoreConfig where
+  hasProtoVersion = protoStoreConfig_protoVersion
 
-instance HasStoreSocket StoreConfig where
-  hasStoreSocket = storeConfig_socket
+data StoreConfig = StoreConfig
+  { storeConfig_dir :: StoreDir
+  , storeConfig_socketPath :: FilePath
+  }
 
+-- TODO: del
 data TestStoreConfig = TestStoreConfig
   { testStoreConfig_dir :: StoreDir
   , testStoreConfig_protoVersion :: ProtoVersion
@@ -57,16 +51,3 @@ instance HasProtoVersion TestStoreConfig where
 
 instance HasStoreDir TestStoreConfig where
   hasStoreDir = testStoreConfig_dir
-
--- | Convert @PreStoreConfig@ to @StoreConfig@
--- adding @ProtoVersion@ to latter
-preStoreConfigToStoreConfig
-  :: ProtoVersion
-  -> PreStoreConfig
-  -> StoreConfig
-preStoreConfigToStoreConfig pv PreStoreConfig{..} =
-  StoreConfig
-    { storeConfig_dir = preStoreConfig_dir
-    , storeConfig_protoVersion = pv
-    , storeConfig_socket = preStoreConfig_socket
-    }

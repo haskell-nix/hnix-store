@@ -18,93 +18,102 @@ module System.Nix.Store.Remote
   , justdoit
   ) where
 
+import Control.Monad.Catch (MonadMask)
+import Control.Monad.Conc.Class (MonadConc)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Default.Class (Default(def))
 import Network.Socket (Family, SockAddr(SockAddrUnix))
 import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
-import System.Nix.StorePath (StoreDir)
-import System.Nix.Store.Remote.MonadStore (RemoteStoreT, getStoreDir, RemoteStoreError(RemoteStoreError_GetAddrInfoFailed))
+import System.Nix.Store.Remote.MonadStore
+  ( runRemoteStoreT
+  , MonadRemoteStore(..)
+  , RemoteStoreT
+  , RemoteStoreError(RemoteStoreError_GetAddrInfoFailed))
 import System.Nix.Store.Remote.Client
 import System.Nix.Store.Remote.Types
 
-import qualified Control.Exception
+import qualified Control.Monad.Catch
 import qualified Network.Socket
+import qualified System.Directory
 
 -- wip daemon
-import Control.Monad.Conc.Class (MonadConc)
-import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Trans.Control (MonadBaseControl)
 import System.Nix.StorePath (StorePath)
 import System.Nix.Store.Remote.Server (WorkerHelper, runDaemonSocket)
-import qualified System.Directory
 import qualified System.Nix.StorePath
-import qualified Control.Monad.Catch
 
 -- * Compat
 
-type MonadStore = RemoteStoreT StoreConfig IO
+type MonadStore = RemoteStoreT IO
 
 -- * Runners
 
-runStore :: MonadStore a -> Run IO a
-runStore = runStoreOpts defaultSockPath def
+runStore
+  :: ( MonadIO m
+     , MonadMask m
+     )
+  => RemoteStoreT m a
+  -> Run m a
+runStore = runStoreOpts defaultSockPath
 
 defaultSockPath :: String
 defaultSockPath = "/nix/var/nix/daemon-socket/socket"
 
 runStoreOpts
-  :: FilePath
-  -> StoreDir
-  -> MonadStore a
-  -> Run IO a
+  :: ( MonadIO m
+     , MonadMask m
+     )
+  => FilePath
+  -> RemoteStoreT m a
+  -> Run m a
 runStoreOpts socketPath =
   runStoreOpts'
     Network.Socket.AF_UNIX
     (SockAddrUnix socketPath)
 
 runStoreOptsTCP
-  :: String
+  :: ( MonadIO m
+     , MonadMask m
+     )
+  => String
   -> Int
-  -> StoreDir
-  -> MonadStore a
-  -> Run IO a
-runStoreOptsTCP host port sd code = do
-  Network.Socket.getAddrInfo
+  -> RemoteStoreT m a
+  -> Run m a
+runStoreOptsTCP host port code = do
+  addrInfo <- liftIO $ Network.Socket.getAddrInfo
     (Just Network.Socket.defaultHints)
     (Just host)
     (Just $ show port)
-    >>= \case
+  case addrInfo of
       (sockAddr:_) ->
         runStoreOpts'
           (Network.Socket.addrFamily sockAddr)
           (Network.Socket.addrAddress sockAddr)
-          sd
           code
       _ -> pure (Left RemoteStoreError_GetAddrInfoFailed, mempty)
 
 runStoreOpts'
-  :: Family
+  :: ( MonadIO m
+     , MonadMask m
+     )
+  => Family
   -> SockAddr
-  -> StoreDir
-  -> MonadStore a
-  -> Run IO a
-runStoreOpts' sockFamily sockAddr storeRootDir code =
-  Control.Exception.bracket
-    open
-    (Network.Socket.close . hasStoreSocket)
-    (flip runStoreSocket code)
+  -> RemoteStoreT m a
+  -> Run m a
+runStoreOpts' sockFamily sockAddr code =
+  Control.Monad.Catch.bracket
+    (liftIO open)
+    (liftIO . Network.Socket.close . hasStoreSocket)
+    (\s -> runRemoteStoreT s $ runStoreSocket code)
   where
     open = do
       soc <- Network.Socket.socket sockFamily Network.Socket.Stream 0
       Network.Socket.connect soc sockAddr
-      pure PreStoreConfig
-          { preStoreConfig_socket = soc
-          , preStoreConfig_dir = storeRootDir
-          }
+      pure soc
 
 justdoit :: Run IO (Bool, Bool)
 justdoit = do
-  runDaemonOpts def handler "/tmp/dsock" $
-    runStoreOpts "/tmp/dsock" def
+  runDaemonOpts handler "/tmp/dsock" $
+    runStoreOpts "/tmp/dsock"
       $ do
         a <- isValidPath pth
         b <- isValidPath pth
@@ -125,28 +134,28 @@ justdoit = do
 runDaemon
   :: forall m a
   . ( MonadIO m
-    , MonadBaseControl IO m
     , MonadConc m
     )
   => WorkerHelper m
   -> m a
   -> m a
-runDaemon workerHelper k = runDaemonOpts def workerHelper defaultSockPath k
+runDaemon workerHelper =
+  runDaemonOpts
+    workerHelper
+    defaultSockPath
 
 -- | Run an emulated nix daemon on given socket address.
 -- the deamon will close when the continuation returns.
 runDaemonOpts
   :: forall m a
   . ( MonadIO m
-    , MonadBaseControl IO m
     , MonadConc m
     )
-  => StoreDir
-  -> WorkerHelper m
+  => WorkerHelper m
   -> FilePath
   -> m a
   -> m a
-runDaemonOpts sd workerHelper f k = Control.Monad.Catch.bracket
+runDaemonOpts  workerHelper f k = Control.Monad.Catch.bracket
   (liftIO
     $ Network.Socket.socket
         Network.Socket.AF_UNIX
@@ -157,14 +166,5 @@ runDaemonOpts sd workerHelper f k = Control.Monad.Catch.bracket
   $ \lsock -> do
   --                                                                 ^^^^^^^^^^^^
   -- TODO:  this: --------------------------------------------------////////////
-  -- should really be
-  -- a file lock followed by unlink *before* bind rather than after close.  If
-  -- the program crashes (or loses power or something) then a stale unix
-  -- socket will stick around and prevent the daemon from starting.  using a
-  -- lock file instead means only one "copy" of the daemon can hold the lock,
-  -- and can safely unlink the socket before binding no matter how shutdown
-  -- occured.
-
-  -- set up the listening socket
   liftIO $ Network.Socket.bind lsock (SockAddrUnix f)
-  runDaemonSocket sd workerHelper lsock k
+  runDaemonSocket workerHelper lsock k

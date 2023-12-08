@@ -5,12 +5,12 @@ module System.Nix.Store.Remote.Types.StoreReply
 import Data.HashSet (HashSet)
 import Data.Map (Map)
 import System.Nix.Build (BuildResult)
-import System.Nix.StorePath (HasStoreDir(..), StorePath, StorePathName)
+import System.Nix.StorePath (StorePath, StorePathName)
 import System.Nix.StorePath.Metadata (Metadata)
 import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types.GC (GCResult, GCRoot)
 import System.Nix.Store.Remote.Types.Query.Missing (Missing)
-import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion)
+import System.Nix.Store.Remote.Types.StoreConfig (ProtoStoreConfig)
 
 -- | Get @NixSerializer@ for some type @a@
 -- This could also be generalized for every type
@@ -18,11 +18,7 @@ import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion)
 -- this for replies and it would make look serializers
 -- quite hodor, like @a <- getS get; b <- getS get@
 class StoreReply a where
-  getReplyS
-    :: ( HasStoreDir r
-       , HasProtoVersion r
-       )
-    => NixSerializer r ReplySError a
+  getReplyS :: NixSerializer ProtoStoreConfig ReplySError a
 
 instance StoreReply () where
   getReplyS = opSuccess

@@ -12,13 +12,8 @@ import Data.Some (Some(Some))
 import System.Nix.Nar (NarSource)
 import System.Nix.Store.Remote.Logger (processOutput)
 import System.Nix.Store.Remote.MonadStore
-  ( MonadRemoteStore
+  ( MonadRemoteStore(..)
   , RemoteStoreError(..)
-  , RemoteStoreT
-  , runRemoteStoreT
-  , mapStoreConfig
-  , takeNarSource
-  , getStoreSocket
   )
 import System.Nix.Store.Remote.Socket (sockPutS, sockGetS)
 import System.Nix.Store.Remote.Serializer
@@ -31,10 +26,9 @@ import System.Nix.Store.Remote.Serializer
   , trustedFlag
   , workerMagic
   )
-import System.Nix.Store.Remote.Types.Handshake (ClientHandshakeInput(..), ClientHandshakeOutput(..))
+import System.Nix.Store.Remote.Types.Handshake (ClientHandshakeOutput(..))
 import System.Nix.Store.Remote.Types.Logger (Logger)
-import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..), ourProtoVersion)
-import System.Nix.Store.Remote.Types.StoreConfig (PreStoreConfig, StoreConfig, preStoreConfigToStoreConfig)
+import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..))
 import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
 import System.Nix.Store.Remote.Types.StoreReply (StoreReply(..))
 import System.Nix.Store.Remote.Types.WorkerMagic (WorkerMagic(..))
@@ -85,31 +79,21 @@ doReq = \case
       )
 
 runStoreSocket
-  :: ( Monad m
-     , MonadIO m
-     )
-  => PreStoreConfig
-  -> RemoteStoreT StoreConfig m a
-  -> Run m a
-runStoreSocket preStoreConfig code =
-  runRemoteStoreT preStoreConfig $ do
+  :: MonadRemoteStore m
+  => m a
+  -> m a
+runStoreSocket code = do
     ClientHandshakeOutput{..}
       <- greet
-          ClientHandshakeInput
-          { clientHandshakeInputOurVersion = ourProtoVersion
-          }
 
-    mapStoreConfig
-      (preStoreConfigToStoreConfig
-        clientHandshakeOutputLeastCommonVerison)
-      code
+    setProtoVersion clientHandshakeOutputLeastCommonVersion
+    code
 
   where
     greet
-      :: MonadIO m
-      => ClientHandshakeInput
-      -> RemoteStoreT PreStoreConfig m ClientHandshakeOutput
-    greet ClientHandshakeInput{..} = do
+      :: MonadRemoteStore m
+      => m ClientHandshakeOutput
+    greet = do
 
       sockPutS
         (mapErrorS
@@ -133,9 +117,10 @@ runStoreSocket preStoreConfig code =
       when (daemonVersion < ProtoVersion 1 10)
         $ throwError RemoteStoreError_ClientVersionTooOld
 
-      sockPutS protoVersion clientHandshakeInputOurVersion
+      pv <- getProtoVersion
+      sockPutS protoVersion pv
 
-      let leastCommonVersion = min daemonVersion ourProtoVersion
+      let leastCommonVersion = min daemonVersion pv
 
       when (leastCommonVersion >= ProtoVersion 1 14)
         $ sockPutS int (0 :: Int) -- affinity, obsolete
@@ -162,9 +147,8 @@ runStoreSocket preStoreConfig code =
             $ mapErrorS RemoteStoreError_SerializerHandshake trustedFlag
         else pure Nothing
 
-      mapStoreConfig
-        (preStoreConfigToStoreConfig leastCommonVersion)
-        processOutput
+      setProtoVersion leastCommonVersion
+      processOutput
 
       pure ClientHandshakeOutput
         { clientHandshakeOutputNixVersion = daemonNixVersion

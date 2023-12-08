@@ -6,7 +6,8 @@ module NixDaemonSpec
   ) where
 
 import Control.Monad (forM_, unless, void)
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Catch (MonadMask)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Crypto.Hash (SHA256)
 import Data.Some (Some(Some))
 import Data.Text (Text)
@@ -21,7 +22,6 @@ import System.Nix.DerivedPath (DerivedPath(..))
 import System.Nix.StorePath (StoreDir(..), StorePath)
 import System.Nix.StorePath.Metadata (Metadata(..))
 import System.Nix.Store.Remote
-import System.Nix.Store.Remote.MonadStore (MonadRemoteStore)
 import System.Process (CreateProcess(..), ProcessHandle)
 import qualified Control.Concurrent
 import qualified Control.Exception
@@ -38,7 +38,6 @@ import qualified System.IO.Temp
 import qualified System.Linux.Namespaces
 import qualified System.Nix.StorePath
 import qualified System.Nix.Nar
-import qualified System.Nix.Store.Remote.MonadStore
 import qualified System.Posix.User
 import qualified System.Process
 import qualified Test.Hspec
@@ -106,19 +105,20 @@ error: changing ownership of path '/run/user/1000/test-nix-store-06b0d249e561612
 -}
 
 startDaemon
-  :: FilePath
-  -> IO (ProcessHandle, MonadStore a -> Run IO a)
+  :: ( MonadIO m
+     , MonadMask m
+     )
+  => FilePath
+  -> IO (ProcessHandle, RemoteStoreT m a -> Run m a)
 startDaemon fp = do
   writeConf (fp </> "etc" </> "nix.conf")
   procHandle <- createProcessEnv fp "nix-daemon" []
   waitSocket sockFp 30
   pure ( procHandle
-       , runStoreOpts
-          sockFp
-          (StoreDir
-            $ Data.ByteString.Char8.pack
-            $ fp </> "store"
-          )
+       , runStoreOpts sockFp
+         . (setStoreDir (StoreDir $ Data.ByteString.Char8.pack $ fp </> "store")
+            >>
+           )
        )
  where
   sockFp = fp </> "var/nix/daemon-socket/socket"
@@ -147,7 +147,10 @@ enterNamespaces = do
     True
 
 withNixDaemon
-  :: ((MonadStore a -> Run IO a) -> IO a)
+  :: ( MonadIO m
+     , MonadMask m
+     )
+  => ((RemoteStoreT m a -> Run m a) -> IO a)
   -> IO a
 withNixDaemon action =
   System.IO.Temp.withSystemTempDirectory "test-nix-store" $ \path -> do
@@ -211,8 +214,9 @@ itLefts
 itLefts name action = it name action Data.Either.isLeft
 
 withPath
-  :: (StorePath -> MonadStore a)
-  -> MonadStore a
+  :: MonadRemoteStore m
+  => (StorePath -> m a)
+  -> m a
 withPath action = do
   path <-
     addTextToStore
@@ -225,7 +229,7 @@ withPath action = do
   action path
 
 -- | dummy path, adds <tmp>/dummy with "Hello World" contents
-dummy :: MonadStore StorePath
+dummy :: MonadRemoteStore m => m StorePath
 dummy = do
   addToStore
     (forceRight $ System.Nix.StorePath.mkStorePathName "dummy")
@@ -293,10 +297,9 @@ spec = around withNixDaemon $
       itRights "validates path" $ withPath $ \path -> do
         liftIO $ print path
         isValidPath path `shouldReturn` True
-      itLefts "fails on invalid path"
-        $ System.Nix.Store.Remote.MonadStore.mapStoreConfig
-            (\sc -> sc { storeConfig_dir = StoreDir "/asdf" })
-            $ isValidPath invalidPath
+      itLefts "fails on invalid path" $ do
+        setStoreDir (StoreDir "/asdf")
+        isValidPath invalidPath
 
     context "queryAllValidPaths" $ do
       itRights "empty query" queryAllValidPaths
