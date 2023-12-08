@@ -46,11 +46,6 @@ common commons
     , ViewPatterns
   default-language: Haskell2010
 
-common tests
-  import: commons
-  build-tool-depends:
-      tasty-discover:tasty-discover
-
 flag io-testsuite
   default:
     False
@@ -163,7 +158,7 @@ executable remote-readme
   ghc-options: -pgmL markdown-unlit -Wall
 
 test-suite remote
-  import: tests
+  import: commons
   type:              exitcode-stdio-1.0
   main-is:           Driver.hs
   hs-source-dirs:    tests
@@ -187,7 +182,7 @@ test-suite remote
     , QuickCheck
 
 test-suite remote-io
-  import: tests
+  import: commons
 
   if !flag(io-testsuite) || os(darwin)
     buildable: False
