@@ -169,6 +169,6 @@ runStoreSocket preStoreConfig code =
       pure ClientHandshakeOutput
         { clientHandshakeOutputNixVersion = daemonNixVersion
         , clientHandshakeOutputTrust = remoteTrustsUs
-        , clientHandshakeOutputLeastCommonVerison = leastCommonVersion
+        , clientHandshakeOutputLeastCommonVersion = leastCommonVersion
         , clientHandshakeOutputServerVersion = daemonVersion
         }
