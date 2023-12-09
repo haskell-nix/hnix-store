@@ -1,6 +1,6 @@
 module System.Nix.Store.Remote.Client.Core
   ( Run
-  , runStoreSocket
+  , greetServer
   , doReq
   ) where
 
@@ -78,81 +78,68 @@ doReq = \case
         $ getReplyS @a
       )
 
-runStoreSocket
+greetServer
   :: MonadRemoteStore m
-  => m a
-  -> m a
-runStoreSocket code = do
-    ClientHandshakeOutput{..}
-      <- greet
+  => m ClientHandshakeOutput
+greetServer = do
+  sockPutS
+    (mapErrorS
+      RemoteStoreError_SerializerHandshake
+      workerMagic
+    )
+    WorkerMagic_One
 
-    setProtoVersion clientHandshakeOutputLeastCommonVersion
-    code
+  magic <-
+    sockGetS
+    $ mapErrorS
+        RemoteStoreError_SerializerHandshake
+        workerMagic
 
-  where
-    greet
-      :: MonadRemoteStore m
-      => m ClientHandshakeOutput
-    greet = do
+  unless
+    (magic == WorkerMagic_Two)
+    $ throwError RemoteStoreError_WorkerMagic2Mismatch
 
-      sockPutS
-        (mapErrorS
-          RemoteStoreError_SerializerHandshake
-          workerMagic
-        )
-        WorkerMagic_One
+  daemonVersion <- sockGetS protoVersion
 
-      magic <-
+  when (daemonVersion < ProtoVersion 1 10)
+    $ throwError RemoteStoreError_ClientVersionTooOld
+
+  pv <- getProtoVersion
+  sockPutS protoVersion pv
+
+  let leastCommonVersion = min daemonVersion pv
+
+  when (leastCommonVersion >= ProtoVersion 1 14)
+    $ sockPutS int (0 :: Int) -- affinity, obsolete
+
+  when (leastCommonVersion >= ProtoVersion 1 11) $ do
+    sockPutS
+      (mapErrorS RemoteStoreError_SerializerPut bool)
+      False -- reserveSpace, obsolete
+
+  daemonNixVersion <- if leastCommonVersion >= ProtoVersion 1 33
+    then do
+      -- If we were buffering I/O, we would flush the output here.
+      txtVer <-
         sockGetS
-        $ mapErrorS
-            RemoteStoreError_SerializerHandshake
-            workerMagic
+          $ mapErrorS
+              RemoteStoreError_SerializerGet
+              text
+      pure $ Just txtVer
+    else pure Nothing
 
-      unless
-        (magic == WorkerMagic_Two)
-        $ throwError RemoteStoreError_WorkerMagic2Mismatch
+  remoteTrustsUs <- if leastCommonVersion >= ProtoVersion 1 35
+    then do
+      sockGetS
+        $ mapErrorS RemoteStoreError_SerializerHandshake trustedFlag
+    else pure Nothing
 
-      daemonVersion <- sockGetS protoVersion
+  setProtoVersion leastCommonVersion
+  processOutput
 
-      when (daemonVersion < ProtoVersion 1 10)
-        $ throwError RemoteStoreError_ClientVersionTooOld
-
-      pv <- getProtoVersion
-      sockPutS protoVersion pv
-
-      let leastCommonVersion = min daemonVersion pv
-
-      when (leastCommonVersion >= ProtoVersion 1 14)
-        $ sockPutS int (0 :: Int) -- affinity, obsolete
-
-      when (leastCommonVersion >= ProtoVersion 1 11) $ do
-        sockPutS
-          (mapErrorS RemoteStoreError_SerializerPut bool)
-          False -- reserveSpace, obsolete
-
-      daemonNixVersion <- if leastCommonVersion >= ProtoVersion 1 33
-        then do
-          -- If we were buffering I/O, we would flush the output here.
-          txtVer <-
-            sockGetS
-              $ mapErrorS
-                  RemoteStoreError_SerializerGet
-                  text
-          pure $ Just txtVer
-        else pure Nothing
-
-      remoteTrustsUs <- if leastCommonVersion >= ProtoVersion 1 35
-        then do
-          sockGetS
-            $ mapErrorS RemoteStoreError_SerializerHandshake trustedFlag
-        else pure Nothing
-
-      setProtoVersion leastCommonVersion
-      processOutput
-
-      pure ClientHandshakeOutput
-        { clientHandshakeOutputNixVersion = daemonNixVersion
-        , clientHandshakeOutputTrust = remoteTrustsUs
-        , clientHandshakeOutputLeastCommonVersion = leastCommonVersion
-        , clientHandshakeOutputServerVersion = daemonVersion
-        }
+  pure ClientHandshakeOutput
+    { clientHandshakeOutputNixVersion = daemonNixVersion
+    , clientHandshakeOutputTrust = remoteTrustsUs
+    , clientHandshakeOutputLeastCommonVersion = leastCommonVersion
+    , clientHandshakeOutputServerVersion = daemonVersion
+    }

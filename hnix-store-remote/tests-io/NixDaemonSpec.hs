@@ -115,7 +115,7 @@ startDaemon fp = do
   procHandle <- createProcessEnv fp "nix-daemon" []
   waitSocket sockFp 30
   pure ( procHandle
-       , runStoreOpts sockFp
+       , runStoreConnection (StoreConnection_Socket (StoreSocketPath sockFp))
          . (setStoreDir (StoreDir $ Data.ByteString.Char8.pack $ fp </> "store")
             >>
            )

@@ -1,11 +1,15 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module System.Nix.Store.Remote.Types.StoreConfig
   ( ProtoStoreConfig(..)
-  , StoreConfig(..)
+  , StoreSocketPath(..)
+  , StoreTCP(..)
+  , StoreConnection(..)
   , HasStoreSocket(..)
   ) where
 
 import Data.Default.Class (Default(def))
+import Data.String (IsString)
 import GHC.Generics (Generic)
 import Network.Socket (Socket)
 import System.Nix.StorePath (HasStoreDir(..), StoreDir)
@@ -34,7 +38,24 @@ instance HasStoreDir ProtoStoreConfig where
 instance HasProtoVersion ProtoStoreConfig where
   hasProtoVersion = protoStoreConfigProtoVersion
 
-data StoreConfig = StoreConfig
-  { storeConfigDir :: Maybe StoreDir
-  , storeConfigSocketPath :: FilePath
+newtype StoreSocketPath = StoreSocketPath
+  { unStoreSocketPath :: FilePath
+  }
+  deriving newtype (IsString)
+  deriving stock (Eq, Generic, Ord, Show)
+
+instance Default StoreSocketPath where
+  def = StoreSocketPath "/nix/var/nix/daemon-socket/socket"
+
+data StoreTCP = StoreTCP
+  { storeTCPHost :: String
+  , storeTCPPort :: Int
   } deriving (Eq, Generic, Ord, Show)
+
+data StoreConnection
+  = StoreConnection_Socket StoreSocketPath
+  | StoreConnection_TCP StoreTCP
+  deriving (Eq, Generic, Ord, Show)
+
+instance Default StoreConnection where
+  def = StoreConnection_Socket def

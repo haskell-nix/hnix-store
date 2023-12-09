@@ -1,6 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Rank2Types #-}
-module System.Nix.Store.Remote.Server where
+module System.Nix.Store.Remote.Server
+  ( runProxyDaemon
+  , WorkerHelper
+  )
+  where
 
 import Control.Concurrent.Classy.Async
 import Control.Monad (join, void, when)
@@ -41,7 +45,7 @@ type WorkerHelper m
 
 -- | Run an emulated nix daemon on given socket address.
 -- The deamon will close when the continuation returns.
-runDaemonSocket
+runProxyDaemon
   :: forall m a
   . ( MonadIO m
     , MonadConc m
@@ -50,7 +54,7 @@ runDaemonSocket
   -> Socket
   -> m a
   -> m a
-runDaemonSocket workerHelper lsock k = do
+runProxyDaemon workerHelper lsock k = do
   liftIO $ listen lsock maxListenQueue
 
   liftIO $ Data.Text.IO.putStrLn "listening"
@@ -259,14 +263,14 @@ enqueueMsg x l = updateLogger x $ \st@(TunnelLoggerState c p) -> case c of
   True -> (st, sockPutS logger l)
   False -> (TunnelLoggerState c (l:p), pure ())
 
-log
+_log
   :: ( MonadRemoteStore m
      , MonadError LoggerSError m
      )
   => TunnelLogger
   -> Text
   -> m ()
-log l s = enqueueMsg l (Logger_Next s)
+_log l s = enqueueMsg l (Logger_Next s)
 
 startWork
   :: MonadRemoteStore m
@@ -292,12 +296,12 @@ stopWork x = updateLogger x $ \_ -> (,)
 --
 -- Unlike 'stopWork', this function may be called at any time to (try) to end a
 -- session with an error.
-stopWorkOnError
+_stopWorkOnError
   :: MonadRemoteStore m
   => TunnelLogger
   -> ErrorInfo
   -> m Bool
-stopWorkOnError x ex = updateLogger x $ \st ->
+_stopWorkOnError x ex = updateLogger x $ \st ->
   case _tunnelLoggerState_canSendStderr st of
     False -> (st, pure False)
     True -> (,) (TunnelLoggerState False []) $ do

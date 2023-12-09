@@ -114,7 +114,7 @@ library
     , data-default-class
     , dependent-sum > 0.7
     , dependent-sum-template >= 0.2.0.1 && < 0.3
-    , directory
+--    , directory
     , dlist >= 1.0
     , exceptions
     , generic-arbitrary < 1.1
