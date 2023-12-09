@@ -36,25 +36,25 @@ import System.Nix.Store.Remote.Types.StoreConfig (ProtoStoreConfig(..))
 import qualified Data.DList
 
 data RemoteStoreState = RemoteStoreState {
-    remoteStoreState_config :: ProtoStoreConfig
-  , remoteStoreState_logs :: DList Logger
-  , remoteStoreState_mDataSource :: Maybe (Word64 -> IO (Maybe ByteString))
+    remoteStoreStateConfig :: ProtoStoreConfig
+  , remoteStoreStateLogs :: DList Logger
+  , remoteStoreStateMDataSource :: Maybe (Word64 -> IO (Maybe ByteString))
   -- ^ Source for @Logger_Read@, this will be called repeatedly
   -- as the daemon requests chunks of size @Word64@.
   -- If the function returns Nothing and daemon tries to read more
   -- data an error is thrown.
   -- Used by @AddToStoreNar@ and @ImportPaths@ operations.
-  , remoteStoreState_mDataSink :: Maybe (ByteString -> IO ())
+  , remoteStoreStateMDataSink :: Maybe (ByteString -> IO ())
   -- ^ Sink for @Logger_Write@, called repeatedly by the daemon
   -- to dump us some data. Used by @ExportPath@ operation.
-  , remoteStoreState_mNarSource :: Maybe (NarSource IO)
+  , remoteStoreStateMNarSource :: Maybe (NarSource IO)
   }
 
 instance HasStoreDir RemoteStoreState where
-  hasStoreDir = hasStoreDir . remoteStoreState_config
+  hasStoreDir = hasStoreDir . remoteStoreStateConfig
 
 instance HasProtoVersion RemoteStoreState where
-  hasProtoVersion = hasProtoVersion . remoteStoreState_config
+  hasProtoVersion = hasProtoVersion . remoteStoreStateConfig
 
 data RemoteStoreError
   = RemoteStoreError_Fixme String
@@ -75,9 +75,9 @@ data RemoteStoreError
   | RemoteStoreError_LoggerError (Either BasicError ErrorInfo)
   | RemoteStoreError_LoggerLeftovers String ByteString -- when there are bytes left over after incremental logger parser is done, (Done x leftover), first param is show x
   | RemoteStoreError_LoggerParserFail String ByteString -- when incremental parser returns ((Fail msg leftover) :: Result)
-  | RemoteStoreError_NoDataSourceProvided -- remoteStoreState_mDataSource is required but it is Nothing
-  | RemoteStoreError_DataSourceExhausted -- remoteStoreState_mDataSource returned Nothing but more data was requested
-  | RemoteStoreError_NoDataSinkProvided -- remoteStoreState_mDataSink is required but it is Nothing
+  | RemoteStoreError_NoDataSourceProvided -- remoteStoreStateMDataSource is required but it is Nothing
+  | RemoteStoreError_DataSourceExhausted -- remoteStoreStateMDataSource returned Nothing but more data was requested
+  | RemoteStoreError_NoDataSinkProvided -- remoteStoreStateMDataSink is required but it is Nothing
   | RemoteStoreError_NoNarSourceProvided
   | RemoteStoreError_OperationFailed
   | RemoteStoreError_ProtocolMismatch
@@ -135,18 +135,18 @@ runRemoteStoreT
   -> RemoteStoreT m a
   -> m (Either RemoteStoreError a, DList Logger)
 runRemoteStoreT sock =
-    fmap (\(res, RemoteStoreState{..}) -> (res, remoteStoreState_logs))
+    fmap (\(res, RemoteStoreState{..}) -> (res, remoteStoreStateLogs))
   . (`runReaderT` sock)
   . (`runStateT` emptyState)
   . runExceptT
   . _unRemoteStoreT
   where
     emptyState = RemoteStoreState
-      { remoteStoreState_config = def
-      , remoteStoreState_logs = mempty
-      , remoteStoreState_mDataSource = Nothing
-      , remoteStoreState_mDataSink = Nothing
-      , remoteStoreState_mNarSource = Nothing
+      { remoteStoreStateConfig = def
+      , remoteStoreStateLogs = mempty
+      , remoteStoreStateMDataSource = Nothing
+      , remoteStoreStateMDataSink = Nothing
+      , remoteStoreStateMNarSource = Nothing
       }
 
 class ( MonadIO m
@@ -302,18 +302,18 @@ instance MonadRemoteStore m => MonadRemoteStore (ExceptT RemoteStoreError m)
 
 instance MonadIO m => MonadRemoteStore (RemoteStoreT m) where
 
-  getConfig = RemoteStoreT $ gets remoteStoreState_config
+  getConfig = RemoteStoreT $ gets remoteStoreStateConfig
   getProtoVersion = RemoteStoreT $ gets hasProtoVersion
   setProtoVersion pv =
     RemoteStoreT $ modify $ \s ->
-      s { remoteStoreState_config =
-            (remoteStoreState_config s) { protoStoreConfig_protoVersion = pv }
+      s { remoteStoreStateConfig =
+            (remoteStoreStateConfig s) { protoStoreConfigProtoVersion = pv }
       }
   getStoreDir = RemoteStoreT $ gets hasStoreDir
   setStoreDir sd =
     RemoteStoreT $ modify $ \s ->
-      s { remoteStoreState_config =
-            (remoteStoreState_config s) { protoStoreConfig_dir = sd }
+      s { remoteStoreStateConfig =
+            (remoteStoreStateConfig s) { protoStoreConfigDir = sd }
       }
 
   getStoreSocket = RemoteStoreT ask
@@ -321,18 +321,18 @@ instance MonadIO m => MonadRemoteStore (RemoteStoreT m) where
   appendLog x =
     RemoteStoreT
     $ modify
-    $ \s -> s { remoteStoreState_logs = remoteStoreState_logs s `Data.DList.snoc` x }
+    $ \s -> s { remoteStoreStateLogs = remoteStoreStateLogs s `Data.DList.snoc` x }
 
-  setDataSource x = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mDataSource = pure x }
-  getDataSource = RemoteStoreT (gets remoteStoreState_mDataSource)
-  clearDataSource = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mDataSource = Nothing }
+  setDataSource x = RemoteStoreT $ modify $ \s -> s { remoteStoreStateMDataSource = pure x }
+  getDataSource = RemoteStoreT (gets remoteStoreStateMDataSource)
+  clearDataSource = RemoteStoreT $ modify $ \s -> s { remoteStoreStateMDataSource = Nothing }
 
-  setDataSink x = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mDataSink = pure x }
-  getDataSink = RemoteStoreT (gets remoteStoreState_mDataSink)
-  clearDataSink = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mDataSink = Nothing }
+  setDataSink x = RemoteStoreT $ modify $ \s -> s { remoteStoreStateMDataSink = pure x }
+  getDataSink = RemoteStoreT (gets remoteStoreStateMDataSink)
+  clearDataSink = RemoteStoreT $ modify $ \s -> s { remoteStoreStateMDataSink = Nothing }
 
-  setNarSource x = RemoteStoreT $ modify $ \s -> s { remoteStoreState_mNarSource = pure x }
+  setNarSource x = RemoteStoreT $ modify $ \s -> s { remoteStoreStateMNarSource = pure x }
   takeNarSource = RemoteStoreT $ do
-    x <- remoteStoreState_mNarSource <$> get
-    modify $ \s -> s { remoteStoreState_mNarSource = Nothing }
+    x <- remoteStoreStateMNarSource <$> get
+    modify $ \s -> s { remoteStoreStateMNarSource = Nothing }
     pure x

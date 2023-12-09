@@ -18,8 +18,8 @@ instance HasStoreSocket Socket where
   hasStoreSocket = id
 
 data ProtoStoreConfig = ProtoStoreConfig
-  { protoStoreConfig_dir :: StoreDir
-  , protoStoreConfig_protoVersion :: ProtoVersion
+  { protoStoreConfigDir :: StoreDir
+  , protoStoreConfigProtoVersion :: ProtoVersion
   } deriving (Eq, Generic, Ord, Show)
 
 instance Default ProtoStoreConfig where
@@ -29,12 +29,12 @@ instance HasStoreDir StoreDir where
   hasStoreDir = id
 
 instance HasStoreDir ProtoStoreConfig where
-  hasStoreDir = protoStoreConfig_dir
+  hasStoreDir = protoStoreConfigDir
 
 instance HasProtoVersion ProtoStoreConfig where
-  hasProtoVersion = protoStoreConfig_protoVersion
+  hasProtoVersion = protoStoreConfigProtoVersion
 
 data StoreConfig = StoreConfig
-  { storeConfig_dir :: Maybe StoreDir
-  , storeConfig_socketPath :: FilePath
+  { storeConfigDir :: Maybe StoreDir
+  , storeConfigSocketPath :: FilePath
   } deriving (Eq, Generic, Ord, Show)
