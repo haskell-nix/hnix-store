@@ -17,7 +17,7 @@ import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types.Logger (Logger(..))
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion(..))
-import System.Nix.Store.Remote.Types.StoreConfig (TestStoreConfig(..))
+import System.Nix.Store.Remote.Types.StoreConfig (ProtoStoreConfig(..))
 import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
 
 -- | Test for roundtrip using @NixSerializer@
@@ -71,7 +71,7 @@ spec = parallel $ do
       prop "< 1.28"
         $ \sd -> forAll (arbitrary `suchThat` ((< 28) . protoVersion_minor))
         $ \pv ->
-            roundtripSReader @TestStoreConfig buildResult (TestStoreConfig sd pv)
+            roundtripSReader @ProtoStoreConfig buildResult (ProtoStoreConfig sd pv)
             . (\x -> x { buildResultBuiltOutputs = Nothing })
             . (\x -> x { buildResultTimesBuilt = Nothing
                        , buildResultIsNonDeterministic = Nothing
@@ -81,7 +81,7 @@ spec = parallel $ do
               )
       prop "= 1.28"
         $ \sd ->
-            roundtripSReader @TestStoreConfig buildResult (TestStoreConfig sd (ProtoVersion 1 28))
+            roundtripSReader @ProtoStoreConfig buildResult (ProtoStoreConfig sd (ProtoVersion 1 28))
             . (\x -> x { buildResultTimesBuilt = Nothing
                        , buildResultIsNonDeterministic = Nothing
                        , buildResultStartTime = Nothing
@@ -91,7 +91,7 @@ spec = parallel $ do
       prop "> 1.28"
         $ \sd -> forAll (arbitrary `suchThat` ((> 28) . protoVersion_minor))
         $ \pv ->
-            roundtripSReader @TestStoreConfig buildResult (TestStoreConfig sd pv)
+            roundtripSReader @ProtoStoreConfig buildResult (ProtoStoreConfig sd pv)
 
     prop "StorePath" $
       roundtripSReader @StoreDir storePath
@@ -147,7 +147,7 @@ spec = parallel $ do
     prop "StoreRequest"
       $ \testStoreConfig ->
           forAll (arbitrary `suchThat` (restrictProtoVersion (hasProtoVersion testStoreConfig)))
-          $ roundtripSReader @TestStoreConfig storeRequest testStoreConfig
+          $ roundtripSReader @ProtoStoreConfig storeRequest testStoreConfig
 
   describe "StoreReply" $ do
     prop "()" $ roundtripS opSuccess

@@ -2,7 +2,6 @@
 module System.Nix.Store.Remote.Types.StoreConfig
   ( ProtoStoreConfig(..)
   , StoreConfig(..)
-  , TestStoreConfig(..)
   , HasStoreSocket(..)
   ) where
 
@@ -21,7 +20,7 @@ instance HasStoreSocket Socket where
 data ProtoStoreConfig = ProtoStoreConfig
   { protoStoreConfig_dir :: StoreDir
   , protoStoreConfig_protoVersion :: ProtoVersion
-  }
+  } deriving (Eq, Generic, Ord, Show)
 
 instance Default ProtoStoreConfig where
   def = ProtoStoreConfig def def
@@ -36,18 +35,6 @@ instance HasProtoVersion ProtoStoreConfig where
   hasProtoVersion = protoStoreConfig_protoVersion
 
 data StoreConfig = StoreConfig
-  { storeConfig_dir :: StoreDir
+  { storeConfig_dir :: Maybe StoreDir
   , storeConfig_socketPath :: FilePath
-  }
-
--- TODO: del
-data TestStoreConfig = TestStoreConfig
-  { testStoreConfig_dir :: StoreDir
-  , testStoreConfig_protoVersion :: ProtoVersion
   } deriving (Eq, Generic, Ord, Show)
-
-instance HasProtoVersion TestStoreConfig where
-  hasProtoVersion = testStoreConfig_protoVersion
-
-instance HasStoreDir TestStoreConfig where
-  hasStoreDir = testStoreConfig_dir
