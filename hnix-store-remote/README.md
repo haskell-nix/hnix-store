@@ -14,17 +14,14 @@ via `nix-daemon`.
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
 
-import Control.Monad (void)
-import Control.Monad.IO.Class (liftIO)
 import System.Nix.StorePath (mkStorePathName)
 import System.Nix.Store.Remote
 
 main :: IO ()
 main = do
-  void $ runStore $ do
+  runStore $ do
     syncWithGC
     roots <- findRoots
-    liftIO $ print roots
 
     res <- case mkStorePathName "hnix-store" of
       Left e -> error (show e)
@@ -33,5 +30,7 @@ main = do
          (StoreText name "Hello World!")
          mempty
          RepairMode_DontRepair
-    liftIO $ print res
+
+    pure (roots, res)
+  >>= print
 ```
