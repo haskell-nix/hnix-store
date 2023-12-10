@@ -54,13 +54,23 @@ data DerivationInputs fp drvOutput = DerivationInputs
 instance (NFData a, NFData b) => NFData (DerivationInputs a b)
 
 -- | An output of a Nix derivation
-data DerivationOutput fp = DerivationOutput
-    { path     :: fp
-    -- ^ Path where the output will be saved
-    , hashAlgo :: Text
-    -- ^ Hash used for expected hash computation
-    , hash     :: Text
-    -- ^ Expected hash
-    } deriving (Eq, Generic, Ord, Show)
+data DerivationOutput fp
+    = DerivationOutput
+        { path     :: fp
+        -- ^ Path where the output will be saved
+        }
+    | FixedDerivationOutput
+        { path     :: fp
+        -- ^ Path where the output will be saved
+        , hashAlgo :: Text
+        -- ^ Hash used for expected hash computation
+        , hash     :: Text
+        -- ^ Expected hash
+        }
+    | ContentAddressedDerivationOutput
+        { hashAlgo :: Text
+        -- ^ Hash used for expected hash computation
+        }
+    deriving (Eq, Generic, Ord, Show)
 
 instance (NFData a) => NFData (DerivationOutput a)

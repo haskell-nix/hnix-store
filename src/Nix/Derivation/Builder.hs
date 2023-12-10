@@ -83,15 +83,28 @@ buildDerivationWith string outputName drvOutput drvInputs (Derivation {..}) =
 -- | Render a @DerivationOutput@ as a `Builder` using custom
 -- renderer for filepaths
 buildDerivationOutputWith
-    :: (fp -> Builder)
+    :: Monoid fp
+    => (fp -> Builder)
     -> DerivationOutput fp
     -> Builder
 buildDerivationOutputWith filepath (DerivationOutput {..}) =
         filepath path
     <>  ","
+    <>  string' mempty
+    <>  ","
+    <>  string' mempty
+buildDerivationOutputWith filepath (FixedDerivationOutput {..}) =
+        filepath path
+    <>  ","
     <>  string' hashAlgo
     <>  ","
     <>  string' hash
+buildDerivationOutputWith filepath (ContentAddressedDerivationOutput {..}) =
+        filepath mempty
+    <>  ","
+    <>  string' hashAlgo
+    <>  ","
+    <>  string' mempty
 
 -- | Render a @DerivationInputs@ as a `Builder` using custom
 -- renderer for filepaths and output names

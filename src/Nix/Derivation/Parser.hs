@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
@@ -110,14 +111,27 @@ parseDerivationWith string outputName parseOutput parseInputs = do
     pure Derivation {..}
 
 -- | Parse a derivation output
-parseDerivationOutputWith :: Parser fp -> Parser (DerivationOutput fp)
+parseDerivationOutputWith
+    :: ( Eq fp
+       , Monoid fp
+       )
+    => Parser fp
+    -> Parser (DerivationOutput fp)
 parseDerivationOutputWith filepath = do
     path <- filepath
     ","
     hashAlgo <- textParser
     ","
     hash <- textParser
-    pure DerivationOutput {..}
+    if
+        | path /= mempty && hashAlgo == mempty && hash == mempty ->
+              pure DerivationOutput {..}
+        | path /= mempty && hashAlgo /= mempty && hash /= mempty ->
+              pure FixedDerivationOutput {..}
+        | path == mempty && hashAlgo /= mempty && hash == mempty ->
+              pure ContentAddressedDerivationOutput {..}
+        | otherwise ->
+            fail "bad output in derivation"
 
 -- | Parse a derivation inputs
 parseDerivationInputsWith

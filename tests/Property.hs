@@ -15,7 +15,7 @@ import Nix.Derivation
     , DerivationOutput(..)
     )
 import Prelude hiding (FilePath, either)
-import Test.QuickCheck (Arbitrary(..))
+import Test.QuickCheck (Arbitrary(..), Gen, oneof)
 
 import qualified Data.Attoparsec.Text.Lazy
 import qualified Data.Text
@@ -37,11 +37,28 @@ instance Arbitrary (DerivationInputs FilePath Text) where
         pure DerivationInputs {..}
 
 instance Arbitrary (DerivationOutput FilePath) where
-    arbitrary = do
-        path     <- arbitrary
-        hashAlgo <- arbitrary
-        hash     <- arbitrary
-        pure DerivationOutput {..}
+    arbitrary = oneof
+      [ derivationOutput
+      , fixedDerivationOutput
+      , contentAddressedDerivationOutput
+      ]
+
+derivationOutput :: Gen (DerivationOutput FilePath)
+derivationOutput = do
+  path     <- arbitrary
+  return (DerivationOutput {..})
+
+fixedDerivationOutput :: Gen (DerivationOutput FilePath)
+fixedDerivationOutput = do
+  path     <- arbitrary
+  hashAlgo <- arbitrary
+  hash     <- arbitrary
+  return (FixedDerivationOutput {..})
+
+contentAddressedDerivationOutput :: Gen (DerivationOutput FilePath)
+contentAddressedDerivationOutput = do
+  hashAlgo <- arbitrary
+  return (ContentAddressedDerivationOutput {..})
 
 instance Arbitrary (Derivation FilePath Text Text DerivationOutput DerivationInputs) where
     arbitrary = do
