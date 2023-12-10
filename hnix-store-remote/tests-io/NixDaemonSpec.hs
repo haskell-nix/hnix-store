@@ -104,11 +104,8 @@ error: changing ownership of path '/run/user/1000/test-nix-store-06b0d249e561612
 -}
 
 startDaemon
-  :: ( MonadIO m
-     , MonadMask m
-     )
-  => FilePath
-  -> IO (ProcessHandle, RemoteStoreT m a -> Run m a)
+  :: FilePath -- ^ Temporary directory
+  -> IO (ProcessHandle, StoreConnection)
 startDaemon fp = do
   writeConf (fp </> "etc" </> "nix.conf")
   procHandle <-
@@ -119,10 +116,8 @@ startDaemon fp = do
 
   waitSocket sockFp 30
   pure ( procHandle
-       , runStoreConnection (StoreConnection_Socket (StoreSocketPath sockFp))
-         . (setStoreDir (StoreDir $ Data.ByteString.Char8.pack $ fp </> "store")
-            >>
-           )
+       , StoreConnection_Socket
+          $ StoreSocketPath sockFp
        )
  where
   sockFp = fp </> "var/nix/daemon-socket/socket"
@@ -150,13 +145,10 @@ enterNamespaces = do
     [ GroupMapping 0 gid 1 ]
     True
 
-withNixDaemon
-  :: ( MonadIO m
-     , MonadMask m
-     )
-  => ((RemoteStoreT m a -> Run m a) -> IO a)
+withNixDaemon'
+  :: (FilePath -> StoreDir -> StoreConnection -> IO a)
   -> IO a
-withNixDaemon action =
+withNixDaemon' action =
   System.IO.Temp.withSystemTempDirectory "test-nix-store" $ \path -> do
 
     mapM_ (System.Directory.createDirectory . snd)
@@ -176,11 +168,29 @@ withNixDaemon action =
     writeFile (path </> "dummy") "Hello World"
 
     System.Directory.setCurrentDirectory path
+    let storeDir =
+          StoreDir
+          $ Data.ByteString.Char8.pack
+          $ path </> "store"
 
     Control.Exception.bracket
       (startDaemon path)
       (System.Process.terminateProcess . fst)
-      (action . snd)
+      (action path storeDir . snd)
+
+withNixDaemon
+  :: ( MonadIO m
+     , MonadMask m
+     )
+  => ((RemoteStoreT m a -> Run m a) -> IO a)
+  -> IO a
+withNixDaemon action =
+  withNixDaemon' $ \_tmpPath storeDir storeConn ->
+    action $ \a ->
+      runStoreConnection storeConn
+        ( setStoreDir storeDir
+          >> a
+        )
 
 checks
   :: ( Show a
