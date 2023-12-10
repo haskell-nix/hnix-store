@@ -42,6 +42,12 @@ type WorkerHelper m
     )
   => StoreRequest a -> m a
 
+chatty :: Bool
+chatty = False
+
+dbg :: MonadIO m => Text -> m ()
+dbg = when chatty . liftIO . Data.Text.IO.putStrLn
+
 -- | Run an emulated nix daemon on given socket address.
 -- The deamon will close when the continuation returns.
 runProxyDaemon
@@ -57,12 +63,12 @@ runProxyDaemon
 runProxyDaemon workerHelper postGreet lsock k = do
   liftIO $ listen lsock maxListenQueue
 
-  liftIO $ Data.Text.IO.putStrLn "listening"
+  dbg "listening"
 
   let listener :: m Void
       listener = do
         (sock, _) <- liftIO $ accept lsock
-        liftIO $ Data.Text.IO.putStrLn "accepting"
+        dbg "accepting"
 
         -- TODO: this, but without the space leak
         fmap fst
@@ -160,7 +166,7 @@ processConnection workerHelper postGreet sock = do
           loop
     loop
 
-  liftIO $ Data.Text.IO.putStrLn "daemon connection done"
+  dbg "daemon connection done"
   liftIO $ close sock
 
   where
@@ -176,7 +182,6 @@ processConnection workerHelper postGreet sock = do
             RemoteStoreError_SerializerHandshake
             workerMagic
 
-      liftIO $ print ("magic" :: Text, magic)
       when (magic /= WorkerMagic_One)
         $ throwError
         $ RemoteStoreError_WorkerException
@@ -194,8 +199,6 @@ processConnection workerHelper postGreet sock = do
       clientVersion <- sockGetS protoVersion
 
       let leastCommonVersion = min clientVersion serverHandshakeInputOurVersion
-
-      liftIO $ print ("Versions client, min" :: Text, clientVersion, leastCommonVersion)
 
       when (clientVersion < ProtoVersion 1 10)
         $ throwError
