@@ -94,7 +94,7 @@ runStoreSocket sockFamily sockAddr code =
 
 justdoit :: Run IO (Bool, Bool)
 justdoit = do
-  runDaemonConnection handler (pure ()) (StoreConnection_Socket "/tmp/dsock") $
+  runDaemonConnection runStore (pure ()) (StoreConnection_Socket "/tmp/dsock") $
     runStoreConnection (StoreConnection_Socket "/tmp/dsock")
       $ do
         a <- isValidPath pth
@@ -107,11 +107,6 @@ justdoit = do
       $ System.Nix.StorePath.parsePathFromText
         def
         "/nix/store/yyznqbwam67cmp7zfwk0rkgmi9yqsdsm-hnix-store-core-0.8.0.0"
-
-    handler :: RemoteStoreT IO a -> IO a
-    handler k = do
-      x <- runStore k
-      either (error . show) pure (fst x)
 
 runDaemon
   :: forall m a

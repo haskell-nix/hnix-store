@@ -5,7 +5,7 @@ module NixDaemonSpec
   , spec
   ) where
 
-import Control.Monad (forM_, unless, void, (<=<))
+import Control.Monad (forM_, unless, void)
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.Conc.Class (MonadConc)
 import Control.Monad.IO.Class (MonadIO, liftIO)
@@ -209,9 +209,8 @@ withManInTheMiddleNixDaemon action =
     storeConn2 = StoreConnection_Socket $ StoreSocketPath sockFp2
 
     handler :: WorkerHelper m
-    handler = either (error . show) pure
-      <=< fmap fst
-      . runStoreConnection storeConn
+    handler =
+      runStoreConnection storeConn
       . (setStoreDir storeDir >>)
 
   in action $ \(mstore :: RemoteStoreT m a) ->

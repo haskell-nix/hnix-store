@@ -20,7 +20,7 @@ import Data.Void (Void, absurd)
 import Data.Word (Word32)
 import Network.Socket (Socket, accept, close, listen, maxListenQueue)
 import System.Nix.Nar (NarSource)
-import System.Nix.Store.Remote.Client (doReq)
+import System.Nix.Store.Remote.Client (Run, doReq)
 import System.Nix.Store.Remote.Serializer (LoggerSError, mapErrorS, storeRequest, workerMagic, protoVersion, int, logger, text, trustedFlag)
 import System.Nix.Store.Remote.Socket
 import System.Nix.Store.Remote.Types.StoreRequest as R
@@ -42,7 +42,7 @@ type WorkerHelper m
     , StoreReply a
     )
   => RemoteStoreT m a
-  -> m a
+  -> Run m a
 
 chatty :: Bool
 chatty = False
@@ -138,19 +138,22 @@ processConnection workerHelper postGreet sock = do
               pure $ setNarSource proxyNarSource
             _ -> pure $ pure ()
 
-          resp <-
+          res <-
             bracketLogger
               tunnelLogger
               $ lift
               $ workerHelper
               $ special >> doReq req
 
-          sockPutS
-            (mapErrorS
-               RemoteStoreError_SerializerReply
-               $ getReplyS
-            )
-            resp
+          case fst res of
+            Left e -> throwError e
+            Right reply ->
+              sockPutS
+                (mapErrorS
+                   RemoteStoreError_SerializerReply
+                   $ getReplyS
+                )
+                reply
 
     -- Process client requests.
     let loop = do
