@@ -216,7 +216,9 @@ withManInTheMiddleNixDaemon action =
       . doReq
 
   in action $ \(mstore :: RemoteStoreT m a) ->
-    runDaemonConnection handler storeConn2
+    runDaemonConnection handler
+      (setStoreDir storeDir)
+      storeConn2
       $ runStoreConnection storeConn2
           ( setStoreDir storeDir
             >> mstore

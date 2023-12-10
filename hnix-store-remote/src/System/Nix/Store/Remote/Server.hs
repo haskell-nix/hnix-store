@@ -50,10 +50,11 @@ runProxyDaemon
     , MonadConc m
     )
   => WorkerHelper m
+  -> RemoteStoreT m ()
   -> Socket
   -> m a
   -> m a
-runProxyDaemon workerHelper lsock k = do
+runProxyDaemon workerHelper postGreet lsock k = do
   liftIO $ listen lsock maxListenQueue
 
   liftIO $ Data.Text.IO.putStrLn "listening"
@@ -66,7 +67,7 @@ runProxyDaemon workerHelper lsock k = do
         -- TODO: this, but without the space leak
         fmap fst
           $ concurrently listener
-          $ processConnection workerHelper sock
+          $ processConnection workerHelper postGreet sock
 
   either absurd id <$> race listener k
 
@@ -77,9 +78,10 @@ processConnection
   :: forall m
   .  MonadIO m
   => WorkerHelper m
+  -> RemoteStoreT m ()
   -> Socket
   -> m ()
-processConnection workerHelper sock = do
+processConnection workerHelper postGreet sock = do
   ~() <- void $ runRemoteStoreT sock $ do
 
     ServerHandshakeOutput{..}
@@ -100,6 +102,9 @@ processConnection workerHelper sock = do
     -- If we can't accept clientVersion, then throw an error *here* (not above).
     --authHook(*store);
     stopWork tunnelLogger
+
+    -- so we can set store dir
+    postGreet
 
     let perform
           :: ( Show a

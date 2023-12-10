@@ -94,7 +94,7 @@ runStoreSocket sockFamily sockAddr code =
 
 justdoit :: Run IO (Bool, Bool)
 justdoit = do
-  runDaemonConnection handler (StoreConnection_Socket "/tmp/dsock") $
+  runDaemonConnection handler (pure ()) (StoreConnection_Socket "/tmp/dsock") $
     runStoreConnection (StoreConnection_Socket "/tmp/dsock")
       $ do
         a <- isValidPath pth
@@ -124,6 +124,7 @@ runDaemon
 runDaemon workerHelper =
   runDaemonConnection
     workerHelper
+    (pure ())
     def
 
 -- | Run an emulated nix daemon using given @StoreConnection@
@@ -134,14 +135,15 @@ runDaemonConnection
     , MonadConc m
     )
   => WorkerHelper m
+  -> RemoteStoreT m ()
   -> StoreConnection
   -> m a
   -> m a
-runDaemonConnection workerHelper sc k =
+runDaemonConnection workerHelper postGreet sc k =
   connectionToSocket sc
   >>= \case
     Left e -> error $ show e
-    Right (fam, sock) -> runDaemonSocket workerHelper fam sock k
+    Right (fam, sock) -> runDaemonSocket workerHelper postGreet fam sock k
 
 -- | Run an emulated nix daemon using given @StoreConnection@
 -- the deamon will close when the continuation returns.
@@ -151,11 +153,12 @@ runDaemonSocket
     , MonadConc m
     )
   => WorkerHelper m
+  -> RemoteStoreT m ()
   -> Family
   -> SockAddr
   -> m a
   -> m a
-runDaemonSocket workerHelper sockFamily sockAddr k =
+runDaemonSocket workerHelper postGreet sockFamily sockAddr k =
   Control.Monad.Catch.bracket
     (liftIO
       $ Network.Socket.socket
@@ -177,7 +180,7 @@ runDaemonSocket workerHelper sockFamily sockAddr k =
 
     -- set up the listening socket
     liftIO $ Network.Socket.bind lsock sockAddr
-    runProxyDaemon workerHelper lsock k
+    runProxyDaemon workerHelper postGreet lsock k
 
 connectionToSocket
   :: MonadIO m
