@@ -5,8 +5,9 @@ module NixDaemonSpec
   , spec
   ) where
 
-import Control.Monad (forM_, unless, void)
+import Control.Monad (forM_, unless, void, (<=<))
 import Control.Monad.Catch (MonadMask)
+import Control.Monad.Conc.Class (MonadConc)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Crypto.Hash (SHA256)
 import Data.Some (Some(Some))
@@ -22,6 +23,7 @@ import System.Nix.DerivedPath (DerivedPath(..))
 import System.Nix.StorePath (StoreDir(..), StorePath)
 import System.Nix.StorePath.Metadata (Metadata(..))
 import System.Nix.Store.Remote
+import System.Nix.Store.Remote.Server (WorkerHelper)
 import System.Process (CreateProcess(..), ProcessHandle)
 import qualified Control.Concurrent
 import qualified Control.Exception
@@ -186,11 +188,39 @@ withNixDaemon
   -> IO a
 withNixDaemon action =
   withNixDaemon' $ \_tmpPath storeDir storeConn ->
-    action $ \a ->
+    action $ \(mstore :: RemoteStoreT m a) ->
       runStoreConnection storeConn
         ( setStoreDir storeDir
-          >> a
+          >> mstore
         )
+
+withManInTheMiddleNixDaemon
+  :: forall m a
+   . ( MonadIO m
+     , MonadMask m
+     , MonadConc m
+     )
+  => ((RemoteStoreT m a -> Run m a) -> IO a)
+  -> IO a
+withManInTheMiddleNixDaemon action =
+  withNixDaemon' $ \tmpPath storeDir storeConn ->
+  let
+    sockFp2 = tmpPath </> "var/nix/daemon-socket/socket2"
+    storeConn2 = StoreConnection_Socket $ StoreSocketPath sockFp2
+
+    handler :: WorkerHelper m
+    handler = either (error . show) pure
+      <=< fmap fst
+      . runStoreConnection storeConn
+      . (setStoreDir storeDir >>)
+      . doReq
+
+  in action $ \(mstore :: RemoteStoreT m a) ->
+    runDaemonConnection handler storeConn2
+      $ runStoreConnection storeConn2
+          ( setStoreDir storeDir
+            >> mstore
+          )
 
 checks
   :: ( Show a
@@ -289,6 +319,7 @@ spec :: Spec
 spec = do
   describe "Remote store protocol" $ do
     describe "Direct" $ makeProtoSpec withNixDaemon
+    describe "MITM" $ makeProtoSpec withManInTheMiddleNixDaemon
 
 makeProtoSpec
   :: (ActionWith

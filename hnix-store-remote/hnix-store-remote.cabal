@@ -202,6 +202,7 @@ test-suite remote-io
     , hnix-store-remote
     , hnix-store-tests
     , bytestring
+    , concurrency
     , containers
     , crypton
     , directory
