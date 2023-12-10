@@ -15,7 +15,7 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Default.Class (Default(def))
 import Data.Foldable (traverse_)
 import Data.IORef (IORef, atomicModifyIORef, newIORef)
-import Data.Some (Some(Some))
+--import Data.Some (Some(Some))
 import Data.Text (Text)
 import Data.Void (Void, absurd)
 import Data.Word (Word32)
@@ -33,8 +33,7 @@ import System.Nix.Store.Remote.Types.Handshake (ServerHandshakeInput(..), Server
 import System.Nix.Store.Remote.Types.WorkerMagic (WorkerMagic(..))
 
 -- wip
--- import Data.Some (traverseSome)
-import Data.Functor.Identity
+import Data.Some (withSome)
 
 type WorkerHelper m
   = forall a
@@ -107,7 +106,7 @@ processConnection workerHelper sock = do
              , StoreReply a
              )
           => StoreRequest a
-          -> RemoteStoreT m (Identity a)
+          -> RemoteStoreT m ()
         perform req = do
           resp <- bracketLogger tunnelLogger $ lift $ workerHelper req
           sockPutS
@@ -116,7 +115,6 @@ processConnection workerHelper sock = do
                $ getReplyS
             )
             resp
-          pure (Identity resp)
 
     -- Process client requests.
     let loop = do
@@ -126,26 +124,34 @@ processConnection workerHelper sock = do
                   RemoteStoreError_SerializerRequest
                   storeRequest
 
-          -- • Could not deduce (Show a) arising from a use of ‘perform’
-          -- and also (StoreReply a)
-          -- traverseSome perform someReq
-          void $ do
-            case someReq of
-              Some req@(IsValidPath {}) -> do
-                --  • Couldn't match type ‘a0’ with ‘Bool’
-                --    Expected: StoreRequest a0
-                --      Actual: StoreRequest a
-                --  • ‘a0’ is untouchable
-                --      inside the constraints: a ~ Bool
-                --      bound by a pattern with constructor:
-                --                 IsValidPath :: StorePath -> StoreRequest Bool
-                -- runIdentity <$> perform req
-
-                void $ perform req
-                pure undefined
-
-              _ -> throwError unimplemented
-
+          -- have to be explicit here
+          -- because otherwise GHC can't conjure Show a, StoreReply a
+          -- out of thin air
+          () <- withSome someReq $ \case
+            r@AddToStore {} -> perform r
+            r@AddTextToStore {} -> perform r
+            r@AddSignatures {} -> perform r
+            r@AddTempRoot {} -> perform r
+            r@AddIndirectRoot {} -> perform r
+            r@BuildDerivation {} -> perform r
+            r@BuildPaths {} -> perform r
+            r@CollectGarbage {} -> perform r
+            r@EnsurePath {} -> perform r
+            r@FindRoots {} -> perform r
+            r@IsValidPath {} -> perform r
+            r@QueryValidPaths {} -> perform r
+            r@QueryAllValidPaths {} -> perform r
+            r@QuerySubstitutablePaths {} -> perform r
+            r@QueryPathInfo {} -> perform r
+            r@QueryReferrers {} -> perform r
+            r@QueryValidDerivers {} -> perform r
+            r@QueryDerivationOutputs {} -> perform r
+            r@QueryDerivationOutputNames {} -> perform r
+            r@QueryPathFromHashPart {} -> perform r
+            r@QueryMissing {} -> perform r
+            r@OptimiseStore {} -> perform r
+            r@SyncWithGC {} -> perform r
+            r@VerifyStore {} -> perform r
           loop
     loop
 
@@ -223,9 +229,9 @@ processConnection workerHelper sock = do
         , serverHandshakeOutputClientVersion = clientVersion
         }
 
-{-# WARNING unimplemented "not yet implemented" #-}
-unimplemented :: RemoteStoreError
-unimplemented = RemoteStoreError_WorkerException $ WorkerException_Error $ WorkerError_NotYetImplemented
+{-# WARNING _unimplemented "not yet implemented" #-}
+_unimplemented :: RemoteStoreError
+_unimplemented = RemoteStoreError_WorkerException $ WorkerException_Error $ WorkerError_NotYetImplemented
 
 bracketLogger
   :: MonadRemoteStore m
