@@ -161,11 +161,10 @@ runDaemonSocket workerHelper postGreet sockFamily sockAddr k =
           Network.Socket.Stream
           Network.Socket.defaultProtocol
     )
-    (\lsock -> liftIO $ Network.Socket.close lsock) -- *> System.Directory.removeFile f)
+    (\lsock -> liftIO $ Network.Socket.close lsock)
     $ \lsock -> do
-    --                                                                     ^^^^^^^^^^^^
-    -- TODO:  this: -------------------------------------------------------////////////
-    -- should really be
+    -- TODO: the: (\lsock -> liftIO $ Network.Socket.close lsock *> System.Directory.removeFile f)
+    -- branch should really be (and even removeFile is currently omitted)
     -- a file lock followed by unlink *before* bind rather than after close.  If
     -- the program crashes (or loses power or something) then a stale unix
     -- socket will stick around and prevent the daemon from starting.  using a
