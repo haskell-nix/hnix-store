@@ -318,16 +318,28 @@ builderSh = "declare -xpexport > $out"
 spec :: Spec
 spec = do
   describe "Remote store protocol" $ do
-    describe "Direct" $ makeProtoSpec withNixDaemon
-    describe "MITM" $ makeProtoSpec withManInTheMiddleNixDaemon
+    describe "Direct"
+      $ makeProtoSpec
+          withNixDaemon
+          SpecFlavor_Direct
+    describe "MITM"
+      $ makeProtoSpec
+          withManInTheMiddleNixDaemon
+          SpecFlavor_MITM
+
+data SpecFlavor
+  = SpecFlavor_Direct
+  | SpecFlavor_MITM
+  deriving (Eq, Ord, Show)
 
 makeProtoSpec
   :: (ActionWith
        (RemoteStoreT IO () -> Run IO ())
        -> IO ()
      )
+  -> SpecFlavor
   -> Spec
-makeProtoSpec f = around f $ do
+makeProtoSpec f flavor = around f $ do
   context "syncWithGC" $
     itRights "syncs with garbage collector" syncWithGC
 
@@ -394,11 +406,24 @@ makeProtoSpec f = around f $ do
       buildPaths (toDerivedPathSet path) BuildMode_Repair
 
   context "roots" $ context "findRoots" $ do
-      itRights "empty roots" (findRoots `shouldReturn` mempty)
+    itRights "empty roots" (findRoots `shouldReturn` mempty)
 
-      itRights "path added as a temp root" $ withPath $ \_ -> do
-        roots <- findRoots
-        roots `shouldSatisfy` ((== 1) . Data.Map.size)
+    itRights "path added as a temp root" $ withPath $ \_ -> do
+      let expectRoots =
+            if flavor == SpecFlavor_MITM
+            then 0 -- nested client closes its connection so temp root gets removed
+            else 1
+      roots <- findRoots
+      roots `shouldSatisfy` ((== expectRoots) . Data.Map.size)
+
+    itRights "indirect root" $ withPath $ \path -> do
+      let expectRoots =
+            if flavor == SpecFlavor_MITM
+            then 1 -- nested client closes its connection so temp root gets removed
+            else 2
+      addIndirectRoot path
+      roots <- findRoots
+      roots `shouldSatisfy` ((== expectRoots) . Data.Map.size)
 
   context "optimiseStore" $ itRights "optimises" optimiseStore
 
