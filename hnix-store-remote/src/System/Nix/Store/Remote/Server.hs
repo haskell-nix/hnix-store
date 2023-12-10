@@ -15,12 +15,9 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Default.Class (Default(def))
 import Data.Foldable (traverse_)
 import Data.IORef (IORef, atomicModifyIORef, newIORef)
---import Data.Some (Some(Some))
 import Data.Text (Text)
 import Data.Void (Void, absurd)
 import Data.Word (Word32)
-import qualified Data.Text
-import qualified Data.Text.IO
 import Network.Socket (Socket, accept, close, listen, maxListenQueue)
 import System.Nix.Nar (NarSource)
 import System.Nix.Store.Remote.Client (doReq)
@@ -33,9 +30,9 @@ import System.Nix.Store.Remote.Types.Logger (BasicError(..), ErrorInfo, Logger(.
 import System.Nix.Store.Remote.MonadStore (MonadRemoteStore(..), WorkerError(..), WorkerException(..), RemoteStoreError(..), RemoteStoreT, runRemoteStoreT)
 import System.Nix.Store.Remote.Types.Handshake (ServerHandshakeInput(..), ServerHandshakeOutput(..))
 import System.Nix.Store.Remote.Types.WorkerMagic (WorkerMagic(..))
-
--- wip
-import Data.Some (withSome)
+import qualified Data.Some
+import qualified Data.Text
+import qualified Data.Text.IO
 import qualified System.Timeout
 import qualified Network.Socket.ByteString
 
@@ -166,7 +163,7 @@ processConnection workerHelper postGreet sock = do
           -- have to be explicit here
           -- because otherwise GHC can't conjure Show a, StoreReply a
           -- out of thin air
-          () <- withSome someReq $ \case
+          () <- Data.Some.withSome someReq $ \case
             r@AddToStore {} -> perform r
             r@AddTextToStore {} -> perform r
             r@AddSignatures {} -> perform r
