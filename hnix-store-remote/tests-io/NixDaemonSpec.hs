@@ -113,8 +113,7 @@ startDaemon fp = do
   procHandle <-
     createProcessEnv
       fp
-      $ System.Process.shell
-         "nix-daemon 2>&1 | grep -v 'accepted connection'"
+      $ System.Process.proc "nix-daemon" mempty
 
   waitSocket sockFp 30
   pure ( procHandle
