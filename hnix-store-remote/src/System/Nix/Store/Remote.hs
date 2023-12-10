@@ -108,9 +108,9 @@ justdoit = do
         def
         "/nix/store/yyznqbwam67cmp7zfwk0rkgmi9yqsdsm-hnix-store-core-0.8.0.0"
 
-    handler :: MonadIO m => WorkerHelper m
+    handler :: RemoteStoreT IO a -> IO a
     handler k = do
-      x <- liftIO $ runStore $ doReq k
+      x <- runStore k
       either (error . show) pure (fst x)
 
 runDaemon

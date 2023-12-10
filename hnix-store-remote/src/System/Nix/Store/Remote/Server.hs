@@ -22,6 +22,8 @@ import Data.Word (Word32)
 import qualified Data.Text
 import qualified Data.Text.IO
 import Network.Socket (Socket, accept, close, listen, maxListenQueue)
+import System.Nix.Nar (NarSource)
+import System.Nix.Store.Remote.Client (doReq)
 import System.Nix.Store.Remote.Serializer (LoggerSError, mapErrorS, storeRequest, workerMagic, protoVersion, int, logger, text, trustedFlag)
 import System.Nix.Store.Remote.Socket
 import System.Nix.Store.Remote.Types.StoreRequest as R
@@ -34,13 +36,16 @@ import System.Nix.Store.Remote.Types.WorkerMagic (WorkerMagic(..))
 
 -- wip
 import Data.Some (withSome)
+import qualified System.Timeout
+import qualified Network.Socket.ByteString
 
 type WorkerHelper m
   = forall a
   . ( Show a
     , StoreReply a
     )
-  => StoreRequest a -> m a
+  => RemoteStoreT m a
+  -> m a
 
 chatty :: Bool
 chatty = False
@@ -119,7 +124,30 @@ processConnection workerHelper postGreet sock = do
           => StoreRequest a
           -> RemoteStoreT m ()
         perform req = do
-          resp <- bracketLogger tunnelLogger $ lift $ workerHelper req
+
+          special <- case req of
+            AddToStore {} -> do
+              let proxyNarSource :: NarSource IO
+                  proxyNarSource f =
+                    liftIO
+                      (System.Timeout.timeout
+                         1000000
+                         (Network.Socket.ByteString.recv sock 8)
+                      )
+                    >>= \case
+                      Nothing -> pure ()
+                      Just x -> f x >> proxyNarSource f
+
+              pure $ setNarSource proxyNarSource
+            _ -> pure $ pure ()
+
+          resp <-
+            bracketLogger
+              tunnelLogger
+              $ lift
+              $ workerHelper
+              $ special >> doReq req
+
           sockPutS
             (mapErrorS
                RemoteStoreError_SerializerReply

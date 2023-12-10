@@ -213,7 +213,6 @@ withManInTheMiddleNixDaemon action =
       <=< fmap fst
       . runStoreConnection storeConn
       . (setStoreDir storeDir >>)
-      . doReq
 
   in action $ \(mstore :: RemoteStoreT m a) ->
     runDaemonConnection handler
