@@ -124,6 +124,8 @@ processConnection workerHelper postGreet sock = do
 
           special <- case req of
             AddToStore {} -> do
+              -- This is a hack (but a pretty neat and fast one!)
+              -- it should parse nad stream NAR instead
               let proxyNarSource :: NarSource IO
                   proxyNarSource f =
                     liftIO
