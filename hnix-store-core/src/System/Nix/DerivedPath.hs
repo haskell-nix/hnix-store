@@ -25,7 +25,7 @@ import qualified System.Nix.StorePath
 
 data OutputsSpec =
     OutputsSpec_All
-  -- ^ Wildcard spec (!*) meaning all outputs
+  -- ^ Wildcard spec (^*) meaning all outputs
   | OutputsSpec_Names (Set OutputName)
   -- ^ Set of specific outputs
   deriving (Eq, Generic, Ord, Show)
