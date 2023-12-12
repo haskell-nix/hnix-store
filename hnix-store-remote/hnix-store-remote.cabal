@@ -46,11 +46,6 @@ common commons
     , ViewPatterns
   default-language: Haskell2010
 
-common tests
-  import: commons
-  build-tool-depends:
-      tasty-discover:tasty-discover
-
 flag io-testsuite
   default:
     False
@@ -119,7 +114,9 @@ library
     , data-default-class
     , dependent-sum > 0.7
     , dependent-sum-template >= 0.2.0.1 && < 0.3
+--    , directory
     , dlist >= 1.0
+    , exceptions
     , generic-arbitrary < 1.1
     , hashable
     , text
@@ -139,7 +136,6 @@ executable build-derivation
     buildable: False
   build-depends:
       base >=4.12 && <5
-    , attoparsec
     , hnix-store-core
     , hnix-store-remote
     , data-default-class
@@ -163,7 +159,7 @@ executable remote-readme
   ghc-options: -pgmL markdown-unlit -Wall
 
 test-suite remote
-  import: tests
+  import: commons
   type:              exitcode-stdio-1.0
   main-is:           Driver.hs
   hs-source-dirs:    tests
@@ -187,7 +183,7 @@ test-suite remote
     , QuickCheck
 
 test-suite remote-io
-  import: tests
+  import: commons
 
   if !flag(io-testsuite) || os(darwin)
     buildable: False
@@ -206,9 +202,11 @@ test-suite remote-io
     , hnix-store-remote
     , hnix-store-tests
     , bytestring
+    , concurrency
     , containers
     , crypton
     , directory
+    , exceptions
     , filepath
     , hspec
     , hspec-expectations-lifted

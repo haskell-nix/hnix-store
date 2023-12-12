@@ -25,12 +25,17 @@ import qualified System.Nix.StorePath
 
 data OutputsSpec =
     OutputsSpec_All
+  -- ^ Wildcard spec (^*) meaning all outputs
   | OutputsSpec_Names (Set OutputName)
+  -- ^ Set of specific outputs
   deriving (Eq, Generic, Ord, Show)
 
 data DerivedPath =
     DerivedPath_Opaque StorePath
+  -- ^ Fully evaluated store path that can't be built
+  -- but can be fetched
   | DerivedPath_Built StorePath OutputsSpec
+  -- ^ Derivation path and the outputs built from it
   deriving (Eq, Generic, Ord, Show)
 
 data ParseOutputsError =

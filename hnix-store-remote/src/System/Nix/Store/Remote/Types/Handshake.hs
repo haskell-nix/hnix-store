@@ -19,7 +19,7 @@ data ClientHandshakeInput = ClientHandshakeInput
 data ClientHandshakeOutput = ClientHandshakeOutput
   { clientHandshakeOutputNixVersion :: Maybe Text -- ^ Textual version, since 1.33
   , clientHandshakeOutputTrust :: Maybe TrustedFlag -- ^ Whether remote side trusts us
-  , clientHandshakeOutputLeastCommonVerison :: ProtoVersion -- ^ Minimum protocol version supported by both sides
+  , clientHandshakeOutputLeastCommonVersion :: ProtoVersion -- ^ Minimum protocol version supported by both sides
   , clientHandshakeOutputServerVersion :: ProtoVersion -- ^ Protocol version supported by the server
   } deriving (Eq, Generic, Ord, Show)
 

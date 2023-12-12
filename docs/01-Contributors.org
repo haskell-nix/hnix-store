@@ -31,3 +31,4 @@ in order of appearance:
 + Ryan Trinkle @ryantrinkle
 + Travis Whitaker @TravisWhitaker
 + Andrea Bedini @andreabedini
++ Dan Bornside @danbornside

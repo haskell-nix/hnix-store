@@ -5,12 +5,15 @@ module NixDaemonSpec
   , spec
   ) where
 
+import Control.Exception (catch, SomeException)
 import Control.Monad (forM_, unless, void)
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Catch (MonadMask)
+import Control.Monad.Conc.Class (MonadConc)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Crypto.Hash (SHA256)
 import Data.Some (Some(Some))
 import Data.Text (Text)
-import Test.Hspec (Spec, SpecWith, around, describe, context)
+import Test.Hspec (ActionWith, Spec, SpecWith, around, describe, context)
 import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Nix (forceRight)
 import System.FilePath ((</>))
@@ -21,7 +24,7 @@ import System.Nix.DerivedPath (DerivedPath(..))
 import System.Nix.StorePath (StoreDir(..), StorePath)
 import System.Nix.StorePath.Metadata (Metadata(..))
 import System.Nix.Store.Remote
-import System.Nix.Store.Remote.MonadStore (MonadRemoteStore)
+import System.Nix.Store.Remote.Server (WorkerHelper)
 import System.Process (CreateProcess(..), ProcessHandle)
 import qualified Control.Concurrent
 import qualified Control.Exception
@@ -38,21 +41,19 @@ import qualified System.IO.Temp
 import qualified System.Linux.Namespaces
 import qualified System.Nix.StorePath
 import qualified System.Nix.Nar
-import qualified System.Nix.Store.Remote.MonadStore
 import qualified System.Posix.User
 import qualified System.Process
 import qualified Test.Hspec
 
 createProcessEnv
   :: FilePath
-  -> String
-  -> [String]
+  -> CreateProcess
   -> IO ProcessHandle
-createProcessEnv fp proc args = do
+createProcessEnv fp cp = do
   mPath         <- System.Environment.lookupEnv "PATH"
 
   (_, _, _, ph) <-
-    System.Process.createProcess (System.Process.proc proc args)
+    System.Process.createProcess cp
       { cwd = Just fp
       , env = Just $ mockedEnv mPath fp
       }
@@ -106,19 +107,19 @@ error: changing ownership of path '/run/user/1000/test-nix-store-06b0d249e561612
 -}
 
 startDaemon
-  :: FilePath
-  -> IO (ProcessHandle, MonadStore a -> Run IO a)
+  :: FilePath -- ^ Temporary directory
+  -> IO (ProcessHandle, StoreConnection)
 startDaemon fp = do
   writeConf (fp </> "etc" </> "nix.conf")
-  procHandle <- createProcessEnv fp "nix-daemon" []
+  procHandle <-
+    createProcessEnv
+      fp
+      $ System.Process.proc "nix-daemon" mempty
+
   waitSocket sockFp 30
   pure ( procHandle
-       , runStoreOpts
-          sockFp
-          (StoreDir
-            $ Data.ByteString.Char8.pack
-            $ fp </> "store"
-          )
+       , StoreConnection_Socket
+          $ StoreSocketPath sockFp
        )
  where
   sockFp = fp </> "var/nix/daemon-socket/socket"
@@ -146,10 +147,10 @@ enterNamespaces = do
     [ GroupMapping 0 gid 1 ]
     True
 
-withNixDaemon
-  :: ((MonadStore a -> Run IO a) -> IO a)
+withNixDaemon'
+  :: (FilePath -> StoreDir -> StoreConnection -> IO a)
   -> IO a
-withNixDaemon action =
+withNixDaemon' action =
   System.IO.Temp.withSystemTempDirectory "test-nix-store" $ \path -> do
 
     mapM_ (System.Directory.createDirectory . snd)
@@ -157,17 +158,69 @@ withNixDaemon action =
             ((/= "NIX_REMOTE") . fst)
             $ mockedEnv Nothing path)
 
-    ini <- createProcessEnv path "nix-store" ["--init"]
+    ini <-
+      createProcessEnv
+        path
+        $ System.Process.shell
+            -- see long note above @startDaemon@
+            "nix-store --init 2>&1 | grep -v 'error: changing ownership'"
+
     void $ System.Process.waitForProcess ini
 
     writeFile (path </> "dummy") "Hello World"
 
     System.Directory.setCurrentDirectory path
+    let storeDir =
+          StoreDir
+          $ Data.ByteString.Char8.pack
+          $ path </> "store"
 
     Control.Exception.bracket
       (startDaemon path)
       (System.Process.terminateProcess . fst)
-      (action . snd)
+      (action path storeDir . snd)
+
+withNixDaemon
+  :: ( MonadIO m
+     , MonadMask m
+     )
+  => ((RemoteStoreT m a -> Run m a) -> IO a)
+  -> IO a
+withNixDaemon action =
+  withNixDaemon' $ \_tmpPath storeDir storeConn ->
+    action $ \(mstore :: RemoteStoreT m a) ->
+      runStoreConnection storeConn
+        ( setStoreDir storeDir
+          >> mstore
+        )
+
+withManInTheMiddleNixDaemon
+  :: forall m a
+   . ( MonadIO m
+     , MonadMask m
+     , MonadConc m
+     )
+  => ((RemoteStoreT m a -> Run m a) -> IO a)
+  -> IO a
+withManInTheMiddleNixDaemon action =
+  withNixDaemon' $ \tmpPath storeDir storeConn ->
+  let
+    sockFp2 = tmpPath </> "var/nix/daemon-socket/socket2"
+    storeConn2 = StoreConnection_Socket $ StoreSocketPath sockFp2
+
+    handler :: WorkerHelper m
+    handler =
+      runStoreConnection storeConn
+      . (setStoreDir storeDir >>)
+
+  in action $ \(mstore :: RemoteStoreT m a) ->
+    runDaemonConnection handler
+      (setStoreDir storeDir)
+      storeConn2
+      $ runStoreConnection storeConn2
+          ( setStoreDir storeDir
+            >> mstore
+          )
 
 checks
   :: ( Show a
@@ -211,8 +264,9 @@ itLefts
 itLefts name action = it name action Data.Either.isLeft
 
 withPath
-  :: (StorePath -> MonadStore a)
-  -> MonadStore a
+  :: MonadRemoteStore m
+  => (StorePath -> m a)
+  -> m a
 withPath action = do
   path <-
     addTextToStore
@@ -225,7 +279,7 @@ withPath action = do
   action path
 
 -- | dummy path, adds <tmp>/dummy with "Hello World" contents
-dummy :: MonadStore StorePath
+dummy :: MonadRemoteStore m => m StorePath
 dummy = do
   addToStore
     (forceRight $ System.Nix.StorePath.mkStorePathName "dummy")
@@ -250,7 +304,10 @@ _withBuilder
 _withBuilder action = do
   path <-
     addTextToStore
-      (StoreText (forceRight $ System.Nix.StorePath.mkStorePathName "builder") builderSh)
+      (StoreText
+        (forceRight $ System.Nix.StorePath.mkStorePathName "builder")
+        builderSh
+      )
       mempty
       RepairMode_DontRepair
   action path
@@ -259,139 +316,175 @@ builderSh :: Text
 builderSh = "declare -xpexport > $out"
 
 spec :: Spec
-spec = around withNixDaemon $
+spec = do
+  describe "Remote store protocol" $ do
+    describe "Direct"
+      $ makeProtoSpec
+          withNixDaemon
+          SpecFlavor_Direct
+    describe "MITM"
+      $ makeProtoSpec
+          withManInTheMiddleNixDaemon
+          SpecFlavor_MITM
 
-  describe "store" $ do
+data SpecFlavor
+  = SpecFlavor_Direct
+  | SpecFlavor_MITM
+  deriving (Eq, Ord, Show)
 
-    context "syncWithGC" $
-      itRights "syncs with garbage collector" syncWithGC
+makeProtoSpec
+  :: (ActionWith
+       (RemoteStoreT IO () -> Run IO ())
+       -> IO ()
+     )
+  -> SpecFlavor
+  -> Spec
+makeProtoSpec f flavor = around f $ do
+  context "syncWithGC" $
+    itRights "syncs with garbage collector" syncWithGC
 
-    context "verifyStore" $ do
-      itRights "check=False repair=False" $
-        verifyStore
-          CheckMode_DontCheck
-          RepairMode_DontRepair
-        `shouldReturn` False
+  context "verifyStore" $ do
+    itRights "check=False repair=False" $
+      verifyStore
+        CheckMode_DontCheck
+        RepairMode_DontRepair
+      `shouldReturn` False
 
-      itRights "check=True repair=False" $
-        verifyStore
-          CheckMode_DoCheck
-          RepairMode_DontRepair
-        `shouldReturn` False
+    itRights "check=True repair=False" $
+      verifyStore
+        CheckMode_DoCheck
+        RepairMode_DontRepair
+      `shouldReturn` False
 
-      --privileged
-      itRights "check=True repair=True" $
-        verifyStore
-          CheckMode_DoCheck
-          RepairMode_DoRepair
-        `shouldReturn` False
+    --privileged
+    itRights "check=True repair=True" $
+      verifyStore
+        CheckMode_DoCheck
+        RepairMode_DoRepair
+      `shouldReturn` False
 
-    context "addTextToStore" $
-      itRights "adds text to store" $ withPath pure
+  context "addTextToStore" $
+    itRights "adds text to store" $ withPath pure
 
-    context "isValidPath" $ do
-      itRights "validates path" $ withPath $ \path -> do
-        liftIO $ print path
-        isValidPath path `shouldReturn` True
-      itLefts "fails on invalid path"
-        $ System.Nix.Store.Remote.MonadStore.mapStoreConfig
-            (\sc -> sc { storeConfig_dir = StoreDir "/asdf" })
-            $ isValidPath invalidPath
+  context "isValidPath" $ do
+    itRights "validates path" $ withPath $ \path -> do
+      isValidPath path `shouldReturn` True
 
-    context "queryAllValidPaths" $ do
-      itRights "empty query" queryAllValidPaths
-      itRights "non-empty query" $ withPath $ \path ->
-        queryAllValidPaths `shouldReturn` Data.HashSet.fromList [path]
+    itLefts "fails on invalid path" $ do
+      setStoreDir (StoreDir "/asdf")
+      isValidPath invalidPath
 
-    context "queryPathInfo" $
-      itRights "queries path info" $ withPath $ \path -> do
-        meta <- queryPathInfo path
-        (metadataReferences <$> meta) `shouldBe` (Just mempty)
+  context "queryAllValidPaths" $ do
+    itRights "empty query" queryAllValidPaths
+    itRights "non-empty query" $ withPath $ \path ->
+      queryAllValidPaths `shouldReturn` Data.HashSet.fromList [path]
 
-    context "ensurePath" $
-      itRights "simple ensure" $ withPath ensurePath
+  context "queryPathInfo" $
+    itRights "queries path info" $ withPath $ \path -> do
+      meta <- queryPathInfo path
+      (metadataReferences <$> meta) `shouldBe` (Just mempty)
 
-    context "addTempRoot" $
-      itRights "simple addition" $ withPath addTempRoot
+  context "ensurePath" $
+    itRights "simple ensure" $ withPath ensurePath
 
-    context "addIndirectRoot" $
-      itRights "simple addition" $ withPath addIndirectRoot
+  context "addTempRoot" $
+    itRights "simple addition" $ withPath addTempRoot
 
-    let toDerivedPathSet p = Data.Set.fromList [DerivedPath_Opaque p]
+  context "addIndirectRoot" $
+    itRights "simple addition" $ withPath addIndirectRoot
 
-    context "buildPaths" $ do
-      itRights "build Normal" $ withPath $ \path -> do
-        buildPaths (toDerivedPathSet path) BuildMode_Normal
+  let toDerivedPathSet p = Data.Set.fromList [DerivedPath_Opaque p]
 
-      itRights "build Check" $ withPath $ \path -> do
-        buildPaths (toDerivedPathSet path) BuildMode_Check
+  context "buildPaths" $ do
+    itRights "build Normal" $ withPath $ \path -> do
+      buildPaths (toDerivedPathSet path) BuildMode_Normal
 
-      itLefts "build Repair" $ withPath $ \path -> do
-        buildPaths (toDerivedPathSet path) BuildMode_Repair
+    itRights "build Check" $ withPath $ \path -> do
+      buildPaths (toDerivedPathSet path) BuildMode_Check
 
-    context "roots" $ context "findRoots" $ do
-        itRights "empty roots" (findRoots `shouldReturn` mempty)
+    itLefts "build Repair" $ withPath $ \path -> do
+      buildPaths (toDerivedPathSet path) BuildMode_Repair
 
-        itRights "path added as a temp root" $ withPath $ \_ -> do
-          roots <- findRoots
-          roots `shouldSatisfy` ((== 1) . Data.Map.size)
+  context "roots" $ context "findRoots" $ do
+    itRights "empty roots" (findRoots `shouldReturn` mempty)
 
-    context "optimiseStore" $ itRights "optimises" optimiseStore
+    itRights "path added as a temp root" $ withPath $ \_ -> do
+      let expectRoots =
+            if flavor == SpecFlavor_MITM
+            then 0 -- nested client closes its connection so temp root gets removed
+            else 1
+      roots <- findRoots
+      roots `shouldSatisfy` ((== expectRoots) . Data.Map.size)
 
-    context "queryMissing" $
-      itRights "queries" $ withPath $ \path -> do
-        queryMissing (toDerivedPathSet path)
-        `shouldReturn`
-        Missing
-          { missingWillBuild = mempty
-          , missingWillSubstitute = mempty
-          , missingUnknownPaths = mempty
-          , missingDownloadSize = 0
-          , missingNarSize = 0
-          }
+    itRights "indirect root" $ withPath $ \path -> do
+      let expectRoots =
+            if flavor == SpecFlavor_MITM
+            then 1 -- nested client closes its connection so temp root gets removed
+            else 2
+      addIndirectRoot path
+      roots <- findRoots
+      roots `shouldSatisfy` ((== expectRoots) . Data.Map.size)
 
-    context "addToStore" $
-      itRights "adds file to store" $ do
-        fp <-
-          liftIO
-          $ System.IO.Temp.writeSystemTempFile
-              "addition"
-              "yolo"
+  context "optimiseStore" $ itRights "optimises" optimiseStore
 
-        addToStore
-          (forceRight $ System.Nix.StorePath.mkStorePathName "tmp-addition")
-          (System.Nix.Nar.dumpPath fp)
-          FileIngestionMethod_Flat
-          (Some HashAlgo_SHA256)
-          RepairMode_DontRepair
+  context "queryMissing" $
+    itRights "queries" $ withPath $ \path -> do
+      queryMissing (toDerivedPathSet path)
+      `shouldReturn`
+      Missing
+        { missingWillBuild = mempty
+        , missingWillSubstitute = mempty
+        , missingUnknownPaths = mempty
+        , missingDownloadSize = 0
+        , missingNarSize = 0
+        }
 
-    context "with dummy" $ do
-      itRights "adds dummy" dummy
+  context "addToStore" $
+    itRights "adds file to store" $ do
+      fp <-
+        liftIO
+        $ System.IO.Temp.writeSystemTempFile
+            "addition"
+            "yolo"
 
-      itRights "valid dummy" $ do
-        path <- dummy
-        isValidPath path `shouldReturn` True
+      addToStore
+        (forceRight $ System.Nix.StorePath.mkStorePathName "tmp-addition")
+        (System.Nix.Nar.dumpPath fp)
+        FileIngestionMethod_Flat
+        (Some HashAlgo_SHA256)
+        RepairMode_DontRepair
 
-    context "collectGarbage" $ do
-      itRights "delete a specific path from the store" $ withPath $ \path -> do
-          -- clear temp gc roots so the delete works. restarting the nix daemon should also do this...
-          storeDir <- getStoreDir
-          let tempRootsDir = Data.Text.unpack $ mconcat [ Data.Text.Encoding.decodeUtf8 (unStoreDir storeDir), "/../var/nix/temproots/" ]
+  context "with dummy" $ do
+    itRights "adds dummy" dummy
+
+    itRights "valid dummy" $ do
+      path <- dummy
+      isValidPath path `shouldReturn` True
+
+  context "collectGarbage" $ do
+    itRights "deletes a specific path from the store" $ withPath $ \path -> do
+        -- clear temp gc roots so the delete works. restarting the nix daemon should also do this...
+        storeDir <- getStoreDir
+        let tempRootsDir = Data.Text.unpack $ mconcat [ Data.Text.Encoding.decodeUtf8 (unStoreDir storeDir), "/../var/nix/temproots/" ]
+        liftIO $ do
           tempRootList <-
-            liftIO
-            $ System.Directory.listDirectory
-                tempRootsDir
-          liftIO $ forM_ tempRootList $ \entry -> do
+            System.Directory.listDirectory tempRootsDir
+          forM_ tempRootList $ \entry -> do
             System.Directory.removeFile
               $ mconcat [ tempRootsDir, "/", entry ]
+            -- for MITM, the temp root will get deleted
+            -- by the daemon as our nested client exists
+            -- but the listDirectory might still see it
+            -- causing TOC/TOU flakiness
+            `catch` (\(_e :: SomeException) -> pure ())
 
-          GCResult{..} <-
-            collectGarbage
-              GCOptions
-                { gcOptionsOperation = GCAction_DeleteSpecific
-                , gcOptionsIgnoreLiveness = False
-                , gcOptionsPathsToDelete = Data.HashSet.fromList [path]
-                , gcOptionsMaxFreed = maxBound
-                }
-          gcResultDeletedPaths `shouldBe` Data.HashSet.fromList [path]
-          gcResultBytesFreed `shouldBe` 4
+        GCResult{..} <-
+          collectGarbage
+            GCOptions
+              { gcOptionsOperation = GCAction_DeleteSpecific
+              , gcOptionsIgnoreLiveness = False
+              , gcOptionsPathsToDelete = Data.HashSet.fromList [path]
+              , gcOptionsMaxFreed = maxBound
+              }
+        gcResultDeletedPaths `shouldBe` Data.HashSet.fromList [path]
+        gcResultBytesFreed `shouldBe` 4

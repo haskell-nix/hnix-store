@@ -17,8 +17,8 @@ deriving via GenericArbitrary CheckMode
 deriving via GenericArbitrary SubstituteMode
   instance Arbitrary SubstituteMode
 
-deriving via GenericArbitrary TestStoreConfig
-  instance Arbitrary TestStoreConfig
+deriving via GenericArbitrary ProtoStoreConfig
+  instance Arbitrary ProtoStoreConfig
 
 deriving via GenericArbitrary ProtoVersion
   instance Arbitrary ProtoVersion

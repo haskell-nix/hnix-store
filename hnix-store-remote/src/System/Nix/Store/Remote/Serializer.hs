@@ -131,7 +131,7 @@ import System.Nix.DerivedPath (DerivedPath(..), ParseOutputsError)
 import System.Nix.Hash (HashAlgo(..))
 import System.Nix.JSON ()
 import System.Nix.OutputName (OutputName)
-import System.Nix.Realisation (DerivationOutputError, Realisation(..))
+import System.Nix.Realisation (DerivationOutputError, Realisation(..), RealisationWithId(..))
 import System.Nix.Signature (Signature, NarSignature)
 import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
 import System.Nix.StorePath (HasStoreDir(..), InvalidNameError, InvalidPathError, StorePath, StorePathHashPart, StorePathName)
@@ -1398,7 +1398,7 @@ derivationOutputTyped = mapErrorS ReplySError_DerivationOutput $
 realisation :: NixSerializer r ReplySError Realisation
 realisation = mapErrorS ReplySError_Realisation json
 
-realisationWithId :: NixSerializer r ReplySError (System.Nix.Realisation.DerivationOutput OutputName, Realisation)
+realisationWithId :: NixSerializer r ReplySError RealisationWithId
 realisationWithId = mapErrorS ReplySError_RealisationWithId json
 
 -- *** BuildResult
@@ -1434,7 +1434,7 @@ buildResult = Serializer
         then
             pure
           . Data.Map.Strict.fromList
-          . map (\(_, (a, b)) -> (a, b))
+          . map (\(_, RealisationWithId (a, b)) -> (a, b))
           . Data.Map.Strict.toList
           <$> getS (mapS derivationOutputTyped realisationWithId)
         else pure Nothing
@@ -1453,7 +1453,7 @@ buildResult = Serializer
       Control.Monad.when (protoVersion_minor pv >= 28)
         $ putS (mapS derivationOutputTyped realisationWithId)
         $ Data.Map.Strict.fromList
-        $ map (\(a, b) -> (a, (a, b)))
+        $ map (\(a, b) -> (a, RealisationWithId (a, b)))
         $ Data.Map.Strict.toList
         $ Data.Maybe.fromMaybe mempty buildResultBuiltOutputs
   }

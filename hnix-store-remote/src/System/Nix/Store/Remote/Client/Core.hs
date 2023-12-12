@@ -1,6 +1,6 @@
 module System.Nix.Store.Remote.Client.Core
   ( Run
-  , runStoreSocket
+  , greetServer
   , doReq
   ) where
 
@@ -12,13 +12,8 @@ import Data.Some (Some(Some))
 import System.Nix.Nar (NarSource)
 import System.Nix.Store.Remote.Logger (processOutput)
 import System.Nix.Store.Remote.MonadStore
-  ( MonadRemoteStore
+  ( MonadRemoteStore(..)
   , RemoteStoreError(..)
-  , RemoteStoreT
-  , runRemoteStoreT
-  , mapStoreConfig
-  , takeNarSource
-  , getStoreSocket
   )
 import System.Nix.Store.Remote.Socket (sockPutS, sockGetS)
 import System.Nix.Store.Remote.Serializer
@@ -31,10 +26,9 @@ import System.Nix.Store.Remote.Serializer
   , trustedFlag
   , workerMagic
   )
-import System.Nix.Store.Remote.Types.Handshake (ClientHandshakeInput(..), ClientHandshakeOutput(..))
+import System.Nix.Store.Remote.Types.Handshake (ClientHandshakeOutput(..))
 import System.Nix.Store.Remote.Types.Logger (Logger)
-import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..), ourProtoVersion)
-import System.Nix.Store.Remote.Types.StoreConfig (PreStoreConfig, StoreConfig, preStoreConfigToStoreConfig)
+import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..))
 import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
 import System.Nix.Store.Remote.Types.StoreReply (StoreReply(..))
 import System.Nix.Store.Remote.Types.WorkerMagic (WorkerMagic(..))
@@ -84,91 +78,68 @@ doReq = \case
         $ getReplyS @a
       )
 
-runStoreSocket
-  :: ( Monad m
-     , MonadIO m
-     )
-  => PreStoreConfig
-  -> RemoteStoreT StoreConfig m a
-  -> Run m a
-runStoreSocket preStoreConfig code =
-  runRemoteStoreT preStoreConfig $ do
-    ClientHandshakeOutput{..}
-      <- greet
-          ClientHandshakeInput
-          { clientHandshakeInputOurVersion = ourProtoVersion
-          }
+greetServer
+  :: MonadRemoteStore m
+  => m ClientHandshakeOutput
+greetServer = do
+  sockPutS
+    (mapErrorS
+      RemoteStoreError_SerializerHandshake
+      workerMagic
+    )
+    WorkerMagic_One
 
-    mapStoreConfig
-      (preStoreConfigToStoreConfig
-        clientHandshakeOutputLeastCommonVerison)
-      code
+  magic <-
+    sockGetS
+    $ mapErrorS
+        RemoteStoreError_SerializerHandshake
+        workerMagic
 
-  where
-    greet
-      :: MonadIO m
-      => ClientHandshakeInput
-      -> RemoteStoreT PreStoreConfig m ClientHandshakeOutput
-    greet ClientHandshakeInput{..} = do
+  unless
+    (magic == WorkerMagic_Two)
+    $ throwError RemoteStoreError_WorkerMagic2Mismatch
 
-      sockPutS
-        (mapErrorS
-          RemoteStoreError_SerializerHandshake
-          workerMagic
-        )
-        WorkerMagic_One
+  daemonVersion <- sockGetS protoVersion
 
-      magic <-
+  when (daemonVersion < ProtoVersion 1 10)
+    $ throwError RemoteStoreError_ClientVersionTooOld
+
+  pv <- getProtoVersion
+  sockPutS protoVersion pv
+
+  let leastCommonVersion = min daemonVersion pv
+
+  when (leastCommonVersion >= ProtoVersion 1 14)
+    $ sockPutS int (0 :: Int) -- affinity, obsolete
+
+  when (leastCommonVersion >= ProtoVersion 1 11) $ do
+    sockPutS
+      (mapErrorS RemoteStoreError_SerializerPut bool)
+      False -- reserveSpace, obsolete
+
+  daemonNixVersion <- if leastCommonVersion >= ProtoVersion 1 33
+    then do
+      -- If we were buffering I/O, we would flush the output here.
+      txtVer <-
         sockGetS
-        $ mapErrorS
-            RemoteStoreError_SerializerHandshake
-            workerMagic
+          $ mapErrorS
+              RemoteStoreError_SerializerGet
+              text
+      pure $ Just txtVer
+    else pure Nothing
 
-      unless
-        (magic == WorkerMagic_Two)
-        $ throwError RemoteStoreError_WorkerMagic2Mismatch
+  remoteTrustsUs <- if leastCommonVersion >= ProtoVersion 1 35
+    then do
+      sockGetS
+        $ mapErrorS RemoteStoreError_SerializerHandshake trustedFlag
+    else pure Nothing
 
-      daemonVersion <- sockGetS protoVersion
+  setProtoVersion leastCommonVersion
+  processOutput
 
-      when (daemonVersion < ProtoVersion 1 10)
-        $ throwError RemoteStoreError_ClientVersionTooOld
-
-      sockPutS protoVersion clientHandshakeInputOurVersion
-
-      let leastCommonVersion = min daemonVersion ourProtoVersion
-
-      when (leastCommonVersion >= ProtoVersion 1 14)
-        $ sockPutS int (0 :: Int) -- affinity, obsolete
-
-      when (leastCommonVersion >= ProtoVersion 1 11) $ do
-        sockPutS
-          (mapErrorS RemoteStoreError_SerializerPut bool)
-          False -- reserveSpace, obsolete
-
-      daemonNixVersion <- if leastCommonVersion >= ProtoVersion 1 33
-        then do
-          -- If we were buffering I/O, we would flush the output here.
-          txtVer <-
-            sockGetS
-              $ mapErrorS
-                  RemoteStoreError_SerializerGet
-                  text
-          pure $ Just txtVer
-        else pure Nothing
-
-      remoteTrustsUs <- if leastCommonVersion >= ProtoVersion 1 35
-        then do
-          sockGetS
-            $ mapErrorS RemoteStoreError_SerializerHandshake trustedFlag
-        else pure Nothing
-
-      mapStoreConfig
-        (preStoreConfigToStoreConfig leastCommonVersion)
-        processOutput
-
-      pure ClientHandshakeOutput
-        { clientHandshakeOutputNixVersion = daemonNixVersion
-        , clientHandshakeOutputTrust = remoteTrustsUs
-        , clientHandshakeOutputLeastCommonVerison = leastCommonVersion
-        , clientHandshakeOutputServerVersion = daemonVersion
-        }
+  pure ClientHandshakeOutput
+    { clientHandshakeOutputNixVersion = daemonNixVersion
+    , clientHandshakeOutputTrust = remoteTrustsUs
+    , clientHandshakeOutputLeastCommonVersion = leastCommonVersion
+    , clientHandshakeOutputServerVersion = daemonVersion
+    }

@@ -1,69 +1,81 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Rank2Types #-}
-module System.Nix.Store.Remote.Server where
+module System.Nix.Store.Remote.Server
+  ( runProxyDaemon
+  , WorkerHelper
+  )
+  where
 
 import Control.Concurrent.Classy.Async
 import Control.Monad (join, void, when)
 import Control.Monad.Conc.Class (MonadConc)
 import Control.Monad.Except (MonadError, throwError)
-import Control.Monad.Reader (MonadReader, asks)
 import Control.Monad.Trans (lift)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.Default.Class (Default(def))
 import Data.Foldable (traverse_)
 import Data.IORef (IORef, atomicModifyIORef, newIORef)
-import Data.Some (Some(Some))
 import Data.Text (Text)
 import Data.Void (Void, absurd)
 import Data.Word (Word32)
-import qualified Data.Text
-import qualified Data.Text.IO
 import Network.Socket (Socket, accept, close, listen, maxListenQueue)
-import System.Nix.StorePath (StoreDir)
-import System.Nix.Store.Remote.Serializer as RB
+import System.Nix.Nar (NarSource)
+import System.Nix.Store.Remote.Client (Run, doReq)
+import System.Nix.Store.Remote.Serializer (LoggerSError, mapErrorS, storeRequest, workerMagic, protoVersion, int, logger, text, trustedFlag)
 import System.Nix.Store.Remote.Socket
 import System.Nix.Store.Remote.Types.StoreRequest as R
-import System.Nix.Store.Remote.Types.StoreConfig (HasStoreSocket(..), StoreConfig(..), PreStoreConfig(..), preStoreConfigToStoreConfig)
-import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion(..))
+import System.Nix.Store.Remote.Types.StoreReply
+import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..))
 import System.Nix.Store.Remote.Types.Logger (BasicError(..), ErrorInfo, Logger(..))
-
-import System.Nix.Store.Remote.MonadStore (WorkerError(..), WorkerException(..), RemoteStoreError(..), RemoteStoreT, runRemoteStoreT, mapStoreConfig)
+import System.Nix.Store.Remote.MonadStore (MonadRemoteStore(..), WorkerError(..), WorkerException(..), RemoteStoreError(..), RemoteStoreT, runRemoteStoreT)
 import System.Nix.Store.Remote.Types.Handshake (ServerHandshakeInput(..), ServerHandshakeOutput(..))
-import System.Nix.Store.Remote.Types.ProtoVersion (ourProtoVersion)
 import System.Nix.Store.Remote.Types.WorkerMagic (WorkerMagic(..))
+import qualified Data.Some
+import qualified Data.Text
+import qualified Data.Text.IO
+import qualified System.Timeout
+import qualified Network.Socket.ByteString
 
-type WorkerHelper m = forall a. StoreRequest a -> m a
+type WorkerHelper m
+  = forall a
+  . ( Show a
+    , StoreReply a
+    )
+  => RemoteStoreT m a
+  -> Run m a
+
+chatty :: Bool
+chatty = False
+
+dbg :: MonadIO m => Text -> m ()
+dbg = when chatty . liftIO . Data.Text.IO.putStrLn
 
 -- | Run an emulated nix daemon on given socket address.
 -- The deamon will close when the continuation returns.
-runDaemonSocket
+runProxyDaemon
   :: forall m a
   . ( MonadIO m
     , MonadConc m
-    , MonadError RemoteStoreError m
-    , MonadReader StoreConfig m
     )
-  => StoreDir
-  -> WorkerHelper m
+  => WorkerHelper m
+  -> RemoteStoreT m ()
   -> Socket
   -> m a
   -> m a
-runDaemonSocket sd workerHelper lsock k = do
+runProxyDaemon workerHelper postGreet lsock k = do
   liftIO $ listen lsock maxListenQueue
 
-  liftIO $ Data.Text.IO.putStrLn "listening"
+  dbg "listening"
 
   let listener :: m Void
       listener = do
         (sock, _) <- liftIO $ accept lsock
-        liftIO $ Data.Text.IO.putStrLn "accepting"
-
-        let preStoreConfig = PreStoreConfig
-              { preStoreConfig_socket = sock
-              , preStoreConfig_dir = sd
-              }
+        dbg "accepting"
 
         -- TODO: this, but without the space leak
-        fmap fst $ concurrently listener $ processConnection workerHelper preStoreConfig
+        fmap fst
+          $ concurrently listener
+          $ processConnection workerHelper postGreet sock
 
   either absurd id <$> race listener k
 
@@ -71,59 +83,128 @@ runDaemonSocket sd workerHelper lsock k = do
 --
 -- this function should take care to not throw errors from client connections.
 processConnection
-  :: ( MonadIO m
-     , MonadError RemoteStoreError m
-     , MonadReader StoreConfig m
-     )
+  :: forall m
+  .  MonadIO m
   => WorkerHelper m
-  -> PreStoreConfig
+  -> RemoteStoreT m ()
+  -> Socket
   -> m ()
-processConnection workerHelper preStoreConfig = do
-  ~() <- void $ runRemoteStoreT preStoreConfig $ do
+processConnection workerHelper postGreet sock = do
+  ~() <- void $ runRemoteStoreT sock $ do
 
     ServerHandshakeOutput{..}
       <- greet
           ServerHandshakeInput
           { serverHandshakeInputNixVersion = "nixVersion (hnix-store-remote)"
-          , serverHandshakeInputOurVersion= ourProtoVersion
+          , serverHandshakeInputOurVersion = def
           , serverHandshakeInputTrust = Nothing
           }
 
-    mapStoreConfig
-      (preStoreConfigToStoreConfig
-        serverHandshakeOutputLeastCommonVersion)
-      $ do
+    setProtoVersion serverHandshakeOutputLeastCommonVersion
 
-        tunnelLogger <- liftIO $ newTunnelLogger
-        -- Send startup error messages to the client.
-        startWork tunnelLogger
+    tunnelLogger <- liftIO $ newTunnelLogger
+    -- Send startup error messages to the client.
+    startWork tunnelLogger
 
-        -- TODO: do we need auth at all? probably?
-        -- If we can't accept clientVersion, then throw an error *here* (not above).
-        --authHook(*store);
-        stopWork tunnelLogger
+    -- TODO: do we need auth at all? probably?
+    -- If we can't accept clientVersion, then throw an error *here* (not above).
+    --authHook(*store);
+    stopWork tunnelLogger
 
-        -- Process client requests.
-        let loop = do
-              someReq <-
-                sockGetS
-                  $ mapErrorS
-                      RemoteStoreError_SerializerRequest
-                      storeRequest
+    -- so we can set store dir
+    postGreet
 
-              lift $ performOp' workerHelper tunnelLogger someReq
-              loop
-        loop
+    let perform
+          :: ( Show a
+             , StoreReply a
+             )
+          => StoreRequest a
+          -> RemoteStoreT m ()
+        perform req = do
 
-  liftIO $ Data.Text.IO.putStrLn "daemon connection done"
-  liftIO $ close $ preStoreConfig_socket preStoreConfig
+          special <- case req of
+            AddToStore {} -> do
+              -- This is a hack (but a pretty neat and fast one!)
+              -- it should parse nad stream NAR instead
+              let proxyNarSource :: NarSource IO
+                  proxyNarSource f =
+                    liftIO
+                      (System.Timeout.timeout
+                         1000000
+                         (Network.Socket.ByteString.recv sock 8)
+                      )
+                    >>= \case
+                      Nothing -> pure ()
+                      Just x -> f x >> proxyNarSource f
+
+              pure $ setNarSource proxyNarSource
+            _ -> pure $ pure ()
+
+          res <-
+            bracketLogger
+              tunnelLogger
+              $ lift
+              $ workerHelper
+              $ special >> doReq req
+
+          case fst res of
+            Left e -> throwError e
+            Right reply ->
+              sockPutS
+                (mapErrorS
+                   RemoteStoreError_SerializerReply
+                   $ getReplyS
+                )
+                reply
+
+    -- Process client requests.
+    let loop = do
+          someReq <-
+            sockGetS
+              $ mapErrorS
+                  RemoteStoreError_SerializerRequest
+                  storeRequest
+
+          -- have to be explicit here
+          -- because otherwise GHC can't conjure Show a, StoreReply a
+          -- out of thin air
+          () <- Data.Some.withSome someReq $ \case
+            r@AddToStore {} -> perform r
+            r@AddTextToStore {} -> perform r
+            r@AddSignatures {} -> perform r
+            r@AddTempRoot {} -> perform r
+            r@AddIndirectRoot {} -> perform r
+            r@BuildDerivation {} -> perform r
+            r@BuildPaths {} -> perform r
+            r@CollectGarbage {} -> perform r
+            r@EnsurePath {} -> perform r
+            r@FindRoots {} -> perform r
+            r@IsValidPath {} -> perform r
+            r@QueryValidPaths {} -> perform r
+            r@QueryAllValidPaths {} -> perform r
+            r@QuerySubstitutablePaths {} -> perform r
+            r@QueryPathInfo {} -> perform r
+            r@QueryReferrers {} -> perform r
+            r@QueryValidDerivers {} -> perform r
+            r@QueryDerivationOutputs {} -> perform r
+            r@QueryDerivationOutputNames {} -> perform r
+            r@QueryPathFromHashPart {} -> perform r
+            r@QueryMissing {} -> perform r
+            r@OptimiseStore {} -> perform r
+            r@SyncWithGC {} -> perform r
+            r@VerifyStore {} -> perform r
+          loop
+    loop
+
+  dbg "daemon connection done"
+  liftIO $ close sock
 
   where
     -- Exchange the greeting.
     greet
       :: MonadIO m
       => ServerHandshakeInput
-      -> RemoteStoreT PreStoreConfig m ServerHandshakeOutput
+      -> RemoteStoreT m ServerHandshakeOutput
     greet ServerHandshakeInput{..} = do
       magic <-
         sockGetS
@@ -131,7 +212,6 @@ processConnection workerHelper preStoreConfig = do
             RemoteStoreError_SerializerHandshake
             workerMagic
 
-      liftIO $ print ("magic" :: Text, magic)
       when (magic /= WorkerMagic_One)
         $ throwError
         $ RemoteStoreError_WorkerException
@@ -148,9 +228,7 @@ processConnection workerHelper preStoreConfig = do
 
       clientVersion <- sockGetS protoVersion
 
-      let leastCommonVersion = min clientVersion ourProtoVersion
-
-      liftIO $ print ("Versions client, min" :: Text, clientVersion, leastCommonVersion)
+      let leastCommonVersion = min clientVersion serverHandshakeInputOurVersion
 
       when (clientVersion < ProtoVersion 1 10)
         $ throwError
@@ -189,57 +267,13 @@ processConnection workerHelper preStoreConfig = do
         , serverHandshakeOutputClientVersion = clientVersion
         }
 
-simpleOp
-  :: ( MonadIO m
-     , HasStoreSocket r
-     , HasProtoVersion r
-     , MonadError RemoteStoreError m
-     , MonadReader r m
-     )
-  => (StoreRequest () -> m ())
-  -> TunnelLogger r
-  -> m (StoreRequest ())
-  -> m ()
-simpleOp workerHelper tunnelLogger m = do
-  req <- m
-  bracketLogger tunnelLogger $ workerHelper req
-  sockPutS
-    (mapErrorS
-       RemoteStoreError_SerializerPut
-       bool
-    )
-    True
-
-simpleOpRet
-  :: ( MonadIO m
-     , HasStoreSocket r
-     , HasProtoVersion r
-     , MonadError RemoteStoreError m
-     , MonadReader r m
-     )
-  => (StoreRequest a -> m a)
-  -> TunnelLogger r
-  -> NixSerializer r SError a
-  -> m (StoreRequest a)
-  -> m ()
-simpleOpRet workerHelper tunnelLogger s m = do
-  req <- m
-  resp <- bracketLogger tunnelLogger $ workerHelper req
-  sockPutS
-    (mapErrorS
-       RemoteStoreError_SerializerPut
-       s
-    )
-    resp
+{-# WARNING _unimplemented "not yet implemented" #-}
+_unimplemented :: RemoteStoreError
+_unimplemented = RemoteStoreError_WorkerException $ WorkerException_Error $ WorkerError_NotYetImplemented
 
 bracketLogger
-  :: ( MonadIO m
-     , HasStoreSocket r
-     , HasProtoVersion r
-     , MonadReader r m
-     , MonadError RemoteStoreError m
-     )
-  => TunnelLogger r
+  :: MonadRemoteStore m
+  => TunnelLogger
   -> m a
   -> m a
 bracketLogger tunnelLogger m = do
@@ -248,81 +282,43 @@ bracketLogger tunnelLogger m = do
   stopWork tunnelLogger
   pure a
 
-{-# WARNING unimplemented "not yet implemented" #-}
-unimplemented :: WorkerException
-unimplemented = WorkerException_Error $ WorkerError_NotYetImplemented
-
-performOp'
-  :: forall m
-   . ( MonadIO m
-     , MonadError RemoteStoreError m
-     , MonadReader StoreConfig m
-     )
-  => WorkerHelper m
-  -> TunnelLogger StoreConfig
-  -> Some StoreRequest
-  -> m ()
-performOp' workerHelper tunnelLogger op = do
-  let _simpleOp' = simpleOp workerHelper tunnelLogger
-  let simpleOpRet'
-        :: NixSerializer StoreConfig SError a
-        -> m (StoreRequest a)
-        -> m ()
-      simpleOpRet' = simpleOpRet workerHelper tunnelLogger
-
-  case op of
-    Some (IsValidPath path) -> simpleOpRet' bool $ do
-      pure $ R.IsValidPath path
-
-    _ -> undefined
-
 ---
 
-data TunnelLogger r = TunnelLogger
-  { _tunnelLogger_state :: IORef (TunnelLoggerState r)
+data TunnelLogger = TunnelLogger
+  { _tunnelLogger_state :: IORef TunnelLoggerState
   }
 
-data TunnelLoggerState r = TunnelLoggerState
+data TunnelLoggerState = TunnelLoggerState
   { _tunnelLoggerState_canSendStderr :: Bool
   , _tunnelLoggerState_pendingMsgs :: [Logger]
   }
 
-newTunnelLogger :: IO (TunnelLogger r)
+newTunnelLogger :: IO TunnelLogger
 newTunnelLogger = TunnelLogger <$> newIORef (TunnelLoggerState False [])
 
 enqueueMsg
-  :: ( MonadIO m
-     , MonadReader r m
+  :: ( MonadRemoteStore m
      , MonadError LoggerSError m
-     , HasProtoVersion r
-     , HasStoreSocket r
      )
-  => TunnelLogger r
+  => TunnelLogger
   -> Logger
   -> m ()
 enqueueMsg x l = updateLogger x $ \st@(TunnelLoggerState c p) -> case c of
   True -> (st, sockPutS logger l)
   False -> (TunnelLoggerState c (l:p), pure ())
 
-log
-  :: ( MonadIO m
-     , MonadReader r m
-     , HasStoreSocket r
+_log
+  :: ( MonadRemoteStore m
      , MonadError LoggerSError m
-     , HasProtoVersion r
      )
-  => TunnelLogger r
+  => TunnelLogger
   -> Text
   -> m ()
-log l s = enqueueMsg l (Logger_Next s)
+_log l s = enqueueMsg l (Logger_Next s)
 
 startWork
-  :: (MonadIO m, MonadReader r m, HasStoreSocket r
-
-     , MonadError RemoteStoreError m
-     , HasProtoVersion r
-  )
-  => TunnelLogger r
+  :: MonadRemoteStore m
+  => TunnelLogger
   -> m ()
 startWork x = updateLogger x $ \(TunnelLoggerState _ p) -> (,)
   (TunnelLoggerState True []) $
@@ -330,12 +326,8 @@ startWork x = updateLogger x $ \(TunnelLoggerState _ p) -> (,)
   where logger' = mapErrorS RemoteStoreError_SerializerLogger logger
 
 stopWork
-  :: (MonadIO m, MonadReader r m, HasStoreSocket r
-
-     , MonadError RemoteStoreError m
-     , HasProtoVersion r
-  )
-  => TunnelLogger r
+  :: MonadRemoteStore m
+  => TunnelLogger
   -> m ()
 stopWork x = updateLogger x $ \_ -> (,)
   (TunnelLoggerState False [])
@@ -348,27 +340,24 @@ stopWork x = updateLogger x $ \_ -> (,)
 --
 -- Unlike 'stopWork', this function may be called at any time to (try) to end a
 -- session with an error.
-stopWorkOnError
-  :: (MonadIO m, MonadReader r m, HasStoreSocket r, HasProtoVersion r
-
-    , MonadError RemoteStoreError m
-  )
-  => TunnelLogger r
+_stopWorkOnError
+  :: MonadRemoteStore m
+  => TunnelLogger
   -> ErrorInfo
   -> m Bool
-stopWorkOnError x ex = updateLogger x $ \st ->
+_stopWorkOnError x ex = updateLogger x $ \st ->
   case _tunnelLoggerState_canSendStderr st of
     False -> (st, pure False)
     True -> (,) (TunnelLoggerState False []) $ do
-      asks hasProtoVersion >>= \pv -> if protoVersion_minor pv >= 26
+      getProtoVersion >>= \pv -> if protoVersion_minor pv >= 26
         then sockPutS logger' (Logger_Error (Right ex))
         else sockPutS logger' (Logger_Error (Left (BasicError 0 (Data.Text.pack $ show ex))))
       pure True
   where logger' = mapErrorS RemoteStoreError_SerializerLogger logger
 
 updateLogger
-  :: (MonadIO m, MonadReader r m, HasStoreSocket r)
-  => TunnelLogger r
-  -> (TunnelLoggerState r -> (TunnelLoggerState r, m a))
+  :: MonadRemoteStore m
+  => TunnelLogger
+  -> (TunnelLoggerState -> (TunnelLoggerState, m a))
   -> m a
 updateLogger x = join . liftIO . atomicModifyIORef (_tunnelLogger_state x)
