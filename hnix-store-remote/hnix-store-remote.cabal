@@ -93,6 +93,7 @@ library
     , System.Nix.Store.Remote.Types.StoreReply
     , System.Nix.Store.Remote.Types.StoreText
     , System.Nix.Store.Remote.Types.SubstituteMode
+    , System.Nix.Store.Remote.Types.SuccessCodeReply
     , System.Nix.Store.Remote.Types.TrustedFlag
     , System.Nix.Store.Remote.Types.Verbosity
     , System.Nix.Store.Remote.Types.WorkerMagic

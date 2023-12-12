@@ -8,6 +8,7 @@ import System.Nix.Build (BuildResult)
 import System.Nix.StorePath (StorePath, StorePathName)
 import System.Nix.StorePath.Metadata (Metadata)
 import System.Nix.Store.Remote.Serializer
+import System.Nix.Store.Remote.Types.SuccessCodeReply (SuccessCodeReply)
 import System.Nix.Store.Remote.Types.GC (GCResult, GCRoot)
 import System.Nix.Store.Remote.Types.Query.Missing (Missing)
 import System.Nix.Store.Remote.Types.StoreConfig (ProtoStoreConfig)
@@ -20,7 +21,7 @@ import System.Nix.Store.Remote.Types.StoreConfig (ProtoStoreConfig)
 class StoreReply a where
   getReplyS :: NixSerializer ProtoStoreConfig ReplySError a
 
-instance StoreReply () where
+instance StoreReply SuccessCodeReply where
   getReplyS = opSuccess
 
 instance StoreReply Bool where

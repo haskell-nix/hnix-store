@@ -26,7 +26,7 @@ module System.Nix.Store.Remote.Client
   , module System.Nix.Store.Remote.Client.Core
   ) where
 
-import Control.Monad (when)
+import Control.Monad (void, when)
 import Control.Monad.Except (throwError)
 import Data.HashSet (HashSet)
 import Data.Map (Map)
@@ -96,7 +96,7 @@ addSignatures
   => StorePath
   -> Set Signature
   -> m ()
-addSignatures p signatures = doReq (AddSignatures p signatures)
+addSignatures p signatures = (void . doReq) (AddSignatures p signatures)
 
 -- | Add temporary garbage collector root.
 --
@@ -105,14 +105,14 @@ addTempRoot
   :: MonadRemoteStore m
   => StorePath
   -> m ()
-addTempRoot = doReq . AddTempRoot
+addTempRoot = void . doReq . AddTempRoot
 
 -- | Add indirect garbage collector root.
 addIndirectRoot
   :: MonadRemoteStore m
   => StorePath
   -> m ()
-addIndirectRoot = doReq . AddIndirectRoot
+addIndirectRoot = void . doReq . AddIndirectRoot
 
 -- | Build a derivation available at @StorePath@
 buildDerivation
@@ -139,7 +139,7 @@ buildPaths
   => Set DerivedPath
   -> BuildMode
   -> m ()
-buildPaths a b = doReq (BuildPaths a b)
+buildPaths a b = (void . doReq) (BuildPaths a b)
 
 collectGarbage
   :: MonadRemoteStore m
@@ -151,7 +151,7 @@ ensurePath
   :: MonadRemoteStore m
   => StorePath
   -> m ()
-ensurePath = doReq . EnsurePath
+ensurePath = void . doReq . EnsurePath
 
 -- | Find garbage collector roots.
 findRoots
@@ -235,12 +235,12 @@ queryMissing = doReq . QueryMissing
 optimiseStore
   :: MonadRemoteStore m
   => m ()
-optimiseStore = doReq OptimiseStore
+optimiseStore = (void . doReq) OptimiseStore
 
 syncWithGC
   :: MonadRemoteStore m
   => m ()
-syncWithGC = doReq SyncWithGC
+syncWithGC = (void . doReq) SyncWithGC
 
 verifyStore
   :: MonadRemoteStore m

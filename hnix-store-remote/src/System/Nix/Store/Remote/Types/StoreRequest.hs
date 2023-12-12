@@ -28,6 +28,7 @@ import System.Nix.Store.Remote.Types.CheckMode (CheckMode)
 import System.Nix.Store.Remote.Types.Query.Missing (Missing)
 import System.Nix.Store.Remote.Types.StoreText (StoreText)
 import System.Nix.Store.Remote.Types.SubstituteMode (SubstituteMode)
+import System.Nix.Store.Remote.Types.SuccessCodeReply (SuccessCodeReply)
 
 data StoreRequest :: Type -> Type where
   -- | Add @NarSource@ to the store.
@@ -51,18 +52,18 @@ data StoreRequest :: Type -> Type where
   AddSignatures
     :: StorePath
     -> Set Signature
-    -> StoreRequest ()
+    -> StoreRequest SuccessCodeReply
 
   AddIndirectRoot
     :: StorePath
-    -> StoreRequest ()
+    -> StoreRequest SuccessCodeReply
 
   -- | Add temporary garbage collector root.
   --
   -- This root is removed as soon as the client exits.
   AddTempRoot
     :: StorePath
-    -> StoreRequest ()
+    -> StoreRequest SuccessCodeReply
 
   -- | Build paths if they are an actual derivations.
   --
@@ -70,7 +71,7 @@ data StoreRequest :: Type -> Type where
   BuildPaths
     :: Set DerivedPath
     -> BuildMode
-    -> StoreRequest ()
+    -> StoreRequest SuccessCodeReply
 
   BuildDerivation
     :: StorePath
@@ -84,7 +85,7 @@ data StoreRequest :: Type -> Type where
 
   EnsurePath
     :: StorePath
-    -> StoreRequest ()
+    -> StoreRequest SuccessCodeReply
 
   -- | Find garbage collector roots.
   FindRoots
@@ -138,10 +139,10 @@ data StoreRequest :: Type -> Type where
     -> StoreRequest Missing
 
   OptimiseStore
-    :: StoreRequest ()
+    :: StoreRequest SuccessCodeReply
 
   SyncWithGC
-    :: StoreRequest ()
+    :: StoreRequest SuccessCodeReply
 
   -- returns True on errors
   VerifyStore

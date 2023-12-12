@@ -1368,14 +1368,14 @@ mapPutER = mapErrorST ReplySError_PrimPut
 -- | Parse a bool returned at the end of simple operations.
 -- This is always 1 (@True@) so we assert that it really is so.
 -- Errors for these operations are indicated via @Logger_Error@.
-opSuccess :: NixSerializer r ReplySError ()
+opSuccess :: NixSerializer r ReplySError SuccessCodeReply
 opSuccess = Serializer
   { getS = do
       retCode <- mapGetER $ getS bool
       Control.Monad.unless
         (retCode == True)
         $ throwError ReplySError_UnexpectedFalseOpSuccess
-      pure ()
+      pure SuccessCodeReply
   , putS = \_ -> mapPutER $ putS bool True
   }
 
