@@ -5,6 +5,7 @@ module NixDaemonSpec
   , spec
   ) where
 
+import Control.Exception (catch, SomeException)
 import Control.Monad (forM_, unless, void)
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.Conc.Class (MonadConc)
@@ -465,13 +466,17 @@ makeProtoSpec f flavor = around f $ do
         -- clear temp gc roots so the delete works. restarting the nix daemon should also do this...
         storeDir <- getStoreDir
         let tempRootsDir = Data.Text.unpack $ mconcat [ Data.Text.Encoding.decodeUtf8 (unStoreDir storeDir), "/../var/nix/temproots/" ]
-        tempRootList <-
-          liftIO
-          $ System.Directory.listDirectory
-              tempRootsDir
-        liftIO $ forM_ tempRootList $ \entry -> do
-          System.Directory.removeFile
-            $ mconcat [ tempRootsDir, "/", entry ]
+        liftIO $ do
+          tempRootList <-
+            System.Directory.listDirectory tempRootsDir
+          forM_ tempRootList $ \entry -> do
+            System.Directory.removeFile
+              $ mconcat [ tempRootsDir, "/", entry ]
+            -- for MITM, the temp root will get deleted
+            -- by the daemon as our nested client exists
+            -- but the listDirectory might still see it
+            -- causing TOC/TOU flakiness
+            `catch` (\(_e :: SomeException) -> pure ())
 
         GCResult{..} <-
           collectGarbage
