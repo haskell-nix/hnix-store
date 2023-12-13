@@ -25,6 +25,7 @@ import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart)
 import System.Nix.StorePath.Metadata (Metadata)
 import System.Nix.Store.Remote.Types.GC (GCOptions, GCResult, GCRoot)
 import System.Nix.Store.Remote.Types.CheckMode (CheckMode)
+import System.Nix.Store.Remote.Types.NoReply (NoReply)
 import System.Nix.Store.Remote.Types.Query.Missing (Missing)
 import System.Nix.Store.Remote.Types.StoreText (StoreText)
 import System.Nix.Store.Remote.Types.SubstituteMode (SubstituteMode)
@@ -38,6 +39,14 @@ data StoreRequest :: Type -> Type where
     -> Some HashAlgo -- ^ Nar hashing algorithm
     -> RepairMode -- ^ Only used by local store backend
     -> StoreRequest StorePath
+
+  -- | Add a NAR with Metadata to the store.
+  AddToStoreNar
+    :: StorePath
+    -> Metadata StorePath
+    -> RepairMode
+    -> CheckMode -- ^ Whether to check signatures
+    -> StoreRequest NoReply
 
   -- | Add text to store.
   --
@@ -159,6 +168,7 @@ deriveGShow ''StoreRequest
 
 instance {-# OVERLAPPING #-} Eq (Some StoreRequest) where
   Some (AddToStore a b c d) == Some (AddToStore a' b' c' d') = (a, b, c, d) == (a', b', c', d')
+  Some (AddToStoreNar a b c d) == Some (AddToStoreNar a' b' c' d') = (a, b, c, d) == (a', b', c', d')
   Some (AddTextToStore a b c) == Some (AddTextToStore a' b' c') = (a, b, c) == (a', b', c')
   Some (AddSignatures a b) == Some (AddSignatures a' b') = (a, b) == (a', b')
   Some (AddIndirectRoot a) == Some (AddIndirectRoot a') = a == a'

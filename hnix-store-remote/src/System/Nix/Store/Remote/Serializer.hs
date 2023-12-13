@@ -85,6 +85,7 @@ module System.Nix.Store.Remote.Serializer
   -- ** Reply
   , ReplySError(..)
   , opSuccess
+  , noop
   -- *** Realisation
   , derivationOutputTyped
   , realisation
@@ -1077,6 +1078,16 @@ storeRequest = Serializer
 
         pure $ Some (AddToStore pathName recursive hashAlgo repair)
 
+      WorkerOp_AddToStoreNar -> mapGetE $ do
+        storePath' <- getS storePath
+        metadata <- getS pathMetadata
+        repair <- getS bool
+        let repairMode = if repair then RepairMode_DoRepair else RepairMode_DontRepair
+        dontCheckSigs <- getS bool
+        let checkSigs = if dontCheckSigs then CheckMode_DontCheck else CheckMode_DoCheck
+
+        pure $ Some (AddToStoreNar storePath' metadata repairMode checkSigs)
+
       WorkerOp_AddTextToStore -> mapGetE $ do
         txt <- getS storeText
         paths <- getS (hashSet storePath)
@@ -1175,7 +1186,6 @@ storeRequest = Serializer
 
       w@WorkerOp_AddBuildLog -> notYet w
       w@WorkerOp_AddMultipleToStore -> notYet w
-      w@WorkerOp_AddToStoreNar -> notYet w
       w@WorkerOp_BuildPathsWithResults -> notYet w
       w@WorkerOp_ClearFailedPaths -> notYet w
       w@WorkerOp_ExportPath -> notYet w
@@ -1206,6 +1216,14 @@ storeRequest = Serializer
 
         putS bool (recursive == FileIngestionMethod_FileRecursive)
         putS someHashAlgo hashAlgo
+
+      Some (AddToStoreNar storePath' metadata repair checkSigs) -> mapPutE $ do
+        putS workerOp WorkerOp_AddToStoreNar
+
+        putS storePath storePath'
+        putS pathMetadata metadata
+        putS bool $ repair == RepairMode_DoRepair
+        putS bool $ checkSigs == CheckMode_DontCheck
 
       Some (AddTextToStore txt paths _repair) -> mapPutE $ do
         putS workerOp WorkerOp_AddTextToStore
@@ -1377,6 +1395,12 @@ opSuccess = Serializer
         $ throwError ReplySError_UnexpectedFalseOpSuccess
       pure SuccessCodeReply
   , putS = \_ -> mapPutER $ putS bool True
+  }
+
+noop :: a -> NixSerializer r ReplySError a
+noop ret = Serializer
+  { getS = pure ret
+  , putS = \_ -> pure ()
   }
 
 -- *** Realisation

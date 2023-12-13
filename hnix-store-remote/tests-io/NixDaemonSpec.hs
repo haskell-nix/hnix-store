@@ -35,6 +35,7 @@ import qualified Data.Map
 import qualified Data.Set
 import qualified Data.Text
 import qualified Data.Text.Encoding
+import qualified SampleNar
 import qualified System.Directory
 import qualified System.Environment
 import qualified System.IO.Temp
@@ -488,3 +489,13 @@ makeProtoSpec f flavor = around f $ do
               }
         gcResultDeletedPaths `shouldBe` Data.HashSet.fromList [path]
         gcResultBytesFreed `shouldBe` 4
+
+  context "addToStoreNar" $ do
+    itRights "adds nar file" $ do
+      unless (flavor == SpecFlavor_MITM) $ do
+        sampleNar@SampleNar.SampleNar{..} <- liftIO SampleNar.sampleNar0
+        dataSource <- liftIO $ SampleNar.buildDataSource sampleNar
+        addToStoreNar sampleNar_storePath sampleNar_metadata RepairMode_DontRepair CheckMode_DontCheck dataSource
+
+        meta <- queryPathInfo sampleNar_storePath
+        (metadataDeriverPath =<< meta) `shouldBe` metadataDeriverPath sampleNar_metadata

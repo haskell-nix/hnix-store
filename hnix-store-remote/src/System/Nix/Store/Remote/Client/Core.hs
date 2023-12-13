@@ -7,9 +7,13 @@ module System.Nix.Store.Remote.Client.Core
 import Control.Monad (unless, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.ByteString (ByteString)
 import Data.DList (DList)
 import Data.Some (Some(Some))
+import Data.Word (Word64)
+import Network.Socket (Socket)
 import System.Nix.Nar (NarSource)
+import System.Nix.StorePath.Metadata (Metadata(..))
 import System.Nix.Store.Remote.Logger (processOutput)
 import System.Nix.Store.Remote.MonadStore
   ( MonadRemoteStore(..)
@@ -28,11 +32,13 @@ import System.Nix.Store.Remote.Serializer
   )
 import System.Nix.Store.Remote.Types.Handshake (ClientHandshakeOutput(..))
 import System.Nix.Store.Remote.Types.Logger (Logger)
+import System.Nix.Store.Remote.Types.NoReply (NoReply(..))
 import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..))
 import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
 import System.Nix.Store.Remote.Types.StoreReply (StoreReply(..))
 import System.Nix.Store.Remote.Types.WorkerMagic (WorkerMagic(..))
 
+import qualified Data.ByteString
 import qualified Network.Socket.ByteString
 
 type Run m a = m (Either RemoteStoreError a, DList Logger)
@@ -69,14 +75,58 @@ doReq = \case
           Nothing ->
             throwError
               RemoteStoreError_NoNarSourceProvided
+        processOutput
+        processReply
 
-      _ -> pure ()
+      AddToStoreNar _ meta _ _ -> do
+        let narBytes = maybe 0 id $ metadataNarBytes meta
+        maybeDataSource <- takeDataSource
+        soc <- getStoreSocket
+        case maybeDataSource of
+          Nothing ->
+            if narBytes == 0 then writeFramedSource (const (pure Nothing)) soc 0
+            else throwError RemoteStoreError_NoDataSourceProvided
+          Just dataSource -> do
+            writeFramedSource dataSource soc narBytes
+        processOutput
+        pure NoReply
 
-    processOutput
-    sockGetS
-      (mapErrorS RemoteStoreError_SerializerReply
-        $ getReplyS @a
-      )
+      _ -> do
+        processOutput
+        processReply
+
+  where
+    processReply = sockGetS
+          (mapErrorS RemoteStoreError_SerializerReply
+            $ getReplyS @a
+          )
+
+writeFramedSource
+  :: forall m
+   . ( MonadIO m
+     , MonadRemoteStore m
+     )
+  => (Word64 -> IO(Maybe ByteString))
+  -> Socket
+  -> Word64
+  -> m ()
+writeFramedSource dataSource soc remainingBytes = do
+  let chunkSize = 16384
+  maybeBytes <- liftIO $ dataSource chunkSize
+  case maybeBytes of
+    Nothing -> do
+      unless (remainingBytes == 0) $ throwError RemoteStoreError_DataSourceExhausted
+      let eof :: Word64 = 0
+      sockPutS int eof
+    Just bytes -> do
+      let bytesInChunk = fromIntegral $ Data.ByteString.length bytes
+      when (bytesInChunk > chunkSize || bytesInChunk > remainingBytes) $ throwError RemoteStoreError_DataSourceReadTooLarge
+      when (bytesInChunk == 0) $ throwError RemoteStoreError_DataSourceZeroLengthRead
+      sockPutS int bytesInChunk
+      liftIO
+        $ Network.Socket.ByteString.sendAll soc bytes
+      let nextRemainingBytes = remainingBytes - bytesInChunk
+      writeFramedSource dataSource soc nextRemainingBytes
 
 greetServer
   :: MonadRemoteStore m

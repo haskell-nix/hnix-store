@@ -77,6 +77,8 @@ data RemoteStoreError
   | RemoteStoreError_LoggerParserFail String ByteString -- when incremental parser returns ((Fail msg leftover) :: Result)
   | RemoteStoreError_NoDataSourceProvided -- remoteStoreStateMDataSource is required but it is Nothing
   | RemoteStoreError_DataSourceExhausted -- remoteStoreStateMDataSource returned Nothing but more data was requested
+  | RemoteStoreError_DataSourceZeroLengthRead -- remoteStoreStateMDataSource returned a zero length ByteString
+  | RemoteStoreError_DataSourceReadTooLarge -- remoteStoreStateMDataSource returned a ByteString larger than the chunk size requested or the remaining bytes
   | RemoteStoreError_NoDataSinkProvided -- remoteStoreStateMDataSink is required but it is Nothing
   | RemoteStoreError_NoNarSourceProvided
   | RemoteStoreError_OperationFailed
@@ -250,6 +252,15 @@ class ( MonadIO m
    -> m ()
   setDataSource x = lift (setDataSource x)
 
+  takeDataSource :: m (Maybe (Word64 -> IO (Maybe ByteString)))
+  default takeDataSource
+   :: ( MonadTrans t
+      , MonadRemoteStore m'
+      , m ~ t m'
+      )
+   => m (Maybe (Word64 -> IO (Maybe ByteString)))
+  takeDataSource = lift takeDataSource
+
   getDataSource :: m (Maybe (Word64 -> IO (Maybe ByteString)))
   default getDataSource
    :: ( MonadTrans t
@@ -326,6 +337,11 @@ instance MonadIO m => MonadRemoteStore (RemoteStoreT m) where
   setDataSource x = RemoteStoreT $ modify $ \s -> s { remoteStoreStateMDataSource = pure x }
   getDataSource = RemoteStoreT (gets remoteStoreStateMDataSource)
   clearDataSource = RemoteStoreT $ modify $ \s -> s { remoteStoreStateMDataSource = Nothing }
+
+  takeDataSource = RemoteStoreT $ do
+    x <- remoteStoreStateMDataSource <$> get
+    modify $ \s -> s { remoteStoreStateMDataSource = Nothing }
+    pure x
 
   setDataSink x = RemoteStoreT $ modify $ \s -> s { remoteStoreStateMDataSink = pure x }
   getDataSink = RemoteStoreT (gets remoteStoreStateMDataSink)

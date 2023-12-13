@@ -85,6 +85,7 @@ library
     , System.Nix.Store.Remote.Types.GC
     , System.Nix.Store.Remote.Types.Handshake
     , System.Nix.Store.Remote.Types.Logger
+    , System.Nix.Store.Remote.Types.NoReply
     , System.Nix.Store.Remote.Types.ProtoVersion
     , System.Nix.Store.Remote.Types.Query
     , System.Nix.Store.Remote.Types.Query.Missing
@@ -196,6 +197,7 @@ test-suite remote-io
   ghc-options:       -rtsopts -fprof-auto "-with-rtsopts -V0"
   other-modules:
       NixDaemonSpec
+    , SampleNar
   build-depends:
       base >=4.12 && <5
     , hnix-store-core
@@ -206,6 +208,8 @@ test-suite remote-io
     , concurrency
     , containers
     , crypton
+    , data-default-class
+    , dependent-sum
     , directory
     , exceptions
     , filepath
@@ -216,5 +220,6 @@ test-suite remote-io
     , some
     , temporary
     , text
+    , time
     , unix
     , unordered-containers

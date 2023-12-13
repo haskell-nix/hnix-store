@@ -1,5 +1,6 @@
 module System.Nix.Store.Remote.Client
   ( addToStore
+  , addToStoreNar
   , addTextToStore
   , addSignatures
   , addTempRoot
@@ -28,10 +29,12 @@ module System.Nix.Store.Remote.Client
 
 import Control.Monad (void, when)
 import Control.Monad.Except (throwError)
+import Data.ByteString (ByteString)
 import Data.HashSet (HashSet)
 import Data.Map (Map)
 import Data.Set (Set)
 import Data.Some (Some)
+import Data.Word (Word64)
 
 import System.Nix.Build (BuildMode, BuildResult)
 import System.Nix.DerivedPath (DerivedPath)
@@ -72,6 +75,19 @@ addToStore name source method hashAlgo repair = do
 
   setNarSource source
   doReq (AddToStore name method hashAlgo repair)
+
+addToStoreNar
+  :: MonadRemoteStore m
+  => StorePath
+  -> Metadata StorePath
+  -> RepairMode
+  -> CheckMode
+  -> (Word64 -> IO(Maybe ByteString))
+  -> m ()
+addToStoreNar path metadata repair checkSigs source = do
+  setDataSource source
+  void $ doReq (AddToStoreNar path metadata repair checkSigs)
+  pure ()
 
 -- | Add @StoreText@ to the store
 -- Reference accepts repair but only uses it
