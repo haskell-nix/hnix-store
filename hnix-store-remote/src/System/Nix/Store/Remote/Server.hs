@@ -170,6 +170,7 @@ processConnection workerHelper postGreet sock = do
           -- out of thin air
           () <- Data.Some.withSome someReq $ \case
             r@AddToStore {} -> perform r
+            r@AddToStoreNar {} -> perform r
             r@AddTextToStore {} -> perform r
             r@AddSignatures {} -> perform r
             r@AddTempRoot {} -> perform r
