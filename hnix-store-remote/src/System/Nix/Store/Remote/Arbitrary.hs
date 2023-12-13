@@ -123,6 +123,9 @@ instance Arbitrary (Some StoreRequest) where
 
 -- ** Reply
 
+deriving via GenericArbitrary SuccessCodeReply
+  instance Arbitrary SuccessCodeReply
+
 deriving via GenericArbitrary GCResult
   instance Arbitrary GCResult
 
