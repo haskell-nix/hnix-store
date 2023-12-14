@@ -196,7 +196,8 @@ test-suite remote-io
   -- See https://github.com/redneb/hs-linux-namespaces/issues/3
   ghc-options:       -rtsopts -fprof-auto "-with-rtsopts -V0"
   other-modules:
-      NixDaemonSpec
+      DataSink
+    , NixDaemonSpec
     , SampleNar
   build-depends:
       base >=4.12 && <5

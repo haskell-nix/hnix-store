@@ -6,6 +6,7 @@ module SampleNar
 ( SampleNar(..)
 , buildDataSource
 , sampleNar0
+, encodeNar
 )
 
 where
@@ -39,7 +40,7 @@ data SampleNar
 sampleNar0 :: IO SampleNar
 sampleNar0 = do
   let sampleNar_fileData = "hello"
-  sampleNar_narData <- bytesToNar sampleNar_fileData
+  sampleNar_narData <- encodeNar sampleNar_fileData
   let sampleNar_metadata = Metadata
         { metadataDeriverPath = Just $ forceParsePath "/nix/store/g2mxdrkwr1hck4y5479dww7m56d1x81v-hello-2.12.1.drv"
         , metadataNarHash = sha256 sampleNar_narData
@@ -78,8 +79,8 @@ forceParsePath path = case parsePath def path of
 sha256 :: ByteString -> DSum HashAlgo Digest
 sha256 bs = HashAlgo_SHA256 :=> hashFinalize (hashUpdate (hashInit @SHA256) bs)
 
-bytesToNar :: ByteString -> IO ByteString
-bytesToNar bytes = do
+encodeNar :: ByteString -> IO ByteString
+encodeNar bytes = do
   ref <- stToIO $ newSTRef mempty
   let accumFn chunk = do
        stToIO $ modifySTRef ref (<> chunk)

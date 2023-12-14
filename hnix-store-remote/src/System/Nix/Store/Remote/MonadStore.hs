@@ -47,6 +47,8 @@ data RemoteStoreState = RemoteStoreState {
   , remoteStoreStateMDataSink :: Maybe (ByteString -> IO ())
   -- ^ Sink for @Logger_Write@, called repeatedly by the daemon
   -- to dump us some data. Used by @ExportPath@ operation.
+  , remoteStoreStateMDataSinkSize :: Maybe Word64
+  -- ^ Byte length to be written to the sink, for NarForPath
   , remoteStoreStateMNarSource :: Maybe (NarSource IO)
   }
 
@@ -80,6 +82,7 @@ data RemoteStoreError
   | RemoteStoreError_DataSourceZeroLengthRead -- remoteStoreStateMDataSource returned a zero length ByteString
   | RemoteStoreError_DataSourceReadTooLarge -- remoteStoreStateMDataSource returned a ByteString larger than the chunk size requested or the remaining bytes
   | RemoteStoreError_NoDataSinkProvided -- remoteStoreStateMDataSink is required but it is Nothing
+  | RemoteStoreError_NoDataSinkSizeProvided -- remoteStoreStateMDataSinkSize is required but it is Nothing
   | RemoteStoreError_NoNarSourceProvided
   | RemoteStoreError_OperationFailed
   | RemoteStoreError_ProtocolMismatch
@@ -148,6 +151,7 @@ runRemoteStoreT sock =
       , remoteStoreStateLogs = mempty
       , remoteStoreStateMDataSource = Nothing
       , remoteStoreStateMDataSink = Nothing
+      , remoteStoreStateMDataSinkSize = Nothing
       , remoteStoreStateMNarSource = Nothing
       }
 
@@ -307,6 +311,34 @@ class ( MonadIO m
     => m ()
   clearDataSink = lift clearDataSink
 
+  setDataSinkSize :: Word64 -> m ()
+  default setDataSinkSize
+   :: ( MonadTrans t
+      , MonadRemoteStore m'
+      , m ~ t m'
+      )
+   => Word64
+   -> m ()
+  setDataSinkSize x = lift (setDataSinkSize x)
+
+  getDataSinkSize :: m (Maybe Word64)
+  default getDataSinkSize
+   :: ( MonadTrans t
+      , MonadRemoteStore m'
+      , m ~ t m'
+      )
+   => m (Maybe Word64)
+  getDataSinkSize = lift getDataSinkSize
+
+  clearDataSinkSize :: m ()
+  default clearDataSinkSize
+    :: ( MonadTrans t
+       , MonadRemoteStore m'
+       , m ~ t m'
+       )
+    => m ()
+  clearDataSinkSize = lift clearDataSinkSize
+
 instance MonadRemoteStore m => MonadRemoteStore (StateT s m)
 instance MonadRemoteStore m => MonadRemoteStore (ReaderT r m)
 instance MonadRemoteStore m => MonadRemoteStore (ExceptT RemoteStoreError m)
@@ -346,6 +378,10 @@ instance MonadIO m => MonadRemoteStore (RemoteStoreT m) where
   setDataSink x = RemoteStoreT $ modify $ \s -> s { remoteStoreStateMDataSink = pure x }
   getDataSink = RemoteStoreT (gets remoteStoreStateMDataSink)
   clearDataSink = RemoteStoreT $ modify $ \s -> s { remoteStoreStateMDataSink = Nothing }
+
+  setDataSinkSize x = RemoteStoreT $ modify $ \s -> s { remoteStoreStateMDataSinkSize = pure x }
+  getDataSinkSize = RemoteStoreT (gets remoteStoreStateMDataSinkSize)
+  clearDataSinkSize = RemoteStoreT $ modify $ \s -> s { remoteStoreStateMDataSinkSize = Nothing }
 
   setNarSource x = RemoteStoreT $ modify $ \s -> s { remoteStoreStateMNarSource = pure x }
   takeNarSource = RemoteStoreT $ do

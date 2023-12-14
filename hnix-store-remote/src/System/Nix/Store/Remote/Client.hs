@@ -11,6 +11,7 @@ module System.Nix.Store.Remote.Client
   , ensurePath
   , findRoots
   , isValidPath
+  , narFromPath
   , queryValidPaths
   , queryAllValidPaths
   , querySubstitutablePaths
@@ -180,6 +181,18 @@ isValidPath
   => StorePath
   -> m Bool
 isValidPath = doReq . IsValidPath
+
+-- | Download a NAR file.
+narFromPath
+  :: MonadRemoteStore m
+  => StorePath -- ^ Path to generate a NAR for
+  -> Word64 -- ^ Byte length of NAR
+  -> (ByteString -> IO()) -- ^ Data sink where NAR bytes will be written
+  -> m ()
+narFromPath path narSize sink = do
+  setDataSink sink
+  setDataSinkSize narSize
+  void $ doReq (NarFromPath path)
 
 -- | Query valid paths from a set,
 -- optionally try to use substitutes
