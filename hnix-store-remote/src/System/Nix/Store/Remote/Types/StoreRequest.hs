@@ -104,6 +104,11 @@ data StoreRequest :: Type -> Type where
     :: StorePath
     -> StoreRequest Bool
 
+  -- | Fetch a NAR from the server
+  NarFromPath
+    :: StorePath
+    -> StoreRequest NoReply
+
   -- | Query valid paths from set, optionally try to use substitutes.
   QueryValidPaths
     :: HashSet StorePath
@@ -179,6 +184,7 @@ instance {-# OVERLAPPING #-} Eq (Some StoreRequest) where
   Some (EnsurePath a) == Some (EnsurePath a') = a == a'
   Some (FindRoots) == Some (FindRoots) = True
   Some (IsValidPath a) == Some (IsValidPath a') = a == a'
+  Some (NarFromPath a) == Some (NarFromPath a') = a == a'
   Some (QueryValidPaths a b) == Some (QueryValidPaths a' b') = (a, b) == (a', b')
   Some QueryAllValidPaths == Some QueryAllValidPaths = True
   Some (QuerySubstitutablePaths a) == Some (QuerySubstitutablePaths a') = a == a'

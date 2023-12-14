@@ -181,6 +181,7 @@ processConnection workerHelper postGreet sock = do
             r@EnsurePath {} -> perform r
             r@FindRoots {} -> perform r
             r@IsValidPath {} -> perform r
+            r@NarFromPath {} -> perform r
             r@QueryValidPaths {} -> perform r
             r@QueryAllValidPaths {} -> perform r
             r@QuerySubstitutablePaths {} -> perform r

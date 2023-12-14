@@ -106,6 +106,7 @@ instance Arbitrary (Some StoreRequest) where
     , Some . EnsurePath <$> arbitrary
     , pure $ Some FindRoots
     , Some . IsValidPath <$> arbitrary
+    , Some . NarFromPath <$> arbitrary
     , Some <$> (QueryValidPaths <$> arbitrary <*> arbitrary)
     , pure $ Some QueryAllValidPaths
     , Some . QuerySubstitutablePaths <$> arbitrary

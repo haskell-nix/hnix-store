@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module NixDaemonSpec
   ( enterNamespaces
@@ -35,6 +36,7 @@ import qualified Data.Map
 import qualified Data.Set
 import qualified Data.Text
 import qualified Data.Text.Encoding
+import qualified DataSink
 import qualified SampleNar
 import qualified System.Directory
 import qualified System.Environment
@@ -264,6 +266,9 @@ itLefts
   -> SpecWith (m () -> IO (Either a b, c))
 itLefts name action = it name action Data.Either.isLeft
 
+sampleText :: Text
+sampleText = "test"
+
 withPath
   :: MonadRemoteStore m
   => (StorePath -> m a)
@@ -273,7 +278,7 @@ withPath action = do
     addTextToStore
       (StoreText
         (forceRight $ System.Nix.StorePath.mkStorePathName "hnix-store")
-        "test"
+        sampleText
       )
       mempty
       RepairMode_DontRepair
@@ -341,6 +346,7 @@ makeProtoSpec
   -> SpecFlavor
   -> Spec
 makeProtoSpec f flavor = around f $ do
+
   context "syncWithGC" $
     itRights "syncs with garbage collector" syncWithGC
 
@@ -499,3 +505,17 @@ makeProtoSpec f flavor = around f $ do
 
         meta <- queryPathInfo sampleNar_storePath
         (metadataDeriverPath =<< meta) `shouldBe` metadataDeriverPath sampleNar_metadata
+
+  context "narFromPath" $ do
+    itRights "downloads nar file" $ do
+      unless (flavor == SpecFlavor_MITM) $ do
+        withPath $ \path -> do
+          maybeMetadata <- queryPathInfo path
+          case maybeMetadata of
+            Just Metadata{metadataNarBytes=Just narBytes} -> do
+              dataSink <- liftIO DataSink.newDataSink
+              narFromPath path narBytes (DataSink.dataSinkWriter dataSink)
+              narData <- liftIO $ DataSink.dataSinkResult dataSink
+              expectedNarData <- liftIO $ SampleNar.encodeNar (Data.Text.Encoding.encodeUtf8 sampleText)
+              narData `shouldBe` expectedNarData
+            _ -> expectationFailure "missing metadata or narBytes"

@@ -1135,6 +1135,9 @@ storeRequest = Serializer
       WorkerOp_IsValidPath -> mapGetE $ do
         Some . IsValidPath <$> getS storePath
 
+      WorkerOp_NarFromPath -> mapGetE $ do
+        Some . NarFromPath <$> getS storePath
+
       WorkerOp_QueryValidPaths -> mapGetE $ do
         paths <- getS (hashSet storePath)
         substituteMode <- getS enum
@@ -1191,7 +1194,6 @@ storeRequest = Serializer
       w@WorkerOp_ExportPath -> notYet w
       w@WorkerOp_HasSubstitutes -> notYet w
       w@WorkerOp_ImportPaths -> notYet w
-      w@WorkerOp_NarFromPath -> notYet w
       w@WorkerOp_QueryDerivationOutputMap -> notYet w
       w@WorkerOp_QueryDeriver -> notYet w
       w@WorkerOp_QueryFailedPaths -> notYet w
@@ -1278,6 +1280,10 @@ storeRequest = Serializer
 
       Some (IsValidPath path) -> mapPutE $ do
         putS workerOp WorkerOp_IsValidPath
+        putS storePath path
+
+      Some (NarFromPath path) -> mapPutE $ do
+        putS workerOp WorkerOp_NarFromPath
         putS storePath path
 
       Some (QueryValidPaths paths substituteMode) -> mapPutE $ do

@@ -91,6 +91,22 @@ doReq = \case
         processOutput
         pure NoReply
 
+      NarFromPath _ -> do
+        maybeSink <- getDataSink
+        sink <- case maybeSink of
+          Nothing -> throwError RemoteStoreError_NoDataSinkProvided
+          Just sink -> pure sink
+        clearDataSink
+        maybeNarSize <- getDataSinkSize
+        narSize <- case maybeNarSize of
+          Nothing -> throwError RemoteStoreError_NoDataSinkSizeProvided
+          Just narSize -> pure narSize
+        clearDataSinkSize
+        soc <- getStoreSocket
+        processOutput
+        copyToSink sink narSize soc
+        pure NoReply
+
       _ -> do
         processOutput
         processReply
@@ -100,6 +116,24 @@ doReq = \case
           (mapErrorS RemoteStoreError_SerializerReply
             $ getReplyS @a
           )
+
+copyToSink
+  :: forall m
+   . ( MonadIO m
+     , MonadRemoteStore m
+     )
+  => (ByteString -> IO()) --  ^ data sink
+  -> Word64 -- ^ byte length to read
+  -> Socket
+  -> m ()
+copyToSink sink remainingBytes soc =
+  when (remainingBytes > 0) $ do
+    let chunkSize = 16384
+        bytesToRead = min chunkSize remainingBytes
+    bytes <- liftIO $ Network.Socket.ByteString.recv soc (fromIntegral bytesToRead)
+    liftIO $ sink bytes
+    let nextRemainingBytes = remainingBytes - (fromIntegral . Data.ByteString.length) bytes
+    copyToSink sink nextRemainingBytes soc
 
 writeFramedSource
   :: forall m
