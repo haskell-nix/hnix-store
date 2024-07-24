@@ -7,6 +7,7 @@ import           Control.Applicative              (many, optional, (<|>))
 import qualified Control.Concurrent               as Concurrent
 import           Control.Exception                (SomeException, try)
 import           Control.Monad                    (replicateM, void, forM_, when)
+import           Crypto.Hash                      (hash, Digest, SHA256)
 import           Data.Serialize                   (Serialize(..))
 import           Data.Serialize                   (Get, getByteString,
                                                    getInt64le,
@@ -35,6 +36,7 @@ import           System.Environment               (getEnv)
 import           System.FilePath                  ((<.>), (</>))
 import qualified System.IO                        as IO
 import qualified System.IO.Temp                   as Temp
+import qualified System.Posix.Files               as Unix
 import qualified System.Posix.Process             as Unix
 import qualified System.Process                   as P
 import           Test.Tasty                       as T
@@ -142,10 +144,16 @@ unit_nixStoreDirectory = filesystemNixStore "directory" (Nar sampleDirectory)
 unit_nixStoreDirectory' :: HU.Assertion
 unit_nixStoreDirectory' = filesystemNixStore "directory'" (Nar sampleDirectory')
 
+-- | Test that the executable permissions are handled correctly in app bundles on macOS.
+test_nixStoreMacOSAppBundle :: TestTree
+test_nixStoreMacOSAppBundle = packThenExtract "App.app" $ \ baseDir -> do
+  let testDir = baseDir </> "App.app" </> "Resources" </> "en.lproj"
+  Directory.createDirectoryIfMissing True testDir
+  mkExecutableFile (testDir </> "test.strings")
+
 test_nixStoreBigFile :: TestTree
 test_nixStoreBigFile = packThenExtract "bigfile" $ \baseDir -> do
   mkBigFile (baseDir </> "bigfile")
-
 
 test_nixStoreBigDir :: TestTree
 test_nixStoreBigDir = packThenExtract "bigdir" $ \baseDir -> do
@@ -350,7 +358,16 @@ packThenExtract testName setup =
         IO.withFile hnixNarFile IO.WriteMode $ \h ->
           buildNarIO narEffectsIO narFilePath h
 
-        -- BSL.writeFile hnixNarFile narBS
+        -- Compare the hash digests of the two NARs
+        nixHash :: Digest SHA256 <- hash <$> BS.readFile nixNarFile
+        hnixHash :: Digest SHA256 <- hash <$> BS.readFile hnixNarFile
+        step $ unlines
+          [ "Compare SHA256 digests between NARs:"
+          , "  nix: "  <> show nixHash
+          , "  hnix: " <> show hnixHash
+          ]
+
+        HU.assertEqual "Hash mismatch between NARs" nixHash hnixHash
 
         step $ "Unpack NAR to " <> outputFile
         _narHandle <- IO.withFile nixNarFile IO.ReadMode $ \h ->
@@ -567,6 +584,12 @@ mkBigFile path = do
   fsize <- getBigFileSize
   BSL.writeFile path (BSL.take fsize $ BSL.cycle "Lorem ipsum")
 
+mkExecutableFile :: FilePath -> IO ()
+mkExecutableFile path = do
+  BSL.writeFile path ""
+  st <- Unix.getSymbolicLinkStatus path
+  let p = Unix.fileMode st `Unix.unionFileModes` Unix.ownerExecuteMode
+  Unix.setFileMode path p
 
 -- | Construct FilePathPart from Text by checking that there
 --   are no '/' or '\\NUL' characters
