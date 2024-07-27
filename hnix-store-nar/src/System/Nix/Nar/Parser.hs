@@ -211,7 +211,9 @@ parseSymlink = do
   currentDirectoryAndFile :: Monad m => NarParser m (FilePath, FilePath)
   currentDirectoryAndFile = do
     dirStack <- State.gets directoryStack
-    pure (List.foldr1 (</>) (List.reverse $ drop 1 dirStack), head dirStack)
+    case dirStack of
+      (x:xs) -> pure (List.foldr1 (</>) (List.reverse xs), x)
+      _ -> error "currentDirectoryAndFile: empty dirStack"
 
 -- | Internal data type representing symlinks encountered in the NAR
 data LinkInfo = LinkInfo
