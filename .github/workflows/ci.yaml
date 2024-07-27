@@ -4,10 +4,10 @@ jobs:
     name: "GHC ${{ matrix.ghc }}, Cabal ${{ matrix.cabal }}, OS ${{ matrix.os }}"
     "runs-on": "${{ matrix.os }}"
     steps:
-    - uses: "cachix/install-nix-action@v24"
+    - uses: "cachix/install-nix-action@v27"
       with:
         nix_path: "nixpkgs=channel:nixos-unstable"
-    - uses: "cachix/cachix-action@v13"
+    - uses: "cachix/cachix-action@v15"
       with:
         name: "hnix-store"
         signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
@@ -28,7 +28,7 @@ jobs:
         fi
     - name: freeze
       run: "cabal freeze --enable-tests --enable-benchmarks"
-    - uses: "actions/cache@v3"
+    - uses: "actions/cache@v4"
       with:
         key: "${{ matrix.os }}-${{ matrix.ghc }}-${{ matrix.cabal}}-${{ hashFiles('cabal.project.freeze') }}"
         path: |
@@ -45,13 +45,10 @@ jobs:
     strategy:
       matrix:
         cabal:
-        - '3.10'
+        - '3.12'
         ghc:
-        - '9.6.3'
-        - '9.4.7'
-        - '9.2.8'
-        - '9.0.2'
-        - '8.10.7'
+        - '9.8.2'
+        - '9.6.6'
         os:
         - "ubuntu-latest"
         - "macos-latest"
@@ -59,5 +56,3 @@ name: Haskell CI
 'on':
   pull_request: {}
   push: {}
-  schedule:
-  - cron: "4 20 10 * *"
