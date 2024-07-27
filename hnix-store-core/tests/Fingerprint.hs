@@ -32,10 +32,13 @@ spec_fingerprint = do
     it "allows a successful signature verification" $ do
       let msg = Text.encodeUtf8 $ metadataFingerprint def exampleStorePath exampleMetadata
           Signature sig' =
-            head
-            $ sig
-            <$> filter (\(NarSignature publicKey _) -> publicKey == "cache.nixos.org-1")
-            (Set.toList (metadataSigs exampleMetadata))
+            case
+              sig
+              <$> filter (\(NarSignature publicKey _) -> publicKey == "cache.nixos.org-1")
+              (Set.toList (metadataSigs exampleMetadata))
+            of
+              (x:_) -> x
+              _ -> error "impossible"
       sig' `shouldSatisfy` Ed25519.verify pubkey msg
 
 exampleFingerprint :: Text
