@@ -15,14 +15,6 @@ let
       } // (lib.filterAttrs (n: v: n != "url") x));
 in
 {
-  # srk 2023-11-18: this is pinned in nixpkgs unstable to 1.0.5
-  # causing trouble with ghc963
-  some = hself.callHackageDirect
-    { pkg = "some";
-      ver = "1.0.6";
-      sha256 = "sha256-AnjaUzSlsLi3lIURrEfs92Jo5FzX49RyNdfDSfFV3Kk=";
-    } {};
-
   # srk 2023-12-06: until in unstable
   dependent-sum-template = hself.callHackageDirect
     { pkg = "dependent-sum-template";
