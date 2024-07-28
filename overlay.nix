@@ -22,15 +22,6 @@ in
       sha256 = "sha256-quwgFuEBrK96JZenJZcyfk/O0Gp+ukwKEpe1hMqDbIg=";
     } {};
 
-  # srk 2023-11-19: wider unix bound via CPP
-  # Required for ghc963 since linux-namespaces is pinned
-  # in unstable to 0.1.3.0
-  linux-namespaces = hself.callCabal2nix "linux-namespaces"
-    (fetchGitHubPR {
-      url = "https://github.com/redneb/hs-linux-namespaces/pull/4";
-      sha256 = "sha256-R61OCu6b4YoDzIl0vg8cSoP7611TlEdWZfVDnZrJY+g=";
-    }) {};
-
   hnix-store-core =
     lib.pipe
       (hself.callCabal2nix "hnix-store-core" ./hnix-store-core {})
