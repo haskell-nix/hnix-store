@@ -14,13 +14,7 @@ in    haskellCi.generalCi
             )
         )
         haskellCi.DhallMatrix::{
-        , ghc =
-          [ haskellCi.GHC.GHC963
-          , haskellCi.GHC.GHC947
-          , haskellCi.GHC.GHC928
-          , haskellCi.GHC.GHC902
-          , haskellCi.GHC.GHC8107
-          ]
+        , ghc = [ haskellCi.GHC.GHC982, haskellCi.GHC.GHC966 ]
         , os = [ haskellCi.OS.Ubuntu, haskellCi.OS.MacOS ]
         }
     : haskellCi.CI.Type

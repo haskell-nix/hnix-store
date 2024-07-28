@@ -15,29 +15,11 @@ let
       } // (lib.filterAttrs (n: v: n != "url") x));
 in
 {
-  # srk 2023-11-18: this is pinned in nixpkgs unstable to 1.0.5
-  # causing trouble with ghc963
-  some = hself.callHackageDirect
-    { pkg = "some";
-      ver = "1.0.6";
-      sha256 = "sha256-AnjaUzSlsLi3lIURrEfs92Jo5FzX49RyNdfDSfFV3Kk=";
-    } {};
-
-  # srk 2023-12-06: until in unstable
-  dependent-sum-template = hself.callHackageDirect
-    { pkg = "dependent-sum-template";
-      ver = "0.2.0.1";
-      sha256 = "sha256-quwgFuEBrK96JZenJZcyfk/O0Gp+ukwKEpe1hMqDbIg=";
-    } {};
-
-  # srk 2023-11-19: wider unix bound via CPP
-  # Required for ghc963 since linux-namespaces is pinned
-  # in unstable to 0.1.3.0
-  linux-namespaces = hself.callCabal2nix "linux-namespaces"
-    (fetchGitHubPR {
-      url = "https://github.com/redneb/hs-linux-namespaces/pull/4";
-      sha256 = "sha256-R61OCu6b4YoDzIl0vg8cSoP7611TlEdWZfVDnZrJY+g=";
-    }) {};
+  # srk 2024-07-28: allow template-haskell 2.22 (GHC 9.8)
+  # https://github.com/obsidiansystems/dependent-sum-template/pull/13
+  dependent-sum-template =
+    haskellLib.doJailbreak
+      hsuper.dependent-sum-template_0_2_0_1;
 
   hnix-store-core =
     lib.pipe

@@ -1,6 +1,6 @@
 let haskellCi =
       https://raw.githubusercontent.com/sorki/github-actions-dhall/main/haskell-ci.dhall
-        sha256:5d7058a7684fd5315467b562853bd1c4a43da691c09293d3715ee739dfa26e08
+        sha256:eff4d52e4243777fbe2c800778b24092ace8cd83165cf46b90d5c22e3ebfdd81
 
 let defSteps = haskellCi.defaultCabalSteps
 
@@ -15,13 +15,7 @@ in    haskellCi.generalCi
             )
         )
         haskellCi.DhallMatrix::{
-        , ghc =
-          [ haskellCi.GHC.GHC963
-          , haskellCi.GHC.GHC947
-          , haskellCi.GHC.GHC928
-          , haskellCi.GHC.GHC902
-          , haskellCi.GHC.GHC8107
-          ]
+        , ghc = [ haskellCi.GHC.GHC982, haskellCi.GHC.GHC966 ]
         , os = [ haskellCi.OS.Ubuntu, haskellCi.OS.MacOS ]
         }
     : haskellCi.CI.Type
