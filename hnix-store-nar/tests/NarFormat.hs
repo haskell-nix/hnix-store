@@ -145,6 +145,8 @@ unit_nixStoreDirectory' :: HU.Assertion
 unit_nixStoreDirectory' = filesystemNixStore "directory'" (Nar sampleDirectory')
 
 -- | Test that the executable permissions are handled correctly in app bundles on macOS.
+--   In this case, access() returns false for a file under this specific path, even when the executable bit is set.
+--   NAR implementations should avoid this syscall on macOS.
 test_nixStoreMacOSAppBundle :: TestTree
 test_nixStoreMacOSAppBundle = packThenExtract "App.app" $ \ baseDir -> do
   let testDir = baseDir </> "App.app" </> "Resources" </> "en.lproj"

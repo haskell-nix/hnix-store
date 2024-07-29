@@ -123,12 +123,20 @@ streamStringOutIO f executable getChunk =
       "Failed to stream string to " <> f <> ": " <> show e
 
 -- | Check whether the file is executable by the owner.
+--
+--   Matches the logic used by Nix.
+--
+--   access() should not be used for this purpose on macOS.
+--   It returns false for executables when placed in certain directories.
+--   For example, when in an app bundle: App.app/Contents/Resources/en.lproj/myexecutable.strings
 isExecutable :: FileStatus -> Bool
 isExecutable st =
   isRegularFile st
     && fileMode st `intersectFileModes` ownerExecuteMode /= nullFileMode
 
 -- | Set the file to be executable by the owner, group, and others.
+--
+--   Matches the logic used by Nix.
 setExecutable :: FilePath -> IO ()
 setExecutable f = do
   st <- getSymbolicLinkStatus f
