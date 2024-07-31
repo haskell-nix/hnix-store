@@ -1,10 +1,21 @@
-# Unreleased 202y-mm-dd
+# [0.7.0.0](https://github.com/haskell-nix/hnix-store/compare/remote-0.6.0.0...remote-0.7.0.0) 2024-07-31
 
 * Changes:
     * `StorePath` no longer carries `storePathRoot` field and we
       have a stand-alone `StoreDir` type instead to be used instead of `FilePath`
       when store root directory is needed as a context.
       Fore `-remote`, this affects `runStoreOpts` and its variants [#216](https://github.com/haskell-nix/hnix-store/pull/216)
+    * The old `MonadStore` is now deprecated and aliased to `RemoteStoreT IO`
+    * All store operations now use `MonadRemoteStore` typeclass, which `RemoteStoreT` is an instance of
+    * Couple of `Bool` parameters switched to enums
+
+* Additions
+    * `addToStoreNAR` store operation [#277](https://github.com/haskell-nix/hnix-store/pull/277)
+    * `narFromPath` store operation [#279](https://github.com/haskell-nix/hnix-store/pull/279)
+    * Initial server-side support with proxy daemon acting as MITM proxy,
+      which allows for testing of both sides of the remote store protocol
+
+The library stability is not quite there yet and should be considered experimental.
 
 # [0.6.0.0](https://github.com/haskell-nix/hnix-store/compare/remote-0.5.0.0...remote-0.6.0.0) 2021-06-06
 

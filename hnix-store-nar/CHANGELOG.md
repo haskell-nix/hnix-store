@@ -1,10 +1,9 @@
-# Version [0.1.0.0](https://github.com/haskell-nix/hnix-store/compare/nar-0.1.0.0...nar-0.1.1.0) (2023-11-27)
+# 0.1.0.0 2024-07-31
 
-* Initial release
+* Initial release after a split from `hnix-store-core`
 
 ---
 
 `hnix-store-nar` uses [PVP Versioning][1].
 
 [1]: https://pvp.haskell.org
-

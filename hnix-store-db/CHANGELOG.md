@@ -1,3 +1,9 @@
-# Unreleased 202y-mm-dd
+# 0.1.0.0 2024-07-31
 
-* First version.
+* Initial release
+
+---
+
+`hnix-store-db` uses [PVP Versioning][1].
+
+[1]: https://pvp.haskell.org

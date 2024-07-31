@@ -1,4 +1,4 @@
-# Next
+# [0.8.0.0](https://github.com/haskell-nix/hnix-store/compare/core-0.7.0.0...core-0.8.0.0) 2024-07-31
 
 * Changes:
    * `System.Nix.StorePath.makeStorePathName` renamed to `System.Nix.StorePath.mkStorePathName`
@@ -6,7 +6,7 @@
      and renamed to `System.Nix.Store.ReadOnly` [#247](https://github.com/haskell-nix/hnix-store/pull/247)
    * `System.Nix.Nar*` moved to `hnix-store-nar` package [#247](https://github.com/haskell-nix/hnix-store/pull/247)
    * `Arbitrary` instances moved to `hnix-store-tests` package [#241](https://github.com/haskell-nix/hnix-store/pull/241)
-   * `System.Nix.Internal` namespaces was removed [#236](https://github.com/haskell-nix/hnix-store/pull/236)
+   * `System.Nix.Internal` namespace was removed [#236](https://github.com/haskell-nix/hnix-store/pull/236)
    * `StorePathMetadata` converted to `Metadata a` [#231](https://github.com/haskell-nix/hnix-store/pull/231)
      * Moved to `System.Nix.StorePath.Metadata` [#236](https://github.com/haskell-nix/hnix-store/pull/236)
    * Constructors of `StorePathName` and `StorePathHashPart` are no longer
@@ -159,3 +159,9 @@ exist and we can tell what common effects they should share.
 # 0.1.0.0  -- 2019-03-18
 
 * First version.
+
+---
+
+`hnix-store-core` uses [PVP Versioning][1].
+
+[1]: https://pvp.haskell.org
