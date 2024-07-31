@@ -12,14 +12,16 @@ maintainer:          srk@48.io
 copyright:           2018 Shea Levy
 category:            Nix
 build-type:          Simple
-extra-source-files:
+extra-doc-files:
     CHANGELOG.md
-  , README.md
+extra-source-files:
+    README.md
   , tests/fixtures/case-conflict.nar
 
 flag bounded_memory
   description: Run tests of constant memory use (requires +RTS -T)
   default: False
+  manual: True
 
 common commons
   ghc-options:  -Wall

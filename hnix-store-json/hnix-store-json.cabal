@@ -3,18 +3,19 @@ name:                hnix-store-json
 version:             0.1.0.0
 synopsis:            JSON serialization for core types
 description:
-  Aeson instances for core types
+  Aeson instances for core types, required for remote store protocol
 homepage:            https://github.com/haskell-nix/hnix-store
 license:             Apache-2.0
 license-file:        LICENSE
-author:              Richard Marko
+author:              Sorki
 maintainer:          srk@48.io
-copyright:           2023 Richard Marko
+copyright:           2023 Sorki
 category:            Nix
 build-type:          Simple
-extra-source-files:
+extra-doc-files:
     CHANGELOG.md
-  , README.md
+extra-source-files:
+    README.md
 
 common commons
   ghc-options:  -Wall

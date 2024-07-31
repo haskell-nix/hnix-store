@@ -2,18 +2,19 @@ cabal-version:       2.2
 name:                hnix-store-db
 version:             0.1.0.0
 synopsis:            Nix store database support
-description:         Implementation of the nix store database
+description:         Implementation of the Nix store database
 homepage:            https://github.com/haskell-nix/hnix-store
 license:             Apache-2.0
 license-file:        LICENSE
-author:              Richard Marko
+author:              Sorki
 maintainer:          srk@48.io
-copyright:           2023 Richard Marko
+copyright:           2023 Sorki
 category:            Nix
 build-type:          Simple
-extra-source-files:
+extra-doc-files:
     CHANGELOG.md
-  , README.md
+extra-source-files:
+    README.md
   , README.lhs
 
 flag build-bench
