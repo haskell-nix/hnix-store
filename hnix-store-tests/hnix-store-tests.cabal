@@ -15,9 +15,10 @@ maintainer:          srk@48.io
 copyright:           2023 Sorki
 category:            Nix
 build-type:          Simple
-extra-source-files:
+extra-doc-files:
     CHANGELOG.md
-  , README.md
+extra-source-files:
+    README.md
 
 common commons
   ghc-options:  -Wall
