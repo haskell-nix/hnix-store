@@ -21,6 +21,7 @@ extra-source-files:
 flag bounded_memory
   description: Run tests of constant memory use (requires +RTS -T)
   default: False
+  manual: True
 
 common commons
   ghc-options:  -Wall
