@@ -345,17 +345,23 @@ byteString = Serializer
 
 -- | Utility toEnum version checking bounds using Bounded class
 toEnumCheckBoundsM
-  :: ( Enum a
+  :: forall a m
+   . ( Bounded a
+     , Enum a
      , MonadError SError m
      )
   => Int
   -> m a
 toEnumCheckBoundsM = \case
-  x | x < minBound -> throwError $ SError_EnumOutOfMinBound x
-  x | x > maxBound -> throwError $ SError_EnumOutOfMaxBound x
+  x | x < fromEnum (minBound @a) -> throwError $ SError_EnumOutOfMinBound x
+  x | x > fromEnum (maxBound @a) -> throwError $ SError_EnumOutOfMaxBound x
   x | otherwise -> pure $ toEnum x
 
-enum :: Enum a => NixSerializer r SError a
+enum
+  :: ( Bounded a
+     , Enum a
+     )
+  => NixSerializer r SError a
 enum = Serializer
   { getS = getS int >>= toEnumCheckBoundsM
   , putS = putS int . fromEnum

@@ -302,14 +302,24 @@ putBool True  = putInt (1 :: Int8)
 putBool False = putInt (0 :: Int8)
 
 -- | Utility toEnum version checking bounds using Bounded class
-toEnumCheckBounds :: Enum a => Int -> Either String a
+toEnumCheckBounds
+  :: forall a
+   . ( Bounded a
+     , Enum a
+     )
+  => Int
+  -> Either String a
 toEnumCheckBounds = \case
-  x | x < minBound -> Left $ "enum out of min bound " ++ show x
-  x | x > maxBound -> Left $ "enum out of max bound " ++ show x
+  x | x < fromEnum (minBound @a) -> Left $ "enum out of min bound " ++ show x
+  x | x > fromEnum (maxBound @a) -> Left $ "enum out of max bound " ++ show x
   x | otherwise -> Right $ toEnum x
 
 -- | Deserialize @Enum@ to integer
-getEnum :: Enum a => Get a
+getEnum
+  :: ( Bounded a
+     , Enum a
+     )
+  => Get a
 getEnum =
   toEnumCheckBounds <$> getInt
   >>= either fail pure
