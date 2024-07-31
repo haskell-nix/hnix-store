@@ -2,7 +2,7 @@
 {-|
 Description : NixSerializer
 Copyright   : (c) John Ericson, 2023
-                  Richard Marko, 2023
+                  Sorki, 2023
 |-}
 
 module System.Nix.Store.Remote.Serializer

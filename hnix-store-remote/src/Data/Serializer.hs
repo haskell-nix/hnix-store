@@ -3,7 +3,7 @@
 {-|
 Description : Serializer data type
 Copyright   : (c) John Ericson, 2023
-                  Richard Marko, 2023
+                  Sorki, 2023
 Stability   : experimental
 
 @Serializer@ ties @Get@ and @PutM@ monads

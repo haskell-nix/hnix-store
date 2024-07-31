@@ -7,9 +7,9 @@ description:
 homepage:            https://github.com/haskell-nix/hnix-store
 license:             Apache-2.0
 license-file:        LICENSE
-author:              Richard Marko
+author:              Sorki
 maintainer:          srk@48.io
-copyright:           2023 Richard Marko
+copyright:           2023 Sorki
 category:            Nix
 build-type:          Simple
 extra-source-files:
