@@ -63,3 +63,9 @@ Nothing (it is tandem `hnix-store-core` fix release)
 # 0.1.0.0  -- 2019-03-18
 
 * First version.
+
+---
+
+`hnix-store-remote` uses [PVP Versioning][1].
+
+[1]: https://pvp.haskell.org
