@@ -24,7 +24,7 @@ data BuildMode
   = BuildMode_Normal -- ^ Perform normal build
   | BuildMode_Repair -- ^ Try to repair corrupted or missing paths by re-building or re-downloading them
   | BuildMode_Check -- ^ Check if the build is reproducible (rebuild and compare to previous build)
-  deriving (Eq, Generic, Ord, Enum, Show)
+  deriving (Bounded, Eq, Generic, Ord, Enum, Show)
 
 -- | Build result status
 data BuildStatus =
@@ -43,7 +43,7 @@ data BuildStatus =
   | BuildStatus_NotDeterministic
   | BuildStatus_ResolvesToAlreadyValid
   | BuildStatus_NoSubstituters
-  deriving (Eq, Generic, Ord, Enum, Show)
+  deriving (Bounded, Eq, Generic, Ord, Enum, Show)
 
 -- | Result of the build
 data BuildResult = BuildResult

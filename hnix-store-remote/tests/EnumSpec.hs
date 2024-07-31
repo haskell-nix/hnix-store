@@ -24,7 +24,8 @@ spec :: Spec
 spec = do
   let
     itE
-      :: ( Enum a
+      :: ( Bounded a
+         , Enum a
          , Show a
          )
       => String
