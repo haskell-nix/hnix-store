@@ -99,7 +99,10 @@ streamNarIOWithOptions opts effs basePath yield = do
                       if Nar.optUseCaseHack opts
                       then undoCaseHack f
                       else f
-                  in Map.insert name f acc
+                  in
+                  case Map.insertLookupWithKey (\_ n _ -> n) name f acc of
+                    (Nothing, newMap) -> newMap
+                    (Just conflict, _) -> error $ "File name collision between " ++ (path </> name) ++ " and " ++ (path </> conflict)
                 ) Map.empty fs
           yield $ strs ["type", "directory"]
           forM_ (Map.toAscList entries) $ \(unhacked, original) -> do
