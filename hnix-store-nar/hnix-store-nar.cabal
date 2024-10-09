@@ -1,6 +1,6 @@
 cabal-version:       2.2
 name:                hnix-store-nar
-version:             0.1.0.0
+version:             0.1.1.0
 synopsis:            NAR file format
 description:
   Packing and unpacking for NAR file format used by Nix.
