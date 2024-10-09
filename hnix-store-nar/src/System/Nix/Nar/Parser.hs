@@ -320,7 +320,7 @@ parseDirectory = do
     conflictCount <- getFilePathConflictCount key
     pure $
       if conflictCount > 0 then
-        fName <> Nar.caseHackSuffix <> (Text.pack $ show conflictCount)
+        fName <> Nar.caseHackSuffix <> Text.pack (show conflictCount)
       else
         fName
 

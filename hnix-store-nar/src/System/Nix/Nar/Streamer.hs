@@ -12,7 +12,7 @@ module System.Nix.Nar.Streamer
 
 import Data.ByteString (ByteString)
 import Data.Int (Int64)
-import Data.Text (Text)
+import qualified Data.Map.Strict                 as Map
 
 import           Control.Monad                    ( forM_
                                                   , when
@@ -23,7 +23,7 @@ import qualified Data.ByteString.Lazy            as Bytes.Lazy
 import qualified Data.Foldable
 import qualified Data.List
 import qualified Data.Serialize                  as Serial
-import qualified Data.Text                       as T (pack, breakOn)
+import qualified Data.Text                       as T (pack, unpack)
 import qualified Data.Text.Encoding              as TE (encodeUtf8)
 import           System.FilePath                 ((</>))
 
@@ -92,18 +92,24 @@ streamNarIOWithOptions opts effs basePath yield = do
         isDir <- IO.liftIO $ Nar.narIsDir effs path
         if isDir then do
           fs <- IO.liftIO (Nar.narListDir effs path)
+          let entries =
+                foldr (\f acc ->
+                  let
+                    name =
+                      if Nar.optUseCaseHack opts
+                      then undoCaseHack f
+                      else f
+                  in
+                  case Map.insertLookupWithKey (\_ n _ -> n) name f acc of
+                    (Nothing, newMap) -> newMap
+                    (Just conflict, _) -> error $ "File name collision between " ++ (path </> name) ++ " and " ++ (path </> conflict)
+                ) Map.empty fs
           yield $ strs ["type", "directory"]
-          forM_ (Data.List.sort fs) $ \f -> do
+          forM_ (Map.toAscList entries) $ \(unhacked, original) -> do
             yield $ str "entry"
             parens $ do
-              let fullName = path </> f
-              let serializedPath =
-                    if Nar.optUseCaseHack opts then
-                      filePathToBSWithCaseHack f
-                    else
-                      filePathToBS f
-              yield $ strs ["name", serializedPath, "node"]
-              parens $ go fullName
+              yield $ strs ["name", filePathToBS unhacked, "node"]
+              parens $ go (path </> original)
         else do
           isExec <- IO.liftIO $ Nar.narIsExec effs path
           yield $ strs ["type", "regular"]
@@ -148,8 +154,10 @@ strs xs = Bytes.concat $ str <$> xs
 filePathToBS :: FilePath -> ByteString
 filePathToBS = TE.encodeUtf8 . T.pack
 
-filePathToBSWithCaseHack :: FilePath -> ByteString
-filePathToBSWithCaseHack = TE.encodeUtf8 . undoCaseHack . T.pack
-
-undoCaseHack :: Text -> Text
-undoCaseHack = fst . T.breakOn Nar.caseHackSuffix
+undoCaseHack :: FilePath -> FilePath
+undoCaseHack f =
+  case Data.List.findIndex (caseHackSuffix `Data.List.isPrefixOf`) (Data.List.tails f) of
+     Just index -> take index f
+     Nothing -> f
+  where
+    caseHackSuffix = T.unpack Nar.caseHackSuffix

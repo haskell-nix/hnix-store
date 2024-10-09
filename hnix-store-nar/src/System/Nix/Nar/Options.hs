@@ -20,10 +20,7 @@ data NarOptions = NarOptions {
 
 defaultNarOptions :: NarOptions
 defaultNarOptions = NarOptions {
-  optUseCaseHack =
-    if System.Info.os == "darwin"
-      then True
-      else False
+  optUseCaseHack = System.Info.os == "darwin"
 }
 
 caseHackSuffix :: Text
