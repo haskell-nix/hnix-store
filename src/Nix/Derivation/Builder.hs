@@ -14,7 +14,11 @@ import Data.Set (Set)
 import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder)
 import Data.Vector (Vector)
-import Nix.Derivation.Types (Derivation(..), DerivationOutput(..))
+import Nix.Derivation.Types
+    ( Derivation(..)
+    , DerivationInputs(..)
+    , DerivationOutput(..)
+    )
 
 import qualified Data.Map
 import qualified Data.Set
@@ -23,23 +27,36 @@ import qualified Data.Text.Lazy.Builder
 import qualified Data.Vector
 
 -- | Render a derivation as a `Builder`
-buildDerivation :: Derivation FilePath Text -> Builder
-buildDerivation = buildDerivationWith filepath' string'
+buildDerivation
+    :: Derivation
+           FilePath
+           Text
+           Text
+           DerivationOutput
+           DerivationInputs
+    -> Builder
+buildDerivation =
+    buildDerivationWith
+        string'
+        string'
+        (buildDerivationOutputWith filepath' string')
+        (buildDerivationInputsWith filepath' string')
 
 -- | Render a derivation as a `Builder` using custom
--- renderer for filepath and string
-buildDerivationWith :: (Monoid fp, Monoid txt)
-                    => (fp -> Builder)
-                    -> (txt -> Builder)
-                    -> Derivation fp txt
-                    -> Builder
-buildDerivationWith filepath string (Derivation {..}) =
+-- renderer for filepaths, texts, outputNames and derivation inputs/outputs
+buildDerivationWith
+    :: (Monoid fp, Monoid txt)
+    => (txt -> Builder)
+    -> (outputName -> Builder)
+    -> (drvOutput fp txt -> Builder)
+    -> (drvInputs fp outputName -> Builder)
+    -> Derivation fp txt outputName drvOutput drvInputs
+    -> Builder
+buildDerivationWith string outputName drvOutput drvInputs (Derivation {..}) =
         "Derive("
     <>  mapOf keyValue0 outputs
     <>  ","
-    <>  mapOf keyValue1 inputDrvs
-    <>  ","
-    <>  setOf filepath inputSrcs
+    <>  drvInputs inputs
     <>  ","
     <>  string platform
     <>  ","
@@ -47,54 +64,67 @@ buildDerivationWith filepath string (Derivation {..}) =
     <>  ","
     <>  vectorOf string args
     <>  ","
-    <>  mapOf keyValue2 env
+    <>  mapOf keyValue1 env
     <>  ")"
   where
-    keyValue0 (key, DerivationOutput {..}) =
+    keyValue0 (key, output) =
             "("
-        <>  string key
+        <>  outputName key
         <>  ","
-        <>  filepath path
-        <>  ","
-        <>  string mempty
-        <>  ","
-        <>  string mempty
-        <>  ")"
-
-    keyValue0 (key, FixedDerivationOutput {..}) =
-            "("
-        <>  string key
-        <>  ","
-        <>  filepath path
-        <>  ","
-        <>  string hashAlgo
-        <>  ","
-        <>  string hash
-        <>  ")"
-
-    keyValue0 (key, ContentAddressedDerivationOutput {..}) =
-            "("
-        <>  string key
-        <>  ","
-        <>  filepath mempty
-        <>  ","
-        <>  string hashAlgo
-        <>  ","
-        <>  string mempty
+        <>  drvOutput output
         <>  ")"
 
     keyValue1 (key, value) =
             "("
-        <>  filepath key
-        <>  ","
-        <>  setOf string value
-        <>  ")"
-
-    keyValue2 (key, value) =
-            "("
         <>  string key
         <>  ","
         <>  string value
+        <>  ")"
+
+-- | Render a @DerivationOutput@ as a `Builder` using custom
+-- renderer for filepaths
+buildDerivationOutputWith
+    :: (Monoid fp, Monoid txt)
+    => (fp -> Builder)
+    -> (txt -> Builder)
+    -> DerivationOutput fp txt
+    -> Builder
+buildDerivationOutputWith filepath string (DerivationOutput {..}) =
+        filepath path
+    <>  ","
+    <>  string mempty
+    <>  ","
+    <>  string mempty
+buildDerivationOutputWith filepath string (FixedDerivationOutput {..}) =
+        filepath path
+    <>  ","
+    <>  string hashAlgo
+    <>  ","
+    <>  string hash
+buildDerivationOutputWith filepath string (ContentAddressedDerivationOutput {..}) =
+        filepath mempty
+    <>  ","
+    <>  string hashAlgo
+    <>  ","
+    <>  string mempty
+
+-- | Render a @DerivationInputs@ as a `Builder` using custom
+-- renderer for filepaths and output names
+buildDerivationInputsWith
+    :: (fp -> Builder)
+    -> (outputName -> Builder)
+    -> DerivationInputs fp outputName
+    -> Builder
+buildDerivationInputsWith filepath outputName (DerivationInputs {..}) =
+        mapOf keyValue drvs
+    <>  ","
+    <>  setOf filepath srcs
+  where
+    keyValue (key, value) =
+            "("
+        <>  filepath key
+        <>  ","
+        <>  setOf outputName value
         <>  ")"
 
 mapOf :: ((k, v) -> Builder) -> Map k v -> Builder
@@ -103,7 +133,7 @@ mapOf keyValue m = listOf keyValue (Data.Map.toList m)
 listOf :: (a -> Builder) -> [a] -> Builder
 listOf _          []  = "[]"
 listOf element (x:xs) =
-        "[" 
+        "["
     <>  element x
     <>  foldMap rest xs
     <>  "]"

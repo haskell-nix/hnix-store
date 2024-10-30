@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
@@ -17,7 +18,11 @@ import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Vector (Vector)
-import Nix.Derivation.Types (Derivation(..), DerivationOutput(..))
+import Nix.Derivation.Types
+    ( Derivation(..)
+    , DerivationInputs(..)
+    , DerivationOutput(..)
+    )
 
 import qualified Data.Attoparsec.Text
 import qualified Data.Attoparsec.Text.Lazy
@@ -32,46 +37,51 @@ listOf element = do
     "["
     es <- Data.Attoparsec.Text.Lazy.sepBy element ","
     "]"
-    return es
+    pure es
 
 -- | Parse a derivation
-parseDerivation :: Parser (Derivation FilePath Text)
-parseDerivation = parseDerivationWith filepathParser textParser
+parseDerivation
+    :: Parser (Derivation
+                  FilePath
+                  Text
+                  Text
+                  DerivationOutput
+                  DerivationInputs
+              )
+parseDerivation =
+    parseDerivationWith
+        textParser
+        textParser
+        (parseDerivationOutputWith filepathParser textParser)
+        (parseDerivationInputsWith filepathParser textParser)
 
 -- | Parse a derivation using custom
--- parsers for filepaths and text fields
-parseDerivationWith :: (Ord fp, Monoid fp, Ord txt, Monoid txt) => Parser fp -> Parser txt -> Parser (Derivation fp txt)
-parseDerivationWith filepath string = do
+-- parsers for filepaths, texts, outputNames and derivation inputs/outputs
+parseDerivationWith
+    :: ( Ord fp
+       , Ord txt
+       , Ord outputName
+       )
+    => Parser txt
+    -> Parser outputName
+    -> Parser (drvOutput fp txt)
+    -> Parser (drvInputs fp outputName)
+    -> Parser (Derivation fp txt outputName drvOutput drvInputs)
+parseDerivationWith string outputName parseOutput parseInputs = do
     "Derive("
 
     let keyValue0 = do
             "("
-            key <- string
+            key <- outputName
             ","
-            path <- filepath
-            ","
-            hashAlgo <- string
-            ","
-            hash <- string
+            drvOutput <- parseOutput
             ")"
-            drvOutput <- derivationOutput path hashAlgo hash
             return (key, drvOutput)
     outputs <- mapOf keyValue0
 
     ","
 
-    let keyValue1 = do
-            "("
-            key <- filepath
-            ","
-            value <- setOf string
-            ")"
-            return (key, value)
-    inputDrvs <- mapOf keyValue1
-
-    ","
-
-    inputSrcs <- setOf filepath
+    inputs <- parseInputs
 
     ","
 
@@ -87,28 +97,67 @@ parseDerivationWith filepath string = do
 
     ","
 
-    let keyValue2 = do
+    let keyValue1 = do
             "("
             key <- string
             ","
             value <- string
             ")"
-            return (key, value)
-    env <- mapOf keyValue2
+            pure (key, value)
+    env <- mapOf keyValue1
 
     ")"
 
-    return (Derivation {..})
+    pure Derivation {..}
 
-derivationOutput :: (Ord fp, Monoid fp, Ord txt, Monoid txt) => fp -> txt -> txt -> Parser (DerivationOutput fp txt)
-derivationOutput path hashAlgo hash
-    | path /= mempty && hashAlgo == mempty && hash == mempty =
-        return DerivationOutput {..}
-    | path /= mempty && hashAlgo /= mempty && hash /= mempty =
-        return FixedDerivationOutput {..}
-    | path == mempty && hashAlgo /= mempty && hash == mempty =
-        return ContentAddressedDerivationOutput {..}
-    | otherwise = fail "bad output in derivation"
+-- | Parse a derivation output
+parseDerivationOutputWith
+    :: ( Eq fp
+       , Eq txt
+       , Monoid fp
+       , Monoid txt
+       )
+    => Parser fp
+    -> Parser txt
+    -> Parser (DerivationOutput fp txt)
+parseDerivationOutputWith filepath textParser = do
+    path <- filepath
+    ","
+    hashAlgo <- textParser
+    ","
+    hash <- textParser
+    if
+        | path /= mempty && hashAlgo == mempty && hash == mempty ->
+              pure DerivationOutput {..}
+        | path /= mempty && hashAlgo /= mempty && hash /= mempty ->
+              pure FixedDerivationOutput {..}
+        | path == mempty && hashAlgo /= mempty && hash == mempty ->
+              pure ContentAddressedDerivationOutput {..}
+        | otherwise ->
+            fail "bad output in derivation"
+
+-- | Parse a derivation inputs
+parseDerivationInputsWith
+    :: ( Ord fp
+       , Ord outputName
+       )
+    => Parser fp
+    -> Parser outputName
+    -> Parser (DerivationInputs fp outputName)
+parseDerivationInputsWith filepath outputName = do
+    let keyValue = do
+            "("
+            key <- filepath
+            ","
+            value <- setOf outputName
+            ")"
+            pure (key, value)
+    drvs <- mapOf keyValue
+
+    ","
+
+    srcs <- setOf filepath
+    pure DerivationInputs {..}
 
 textParser :: Parser Text
 textParser = do
@@ -123,24 +172,22 @@ textParser = do
 
             case char0 of
                 '"'  -> do
-                    return [ text0 ]
+                    pure [ text0 ]
 
                 _    -> do
                     char1 <- Data.Attoparsec.Text.anyChar
 
                     char2 <- case char1 of
-                        'n' -> return '\n'
-                        'r' -> return '\r'
-                        't' -> return '\t'
-                        _   -> return char1
+                        'n' -> pure '\n'
+                        'r' -> pure '\r'
+                        't' -> pure '\t'
+                        _   -> pure char1
 
                     textChunks <- loop
 
-                    return (text0 : Data.Text.singleton char2 : textChunks)
+                    pure (text0 : Data.Text.singleton char2 : textChunks)
 
-    textChunks <- loop
-
-    return (Data.Text.concat textChunks)
+    Data.Text.concat <$> loop
 
 filepathParser :: Parser FilePath
 filepathParser = do
@@ -148,21 +195,21 @@ filepathParser = do
     let str = Data.Text.unpack text
     case (Data.Text.uncons text, System.FilePath.isValid str) of
         (Just ('/', _), True) -> do
-            return str
+            pure str
         _ -> do
             fail ("bad path ‘" <> Data.Text.unpack text <> "’ in derivation")
 
 setOf :: Ord a => Parser a -> Parser (Set a)
 setOf element = do
     es <- listOf element
-    return (Data.Set.fromList es)
+    pure (Data.Set.fromList es)
 
 vectorOf :: Parser a -> Parser (Vector a)
 vectorOf element = do
     es <- listOf element
-    return (Data.Vector.fromList es)
+    pure (Data.Vector.fromList es)
 
 mapOf :: Ord k => Parser (k, v) -> Parser (Map k v)
 mapOf keyValue = do
     keyValues <- listOf keyValue
-    return (Data.Map.fromList keyValues)
+    pure (Data.Map.fromList keyValues)
