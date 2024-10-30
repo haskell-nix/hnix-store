@@ -1,5 +1,9 @@
 # `nix-derivation`
 
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/Gabriella439/Haskell-Nix-Derivation-Library/ci.yaml?branch=main)](https://github.com/Gabriella439/Haskell-Nix-Derivation-Library/actions/workflows/ci.yaml)
+[![Hackage version](https://img.shields.io/hackage/v/nix-derivation.svg?color=success)](https://hackage.haskell.org/package/nix-derivation)
+[![Dependencies](https://img.shields.io/hackage-deps/v/nix-derivation?label=Dependencies)](https://packdeps.haskellers.com/feed?needle=nix-derivation)
+
 Use this package to parse and render Nix derivations such as those stored
 in `/nix/store/*.drv` files.  For example, if you had the following derivation
 saved at
@@ -183,14 +187,12 @@ $ nix-env -iA nixpkgs.haskellPackages.nix-derivation
 
 ## Development status
 
-[![Build Status](https://travis-ci.org/Gabriel439/Haskell-Nix-Derivation-Library.png)](https://travis-ci.org/Gabriel439/Haskell-Nix-Derivation-Library)
-
 If you would like to add support for additional functionality, just open an
 issue or pull request
 
 ## License (BSD 3-clause)
 
-    Copyright (c) 2017 Gabriel Gonzalez
+    Copyright (c) 2017 Gabriella Gonzalez
     All rights reserved.
     
     Redistribution and use in source and binary forms, with or without modification,
@@ -200,7 +202,7 @@ issue or pull request
         * Redistributions in binary form must reproduce the above copyright notice,
           this list of conditions and the following disclaimer in the documentation
           and/or other materials provided with the distribution.
-        * Neither the name of Gabriel Gonzalez nor the names of other contributors
+        * Neither the name of Gabriella Gonzalez nor the names of other contributors
           may be used to endorse or promote products derived from this software
           without specific prior written permission.
     

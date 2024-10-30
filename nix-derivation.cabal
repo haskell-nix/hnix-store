@@ -1,14 +1,14 @@
 Name: nix-derivation
-Version: 1.1.2
+Version: 1.1.3
 Cabal-Version: >=1.10
 Build-Type: Simple
 Tested-With: GHC == 7.8.4, GHC == 7.10.3, GHC == 8.0.2, GHC == 8.8.3
 License: BSD3
 License-File: LICENSE
-Copyright: 2017 Gabriel Gonzalez
-Author: Gabriel Gonzalez
-Maintainer: Gabriel439@gmail.com
-Bug-Reports: https://github.com/Gabriel439/Haskell-Nix-Derivation-Library/issues
+Copyright: 2017 Gabriella Gonzalez
+Author: Gabriella Gonzalez
+Maintainer: GenuineGabriella@gmail.com
+Bug-Reports: https://github.com/Gabriella439/Haskell-Nix-Derivation-Library/issues
 Synopsis: Parse and render *.drv files
 Description:
     Use this package to parse and render Nix derivation files (i.e. *.drv files)
@@ -22,7 +22,7 @@ Extra-Source-Files:
     tests/example1.drv
 Source-Repository head
     Type: git
-    Location: https://github.com/Gabriel439/Haskell-Nix-Derivation-Library
+    Location: https://github.com/Gabriella439/Haskell-Nix-Derivation-Library
 
 Library
     Default-Language: Haskell2010
@@ -30,9 +30,9 @@ Library
     Build-Depends:
         base            >= 4.6.0.0  && < 5   ,
         attoparsec      >= 0.12.0.0 && < 0.15,
-        containers                     < 0.7 ,
-        deepseq         >= 1.4.0.0  && < 1.5 ,
-        text            >= 0.8.0.0  && < 2.1 ,
+        containers                     < 0.8 ,
+        deepseq         >= 1.4.0.0  && < 1.6 ,
+        text            >= 0.8.0.0  && < 2.2 ,
         vector                         < 0.14,
         filepath                       < 1.5
     Exposed-Modules:
@@ -77,9 +77,9 @@ Test-Suite property
         base            >= 4.6.0.0  && < 5   ,
         attoparsec      >= 0.12.0.0 && < 0.15,
         nix-derivation                       ,
-        QuickCheck                     < 2.15,
+        QuickCheck                     < 2.16,
         text                                 ,
-        vector                         < 0.13,
+        vector                         < 0.14,
         filepath                       < 1.5
 
 Benchmark benchmark
@@ -92,6 +92,6 @@ Benchmark benchmark
     Build-Depends:
         base            >= 4.6.0.0  && < 5   ,
         attoparsec      >= 0.12.0.0 && < 0.15,
-        criterion       >= 1.1.4.0  && < 1.6 ,
+        criterion       >= 1.1.4.0  && < 1.7 ,
         nix-derivation                       ,
         text
