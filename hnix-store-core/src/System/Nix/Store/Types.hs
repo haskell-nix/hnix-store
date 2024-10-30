@@ -9,7 +9,7 @@ import GHC.Generics (Generic)
 -- | Add path recursively or not
 data FileIngestionMethod
   = FileIngestionMethod_Flat
-  | FileIngestionMethod_FileRecursive
+  | FileIngestionMethod_NixArchive
   deriving (Bounded, Eq, Generic, Enum, Ord, Show)
 
 -- | Path filtering function

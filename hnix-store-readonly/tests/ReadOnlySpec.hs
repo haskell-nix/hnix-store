@@ -85,7 +85,7 @@ spec = do
         (pure
           $ makeFixedOutputPath
               def
-              FileIngestionMethod_FileRecursive
+              FileIngestionMethod_NixArchive
               testDigest
               testName
         )

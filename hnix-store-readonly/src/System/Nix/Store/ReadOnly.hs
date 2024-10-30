@@ -73,7 +73,7 @@ makeFixedOutputPath
   -> StorePathName
   -> StorePath
 makeFixedOutputPath storeDir recursive h =
-  if recursive == FileIngestionMethod_FileRecursive
+  if recursive == FileIngestionMethod_NixArchive
      && (algoName @hashAlgo) == "sha256"
   then makeStorePath storeDir "source" h
   else makeStorePath storeDir "output:out" h'
@@ -82,7 +82,7 @@ makeFixedOutputPath storeDir recursive h =
     Crypto.Hash.hash @ByteString @SHA256
       $  "fixed:out:"
       <> Data.Text.Encoding.encodeUtf8 (algoName @hashAlgo)
-      <> (if recursive == FileIngestionMethod_FileRecursive then ":r:" else ":")
+      <> (if recursive == FileIngestionMethod_NixArchive then ":r:" else ":")
       <> Data.Text.Encoding.encodeUtf8 (System.Nix.Hash.encodeDigestWith Base16 h)
       <> ":"
 
@@ -105,7 +105,7 @@ computeStorePathForPath
   -> IO StorePath
 computeStorePathForPath storeDir name pth recursive _pathFilter _repair = do
   selectedHash <-
-    if recursive == FileIngestionMethod_FileRecursive
+    if recursive == FileIngestionMethod_NixArchive
       then recursiveContentHash
       else flatContentHash
   pure $ makeFixedOutputPath storeDir recursive selectedHash name

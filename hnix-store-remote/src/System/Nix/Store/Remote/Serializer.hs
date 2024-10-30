@@ -1220,9 +1220,9 @@ storeRequest = Serializer
         putS bool
           $ not
           $ hashAlgo == Some HashAlgo_SHA256
-            && (recursive == FileIngestionMethod_FileRecursive)
+            && (recursive == FileIngestionMethod_NixArchive)
 
-        putS bool (recursive == FileIngestionMethod_FileRecursive)
+        putS bool (recursive == FileIngestionMethod_NixArchive)
         putS someHashAlgo hashAlgo
 
       Some (AddToStoreNar storePath' metadata repair checkSigs) -> mapPutE $ do

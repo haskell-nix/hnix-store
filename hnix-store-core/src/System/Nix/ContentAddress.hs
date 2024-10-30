@@ -71,7 +71,7 @@ contentAddressBuilder (ContentAddress method digest) = case method of
 fileIngestionMethodBuilder :: FileIngestionMethod -> Builder
 fileIngestionMethodBuilder = \case
   FileIngestionMethod_Flat -> ""
-  FileIngestionMethod_FileRecursive -> "r:"
+  FileIngestionMethod_NixArchive -> "r:"
 
 -- | Parse `ContentAddressableAddress` from `ByteString`
 parseContentAddress
@@ -92,7 +92,7 @@ parseContentAddressMethod :: Parser ContentAddressMethod
 parseContentAddressMethod =
       TextIngestionMethod <$ "text:"
   <|> FileIngestionMethod <$ "fixed:"
-  <*> (FileIngestionMethod_FileRecursive <$ "r:" 
+  <*> (FileIngestionMethod_NixArchive <$ "r:"
        <|> pure FileIngestionMethod_Flat)
 
 parseTypedDigest :: Parser (Either String (DSum HashAlgo Digest))
