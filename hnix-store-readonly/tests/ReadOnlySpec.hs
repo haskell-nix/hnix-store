@@ -8,7 +8,7 @@ import Test.Hspec (Spec, describe, it, shouldBe, pendingWith)
 import Crypto.Hash (hash, Digest, SHA256(..))
 import Data.ByteString (ByteString)
 import System.Nix.StorePath (StorePath, StorePathName)
-import System.Nix.Store.Types (FileIngestionMethod(..))
+import System.Nix.ContentAddress (ContentAddressMethod(..))
 
 import qualified Data.HashSet
 import qualified System.Nix.StorePath
@@ -56,11 +56,12 @@ spec = do
     describe "makeTextPath" $ do
       it "computes correct StorePath for empty refs" $
         (pure
-          $ makeTextPath
+          $ makeFixedOutputPath
               def
-              testName
+              ContentAddressMethod_Text
               testDigest
               mempty
+              testName
         )
         `shouldBe`
         System.Nix.StorePath.parsePathFromText
@@ -69,11 +70,12 @@ spec = do
 
       it "computes correct StorePath for nonempty refs" $
         (pure
-          $ makeTextPath
+          $ makeFixedOutputPath
               def
-              testName
+              ContentAddressMethod_Text
               testDigest
               (Data.HashSet.fromList [ testPath, testPath2 ])
+              testName
         )
         `shouldBe`
         System.Nix.StorePath.parsePathFromText
@@ -85,8 +87,9 @@ spec = do
         (pure
           $ makeFixedOutputPath
               def
-              FileIngestionMethod_NixArchive
+              ContentAddressMethod_NixArchive
               testDigest
+              mempty
               testName
         )
         `shouldBe`
@@ -98,8 +101,9 @@ spec = do
         (pure
           $ makeFixedOutputPath
               def
-              FileIngestionMethod_Flat
+              ContentAddressMethod_Flat
               testDigest
+              mempty
               testName
         )
         `shouldBe`
@@ -109,11 +113,12 @@ spec = do
 
     it "computeStorePathForText computes correct StorePath" $
         (pure
-          $ computeStorePathForText
+          $ makeFixedOutputPath
               def
-              testName
-              "test"
+              ContentAddressMethod_Text
+              (Crypto.Hash.hash ("test" :: ByteString) :: Digest SHA256)
               (Data.HashSet.fromList [ testPath ])
+              testName
         )
         `shouldBe`
         System.Nix.StorePath.parsePathFromText

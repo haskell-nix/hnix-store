@@ -23,7 +23,7 @@ import Control.Monad.Conc.Class (MonadConc)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Default.Class (Default(def))
 import Network.Socket (Family, SockAddr(SockAddrUnix))
-import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
+import System.Nix.Store.Types (RepairMode(..))
 import System.Nix.Store.Remote.MonadStore
   ( runRemoteStoreT
   , MonadRemoteStore(..)

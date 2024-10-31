@@ -1,16 +1,10 @@
+-- | TODO rename module
 module System.Nix.Store.Types
-  ( FileIngestionMethod(..)
-  , PathFilter(..)
+  ( PathFilter(..)
   , RepairMode(..)
   ) where
 
 import GHC.Generics (Generic)
-
--- | Add path recursively or not
-data FileIngestionMethod
-  = FileIngestionMethod_Flat
-  | FileIngestionMethod_NixArchive
-  deriving (Bounded, Eq, Generic, Enum, Ord, Show)
 
 -- | Path filtering function
 newtype PathFilter = PathFilter

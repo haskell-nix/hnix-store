@@ -2,9 +2,7 @@
 
 module System.Nix.Store.ReadOnly
   ( makeStorePath
-  , makeTextPath
   , makeFixedOutputPath
-  , computeStorePathForText
   , computeStorePathForPath
   ) where
 
@@ -12,8 +10,9 @@ import Control.Monad.State (StateT, execStateT, modify)
 import Crypto.Hash (Context, Digest, SHA256)
 import Data.ByteString (ByteString)
 import Data.HashSet (HashSet)
+import System.Nix.ContentAddress (ContentAddressMethod (..))
 import System.Nix.Hash (BaseEncoding(Base16), NamedAlgo(algoName))
-import System.Nix.Store.Types (FileIngestionMethod(..), PathFilter, RepairMode)
+import System.Nix.Store.Types (PathFilter, RepairMode)
 import System.Nix.StorePath (StoreDir, StorePath, StorePathName)
 
 import qualified Crypto.Hash
@@ -49,16 +48,16 @@ makeStorePath storeDir ty h nm =
         ]
 
 makeTextPath
-  :: StoreDir
-  -> StorePathName
-  -> Digest SHA256
+  :: NamedAlgo _SHA256
+  => StoreDir
+  -> Digest _SHA256 -- TODO enforce its it again
   -> HashSet StorePath
+  -> StorePathName
   -> StorePath
-makeTextPath storeDir nm h refs = makeStorePath storeDir ty h nm
+makeTextPath storeDir h refs nm = makeStorePath storeDir ty h nm
  where
   ty =
-    Data.ByteString.intercalate
-      ":"
+    Data.ByteString.intercalate ":"
       $ "text"
       : Data.List.sort
           (System.Nix.StorePath.storePathToRawFilePath storeDir
@@ -68,50 +67,42 @@ makeFixedOutputPath
   :: forall hashAlgo
   .  NamedAlgo hashAlgo
   => StoreDir
-  -> FileIngestionMethod
+  -> ContentAddressMethod
   -> Digest hashAlgo
+  -> HashSet StorePath
   -> StorePathName
   -> StorePath
-makeFixedOutputPath storeDir recursive h =
-  if recursive == FileIngestionMethod_NixArchive
-     && (algoName @hashAlgo) == "sha256"
-  then makeStorePath storeDir "source" h
-  else makeStorePath storeDir "output:out" h'
+makeFixedOutputPath storeDir method h refs =
+  case method of
+    ContentAddressMethod_Text -> makeTextPath storeDir h refs
+    _ ->
+      if method == ContentAddressMethod_NixArchive
+         && (algoName @hashAlgo) == "sha256"
+      then makeStorePath storeDir "source" h
+      else makeStorePath storeDir "output:out" h'
  where
   h' =
     Crypto.Hash.hash @ByteString @SHA256
       $  "fixed:out:"
       <> Data.Text.Encoding.encodeUtf8 (algoName @hashAlgo)
-      <> (if recursive == FileIngestionMethod_NixArchive then ":r:" else ":")
+      <> (if method == ContentAddressMethod_NixArchive then ":r:" else ":")
       <> Data.Text.Encoding.encodeUtf8 (System.Nix.Hash.encodeDigestWith Base16 h)
       <> ":"
 
-computeStorePathForText
-  :: StoreDir
-  -> StorePathName
-  -> ByteString
-  -> (HashSet StorePath -> StorePath)
-computeStorePathForText storeDir nm =
-  makeTextPath storeDir nm
-  . Crypto.Hash.hash
-
-computeStorePathForPath
-  :: StoreDir
-  -> StorePathName        -- ^ Name part of the newly created `StorePath`
-  -> FilePath             -- ^ Local `FilePath` to add
-  -> FileIngestionMethod  -- ^ Add target directory recursively
+digestPath
+  :: FilePath             -- ^ Local `FilePath` to add
+  -> ContentAddressMethod -- ^ target directory method
   -> PathFilter           -- ^ Path filter function
   -> RepairMode           -- ^ Only used by local store backend
-  -> IO StorePath
-computeStorePathForPath storeDir name pth recursive _pathFilter _repair = do
-  selectedHash <-
-    if recursive == FileIngestionMethod_NixArchive
-      then recursiveContentHash
-      else flatContentHash
-  pure $ makeFixedOutputPath storeDir recursive selectedHash name
+  -> IO (Digest SHA256)
+digestPath pth method _pathFilter _repair =
+  case method of
+    ContentAddressMethod_Flat -> flatContentHash
+    ContentAddressMethod_NixArchive -> nixArchiveContentHash
+    ContentAddressMethod_Text -> flatContentHash
  where
-  recursiveContentHash :: IO (Digest SHA256)
-  recursiveContentHash =
+  nixArchiveContentHash :: IO (Digest SHA256)
+  nixArchiveContentHash =
     Crypto.Hash.hashFinalize
     <$> execStateT streamNarUpdate (Crypto.Hash.hashInit @SHA256)
 
@@ -128,3 +119,15 @@ computeStorePathForPath storeDir name pth recursive _pathFilter _repair = do
     <$> System.Nix.Nar.narReadFile
           System.Nix.Nar.narEffectsIO
           pth
+
+computeStorePathForPath
+  :: StoreDir
+  -> StorePathName        -- ^ Name part of the newly created `StorePath`
+  -> FilePath             -- ^ Local `FilePath` to add
+  -> ContentAddressMethod -- ^ Add target directory methodly
+  -> PathFilter           -- ^ Path filter function
+  -> RepairMode           -- ^ Only used by local store backend
+  -> IO StorePath
+computeStorePathForPath storeDir name pth method pathFilter repair = do
+  selectedHash <- digestPath pth method pathFilter repair
+  pure $ makeFixedOutputPath storeDir method selectedHash mempty name
