@@ -3,6 +3,7 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 module System.Nix.Arbitrary.Derivation where
 
+import Data.These
 import Data.Text (Text)
 import Data.Text.Arbitrary ()
 import Data.Vector.Arbitrary ()
@@ -43,3 +44,14 @@ deriving via GenericArbitrary (DerivationOutput StorePath Text)
 
 deriving via GenericArbitrary (DerivationInputs StorePath Text)
   instance Arbitrary (DerivationInputs StorePath Text)
+
+deriving via GenericArbitrary (DerivedPathMap StorePath Text)
+  instance Arbitrary (DerivedPathMap StorePath Text)
+
+-- TODO this belongs elsewhere
+deriving via GenericArbitrary (These a b)
+  instance ( Arg (These a b) a
+           , Arg (These a b) b
+           , Arbitrary a
+           , Arbitrary b
+           ) => Arbitrary (These a b)

@@ -6,13 +6,15 @@
 
 module Main where
 
+import Data.These
 import Data.Text (Text)
 import Data.Vector (Vector)
 import System.FilePath
 import Nix.Derivation
     ( Derivation(..)
-    , DerivationInputs(..)
     , DerivationOutput(..)
+    , DerivationInputs(..)
+    , DerivedPathMap(..)
     )
 import Prelude hiding (FilePath, either)
 import Test.QuickCheck (Arbitrary(..), Gen, oneof)
@@ -59,6 +61,9 @@ instance Arbitrary (DerivationInputs FilePath Text) where
         drvs <- arbitrary
         srcs <- arbitrary
         pure DerivationInputs {..}
+
+instance Arbitrary (DerivedPathMap FilePath Text) where
+    arbitrary = DerivedPathMap . fmap This <$> arbitrary
 
 instance Arbitrary 
   (Derivation 

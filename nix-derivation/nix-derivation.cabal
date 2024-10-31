@@ -33,6 +33,7 @@ Library
         containers                     < 0.8 ,
         deepseq         >= 1.4.0.0  && < 1.6 ,
         text            >= 0.8.0.0  && < 2.2 ,
+        these,
         vector                         < 0.14,
         filepath                       < 1.5
     Exposed-Modules:
@@ -79,6 +80,7 @@ Test-Suite property
         nix-derivation                       ,
         QuickCheck                     < 2.16,
         text                                 ,
+        these                                ,
         vector                         < 0.14,
         filepath                       < 1.5
 

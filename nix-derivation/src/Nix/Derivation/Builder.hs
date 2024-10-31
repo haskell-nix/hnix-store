@@ -13,14 +13,17 @@ module Nix.Derivation.Builder
     ) where
 
 import Data.Map (Map)
+import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder)
+import Data.These.Combinators (justThis)
 import Data.Vector (Vector)
 import Nix.Derivation.Types
     ( Derivation(..)
-    , DerivationInputs(..)
     , DerivationOutput(..)
+    , DerivationInputs(..)
+    , DerivedPathMap(..)
     )
 
 import qualified Data.Map
@@ -121,7 +124,7 @@ buildDerivationInputsWith
     -> DerivationInputs fp outputName
     -> Builder
 buildDerivationInputsWith filepath outputName (DerivationInputs {..}) =
-        mapOf keyValue drvs
+        mapOf keyValue (unDerivedPathMap drvs)
     <>  ","
     <>  setOf filepath srcs
   where
@@ -129,7 +132,7 @@ buildDerivationInputsWith filepath outputName (DerivationInputs {..}) =
             "("
         <>  filepath key
         <>  ","
-        <>  setOf outputName value
+        <>  setOf outputName (fromMaybe Data.Set.empty $ justThis value)
         <>  ")"
 
 mapOf :: ((k, v) -> Builder) -> Map k v -> Builder

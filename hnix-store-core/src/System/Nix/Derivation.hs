@@ -6,6 +6,7 @@ module System.Nix.Derivation
   , Derivation(..)
   , DerivationOutput(..)
   , DerivationInputs(..)
+  , DerivedPathMap(..)
   ) where
 
 import Data.Attoparsec.Text.Lazy (Parser)
@@ -16,6 +17,7 @@ import Nix.Derivation
   ( Derivation(..)
   , DerivationOutput(..)
   , DerivationInputs(..)
+  , DerivedPathMap(..)
   , parseDerivationOutputWith
   , parseDerivationInputsWith
   , buildDerivationOutputWith

@@ -81,6 +81,7 @@ module Nix.Derivation
       Derivation(..)
     , DerivationOutput(..)
     , DerivationInputs(..)
+    , DerivedPathMap(..)
 
       -- * Parse derivations
     , parseDerivation

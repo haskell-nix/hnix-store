@@ -68,6 +68,7 @@ library
     , hspec
     , QuickCheck
     , text
+    , these
     , time
     , unordered-containers
     , vector

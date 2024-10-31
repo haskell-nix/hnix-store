@@ -16,14 +16,16 @@ module Nix.Derivation.Parser
     ) where
 
 import Data.Attoparsec.Text.Lazy (Parser)
+import Data.These (These(This))
 import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Vector (Vector)
 import Nix.Derivation.Types
     ( Derivation(..)
-    , DerivationInputs(..)
     , DerivationOutput(..)
+    , DerivedPathMap(..)
+    , DerivationInputs(..)
     )
 
 import qualified Data.Attoparsec.Text
@@ -148,8 +150,8 @@ parseDerivationInputsWith filepath outputName = do
             ","
             value <- setOf outputName
             ")"
-            pure (key, value)
-    drvs <- mapOf keyValue
+            pure (key, This value)
+    drvs <- DerivedPathMap <$> mapOf keyValue
 
     ","
 

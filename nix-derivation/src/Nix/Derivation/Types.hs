@@ -7,13 +7,15 @@
 module Nix.Derivation.Types
     ( -- * Types
       Derivation(..)
-    , DerivationInputs(..)
     , DerivationOutput(..)
+    , DerivedPathMap(..)
+    , DerivationInputs(..)
     ) where
 
 import Control.DeepSeq (NFData)
 import Data.Map (Map)
 import Data.Set (Set)
+import Data.These
 import Data.Vector (Vector)
 import GHC.Generics (Generic)
 
@@ -43,7 +45,7 @@ instance ( NFData fp
          => NFData (Derivation fp txt outputName drvOutput drvInputs)
 
 data DerivationInputs fp drvOutput = DerivationInputs
-    { drvs :: Map fp (Set drvOutput)
+    { drvs :: DerivedPathMap fp drvOutput
     -- ^ Inputs that are derivations where keys specify derivation paths and
     -- values specify which output names are used by this derivation
     , srcs :: Set fp
@@ -51,6 +53,18 @@ data DerivationInputs fp drvOutput = DerivationInputs
     } deriving (Eq, Generic, Ord, Show)
 
 instance (NFData a, NFData b) => NFData (DerivationInputs a b)
+
+-- | A recursive map to handle dependencies on dynamic derivations in
+-- addition to static ones
+newtype DerivedPathMap fp drvOutput = DerivedPathMap
+  { unDerivedPathMap :: Map
+      fp
+      (These
+        (Set drvOutput)
+        (DerivedPathMap fp drvOutput))
+  } deriving (Eq, Generic, Ord, Show)
+
+instance (NFData a, NFData b) => NFData (DerivedPathMap a b)
 
 -- | An output of a Nix derivation
 data DerivationOutput fp txt
