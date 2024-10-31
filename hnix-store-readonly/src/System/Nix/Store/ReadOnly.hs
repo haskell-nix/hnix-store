@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module System.Nix.Store.ReadOnly
-  ( makeStorePath
+  ( References(..)
+  , makeStorePath
   , makeFixedOutputPath
   , computeStorePathForPath
   ) where
@@ -26,6 +27,23 @@ import qualified System.Nix.Hash
 import qualified System.Nix.Nar
 import qualified System.Nix.StorePath
 
+data References = References
+  { references_others :: HashSet StorePath
+  , references_self :: Bool
+  }
+
+instance Semigroup References where
+  a <> b = References
+    { references_others = references_others a <> references_others b
+    , references_self = references_self a || references_self b
+    }
+
+instance Monoid References where
+  mempty = References
+    { references_others = mempty
+    , references_self = False
+    }
+
 makeStorePath
   :: forall hashAlgo
    . (NamedAlgo hashAlgo)
@@ -47,6 +65,20 @@ makeStorePath storeDir ty h nm =
         , System.Nix.StorePath.unStorePathName nm
         ]
 
+makeType
+  :: StoreDir
+  -> ByteString
+  -> References
+  -> ByteString
+makeType storeDir ty refs =
+  Data.ByteString.intercalate ":" $ ty : (others ++ self)
+  where
+    others = Data.List.sort
+      $ fmap (System.Nix.StorePath.storePathToRawFilePath storeDir)
+      $ Data.HashSet.toList
+      $ references_others refs
+    self = ["self" | references_self refs]
+
 makeTextPath
   :: NamedAlgo _SHA256
   => StoreDir
@@ -56,12 +88,10 @@ makeTextPath
   -> StorePath
 makeTextPath storeDir h refs nm = makeStorePath storeDir ty h nm
  where
-  ty =
-    Data.ByteString.intercalate ":"
-      $ "text"
-      : Data.List.sort
-          (System.Nix.StorePath.storePathToRawFilePath storeDir
-           <$> Data.HashSet.toList refs)
+  ty = makeType storeDir "text" $ References
+    { references_others = refs
+    , references_self = False
+    }
 
 makeFixedOutputPath
   :: forall hashAlgo
@@ -69,16 +99,17 @@ makeFixedOutputPath
   => StoreDir
   -> ContentAddressMethod
   -> Digest hashAlgo
-  -> HashSet StorePath
+  -> References
   -> StorePathName
   -> StorePath
 makeFixedOutputPath storeDir method h refs =
   case method of
-    ContentAddressMethod_Text -> makeTextPath storeDir h refs
+    ContentAddressMethod_Text ->
+      makeTextPath storeDir h $ references_others refs
     _ ->
       if method == ContentAddressMethod_NixArchive
          && (algoName @hashAlgo) == "sha256"
-      then makeStorePath storeDir "source" h
+      then makeStorePath storeDir (makeType storeDir "source" refs) h
       else makeStorePath storeDir "output:out" h'
  where
   h' =

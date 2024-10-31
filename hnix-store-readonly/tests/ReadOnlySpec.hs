@@ -74,7 +74,10 @@ spec = do
               def
               ContentAddressMethod_Text
               testDigest
-              (Data.HashSet.fromList [ testPath, testPath2 ])
+              (References
+                { references_others = Data.HashSet.fromList [ testPath, testPath2 ]
+                , references_self = False
+                })
               testName
         )
         `shouldBe`
@@ -117,7 +120,10 @@ spec = do
               def
               ContentAddressMethod_Text
               (Crypto.Hash.hash ("test" :: ByteString) :: Digest SHA256)
-              (Data.HashSet.fromList [ testPath ])
+              (References
+                { references_others = Data.HashSet.fromList [ testPath ]
+                , references_self = False
+                })
               testName
         )
         `shouldBe`
