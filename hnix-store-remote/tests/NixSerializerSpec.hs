@@ -10,7 +10,7 @@ import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck (Gen, arbitrary, forAll, suchThat)
 
 import System.Nix.Arbitrary ()
-import System.Nix.Derivation (Derivation(inputDrvs))
+import System.Nix.Derivation (Derivation)
 import System.Nix.Build (BuildResult(..))
 import System.Nix.StorePath (StoreDir)
 import System.Nix.Store.Remote.Arbitrary ()
@@ -115,8 +115,7 @@ spec = parallel $ do
       prop "SHA512" $ roundtripS . digest @SHA512
 
     prop "Derivation" $ \sd ->
-      roundtripSReader @StoreDir derivation sd
-      . (\drv -> drv { inputDrvs = mempty })
+      roundtripSReader @StoreDir basicDerivation sd
 
     prop "ProtoVersion" $ roundtripS @ProtoVersion @() protoVersion
 
@@ -158,7 +157,6 @@ spec = parallel $ do
 
 restrictProtoVersion :: ProtoVersion -> Some StoreRequest -> Bool
 restrictProtoVersion v (Some (BuildPaths _ _)) | v < ProtoVersion 1 30 = False
-restrictProtoVersion _ (Some (BuildDerivation _ drv _)) = inputDrvs drv == mempty
 restrictProtoVersion v (Some (QueryMissing _)) | v < ProtoVersion 1 30 = False
 restrictProtoVersion _ _ = True
 

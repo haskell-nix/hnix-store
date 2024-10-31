@@ -147,7 +147,13 @@ buildDerivation sp mode = do
   case Data.Attoparsec.Text.parseOnly
     (System.Nix.Derivation.parseDerivation sd) drvContents of
       Left e -> throwError $ RemoteStoreError_DerivationParse e
-      Right drv -> doReq (BuildDerivation sp drv mode)
+      Right drv -> do
+        let drv' = drv
+              { System.Nix.Derivation.inputs = 
+                  System.Nix.Derivation.srcs
+                    (System.Nix.Derivation.inputs drv)
+              }
+        doReq (BuildDerivation sp drv' mode)
 
 -- | Build paths if they are an actual derivations.
 --

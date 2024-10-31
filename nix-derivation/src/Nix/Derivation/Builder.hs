@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
@@ -7,6 +8,8 @@ module Nix.Derivation.Builder
     ( -- * Builder
       buildDerivation
     , buildDerivationWith
+    , buildDerivationOutputWith
+    , buildDerivationInputsWith
     ) where
 
 import Data.Map (Map)
@@ -32,24 +35,25 @@ buildDerivation
            FilePath
            Text
            Text
-           DerivationOutput
-           DerivationInputs
+           (DerivationOutput FilePath Text)
+           (DerivationInputs FilePath Text)
     -> Builder
 buildDerivation =
     buildDerivationWith
         string'
         string'
-        (buildDerivationOutputWith filepath' string')
+        (buildDerivationOutputWith filepath' string' emptyString')
         (buildDerivationInputsWith filepath' string')
+  where
+    emptyString' = string' Data.Text.empty
 
 -- | Render a derivation as a `Builder` using custom
 -- renderer for filepaths, texts, outputNames and derivation inputs/outputs
 buildDerivationWith
-    :: (Monoid fp, Monoid txt)
-    => (txt -> Builder)
+    :: (txt -> Builder)
     -> (outputName -> Builder)
-    -> (drvOutput fp txt -> Builder)
-    -> (drvInputs fp outputName -> Builder)
+    -> (drvOutput -> Builder)
+    -> (drvInputs -> Builder)
     -> Derivation fp txt outputName drvOutput drvInputs
     -> Builder
 buildDerivationWith string outputName drvOutput drvInputs (Derivation {..}) =
@@ -84,29 +88,30 @@ buildDerivationWith string outputName drvOutput drvInputs (Derivation {..}) =
 -- | Render a @DerivationOutput@ as a `Builder` using custom
 -- renderer for filepaths
 buildDerivationOutputWith
-    :: (Monoid fp, Monoid txt)
-    => (fp -> Builder)
+    :: (fp -> Builder)
     -> (txt -> Builder)
+    -> Builder
     -> DerivationOutput fp txt
     -> Builder
-buildDerivationOutputWith filepath string (DerivationOutput {..}) =
+buildDerivationOutputWith filepath string emptyString = \case
+  InputAddressedDerivationOutput {..} ->
         filepath path
     <>  ","
-    <>  string mempty
+    <>  emptyString
     <>  ","
-    <>  string mempty
-buildDerivationOutputWith filepath string (FixedDerivationOutput {..}) =
+    <>  emptyString
+  FixedDerivationOutput {..} ->
         filepath path
     <>  ","
     <>  string hashAlgo
     <>  ","
     <>  string hash
-buildDerivationOutputWith filepath string (ContentAddressedDerivationOutput {..}) =
-        filepath mempty
+  ContentAddressedDerivationOutput {..} ->
+        emptyString
     <>  ","
     <>  string hashAlgo
     <>  ","
-    <>  string mempty
+    <>  emptyString
 
 -- | Render a @DerivationInputs@ as a `Builder` using custom
 -- renderer for filepaths and output names

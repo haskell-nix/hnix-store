@@ -14,15 +14,14 @@ module Nix.Derivation.Types
 import Control.DeepSeq (NFData)
 import Data.Map (Map)
 import Data.Set (Set)
-import Data.Text (Text)
 import Data.Vector (Vector)
 import GHC.Generics (Generic)
 
 -- | A Nix derivation
 data Derivation fp txt outputName drvOutput drvInputs = Derivation
-    { outputs   :: Map outputName (drvOutput fp txt)
+    { outputs   :: Map outputName drvOutput
     -- ^ Outputs produced by this derivation where keys are output names
-    , inputs    :: drvInputs fp outputName
+    , inputs    :: drvInputs
     -- ^ Inputs (sources and derivations)
     , platform  :: txt
     -- ^ Platform required for this derivation
@@ -38,8 +37,8 @@ data Derivation fp txt outputName drvOutput drvInputs = Derivation
 instance ( NFData fp
          , NFData txt
          , NFData outputName
-         , NFData (drvOutput fp txt)
-         , NFData (drvInputs fp outputName)
+         , NFData drvOutput
+         , NFData drvInputs
          )
          => NFData (Derivation fp txt outputName drvOutput drvInputs)
 
@@ -55,7 +54,7 @@ instance (NFData a, NFData b) => NFData (DerivationInputs a b)
 
 -- | An output of a Nix derivation
 data DerivationOutput fp txt
-    = DerivationOutput
+    = InputAddressedDerivationOutput
         { path     :: fp
         -- ^ Path where the output will be saved
         }

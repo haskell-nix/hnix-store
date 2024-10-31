@@ -21,6 +21,12 @@ in
     haskellLib.doJailbreak
       hsuper.dependent-sum-template_0_2_0_1;
 
+  nix-derivation =
+    lib.pipe
+      (hself.callCabal2nix "nix-derivation" ./nix-derivation {})
+      [
+        haskellLib.compose.buildFromSdist
+      ];
   hnix-store-core =
     lib.pipe
       (hself.callCabal2nix "hnix-store-core" ./hnix-store-core {})

@@ -32,15 +32,15 @@ instance Arbitrary a => Arbitrary (Vector a) where
 
 instance Arbitrary (DerivationOutput FilePath Text) where
     arbitrary = oneof
-      [ derivationOutput
+      [ inputAddressedDerivationOutput
       , fixedDerivationOutput
       , contentAddressedDerivationOutput
       ]
 
-derivationOutput :: Gen (DerivationOutput FilePath Text)
-derivationOutput = do
+inputAddressedDerivationOutput :: Gen (DerivationOutput FilePath Text)
+inputAddressedDerivationOutput = do
   path     <- arbitrary
-  return (DerivationOutput {..})
+  return (InputAddressedDerivationOutput {..})
 
 fixedDerivationOutput :: Gen (DerivationOutput FilePath Text)
 fixedDerivationOutput = do
@@ -60,7 +60,14 @@ instance Arbitrary (DerivationInputs FilePath Text) where
         srcs <- arbitrary
         pure DerivationInputs {..}
 
-instance Arbitrary (Derivation FilePath Text Text DerivationOutput DerivationInputs) where
+instance Arbitrary 
+  (Derivation 
+    FilePath
+    Text
+    Text
+    (DerivationOutput FilePath Text)
+    (DerivationInputs FilePath Text)
+  ) where
     arbitrary = do
         outputs   <- arbitrary
         inputs    <- arbitrary
@@ -70,7 +77,14 @@ instance Arbitrary (Derivation FilePath Text Text DerivationOutput DerivationInp
         env       <- arbitrary
         pure Derivation {..}
 
-property :: Derivation FilePath Text Text DerivationOutput DerivationInputs -> Bool
+property
+  :: Derivation 
+     FilePath 
+     Text 
+     Text 
+     (DerivationOutput FilePath Text)
+     (DerivationInputs FilePath Text)
+  -> Bool
 property derivation0 = either == Right derivation0
   where
     builder = Nix.Derivation.buildDerivation derivation0

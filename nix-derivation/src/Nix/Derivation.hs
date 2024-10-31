@@ -79,17 +79,21 @@
 module Nix.Derivation
     ( -- * Types
       Derivation(..)
-    , DerivationInputs(..)
     , DerivationOutput(..)
+    , DerivationInputs(..)
 
       -- * Parse derivations
     , parseDerivation
     , parseDerivationWith
+    , parseDerivationOutputWith
+    , parseDerivationInputsWith
     , textParser
 
       -- * Render derivations
     , buildDerivation
     , buildDerivationWith
+    , buildDerivationOutputWith
+    , buildDerivationInputsWith
     ) where
 
 import Nix.Derivation.Builder

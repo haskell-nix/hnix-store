@@ -54,7 +54,7 @@ module System.Nix.Store.Remote.Serializer
   -- * DSum HashAlgo Digest
   , namedDigest
   -- * Derivation
-  , derivation
+  , basicDerivation
   -- * Derivation
   , derivedPath
   -- * Build
@@ -127,7 +127,11 @@ import GHC.Generics (Generic)
 import System.Nix.Base (BaseEncoding(Base16, NixBase32))
 import System.Nix.Build (BuildMode, BuildResult(..))
 import System.Nix.ContentAddress (ContentAddress)
-import System.Nix.Derivation (Derivation(..), DerivationOutput(..))
+import System.Nix.Derivation
+  ( Derivation(..)
+  , DerivationOutput(..)
+  -- , DerivationInputs(..)
+  )
 import System.Nix.DerivedPath (DerivedPath(..), ParseOutputsError)
 import System.Nix.Hash (HashAlgo(..))
 import System.Nix.JSON ()
@@ -250,6 +254,7 @@ data SError
       , badPaddingPads :: [Word8]
       }
   | SError_ContentAddress String
+  | SError_DerivingPath
   | SError_DerivedPath ParseOutputsError
   | SError_DerivationOutput DerivationOutputError
   | SError_Digest String
@@ -264,6 +269,7 @@ data SError
   | SError_Name InvalidNameError
   | SError_Path InvalidPathError
   | SError_Signature String
+  | SError_DerivationOutputInvalidCombo Bool Bool Bool
   deriving (Eq, Ord, Generic, Show)
 
 data ForPV a
@@ -715,30 +721,51 @@ derivationOutput
   => NixSerializer r SError (DerivationOutput StorePath Text)
 derivationOutput = Serializer
   { getS = do
-      path <- getS storePath
-      hashAlgo <- getS text
-      hash <- getS text
-      pure DerivationOutput{..}
-  , putS = \DerivationOutput{..} -> do
-      putS storePath path
-      putS text hashAlgo
-      putS text hash
+      mPath <- getS maybePath
+      mHashAlgo <- getS maybeText
+      mHash <- getS maybeText
+      case (mPath, mHashAlgo, mHash) of
+        (Just path, Nothing, Nothing) ->
+          pure InputAddressedDerivationOutput {..}
+        (Just path, Just hashAlgo, Just hash) ->
+          pure FixedDerivationOutput {..}
+        (Nothing, Just hashAlgo, Nothing) ->
+          pure ContentAddressedDerivationOutput {..}
+        _ ->
+          throwError $ SError_DerivationOutputInvalidCombo
+            (Data.Maybe.isJust mPath)
+            (Data.Maybe.isJust mHashAlgo)
+            (Data.Maybe.isJust mHash)
+  , putS = \case
+      InputAddressedDerivationOutput{..} -> do
+        putS storePath path
+        putS text Data.Text.empty
+        putS text Data.Text.empty
+      FixedDerivationOutput{..} -> do
+        putS storePath path
+        putS text hashAlgo
+        putS text hash
+      ContentAddressedDerivationOutput{..} -> do
+        putS text Data.Text.empty
+        putS text hashAlgo
+        putS text Data.Text.empty
   }
 
 -- * Derivation
 
-derivation
+basicDerivation
   :: HasStoreDir r
-  => NixSerializer r SError (Derivation StorePath Text)
-derivation = Serializer
+  => NixSerializer r SError
+    (Derivation
+      StorePath
+      Text
+      Text
+      (DerivationOutput StorePath Text)
+      (Set StorePath))
+basicDerivation = Serializer
   { getS = do
       outputs <- getS (mapS text derivationOutput)
-      -- Our type is Derivation, but in Nix
-      -- the type sent over the wire is BasicDerivation
-      -- which omits inputDrvs
-      inputDrvs <- pure mempty
-      inputSrcs <- getS (set storePath)
-
+      inputs <- getS (set storePath)
       platform <- getS text
       builder <- getS text
       args <- getS (vector text)
@@ -746,7 +773,7 @@ derivation = Serializer
       pure Derivation{..}
   , putS = \Derivation{..} -> do
       putS (mapS text derivationOutput) outputs
-      putS (set storePath) inputSrcs
+      putS (set storePath) inputs
       putS text platform
       putS text builder
       putS (vector text) args
@@ -1119,7 +1146,7 @@ storeRequest = Serializer
 
       WorkerOp_BuildDerivation -> mapGetE $ do
         path <- getS storePath
-        drv <- getS derivation
+        drv <- getS basicDerivation
         buildMode' <- getS buildMode
         pure $ Some (BuildDerivation path drv buildMode')
 
@@ -1264,7 +1291,7 @@ storeRequest = Serializer
         putS workerOp WorkerOp_BuildDerivation
 
         putS storePath path
-        putS derivation drv
+        putS basicDerivation drv
         putS buildMode buildMode'
 
       Some (CollectGarbage GCOptions{..}) -> mapPutE $ do

@@ -10,6 +10,8 @@ module Nix.Derivation.Parser
     ( -- * Parser
       parseDerivation
     , parseDerivationWith
+    , parseDerivationOutputWith
+    , parseDerivationInputsWith
     , textParser
     ) where
 
@@ -45,8 +47,8 @@ parseDerivation
                   FilePath
                   Text
                   Text
-                  DerivationOutput
-                  DerivationInputs
+                  (DerivationOutput FilePath Text)
+                  (DerivationInputs FilePath Text)
               )
 parseDerivation =
     parseDerivationWith
@@ -64,8 +66,8 @@ parseDerivationWith
        )
     => Parser txt
     -> Parser outputName
-    -> Parser (drvOutput fp txt)
-    -> Parser (drvInputs fp outputName)
+    -> Parser drvOutput
+    -> Parser drvInputs
     -> Parser (Derivation fp txt outputName drvOutput drvInputs)
 parseDerivationWith string outputName parseOutput parseInputs = do
     "Derive("
@@ -112,28 +114,23 @@ parseDerivationWith string outputName parseOutput parseInputs = do
 
 -- | Parse a derivation output
 parseDerivationOutputWith
-    :: ( Eq fp
-       , Eq txt
-       , Monoid fp
-       , Monoid txt
-       )
-    => Parser fp
+    :: Parser fp
     -> Parser txt
     -> Parser (DerivationOutput fp txt)
 parseDerivationOutputWith filepath textParser = do
-    path <- filepath
+    mPath <- maybeTextParser filepath
     ","
-    hashAlgo <- textParser
+    mHashAlgo <- maybeTextParser textParser
     ","
-    hash <- textParser
-    if
-        | path /= mempty && hashAlgo == mempty && hash == mempty ->
-              pure DerivationOutput {..}
-        | path /= mempty && hashAlgo /= mempty && hash /= mempty ->
+    mHash <- maybeTextParser textParser
+    case (mPath, mHashAlgo, mHash) of
+        (Just path, Nothing, Nothing) ->
+              pure InputAddressedDerivationOutput {..}
+        (Just path, Just hashAlgo, Just hash) ->
               pure FixedDerivationOutput {..}
-        | path == mempty && hashAlgo /= mempty && hash == mempty ->
+        (Nothing, Just hashAlgo, Nothing) ->
               pure ContentAddressedDerivationOutput {..}
-        | otherwise ->
+        _ ->
             fail "bad output in derivation"
 
 -- | Parse a derivation inputs
@@ -158,6 +155,13 @@ parseDerivationInputsWith filepath outputName = do
 
     srcs <- setOf filepath
     pure DerivationInputs {..}
+
+maybeTextParser :: Parser a -> Parser (Maybe a)
+maybeTextParser p = do
+  t <- textParser
+  if t == ""
+    then pure Nothing
+    else Just <$> p
 
 textParser :: Parser Text
 textParser = do
