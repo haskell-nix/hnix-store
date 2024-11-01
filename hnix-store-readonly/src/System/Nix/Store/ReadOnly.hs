@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module System.Nix.Store.ReadOnly
@@ -8,11 +9,14 @@ module System.Nix.Store.ReadOnly
   ) where
 
 import Control.Monad.State (StateT, execStateT, modify)
-import Crypto.Hash (Context, Digest, SHA256)
+import Crypto.Hash (Context, Digest, SHA256, HashAlgorithm)
 import Data.ByteString (ByteString)
+import Data.Constraint.Extras (Has(has))
+import Data.Dependent.Sum (DSum((:=>)))
 import Data.HashSet (HashSet)
+import Data.Some (Some(Some))
 import System.Nix.ContentAddress (ContentAddressMethod (..))
-import System.Nix.Hash (BaseEncoding(Base16), NamedAlgo(algoName))
+import System.Nix.Hash (BaseEncoding(Base16), HashAlgo(..))
 import System.Nix.Store.Types (PathFilter, RepairMode)
 import System.Nix.StorePath (StoreDir, StorePath, StorePathName)
 
@@ -45,22 +49,20 @@ instance Monoid References where
     }
 
 makeStorePath
-  :: forall hashAlgo
-   . (NamedAlgo hashAlgo)
-  => StoreDir
+  :: StoreDir
   -> ByteString
-  -> Digest hashAlgo
+  -> DSum HashAlgo Digest
   -> StorePathName
   -> StorePath
-makeStorePath storeDir ty h nm =
+makeStorePath storeDir ty (hashAlgo :=> (digest :: Digest a)) nm =
  System.Nix.StorePath.unsafeMakeStorePath storeHash nm
  where
-  storeHash = System.Nix.StorePath.mkStorePathHashPart @hashAlgo s
+  storeHash = has @HashAlgorithm hashAlgo $ System.Nix.StorePath.mkStorePathHashPart @a s
   s =
     Data.ByteString.intercalate ":" $
       ty:fmap Data.Text.Encoding.encodeUtf8
-        [ algoName @hashAlgo
-        , System.Nix.Hash.encodeDigestWith Base16 h
+        [ System.Nix.Hash.algoToText hashAlgo
+        , System.Nix.Hash.encodeDigestWith Base16 digest
         , Data.Text.pack . Data.ByteString.Char8.unpack $ System.Nix.StorePath.unStoreDir storeDir
         , System.Nix.StorePath.unStorePathName nm
         ]
@@ -80,13 +82,12 @@ makeType storeDir ty refs =
     self = ["self" | references_self refs]
 
 makeTextPath
-  :: NamedAlgo _SHA256
-  => StoreDir
-  -> Digest _SHA256 -- TODO enforce its it again
+  :: StoreDir
+  -> Digest SHA256
   -> HashSet StorePath
   -> StorePathName
   -> StorePath
-makeTextPath storeDir h refs nm = makeStorePath storeDir ty h nm
+makeTextPath storeDir h refs nm = makeStorePath storeDir ty (HashAlgo_SHA256 :=> h) nm
  where
   ty = makeType storeDir "text" $ References
     { references_others = refs
@@ -94,28 +95,28 @@ makeTextPath storeDir h refs nm = makeStorePath storeDir ty h nm
     }
 
 makeFixedOutputPath
-  :: forall hashAlgo
-  .  NamedAlgo hashAlgo
-  => StoreDir
+  :: StoreDir
   -> ContentAddressMethod
-  -> Digest hashAlgo
+  -> DSum HashAlgo Digest
   -> References
   -> StorePathName
   -> StorePath
-makeFixedOutputPath storeDir method h refs =
+makeFixedOutputPath storeDir method digest@(hashAlgo :=> h) refs =
   case method of
     ContentAddressMethod_Text ->
-      makeTextPath storeDir h $ references_others refs
+      case hashAlgo of
+        HashAlgo_SHA256 -> makeTextPath storeDir h $ references_others refs
+        _ -> error "unsupported" -- TODO do better; maybe we'll just remove this restriction too?
     _ ->
       if method == ContentAddressMethod_NixArchive
-         && (algoName @hashAlgo) == "sha256"
-      then makeStorePath storeDir (makeType storeDir "source" refs) h
-      else makeStorePath storeDir "output:out" h'
+         && Some hashAlgo == Some HashAlgo_SHA256
+      then makeStorePath storeDir (makeType storeDir "source" refs) digest
+      else makeStorePath storeDir "output:out" (HashAlgo_SHA256 :=> h')
  where
   h' =
     Crypto.Hash.hash @ByteString @SHA256
       $  "fixed:out:"
-      <> Data.Text.Encoding.encodeUtf8 (algoName @hashAlgo)
+      <> Data.Text.Encoding.encodeUtf8 (System.Nix.Hash.algoToText hashAlgo)
       <> (if method == ContentAddressMethod_NixArchive then ":r:" else ":")
       <> Data.Text.Encoding.encodeUtf8 (System.Nix.Hash.encodeDigestWith Base16 h)
       <> ":"
@@ -161,4 +162,4 @@ computeStorePathForPath
   -> IO StorePath
 computeStorePathForPath storeDir name pth method pathFilter repair = do
   selectedHash <- digestPath pth method pathFilter repair
-  pure $ makeFixedOutputPath storeDir method selectedHash mempty name
+  pure $ makeFixedOutputPath storeDir method (HashAlgo_SHA256 :=> selectedHash) mempty name

@@ -5,8 +5,10 @@ module ReadOnlySpec where
 import Data.Default.Class (Default(def))
 import Test.Hspec (Spec, describe, it, shouldBe, pendingWith)
 
-import Crypto.Hash (hash, Digest, SHA256(..))
+import Crypto.Hash (hash, Digest)
 import Data.ByteString (ByteString)
+import Data.Dependent.Sum (DSum(..))
+import System.Nix.Hash (HashAlgo(..))
 import System.Nix.StorePath (StorePath, StorePathName)
 import System.Nix.ContentAddress (ContentAddressMethod(..))
 
@@ -15,8 +17,8 @@ import qualified System.Nix.StorePath
 
 import System.Nix.Store.ReadOnly
 
-testDigest :: Digest SHA256
-testDigest = Crypto.Hash.hash @ByteString "testDigest"
+testDigest :: DSum HashAlgo Digest
+testDigest = HashAlgo_SHA256 :=> Crypto.Hash.hash @ByteString "testDigest"
 
 testName :: StorePathName
 testName =
@@ -119,7 +121,7 @@ spec = do
           $ makeFixedOutputPath
               def
               ContentAddressMethod_Text
-              (Crypto.Hash.hash ("test" :: ByteString) :: Digest SHA256)
+              (HashAlgo_SHA256 :=> Crypto.Hash.hash ("test" :: ByteString))
               (References
                 { references_others = Data.HashSet.fromList [ testPath ]
                 , references_self = False
