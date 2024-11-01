@@ -10,6 +10,11 @@ packages:
   ./hnix-store-remote/hnix-store-remote.cabal
   ./hnix-store-tests/hnix-store-tests.cabal
 
+source-repository-package
+  type: git
+  location: https://github.com/sorki/Haskell-Nix-Derivation-Library
+  tag: cbc257264ebdcb1a2170b7b83aa131356e00ecbf
+
 -- till https://github.com/obsidiansystems/dependent-sum/pull/80
 allow-newer:
   dependent-sum:some

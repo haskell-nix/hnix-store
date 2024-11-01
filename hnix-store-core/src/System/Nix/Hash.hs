@@ -22,6 +22,7 @@ module System.Nix.Hash
   , decodeDigestWith
 
   , algoDigestBuilder
+  , algoDigestBuilderSep
   , digestBuilder
   ) where
 
@@ -183,9 +184,16 @@ digestBuilder digest =
   <> Data.Text.Lazy.Builder.fromText
       (System.Nix.Hash.encodeDigestWith NixBase32 digest)
 
--- | Builder for @DSum HashAlgo Digest@s
+-- | Builder for @DSum HashAlgo Digest@s using ':' as a separator
 algoDigestBuilder :: DSum HashAlgo Digest -> Builder
-algoDigestBuilder (a :=> d) =
+algoDigestBuilder = algoDigestBuilderSep ':'
+
+-- | Builder for @DSum HashAlgo Digest@s using specific separator
+algoDigestBuilderSep
+  :: Char
+  -> DSum HashAlgo Digest
+  -> Builder
+algoDigestBuilderSep separator (a :=> d) =
   Data.Text.Lazy.Builder.fromText (System.Nix.Hash.algoToText a)
-  <> ":"
+  <> Data.Text.Lazy.Builder.singleton separator
   <> Data.Text.Lazy.Builder.fromText (encodeDigestWith NixBase32 d)

@@ -33,7 +33,7 @@ data DerivationOutput a = DerivationOutput
   { derivationOutputHash :: DSum HashAlgo Digest
   -- ^ Hash modulo of the derivation
   , derivationOutputOutput :: a
-  -- ^ Output (either a OutputName or StorePatH)
+  -- ^ Output (either a OutputName or StorePath)
   } deriving (Eq, Generic, Ord, Show)
 
 data DerivationOutputError

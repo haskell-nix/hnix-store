@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module System.Nix.ContentAddress (
-    ContentAddress
-  , ContentAddressMethod
+    ContentAddress(..)
+  , ContentAddressMethod(..)
   , FileIngestionMethod
   , contentAddressBuilder
   , contentAddressParser
@@ -92,7 +92,7 @@ parseContentAddressMethod :: Parser ContentAddressMethod
 parseContentAddressMethod =
       TextIngestionMethod <$ "text:"
   <|> FileIngestionMethod <$ "fixed:"
-  <*> (FileIngestionMethod_FileRecursive <$ "r:" 
+  <*> (FileIngestionMethod_FileRecursive <$ "r:"
        <|> pure FileIngestionMethod_Flat)
 
 parseTypedDigest :: Parser (Either String (DSum HashAlgo Digest))

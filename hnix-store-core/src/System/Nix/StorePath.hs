@@ -36,6 +36,8 @@ module System.Nix.StorePath
     -- * Utilities for tests
   , unsafeMakeStorePath
   , unsafeMakeStorePathHashPart
+    -- * Required by System.Nix.OutputName
+  , validStorePathNameChar
   ) where
 
 import Crypto.Hash (HashAlgorithm)
