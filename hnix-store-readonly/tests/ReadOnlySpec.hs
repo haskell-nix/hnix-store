@@ -7,6 +7,8 @@ import Test.Hspec (Spec, describe, it, shouldBe, pendingWith)
 
 import Crypto.Hash (hash, Digest, SHA256(..))
 import Data.ByteString (ByteString)
+import Data.Dependent.Sum (DSum(..))
+import System.Nix.Hash (HashAlgo(..))
 import System.Nix.StorePath (StorePath, StorePathName)
 import System.Nix.Store.Types (FileIngestionMethod(..))
 
@@ -17,6 +19,9 @@ import System.Nix.Store.ReadOnly
 
 testDigest :: Digest SHA256
 testDigest = Crypto.Hash.hash @ByteString "testDigest"
+
+testDigest' :: DSum HashAlgo Digest
+testDigest' = HashAlgo_SHA256 :=> testDigest
 
 testName :: StorePathName
 testName =
@@ -45,7 +50,7 @@ spec = do
         $ makeStorePath
             def
             "test"
-            testDigest
+            testDigest'
             testName
       )
       `shouldBe`
@@ -86,7 +91,7 @@ spec = do
           $ makeFixedOutputPath
               def
               FileIngestionMethod_FileRecursive
-              testDigest
+              testDigest'
               testName
         )
         `shouldBe`
@@ -99,7 +104,7 @@ spec = do
           $ makeFixedOutputPath
               def
               FileIngestionMethod_Flat
-              testDigest
+              testDigest'
               testName
         )
         `shouldBe`

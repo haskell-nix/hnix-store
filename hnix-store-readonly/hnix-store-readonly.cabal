@@ -59,5 +59,6 @@ test-suite readonly
     , bytestring
     , crypton
     , data-default-class
+    , dependent-sum
     , hspec
     , unordered-containers
