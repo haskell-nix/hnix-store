@@ -81,19 +81,6 @@ makeType storeDir ty refs =
       $ references_others refs
     self = ["self" | references_self refs]
 
-makeTextPath
-  :: StoreDir
-  -> Digest SHA256
-  -> HashSet StorePath
-  -> StorePathName
-  -> StorePath
-makeTextPath storeDir h refs nm = makeStorePath storeDir ty (HashAlgo_SHA256 :=> h) nm
- where
-  ty = makeType storeDir "text" $ References
-    { references_others = refs
-    , references_self = False
-    }
-
 makeFixedOutputPath
   :: StoreDir
   -> ContentAddressMethod
@@ -105,7 +92,10 @@ makeFixedOutputPath storeDir method digest@(hashAlgo :=> h) refs =
   case method of
     ContentAddressMethod_Text ->
       case hashAlgo of
-        HashAlgo_SHA256 -> makeTextPath storeDir h $ references_others refs
+        HashAlgo_SHA256
+          | references_self refs == False -> makeStorePath storeDir ty digest
+         where
+          ty = makeType storeDir "text" refs
         _ -> error "unsupported" -- TODO do better; maybe we'll just remove this restriction too?
     _ ->
       if method == ContentAddressMethod_NixArchive
