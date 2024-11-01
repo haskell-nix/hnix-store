@@ -34,7 +34,9 @@ library
     , hnix-store-core >= 0.8
     , hnix-store-nar >= 0.1
     , bytestring
+    , constraints-extras
     , crypton
+    , dependent-sum > 0.7
     , mtl
     , text
     , unordered-containers
@@ -57,5 +59,6 @@ test-suite readonly
     , bytestring
     , crypton
     , data-default-class
+    , dependent-sum
     , hspec
     , unordered-containers

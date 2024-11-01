@@ -9,10 +9,13 @@ module System.Nix.Store.ReadOnly
   ) where
 
 import Control.Monad.State (StateT, execStateT, modify)
-import Crypto.Hash (Context, Digest, SHA256)
+import Crypto.Hash (Context, Digest, SHA256, HashAlgorithm)
 import Data.ByteString (ByteString)
+import Data.Constraint.Extras (Has(has))
+import Data.Dependent.Sum (DSum((:=>)))
 import Data.HashSet (HashSet)
-import System.Nix.Hash (BaseEncoding(Base16), NamedAlgo(algoName))
+import Data.Some (Some(Some))
+import System.Nix.Hash (BaseEncoding(Base16), HashAlgo(..))
 import System.Nix.Store.Types (FileIngestionMethod(..), PathFilter, RepairMode)
 import System.Nix.StorePath (StoreDir, StorePath, StorePathName)
 
@@ -28,22 +31,20 @@ import qualified System.Nix.Nar
 import qualified System.Nix.StorePath
 
 makeStorePath
-  :: forall hashAlgo
-   . (NamedAlgo hashAlgo)
-  => StoreDir
+  :: StoreDir
   -> ByteString
-  -> Digest hashAlgo
+  -> DSum HashAlgo Digest
   -> StorePathName
   -> StorePath
-makeStorePath storeDir ty h nm =
+makeStorePath storeDir ty (hashAlgo :=> (digest :: Digest a)) nm =
  System.Nix.StorePath.unsafeMakeStorePath storeHash nm
  where
-  storeHash = System.Nix.StorePath.mkStorePathHashPart @hashAlgo s
+  storeHash = has @HashAlgorithm hashAlgo $ System.Nix.StorePath.mkStorePathHashPart @a s
   s =
     Data.ByteString.intercalate ":" $
       ty:fmap Data.Text.Encoding.encodeUtf8
-        [ algoName @hashAlgo
-        , System.Nix.Hash.encodeDigestWith Base16 h
+        [ System.Nix.Hash.algoToText hashAlgo
+        , System.Nix.Hash.encodeDigestWith Base16 digest
         , Data.Text.pack . Data.ByteString.Char8.unpack $ System.Nix.StorePath.unStoreDir storeDir
         , System.Nix.StorePath.unStorePathName nm
         ]
@@ -54,7 +55,7 @@ makeTextPath
   -> Digest SHA256
   -> HashSet StorePath
   -> StorePath
-makeTextPath storeDir nm h refs = makeStorePath storeDir ty h nm
+makeTextPath storeDir nm h refs = makeStorePath storeDir ty (HashAlgo_SHA256 :=> h) nm
  where
   ty =
     Data.ByteString.intercalate
@@ -65,25 +66,23 @@ makeTextPath storeDir nm h refs = makeStorePath storeDir ty h nm
            <$> Data.HashSet.toList refs)
 
 makeFixedOutputPath
-  :: forall hashAlgo
-  .  NamedAlgo hashAlgo
-  => StoreDir
+  :: StoreDir
   -> FileIngestionMethod
-  -> Digest hashAlgo
+  -> DSum HashAlgo Digest
   -> StorePathName
   -> StorePath
-makeFixedOutputPath storeDir recursive h =
+makeFixedOutputPath storeDir recursive algoDigest@(hashAlgo :=> digest) =
   if recursive == FileIngestionMethod_FileRecursive
-     && (algoName @hashAlgo) == "sha256"
-  then makeStorePath storeDir "source" h
-  else makeStorePath storeDir "output:out" h'
+     && Some hashAlgo == Some HashAlgo_SHA256
+  then makeStorePath storeDir "source" algoDigest
+  else makeStorePath storeDir "output:out" (HashAlgo_SHA256 :=> h')
  where
   h' =
     Crypto.Hash.hash @ByteString @SHA256
       $  "fixed:out:"
-      <> Data.Text.Encoding.encodeUtf8 (algoName @hashAlgo)
+      <> Data.Text.Encoding.encodeUtf8 (System.Nix.Hash.algoToText hashAlgo)
       <> (if recursive == FileIngestionMethod_FileRecursive then ":r:" else ":")
-      <> Data.Text.Encoding.encodeUtf8 (System.Nix.Hash.encodeDigestWith Base16 h)
+      <> Data.Text.Encoding.encodeUtf8 (System.Nix.Hash.encodeDigestWith Base16 digest)
       <> ":"
 
 computeStorePathForText
@@ -108,7 +107,7 @@ computeStorePathForPath storeDir name pth recursive _pathFilter _repair = do
     if recursive == FileIngestionMethod_FileRecursive
       then recursiveContentHash
       else flatContentHash
-  pure $ makeFixedOutputPath storeDir recursive selectedHash name
+  pure $ makeFixedOutputPath storeDir recursive (HashAlgo_SHA256 :=> selectedHash) name
  where
   recursiveContentHash :: IO (Digest SHA256)
   recursiveContentHash =
