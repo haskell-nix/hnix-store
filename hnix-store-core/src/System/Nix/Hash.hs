@@ -185,7 +185,4 @@ digestBuilder digest =
 
 -- | Builder for @DSum HashAlgo Digest@s
 algoDigestBuilder :: DSum HashAlgo Digest -> Builder
-algoDigestBuilder (a :=> d) =
-  Data.Text.Lazy.Builder.fromText (System.Nix.Hash.algoToText a)
-  <> ":"
-  <> Data.Text.Lazy.Builder.fromText (encodeDigestWith NixBase32 d)
+algoDigestBuilder (a :=> d) = has @NamedAlgo a $ digestBuilder d
