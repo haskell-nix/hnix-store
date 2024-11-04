@@ -81,19 +81,6 @@ makeType storeDir ty refs =
       $ references_others refs
     self = ["self" | references_self refs]
 
-makeTextPath
-  :: StoreDir
-  -> Digest SHA256
-  -> HashSet StorePath
-  -> StorePathName
-  -> StorePath
-makeTextPath storeDir h refs nm = makeStorePath storeDir ty (HashAlgo_SHA256 :=> h) nm
- where
-  ty = makeType storeDir "text" $ References
-    { references_others = refs
-    , references_self = False
-    }
-
 makeFixedOutputPath
   :: StoreDir
   -> ContentAddressMethod
@@ -102,24 +89,27 @@ makeFixedOutputPath
   -> StorePathName
   -> StorePath
 makeFixedOutputPath storeDir method digest@(hashAlgo :=> h) refs =
-  case method of
+  makeStorePath storeDir ty digest'
+ where
+  (ty, digest') = case method of
     ContentAddressMethod_Text ->
       case hashAlgo of
-        HashAlgo_SHA256 -> makeTextPath storeDir h $ references_others refs
+        HashAlgo_SHA256
+          | references_self refs == False -> (makeType storeDir "text" refs, digest)
         _ -> error "unsupported" -- TODO do better; maybe we'll just remove this restriction too?
     _ ->
       if method == ContentAddressMethod_NixArchive
          && Some hashAlgo == Some HashAlgo_SHA256
-      then makeStorePath storeDir (makeType storeDir "source" refs) digest
-      else makeStorePath storeDir "output:out" (HashAlgo_SHA256 :=> h')
- where
-  h' =
-    Crypto.Hash.hash @ByteString @SHA256
-      $  "fixed:out:"
-      <> Data.Text.Encoding.encodeUtf8 (System.Nix.Hash.algoToText hashAlgo)
-      <> (if method == ContentAddressMethod_NixArchive then ":r:" else ":")
-      <> Data.Text.Encoding.encodeUtf8 (System.Nix.Hash.encodeDigestWith Base16 h)
-      <> ":"
+      then (makeType storeDir "source" refs, digest)
+      else let
+        h' =
+          Crypto.Hash.hash @ByteString @SHA256
+            $  "fixed:out:"
+            <> Data.Text.Encoding.encodeUtf8 (System.Nix.Hash.algoToText hashAlgo)
+            <> (if method == ContentAddressMethod_NixArchive then ":r:" else ":")
+            <> Data.Text.Encoding.encodeUtf8 (System.Nix.Hash.encodeDigestWith Base16 h)
+            <> ":"
+      in ("output:out", HashAlgo_SHA256 :=> h')
 
 digestPath
   :: FilePath             -- ^ Local `FilePath` to add
