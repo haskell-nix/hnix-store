@@ -89,27 +89,27 @@ makeFixedOutputPath
   -> StorePathName
   -> StorePath
 makeFixedOutputPath storeDir method digest@(hashAlgo :=> h) refs =
-  case method of
+  makeStorePath storeDir ty digest'
+ where
+  (ty, digest') = case method of
     ContentAddressMethod_Text ->
       case hashAlgo of
         HashAlgo_SHA256
-          | references_self refs == False -> makeStorePath storeDir ty digest
-         where
-          ty = makeType storeDir "text" refs
+          | references_self refs == False -> (makeType storeDir "text" refs, digest)
         _ -> error "unsupported" -- TODO do better; maybe we'll just remove this restriction too?
     _ ->
       if method == ContentAddressMethod_NixArchive
          && Some hashAlgo == Some HashAlgo_SHA256
-      then makeStorePath storeDir (makeType storeDir "source" refs) digest
-      else makeStorePath storeDir "output:out" (HashAlgo_SHA256 :=> h')
- where
-  h' =
-    Crypto.Hash.hash @ByteString @SHA256
-      $  "fixed:out:"
-      <> Data.Text.Encoding.encodeUtf8 (System.Nix.Hash.algoToText hashAlgo)
-      <> (if method == ContentAddressMethod_NixArchive then ":r:" else ":")
-      <> Data.Text.Encoding.encodeUtf8 (System.Nix.Hash.encodeDigestWith Base16 h)
-      <> ":"
+      then (makeType storeDir "source" refs, digest)
+      else let
+        h' =
+          Crypto.Hash.hash @ByteString @SHA256
+            $  "fixed:out:"
+            <> Data.Text.Encoding.encodeUtf8 (System.Nix.Hash.algoToText hashAlgo)
+            <> (if method == ContentAddressMethod_NixArchive then ":r:" else ":")
+            <> Data.Text.Encoding.encodeUtf8 (System.Nix.Hash.encodeDigestWith Base16 h)
+            <> ":"
+      in ("output:out", HashAlgo_SHA256 :=> h')
 
 digestPath
   :: FilePath             -- ^ Local `FilePath` to add
