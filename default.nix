@@ -20,7 +20,7 @@ let
   haskellPackages = packageSet.override overrideHaskellPackages;
 in {
   inherit (haskellPackages)
-    nix-derivation
+    hnix-store-aterm
     hnix-store-core
     hnix-store-db
     hnix-store-json

@@ -1,4 +1,4 @@
-package nix-derivation
+package hnix-store-aterm
   ghc-options: -Wunused-packages -Wall -Werror
 
 package hnix-store-core

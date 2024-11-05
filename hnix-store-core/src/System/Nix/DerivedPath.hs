@@ -3,6 +3,8 @@
 module System.Nix.DerivedPath (
     OutputsSpec(..)
   , SingleDerivedPath(..)
+  , parseSingleDerivedPath
+  , singleDerivedPathToText
   , DerivedPath(..)
   , ParseOutputsError(..)
   , parseOutputsSpec
@@ -20,6 +22,7 @@ import System.Nix.StorePath (StoreDir(..), StorePath, InvalidPathError)
 import qualified Data.Bifunctor
 import qualified Data.ByteString.Char8
 import qualified Data.Set
+import qualified Data.List
 import qualified Data.Text
 import qualified System.Nix.OutputName
 import qualified System.Nix.StorePath
@@ -78,7 +81,7 @@ outputsSpecToText = \case
   OutputsSpec_Names ns ->
     Data.Text.intercalate
       ","
-      (fmap System.Nix.OutputName.unOutputName
+      (fmap (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
         (Data.Set.toList ns)
       )
 
@@ -96,20 +99,17 @@ parseSingleDerivedPath root@(StoreDir sd) path =
   in case Data.Text.stripPrefix textRoot path of
     Nothing -> Left $ ParseOutputsError_NoPrefix root path
     Just woRoot ->
-      case Data.Text.breakOn "!" woRoot of
-        (pathNoPrefix, r) ->
-          if Data.Text.null r
-          then SingleDerivedPath_Opaque
+      case Data.Text.splitOn "!" woRoot of
+        [] -> error "internal error, this function should return NonEmpty"
+        (pathNoPrefix : outputs) -> Data.List.foldl'
+          (liftA2 SingleDerivedPath_Built)
+          (SingleDerivedPath_Opaque
                <$> (convertError
                    $ System.Nix.StorePath.parsePathFromText
                       root
-                      path
-                   )
-          else SingleDerivedPath_Built
-               <$> parseSingleDerivedPath
-                      root
                       (textRoot <> pathNoPrefix)
-               <*> parseOutputName (Data.Text.drop (Data.Text.length "!") r)
+                   ))
+          (parseOutputName <$> outputs)
 
 parseDerivedPath
   :: StoreDir
@@ -125,8 +125,8 @@ parseDerivedPath root@(StoreDir sd) path =
   in case Data.Text.stripPrefix textRoot path of
     Nothing -> Left $ ParseOutputsError_NoPrefix root path
     Just woRoot ->
-      case Data.Text.breakOn "!" woRoot of
-        (pathNoPrefix, r) ->
+      case Data.Text.breakOnEnd "!" woRoot of
+        (r, suffix) ->
           if Data.Text.null r
           then DerivedPath_Opaque
                <$> (convertError
@@ -137,8 +137,8 @@ parseDerivedPath root@(StoreDir sd) path =
           else DerivedPath_Built
                <$> parseSingleDerivedPath
                       root
-                      (textRoot <> pathNoPrefix)
-               <*> parseOutputsSpec (Data.Text.drop (Data.Text.length "!") r)
+                      (textRoot <> Data.Text.dropEnd (Data.Text.length "!") r)
+               <*> parseOutputsSpec suffix
 
 convertError
   :: Either InvalidPathError a
@@ -152,7 +152,7 @@ singleDerivedPathToText root = \case
   SingleDerivedPath_Built p o ->
     singleDerivedPathToText root p
     <> "!"
-    <> System.Nix.OutputName.unOutputName o
+    <> System.Nix.StorePath.unStorePathName (System.Nix.OutputName.unOutputName o)
 
 derivedPathToText :: StoreDir -> DerivedPath -> Text
 derivedPathToText root = \case

@@ -16,7 +16,7 @@ import Data.Text (Text)
 import Data.Some (Some(Some))
 
 import System.Nix.Build (BuildMode, BuildResult)
-import System.Nix.Derivation (Derivation, DerivationOutput)
+import System.Nix.Derivation (BasicDerivation, DerivationOutput)
 import System.Nix.DerivedPath (DerivedPath)
 import System.Nix.Hash (HashAlgo)
 import System.Nix.Signature (Signature)
@@ -85,12 +85,7 @@ data StoreRequest :: Type -> Type where
 
   BuildDerivation
     :: StorePath
-    -> Derivation 
-      StorePath 
-      Text 
-      Text 
-      (DerivationOutput StorePath Text)
-      (Set StorePath)
+    -> BasicDerivation
     -> BuildMode
     -> StoreRequest BuildResult
 

@@ -1,8 +1,10 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- due to recent generic-arbitrary
 {-# OPTIONS_GHC -fconstraint-solver-iterations=0 #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 module System.Nix.Arbitrary.Derivation where
 
+import Data.Map.Monoidal
 import Data.These
 import Data.Text (Text)
 import Data.Text.Arbitrary ()
@@ -12,43 +14,36 @@ import System.Nix.StorePath (StorePath)
 
 import Test.QuickCheck (Arbitrary(..))
 import Test.QuickCheck.Arbitrary.Generic (Arg, GenericArbitrary(..))
+import System.Nix.Arbitrary.ContentAddress ()
+import System.Nix.Arbitrary.Hash ()
 import System.Nix.Arbitrary.StorePath ()
+import System.Nix.Arbitrary.OutputName ()
 
 deriving via GenericArbitrary
-    (Derivation 
-      StorePath
-      Text
-      Text
-      (DerivationOutput StorePath Text)
-      inputs)
-  instance 
+    (Derivation' inputs output)
+  instance
     ( Arbitrary inputs
-    , Arg
-       (Derivation
-         StorePath
-         Text
-         Text
-         (DerivationOutput StorePath Text)
-         inputs)
-       inputs
-    ) => Arbitrary
-    (Derivation 
-      StorePath
-      Text
-      Text
-      (DerivationOutput StorePath Text)
-      inputs)
+    , Arbitrary output
+    , Arg (Derivation' inputs output) inputs
+    , Arg (Derivation' inputs output) output
+    ) => Arbitrary (Derivation' inputs output)
 
-deriving via GenericArbitrary (DerivationOutput StorePath Text)
-  instance Arbitrary (DerivationOutput StorePath Text)
+deriving via GenericArbitrary DerivationOutput
+  instance Arbitrary DerivationOutput
 
-deriving via GenericArbitrary (DerivationInputs StorePath Text)
-  instance Arbitrary (DerivationInputs StorePath Text)
+deriving via GenericArbitrary DerivationInputs
+  instance Arbitrary DerivationInputs
 
-deriving via GenericArbitrary (DerivedPathMap StorePath Text)
-  instance Arbitrary (DerivedPathMap StorePath Text)
+deriving via GenericArbitrary DerivedPathMap
+  instance Arbitrary DerivedPathMap
 
--- TODO this belongs elsewhere
+deriving via GenericArbitrary ChildNode
+  instance Arbitrary ChildNode
+
+-- TODO these belong elsewhere
+
+deriving newtype instance (Arbitrary k, Arbitrary v, Ord k) => Arbitrary (MonoidalMap k v)
+
 deriving via GenericArbitrary (These a b)
   instance ( Arg (These a b) a
            , Arg (These a b) b

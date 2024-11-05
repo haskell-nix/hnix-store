@@ -128,7 +128,8 @@ import System.Nix.Base (BaseEncoding(Base16, NixBase32))
 import System.Nix.Build (BuildMode, BuildResult(..))
 import System.Nix.ContentAddress (ContentAddress)
 import System.Nix.Derivation
-  ( Derivation(..)
+  ( BasicDerivation
+  , Derivation'(..)
   , DerivationOutput(..)
   -- , DerivationInputs(..)
   )
@@ -718,7 +719,7 @@ namedDigest = Serializer
 
 derivationOutput
   :: HasStoreDir r
-  => NixSerializer r SError (DerivationOutput StorePath Text)
+  => NixSerializer r SError DerivationOutput
 derivationOutput = Serializer
   { getS = do
       mPath <- getS maybePath
@@ -755,13 +756,7 @@ derivationOutput = Serializer
 
 basicDerivation
   :: HasStoreDir r
-  => NixSerializer r SError
-    (Derivation
-      StorePath
-      Text
-      Text
-      (DerivationOutput StorePath Text)
-      (Set StorePath))
+  => NixSerializer r SError BasicDerivation
 basicDerivation = Serializer
   { getS = do
       outputs <- getS (mapS text derivationOutput)

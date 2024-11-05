@@ -79,18 +79,20 @@ library
     , base16-bytestring >= 1.0
     , base64-bytestring >= 1.2.1
     , bytestring
-    , containers
     , constraints-extras
+    , containers
     , crypton
     , data-default-class
+    , deepseq
     , dependent-sum > 0.7
     , dependent-sum-template >= 0.2.0.1 && < 0.3
     , filepath
     , hashable
     -- Required for crypton low-level type convertion
     , memory
-    , nix-derivation >= 1.1.1 && <2
+    , monoidal-containers
     , some > 1.0.5 && < 2
+    , these
     , time
     , text
     , unordered-containers
@@ -102,7 +104,6 @@ test-suite core
   type: exitcode-stdio-1.0
   main-is: Driver.hs
   other-modules:
-    Derivation
     Fingerprint
     Hash
     Signature

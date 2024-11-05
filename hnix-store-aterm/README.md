@@ -1,8 +1,8 @@
-# `nix-derivation`
+# `hnix-store-aterm`
 
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/Gabriella439/Haskell-Nix-Derivation-Library/ci.yaml?branch=main)](https://github.com/Gabriella439/Haskell-Nix-Derivation-Library/actions/workflows/ci.yaml)
-[![Hackage version](https://img.shields.io/hackage/v/nix-derivation.svg?color=success)](https://hackage.haskell.org/package/nix-derivation)
-[![Dependencies](https://img.shields.io/hackage-deps/v/nix-derivation?label=Dependencies)](https://packdeps.haskellers.com/feed?needle=nix-derivation)
+[![Hackage version](https://img.shields.io/hackage/v/hnix-store-aterm.svg?color=success)](https://hackage.haskell.org/package/hnix-store-aterm)
+[![Dependencies](https://img.shields.io/hackage-deps/v/hnix-store-aterm?label=Dependencies)](https://packdeps.haskellers.com/feed?needle=hnix-store-aterm)
 
 Use this package to parse and render Nix derivations such as those stored
 in `/nix/store/*.drv` files.  For example, if you had the following derivation
@@ -182,7 +182,7 @@ Derivation
 With Nix:
 
 ```
-$ nix-env -iA nixpkgs.haskellPackages.nix-derivation
+$ nix-env -iA nixpkgs.haskellPackages.hnix-store-aterm
 ```
 
 ## Development status
