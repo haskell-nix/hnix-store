@@ -134,7 +134,8 @@ import System.Nix.JSON ()
 import System.Nix.OutputName (OutputName)
 import System.Nix.Realisation (DerivationOutputError, Realisation(..), RealisationWithId(..))
 import System.Nix.Signature (Signature, NarSignature)
-import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
+import System.Nix.FileContentAddress (FileIngestionMethod(..))
+import System.Nix.Store.Types (RepairMode(..))
 import System.Nix.StorePath (HasStoreDir(..), InvalidNameError, InvalidPathError, StorePath, StorePathHashPart, StorePathName)
 import System.Nix.StorePath.Metadata (Metadata(..), StorePathTrust(..))
 import System.Nix.Store.Remote.Types
@@ -1220,9 +1221,9 @@ storeRequest = Serializer
         putS bool
           $ not
           $ hashAlgo == Some HashAlgo_SHA256
-            && (recursive == FileIngestionMethod_FileRecursive)
+            && (recursive == FileIngestionMethod_NixArchive)
 
-        putS bool (recursive == FileIngestionMethod_FileRecursive)
+        putS bool (recursive == FileIngestionMethod_NixArchive)
         putS someHashAlgo hashAlgo
 
       Some (AddToStoreNar storePath' metadata repair checkSigs) -> mapPutE $ do

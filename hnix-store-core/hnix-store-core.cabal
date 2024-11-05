@@ -64,6 +64,7 @@ library
     , System.Nix.Derivation
     , System.Nix.DerivedPath
     , System.Nix.Fingerprint
+    , System.Nix.FileContentAddress
     , System.Nix.Hash
     , System.Nix.Hash.Truncation
     , System.Nix.OutputName

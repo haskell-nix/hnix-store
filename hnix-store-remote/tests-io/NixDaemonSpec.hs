@@ -22,6 +22,7 @@ import System.Linux.Namespaces (Namespace(..), GroupMapping(..), UserMapping(..)
 import System.Nix.Hash (HashAlgo(HashAlgo_SHA256))
 import System.Nix.Build (BuildMode(..))
 import System.Nix.DerivedPath (DerivedPath(..))
+import System.Nix.FileContentAddress (FileIngestionMethod(..))
 import System.Nix.StorePath (StoreDir(..), StorePath)
 import System.Nix.StorePath.Metadata (Metadata(..))
 import System.Nix.Store.Remote

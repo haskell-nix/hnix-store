@@ -5,23 +5,20 @@ module ReadOnlySpec where
 import Data.Default.Class (Default(def))
 import Test.Hspec (Spec, describe, it, shouldBe, pendingWith)
 
-import Crypto.Hash (hash, Digest, SHA256(..))
+import Crypto.Hash (hash, Digest)
 import Data.ByteString (ByteString)
 import Data.Dependent.Sum (DSum(..))
 import System.Nix.Hash (HashAlgo(..))
 import System.Nix.StorePath (StorePath, StorePathName)
-import System.Nix.Store.Types (FileIngestionMethod(..))
+import System.Nix.ContentAddress (ContentAddressMethod(..))
 
 import qualified Data.HashSet
 import qualified System.Nix.StorePath
 
 import System.Nix.Store.ReadOnly
 
-testDigest :: Digest SHA256
-testDigest = Crypto.Hash.hash @ByteString "testDigest"
-
-testDigest' :: DSum HashAlgo Digest
-testDigest' = HashAlgo_SHA256 :=> testDigest
+testDigest :: DSum HashAlgo Digest
+testDigest = HashAlgo_SHA256 :=> Crypto.Hash.hash @ByteString "testDigest"
 
 testName :: StorePathName
 testName =
@@ -50,7 +47,7 @@ spec = do
         $ makeStorePath
             def
             "test"
-            testDigest'
+            testDigest
             testName
       )
       `shouldBe`
@@ -61,11 +58,12 @@ spec = do
     describe "makeTextPath" $ do
       it "computes correct StorePath for empty refs" $
         (pure
-          $ makeTextPath
+          $ makeFixedOutputPath
               def
-              testName
+              ContentAddressMethod_Text
               testDigest
               mempty
+              testName
         )
         `shouldBe`
         System.Nix.StorePath.parsePathFromText
@@ -74,11 +72,15 @@ spec = do
 
       it "computes correct StorePath for nonempty refs" $
         (pure
-          $ makeTextPath
+          $ makeFixedOutputPath
               def
-              testName
+              ContentAddressMethod_Text
               testDigest
-              (Data.HashSet.fromList [ testPath, testPath2 ])
+              (References
+                { references_others = Data.HashSet.fromList [ testPath, testPath2 ]
+                , references_self = False
+                })
+              testName
         )
         `shouldBe`
         System.Nix.StorePath.parsePathFromText
@@ -90,8 +92,9 @@ spec = do
         (pure
           $ makeFixedOutputPath
               def
-              FileIngestionMethod_FileRecursive
-              testDigest'
+              ContentAddressMethod_NixArchive
+              testDigest
+              mempty
               testName
         )
         `shouldBe`
@@ -103,8 +106,9 @@ spec = do
         (pure
           $ makeFixedOutputPath
               def
-              FileIngestionMethod_Flat
-              testDigest'
+              ContentAddressMethod_Flat
+              testDigest
+              mempty
               testName
         )
         `shouldBe`
@@ -114,11 +118,15 @@ spec = do
 
     it "computeStorePathForText computes correct StorePath" $
         (pure
-          $ computeStorePathForText
+          $ makeFixedOutputPath
               def
+              ContentAddressMethod_Text
+              (HashAlgo_SHA256 :=> Crypto.Hash.hash ("test" :: ByteString))
+              (References
+                { references_others = Data.HashSet.fromList [ testPath ]
+                , references_self = False
+                })
               testName
-              "test"
-              (Data.HashSet.fromList [ testPath ])
         )
         `shouldBe`
         System.Nix.StorePath.parsePathFromText

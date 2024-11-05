@@ -1,9 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module System.Nix.ContentAddress (
-    ContentAddress
-  , ContentAddressMethod
-  , FileIngestionMethod
+    ContentAddress (..)
+  , ContentAddressMethod (..)
   , contentAddressBuilder
   , contentAddressParser
   , buildContentAddress
@@ -18,7 +17,6 @@ import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder)
 import GHC.Generics (Generic)
 import System.Nix.Hash (HashAlgo)
-import System.Nix.Store.Types (FileIngestionMethod(..))
 
 import qualified Data.Attoparsec.Text
 import qualified Data.Text.Lazy
@@ -26,11 +24,9 @@ import qualified Data.Text.Lazy.Builder
 import qualified System.Nix.Hash
 
 data ContentAddressMethod
-  = FileIngestionMethod !FileIngestionMethod
-  -- ^ The path was added to the store via makeFixedOutputPath or
-  -- addToStore. It is addressed according to some hash algorithm
-  -- applied to the nar serialization via some 'NarHashMode'.
-  | TextIngestionMethod
+  = ContentAddressMethod_Flat
+  | ContentAddressMethod_NixArchive
+  | ContentAddressMethod_Text
   -- ^ The path is a plain file added via makeTextPath or
   -- addTextToStore. It is addressed according to a sha256sum of the
   -- file contents.
@@ -59,19 +55,14 @@ buildContentAddress =
   . contentAddressBuilder
 
 contentAddressBuilder :: ContentAddress -> Builder
-contentAddressBuilder (ContentAddress method digest) = case method of
-  TextIngestionMethod ->
-    "text:"
-    <> System.Nix.Hash.algoDigestBuilder digest
-  FileIngestionMethod r ->
-    "fixed:"
-    <> fileIngestionMethodBuilder r
-    <> System.Nix.Hash.algoDigestBuilder digest
-
-fileIngestionMethodBuilder :: FileIngestionMethod -> Builder
-fileIngestionMethodBuilder = \case
-  FileIngestionMethod_Flat -> ""
-  FileIngestionMethod_FileRecursive -> "r:"
+contentAddressBuilder (ContentAddress method digest) =
+  (case method of
+    ContentAddressMethod_Text -> "text"
+    ContentAddressMethod_NixArchive -> "fixed:r"
+    ContentAddressMethod_Flat -> "fixed"
+  )
+  <> ":"
+  <> System.Nix.Hash.algoDigestBuilder digest
 
 -- | Parse `ContentAddressableAddress` from `ByteString`
 parseContentAddress
@@ -83,6 +74,7 @@ parseContentAddress =
 contentAddressParser :: Parser ContentAddress
 contentAddressParser = do
   method <- parseContentAddressMethod
+  _ <- ":"
   digest <- parseTypedDigest
   case digest of
     Left e -> fail e
@@ -90,10 +82,9 @@ contentAddressParser = do
 
 parseContentAddressMethod :: Parser ContentAddressMethod
 parseContentAddressMethod =
-      TextIngestionMethod <$ "text:"
-  <|> FileIngestionMethod <$ "fixed:"
-  <*> (FileIngestionMethod_FileRecursive <$ "r:" 
-       <|> pure FileIngestionMethod_Flat)
+      (ContentAddressMethod_Text <$ "text")
+  <|> (ContentAddressMethod_NixArchive <$ "fixed:r")
+  <|> (ContentAddressMethod_Flat <$ "fixed")
 
 parseTypedDigest :: Parser (Either String (DSum HashAlgo Digest))
 parseTypedDigest = System.Nix.Hash.mkNamedDigest <$> parseHashType <*> parseHash

@@ -52,7 +52,8 @@ import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
 import System.Nix.Store.Remote.Types.StoreText (StoreText)
 import System.Nix.Store.Remote.Types.SubstituteMode (SubstituteMode)
 import System.Nix.Store.Remote.Client.Core
-import System.Nix.Store.Types (FileIngestionMethod(..), RepairMode(..))
+import System.Nix.FileContentAddress (FileIngestionMethod(..))
+import System.Nix.Store.Types (RepairMode(..))
 
 import qualified Control.Monad.IO.Class
 import qualified Data.Attoparsec.Text
