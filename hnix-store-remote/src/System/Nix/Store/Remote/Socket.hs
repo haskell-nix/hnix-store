@@ -1,13 +1,14 @@
 module System.Nix.Store.Remote.Socket where
 
 import Control.Monad.Except (MonadError, throwError)
+import Control.Monad.Trans.Except (runExceptT)
 import Control.Monad.IO.Class (MonadIO(..))
 import Data.ByteString (ByteString)
 import Data.Serialize.Get (Get, Result(..))
 import Data.Serialize.Put (Put, runPut)
 import Network.Socket.ByteString (recv, sendAll)
 import System.Nix.Store.Remote.MonadStore (MonadRemoteStore(..), RemoteStoreError(..))
-import System.Nix.Store.Remote.Serializer (NixSerializer, runP, runSerialT)
+import System.Nix.Store.Remote.Serializer (NixSerializer, runP)
 import System.Nix.Store.Remote.Types (ProtoStoreConfig)
 
 import qualified Control.Exception
@@ -73,15 +74,13 @@ sockPutS
   :: ( MonadRemoteStore m
      , MonadError e m
      )
-  => NixSerializer ProtoStoreConfig e a
+  => NixSerializer e a
   -> a
   -> m ()
 sockPutS s a = do
-  cfg <- getConfig
   sock <- getStoreSocket
-  case runP s cfg a of
-    Right x -> liftIO $ sendAll sock x
-    Left e -> throwError e
+  let x = runP s a
+  liftIO $ sendAll sock x
 
 sockGetS
   :: ( MonadRemoteStore m
@@ -89,12 +88,11 @@ sockGetS
      , Show a
      , Show e
      )
-  => NixSerializer ProtoStoreConfig e a
+  => NixSerializer e a
   -> m a
 sockGetS s = do
-  cfg <- getConfig
   res <- genericIncremental sockGet8
-    $ runSerialT cfg $ Data.Serializer.getS s
+    $ runExceptT $ Data.Serializer.getS s
 
   case res of
     Right x -> pure x

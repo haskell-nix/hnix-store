@@ -30,12 +30,13 @@ import System.Nix.Store.Remote.Serializer
   , trustedFlag
   , workerMagic
   )
+
+import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types.Handshake (ClientHandshakeOutput(..))
 import System.Nix.Store.Remote.Types.Logger (Logger)
 import System.Nix.Store.Remote.Types.NoReply (NoReply(..))
 import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..))
 import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
-import System.Nix.Store.Remote.Types.StoreReply (StoreReply(..))
 import System.Nix.Store.Remote.Types.WorkerMagic (WorkerMagic(..))
 
 import qualified Data.ByteString
@@ -48,17 +49,19 @@ doReq
   :: forall m a
    . ( MonadIO m
      , MonadRemoteStore m
-     , StoreReply a
      , Show a
      )
   => StoreRequest a
   -> m a
 doReq = \case
   x -> do
+    storeDir <- getStoreDir
+    protoVersion <- getProtoVersion
+
     sockPutS
       (mapErrorS
         RemoteStoreError_SerializerRequest
-          storeRequest
+          $ storeRequest storeDir protoVersion
       )
       (Some x)
 
@@ -76,7 +79,7 @@ doReq = \case
             throwError
               RemoteStoreError_NoNarSourceProvided
         processOutput
-        processReply
+        sockGetS $ mapErrorS (RemoteStoreError_SerializerReply . ReplySError_PrimGet) $ storePath storeDir
 
       AddToStoreNar _ meta _ _ -> do
         let narBytes = maybe 0 id $ metadataNarBytes meta
@@ -109,13 +112,8 @@ doReq = \case
 
       _ -> do
         processOutput
-        processReply
-
-  where
-    processReply = sockGetS
-          (mapErrorS RemoteStoreError_SerializerReply
-            $ getReplyS @a
-          )
+        error "need to keep casing on arguments"
+        --sockGetS $ mapErrorS (RemoteStoreError_SerializerReply . ReplySError_PrimGet)
 
 copyToSink
   :: forall m

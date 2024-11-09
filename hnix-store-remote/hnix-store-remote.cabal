@@ -92,7 +92,6 @@ library
     , System.Nix.Store.Remote.Types.Query.Missing
     , System.Nix.Store.Remote.Types.StoreConfig
     , System.Nix.Store.Remote.Types.StoreRequest
-    , System.Nix.Store.Remote.Types.StoreReply
     , System.Nix.Store.Remote.Types.StoreText
     , System.Nix.Store.Remote.Types.SubstituteMode
     , System.Nix.Store.Remote.Types.SuccessCodeReply
@@ -122,6 +121,7 @@ library
     , exceptions
     , generic-arbitrary < 1.1
     , hashable
+    , mmorph
     , text
     , time
     , transformers

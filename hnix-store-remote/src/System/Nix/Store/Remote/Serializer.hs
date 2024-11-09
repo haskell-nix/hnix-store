@@ -9,12 +9,11 @@ module System.Nix.Store.Remote.Serializer
   (
   -- * NixSerializer
     NixSerializer
-  , mapReaderS
   , mapErrorS
   -- * Errors
   , SError(..)
   -- ** Runners
-  , runSerialT
+  , runExceptT
   , runG
   , runP
   -- * Primitives
@@ -106,12 +105,14 @@ import Control.Monad.Except (MonadError, throwError, )
 import Control.Monad.Reader (MonadReader)
 import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Reader (ReaderT, runReaderT, withReaderT)
-import Control.Monad.Trans.Except (ExceptT, mapExceptT, runExceptT, withExceptT)
+import Control.Monad.Trans.Except (ExceptT(..), mapExceptT, runExceptT, withExceptT)
 import Crypto.Hash (Digest, HashAlgorithm, SHA256)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.ByteString (ByteString)
+import qualified Data.ByteString.Lazy
 import Data.Dependent.Sum (DSum((:=>)))
 import Data.Fixed (Uni)
+import Data.Functor.Identity
 import Data.Hashable (Hashable)
 import Data.HashSet (HashSet)
 import Data.Map (Map)
@@ -141,7 +142,7 @@ import System.Nix.Realisation (DerivationOutputError, Realisation(..), Realisati
 import System.Nix.Signature (Signature, NarSignature)
 import System.Nix.FileContentAddress (FileIngestionMethod(..))
 import System.Nix.Store.Types (RepairMode(..))
-import System.Nix.StorePath (HasStoreDir(..), InvalidNameError, InvalidPathError, StorePath, StorePathHashPart, StorePathName)
+import System.Nix.StorePath (StoreDir, InvalidNameError, InvalidPathError, StorePath, StorePathHashPart, StorePathName)
 import System.Nix.StorePath.Metadata (Metadata(..), StorePathTrust(..))
 import System.Nix.Store.Remote.Types
 
@@ -177,73 +178,18 @@ import qualified System.Nix.Realisation
 import qualified System.Nix.Signature
 import qualified System.Nix.StorePath
 
--- | Transformer for @Serializer@
-newtype SerialT r e m a = SerialT
-  { _unSerialT :: ExceptT e (ReaderT r m) a }
-  deriving
-    ( Applicative
-    , Functor
-    , Monad
-    , MonadError e
-    , MonadReader r
-    , MonadFail
-    )
-
-instance MonadTrans (SerialT r e) where
-  lift = SerialT . lift . lift
-
--- | Runner for @SerialT@
-runSerialT
-  :: Monad m
-  => r
-  -> SerialT r e m a
-  -> m (Either e a)
-runSerialT r =
-    (`runReaderT` r)
-  . runExceptT
-  . _unSerialT
-
-mapErrorST
-  :: Functor m
-  => (e -> e')
-  -> SerialT r e m a
-  -> SerialT r e' m a
-mapErrorST f =
-    SerialT
-    . withExceptT f
-    . _unSerialT
-
 mapErrorS
   :: (e -> e')
-  -> NixSerializer r e a
-  -> NixSerializer r e' a
+  -> NixSerializer e a
+  -> NixSerializer e' a
 mapErrorS f s = Serializer
-  { getS = mapErrorST f $ getS s
-  , putS = mapErrorST f . putS s
-  }
-
-mapReaderST
-  :: Functor m
-  => (r' -> r)
-  -> SerialT r e m a
-  -> SerialT r' e m a
-mapReaderST f =
-  SerialT
-  . (mapExceptT . withReaderT) f
-  . _unSerialT
-
-mapReaderS
-  :: (r' -> r)
-  -> NixSerializer r e a
-  -> NixSerializer r' e a
-mapReaderS f s = Serializer
-  { getS = mapReaderST f $ getS s
-  , putS = mapReaderST f . putS s
+  { getS = withExceptT f $ getS s
+  , putS = putS s
   }
 
 -- * NixSerializer
 
-type NixSerializer r e = Serializer (SerialT r e)
+type NixSerializer e = Serializer (ExceptT e)
 
 -- * Errors
 
@@ -265,7 +211,7 @@ data SError
   | SError_IllegalBool Word64
   | SError_InvalidNixBase32
   | SError_JSONDecoding String
-  | SError_NarHashMustBeSHA256
+  -- | SError_NarHashMustBeSHA256
   | SError_NotYetImplemented String (ForPV ProtoVersion)
   | SError_Name InvalidNameError
   | SError_Path InvalidPathError
@@ -281,7 +227,7 @@ data ForPV a
 -- ** Runners
 
 runG
-  :: NixSerializer r e a
+  :: NixSerializer e a
   -> r
   -> ByteString
   -> Either (GetSerializerError e) a
@@ -289,28 +235,23 @@ runG serializer r =
     transformGetError
   . runGetS
       serializer
-      (runSerialT r)
+      (runExceptT)
 
 runP
-  :: NixSerializer r e a
-  -> r
+  :: NixSerializer e a
   -> a
-  -> Either e ByteString
-runP serializer r =
-    transformPutError
-  . runPutS
-      serializer
-      (runSerialT r)
+  -> ByteString
+runP = runPutS
 
 -- * Primitives
 
-int :: Integral a => NixSerializer r e a
+int :: Integral a => NixSerializer e a
 int = Serializer
   { getS = fromIntegral <$> lift Data.Serialize.Get.getWord64le
-  , putS = lift . Data.Serialize.Put.putWord64le . fromIntegral
+  , putS = Data.Serialize.Put.putWord64le . fromIntegral
   }
 
-bool :: NixSerializer r SError Bool
+bool :: NixSerializer SError Bool
 bool = Serializer
   { getS = getS (int @Word64) >>= \case
       0 -> pure False
@@ -321,7 +262,7 @@ bool = Serializer
       True  -> putS (int @Word8) 1
   }
 
-byteString :: NixSerializer r SError ByteString
+byteString :: NixSerializer SError ByteString
 byteString = Serializer
   { getS = do
       len <- getS int
@@ -336,7 +277,7 @@ byteString = Serializer
   , putS = \x -> do
       let len = Data.ByteString.length x
       putS int len
-      lift $ Data.Serialize.Put.putByteString x
+      Data.Serialize.Put.putByteString x
       Control.Monad.when
         (len `mod` 8 /= 0)
         $ pad $ 8 - (len `mod` 8)
@@ -349,7 +290,16 @@ byteString = Serializer
     pad count =
       Control.Monad.replicateM_
         count
-        (lift $ Data.Serialize.Put.putWord8 0)
+        (Data.Serialize.Put.putWord8 0)
+
+maybeByteString :: NixSerializer SError (Maybe ByteString)
+maybeByteString = mapIsoSerializer
+  (\case
+    t | Data.ByteString.null t -> Nothing
+    t | otherwise -> Just t
+  )
+  (Data.Maybe.fromMaybe mempty)
+  byteString
 
 -- | Utility toEnum version checking bounds using Bounded class
 toEnumCheckBoundsM
@@ -369,26 +319,26 @@ enum
   :: ( Bounded a
      , Enum a
      )
-  => NixSerializer r SError a
+  => NixSerializer SError a
 enum = Serializer
   { getS = getS int >>= toEnumCheckBoundsM
   , putS = putS int . fromEnum
   }
 
-text :: NixSerializer r SError Text
+text :: NixSerializer SError Text
 text = mapIsoSerializer
   Data.Text.Encoding.decodeUtf8
   Data.Text.Encoding.encodeUtf8
   byteString
 
 -- TODO Parser Builder
-_textBuilder :: NixSerializer r SError Builder
+_textBuilder :: NixSerializer SError Builder
 _textBuilder = Serializer
   { getS = Data.Text.Lazy.Builder.fromText <$> getS text
   , putS = putS text . Data.Text.Lazy.toStrict . Data.Text.Lazy.Builder.toLazyText
   }
 
-maybeText :: NixSerializer r SError (Maybe Text)
+maybeText :: NixSerializer SError (Maybe Text)
 maybeText = mapIsoSerializer
   (\case
     t | Data.Text.null t -> Nothing
@@ -399,7 +349,7 @@ maybeText = mapIsoSerializer
 
 -- * UTCTime
 
-time :: NixSerializer r e UTCTime
+time :: NixSerializer e UTCTime
 time = Serializer
   { getS =
       Data.Time.Clock.POSIX.posixSecondsToUTCTime
@@ -422,8 +372,8 @@ time = Serializer
 -- * Combinators
 
 list
-  :: NixSerializer r e a
-  -> NixSerializer r e [a]
+  :: NixSerializer e a
+  -> NixSerializer e [a]
 list s = Serializer
   { getS = do
       count <- getS int
@@ -435,8 +385,8 @@ list s = Serializer
 
 set
   :: Ord a
-  => NixSerializer r e a
-  -> NixSerializer r e (Set a)
+  => NixSerializer e a
+  -> NixSerializer e (Set a)
 set =
   mapIsoSerializer
     Data.Set.fromList
@@ -447,8 +397,8 @@ hashSet
   :: ( Eq a
      , Hashable a
      )
-  => NixSerializer r e a
-  -> NixSerializer r e (HashSet a)
+  => NixSerializer e a
+  -> NixSerializer e (HashSet a)
 hashSet =
   mapIsoSerializer
     Data.HashSet.fromList
@@ -457,9 +407,9 @@ hashSet =
 
 mapS
   :: Ord k
-  => NixSerializer r e k
-  -> NixSerializer r e v
-  -> NixSerializer r e (Map k v)
+  => NixSerializer e k
+  -> NixSerializer e v
+  -> NixSerializer e (Map k v)
 mapS k v =
   mapIsoSerializer
     Data.Map.Strict.fromList
@@ -469,8 +419,8 @@ mapS k v =
 
 vector
   :: Ord a
-  => NixSerializer r e a
-  -> NixSerializer r e (Vector a)
+  => NixSerializer e a
+  -> NixSerializer e (Vector a)
 vector =
   mapIsoSerializer
     Data.Vector.fromList
@@ -481,23 +431,31 @@ json
   :: ( FromJSON a
      , ToJSON a
      )
-  => NixSerializer r SError a
-json =
-  mapPrismSerializer
-    ( Data.Bifunctor.first SError_JSONDecoding
-      . Data.Aeson.eitherDecode
-    )
-    Data.Aeson.encode
+  => NixSerializer SError a
+json = mapPrismSerializer jsonP
     $ mapIsoSerializer
         Data.ByteString.Lazy.fromStrict
         Data.ByteString.Lazy.toStrict
         byteString
 
+jsonP
+  :: ( FromJSON a
+     , ToJSON a
+     )
+  => AlmostPrism (ExceptT SError) Data.ByteString.Lazy.ByteString a
+jsonP = AlmostPrism
+    ( ExceptT
+      . Identity
+      . Data.Bifunctor.first SError_JSONDecoding
+      . Data.Aeson.eitherDecode
+    )
+    Data.Aeson.encode
+
 -- * ProtoVersion
 
 -- protoVersion_major & 0xFF00
 -- protoVersion_minor & 0x00FF
-protoVersion :: NixSerializer r e ProtoVersion
+protoVersion :: NixSerializer e ProtoVersion
 protoVersion = Serializer
   { getS = do
       v <- getS (int @Word32)
@@ -513,73 +471,62 @@ protoVersion = Serializer
 
 -- * StorePath
 
-storePath :: HasStoreDir r => NixSerializer r SError StorePath
-storePath = Serializer
-  { getS = do
-      sd <- Control.Monad.Reader.asks hasStoreDir
-      System.Nix.StorePath.parsePath sd <$> getS byteString
-      >>=
-        either
-          (throwError . SError_Path)
-          pure
-  , putS = \p -> do
-      sd <- Control.Monad.Reader.asks hasStoreDir
-      putS
-        byteString
-        $ System.Nix.StorePath.storePathToRawFilePath sd p
+storePath :: StoreDir -> NixSerializer SError StorePath
+storePath storeDir = mapPrismSerializer (storePathP storeDir) byteString
+
+storePathP :: StoreDir -> AlmostPrism (ExceptT SError) ByteString StorePath
+storePathP storeDir = AlmostPrism
+  { _almostPrism_get =
+      ExceptT
+      . Identity
+      . Data.Bifunctor.first SError_Path
+      . System.Nix.StorePath.parsePath storeDir
+  , _almostPrism_put = System.Nix.StorePath.storePathToRawFilePath storeDir
   }
 
 maybePath
-  :: HasStoreDir r
-  => NixSerializer r SError (Maybe StorePath)
-maybePath = Serializer
-  { getS = do
-      getS maybeText >>= \case
-        Nothing -> pure Nothing
-        Just t -> do
-          sd <- Control.Monad.Reader.asks hasStoreDir
-          either
-            (throwError . SError_Path)
-            (pure . pure)
-            $ System.Nix.StorePath.parsePathFromText sd t
+  :: StoreDir
+  -> NixSerializer SError (Maybe StorePath)
+maybePath storeDir = mapPrismSerializer (maybeAlmostPrism $ storePathP storeDir) maybeByteString
 
-  , putS = \case
-      Nothing -> putS maybeText Nothing
-      Just p -> do
-        sd <- Control.Monad.Reader.asks hasStoreDir
-        putS text $ System.Nix.StorePath.storePathToText sd p
-  }
-
-storePathHashPart :: NixSerializer r SError StorePathHashPart
+storePathHashPart :: NixSerializer SError StorePathHashPart
 storePathHashPart =
   mapIsoSerializer
     System.Nix.StorePath.unsafeMakeStorePathHashPart
     System.Nix.StorePath.unStorePathHashPart
     $ mapPrismSerializer
-        (Data.Bifunctor.first (pure SError_InvalidNixBase32)
-         . System.Nix.Base.decodeWith NixBase32)
-        (System.Nix.Base.encodeWith NixBase32)
+        (AlmostPrism
+          (ExceptT
+           . Identity
+           . Data.Bifunctor.first (pure SError_InvalidNixBase32)
+           . System.Nix.Base.decodeWith NixBase32)
+          (System.Nix.Base.encodeWith NixBase32)
+        )
         text
 
-storePathName :: NixSerializer r SError StorePathName
+storePathName :: NixSerializer SError StorePathName
 storePathName =
   mapPrismSerializer
-    (Data.Bifunctor.first SError_Name
-     . System.Nix.StorePath.mkStorePathName)
-    System.Nix.StorePath.unStorePathName
+    (AlmostPrism
+      (ExceptT
+       . Identity
+       . Data.Bifunctor.first SError_Name
+       . System.Nix.StorePath.mkStorePathName)
+      System.Nix.StorePath.unStorePathName
+    )
     text
 
 pathMetadata
-  :: HasStoreDir r
-  => NixSerializer r SError (Metadata StorePath)
-pathMetadata = Serializer
+  :: StoreDir
+  -> NixSerializer SError (Metadata StorePath)
+pathMetadata storeDir = Serializer
   { getS = do
-      metadataDeriverPath <- getS maybePath
+      metadataDeriverPath <- getS $ maybePath storeDir
 
       digest' <- getS $ digest Base16
       let metadataNarHash = System.Nix.Hash.HashAlgo_SHA256 :=> digest'
 
-      metadataReferences <- getS $ hashSet storePath
+      metadataReferences <- getS $ hashSet $ storePath storeDir
       metadataRegistrationTime <- getS time
       metadataNarBytes <-
         (\case
@@ -594,19 +541,20 @@ pathMetadata = Serializer
       pure $ Metadata{..}
 
   , putS = \Metadata{..} -> do
-      putS maybePath metadataDeriverPath
+      putS (maybePath storeDir) metadataDeriverPath
 
       let putNarHash
             :: DSum HashAlgo Digest
-            -> SerialT r SError PutM ()
+            -> PutM ()
           putNarHash = \case
             System.Nix.Hash.HashAlgo_SHA256 :=> d
               -> putS (digest @SHA256 Base16) d
-            _ -> throwError SError_NarHashMustBeSHA256
+            _ -> error "nar hash must be SHA 256"
+                 -- throwError SError_NarHashMustBeSHA256
 
       putNarHash metadataNarHash
 
-      putS (hashSet storePath) metadataReferences
+      putS (hashSet $ storePath storeDir) metadataReferences
       putS time metadataRegistrationTime
       putS int $ Data.Maybe.fromMaybe 0 metadataNarBytes
       putS storePathTrust metadataTrust
@@ -615,21 +563,21 @@ pathMetadata = Serializer
   }
   where
     maybeContentAddress
-      :: NixSerializer r SError (Maybe ContentAddress)
+      :: NixSerializer SError (Maybe ContentAddress)
     maybeContentAddress =
       mapPrismSerializer
-        (maybe
-          (pure Nothing)
-           $ Data.Bifunctor.bimap
-               SError_ContentAddress
-               Just
+        (maybeAlmostPrism $ AlmostPrism
+          (ExceptT
+           . Identity
+           . Data.Bifunctor.first SError_ContentAddress
            . System.Nix.ContentAddress.parseContentAddress
+          )
+          System.Nix.ContentAddress.buildContentAddress
         )
-        (fmap System.Nix.ContentAddress.buildContentAddress)
         maybeText
 
     storePathTrust
-      :: NixSerializer r SError StorePathTrust
+      :: NixSerializer SError StorePathTrust
     storePathTrust =
       mapIsoSerializer
         (\case False -> BuiltElsewhere; True -> BuiltLocally)
@@ -638,44 +586,55 @@ pathMetadata = Serializer
 
 -- * OutputName
 
-outputName :: NixSerializer r SError OutputName
+outputName :: NixSerializer SError OutputName
 outputName =
-  mapPrismSerializer
-    (Data.Bifunctor.first SError_Name
-     . System.Nix.OutputName.mkOutputName)
-    System.Nix.OutputName.unOutputName
-    text
+  mapIsoSerializer
+    System.Nix.OutputName.OutputName
+     System.Nix.OutputName.unOutputName
+    storePathName
 
 -- * Signatures
 
 signature
-  :: NixSerializer r SError Signature
+  :: NixSerializer SError Signature
 signature =
   mapPrismSerializer
-    (Data.Bifunctor.first SError_Signature
-     . Data.Attoparsec.Text.parseOnly
-         System.Nix.Signature.signatureParser)
-    (System.Nix.Signature.signatureToText)
+    (AlmostPrism
+      (ExceptT
+       . Identity
+       . Data.Bifunctor.first SError_Signature
+       . Data.Attoparsec.Text.parseOnly
+           System.Nix.Signature.signatureParser)
+      (System.Nix.Signature.signatureToText)
+    )
     text
 
 narSignature
-  :: NixSerializer r SError NarSignature
+  :: NixSerializer SError NarSignature
 narSignature =
   mapPrismSerializer
-    (Data.Bifunctor.first SError_Signature
-     . Data.Attoparsec.Text.parseOnly
-         System.Nix.Signature.narSignatureParser)
-    (System.Nix.Signature.narSignatureToText)
+    (AlmostPrism
+      (ExceptT
+       . Identity
+       . Data.Bifunctor.first SError_Signature
+       . Data.Attoparsec.Text.parseOnly
+           System.Nix.Signature.narSignatureParser)
+      (System.Nix.Signature.narSignatureToText)
+    )
     text
 
 -- * Some HashAlgo
 
-someHashAlgo :: NixSerializer r SError (Some HashAlgo)
+someHashAlgo :: NixSerializer SError (Some HashAlgo)
 someHashAlgo =
   mapPrismSerializer
-    (Data.Bifunctor.first SError_HashAlgo
-     . System.Nix.Hash.textToAlgo)
-    (Data.Some.foldSome System.Nix.Hash.algoToText)
+    (AlmostPrism
+      (ExceptT
+       . Identity
+       . Data.Bifunctor.first SError_HashAlgo
+       . System.Nix.Hash.textToAlgo)
+      (Data.Some.foldSome System.Nix.Hash.algoToText)
+    )
     text
 
 -- * Digest
@@ -684,20 +643,24 @@ digest
   :: forall a r
    . HashAlgorithm a
   => BaseEncoding
-  -> NixSerializer r SError (Digest a)
-digest base =
-  mapIsoSerializer
-    Data.Coerce.coerce
-    Data.Coerce.coerce
-    $ mapPrismSerializer
-        (Data.Bifunctor.first SError_Digest
-         . System.Nix.Hash.decodeDigestWith @a base)
-        (System.Nix.Hash.encodeDigestWith base)
-        $ text
+  -> NixSerializer SError (Digest a)
+digest base = mapPrismSerializer (digestP base) $ text
+
+digestP
+  :: forall a
+  . HashAlgorithm a
+  => BaseEncoding
+  -> AlmostPrism (ExceptT SError) Text (Digest a)
+digestP base = AlmostPrism
+  (ExceptT
+   . Identity
+   . Data.Bifunctor.first SError_Digest
+   . System.Nix.Hash.decodeDigestWith @a base)
+  (System.Nix.Hash.encodeDigestWith base)
 
 -- * DSum HashAlgo Digest
 
-namedDigest :: NixSerializer r SError (DSum HashAlgo Digest)
+namedDigest :: NixSerializer SError (DSum HashAlgo Digest)
 namedDigest = Serializer
   { getS = do
       sriHash <- getS text
@@ -718,20 +681,22 @@ namedDigest = Serializer
   }
 
 derivationOutput
-  :: HasStoreDir r
-  => NixSerializer r SError DerivationOutput
-derivationOutput = Serializer
+  :: StoreDir
+  -> NixSerializer SError DerivationOutput
+derivationOutput storeDir = Serializer
   { getS = do
-      mPath <- getS maybePath
+      mPath <- getS $ maybePath storeDir
       mHashAlgo <- getS maybeText
       mHash <- getS maybeText
       case (mPath, mHashAlgo, mHash) of
         (Just path, Nothing, Nothing) ->
           pure InputAddressedDerivationOutput {..}
         (Just path, Just hashAlgo, Just hash) ->
-          pure FixedDerivationOutput {..}
+          error "TODO"
+          -- pure FixedDerivationOutput {..}
         (Nothing, Just hashAlgo, Nothing) ->
-          pure ContentAddressedDerivationOutput {..}
+          error "TODO"
+          -- pure ContentAddressedDerivationOutput {..}
         _ ->
           throwError $ SError_DerivationOutputInvalidCombo
             (Data.Maybe.isJust mPath)
@@ -739,36 +704,38 @@ derivationOutput = Serializer
             (Data.Maybe.isJust mHash)
   , putS = \case
       InputAddressedDerivationOutput{..} -> do
-        putS storePath path
+        putS (storePath storeDir) path
         putS text Data.Text.empty
         putS text Data.Text.empty
       FixedDerivationOutput{..} -> do
-        putS storePath path
-        putS text hashAlgo
-        putS text hash
+        pure ()
+        --putS storePath path
+        --putS text hashAlgo
+        --putS text hash
       ContentAddressedDerivationOutput{..} -> do
-        putS text Data.Text.empty
-        putS text hashAlgo
-        putS text Data.Text.empty
+        pure ()
+        --putS text Data.Text.empty
+        --putS text hashAlgo
+        --putS text Data.Text.empty
   }
 
 -- * Derivation
 
 basicDerivation
-  :: HasStoreDir r
-  => NixSerializer r SError BasicDerivation
-basicDerivation = Serializer
+  :: StoreDir
+  -> NixSerializer SError BasicDerivation
+basicDerivation storeDir = Serializer
   { getS = do
-      outputs <- getS (mapS text derivationOutput)
-      inputs <- getS (set storePath)
+      outputs <- getS $ mapS text $ derivationOutput storeDir
+      inputs <- getS $ set $ storePath storeDir
       platform <- getS text
       builder <- getS text
-      args <- getS (vector text)
-      env <- getS (mapS text text)
+      args <- getS $ vector text
+      env <- getS $ mapS text text
       pure Derivation{..}
   , putS = \Derivation{..} -> do
-      putS (mapS text derivationOutput) outputs
-      putS (set storePath) inputs
+      putS (mapS text $ derivationOutput storeDir) outputs
+      putS (set $ storePath storeDir) inputs
       putS text platform
       putS text builder
       putS (vector text) args
@@ -778,46 +745,42 @@ basicDerivation = Serializer
 -- * DerivedPath
 
 derivedPathNew
-  :: HasStoreDir r
-  => NixSerializer r SError DerivedPath
-derivedPathNew = Serializer
+  :: StoreDir
+  -> NixSerializer SError DerivedPath
+derivedPathNew storeDir = Serializer
   { getS = do
-      root <- Control.Monad.Reader.asks hasStoreDir
       p <- getS text
-      case System.Nix.DerivedPath.parseDerivedPath root p of
+      case System.Nix.DerivedPath.parseDerivedPath storeDir p of
         Left err -> throwError $ SError_DerivedPath err
         Right x -> pure x
   , putS = \d -> do
-      root <- Control.Monad.Reader.asks hasStoreDir
-      putS text (System.Nix.DerivedPath.derivedPathToText root d)
+      putS text (System.Nix.DerivedPath.derivedPathToText storeDir d)
   }
 
 derivedPath
-  :: ( HasProtoVersion r
-     , HasStoreDir r
-     )
-  => NixSerializer r SError DerivedPath
-derivedPath = Serializer
-  { getS = do
-      pv <- Control.Monad.Reader.asks hasProtoVersion
+  :: StoreDir
+  -> ProtoVersion
+  -> NixSerializer SError DerivedPath
+derivedPath storeDir pv = Serializer
+  { getS =
       if pv < ProtoVersion 1 30
-        then DerivedPath_Opaque <$> getS storePath
-        else getS derivedPathNew
-  , putS = \d -> do
-      pv <- Control.Monad.Reader.asks hasProtoVersion
+        then DerivedPath_Opaque <$> getS (storePath storeDir)
+        else getS $ derivedPathNew storeDir
+  , putS = \d ->
       if pv < ProtoVersion 1 30
         then case d of
-          DerivedPath_Opaque p -> putS storePath p
-          _ -> throwError
-                $ SError_NotYetImplemented
-                    "DerivedPath_Built"
-                    (ForPV_Older pv)
-        else putS derivedPathNew d
+          DerivedPath_Opaque p -> putS (storePath storeDir) p
+          _ -> error "not yet implemented"
+          --     throwError
+          --      $ SError_NotYetImplemented
+          --          "DerivedPath_Built"
+          --          (ForPV_Older pv)
+        else putS (derivedPathNew storeDir) d
   }
 
 -- * Build
 
-buildMode :: NixSerializer r SError BuildMode
+buildMode :: NixSerializer SError BuildMode
 buildMode = enum
 
 -- * Logger
@@ -832,11 +795,11 @@ data LoggerSError
 
 mapPrimE
   :: Functor m
-  => SerialT r SError m a
-  -> SerialT r LoggerSError m a
-mapPrimE = mapErrorST LoggerSError_Prim
+  => ExceptT SError m a
+  -> ExceptT LoggerSError m a
+mapPrimE = withExceptT LoggerSError_Prim
 
-maybeActivity :: NixSerializer r LoggerSError (Maybe Activity)
+maybeActivity :: NixSerializer LoggerSError (Maybe Activity)
 maybeActivity = Serializer
   { getS = getS (int @Int) >>= \case
       0 -> pure Nothing
@@ -846,22 +809,22 @@ maybeActivity = Serializer
       Just act -> putS activity act
   }
 
-activity :: NixSerializer r LoggerSError Activity
+activity :: NixSerializer LoggerSError Activity
 activity = Serializer
   { getS = mapPrimE $ getS int >>= toEnumCheckBoundsM . (+(-100))
   , putS = putS int . (+100) . fromEnum
   }
 
-activityID :: NixSerializer r LoggerSError ActivityID
+activityID :: NixSerializer LoggerSError ActivityID
 activityID = mapIsoSerializer ActivityID unActivityID int
 
-activityResult :: NixSerializer r LoggerSError ActivityResult
+activityResult :: NixSerializer LoggerSError ActivityResult
 activityResult = Serializer
   { getS = mapPrimE $ getS int >>= toEnumCheckBoundsM . (+(-100))
   , putS = putS int . (+100) . fromEnum
   }
 
-field :: NixSerializer r LoggerSError Field
+field :: NixSerializer LoggerSError Field
 field = Serializer
   { getS = getS (int @Word8) >>= \case
       0 -> Field_LogInt <$> getS int
@@ -869,10 +832,10 @@ field = Serializer
       x -> throwError $ LoggerSError_UnknownLogFieldType x
   , putS = \case
       Field_LogInt x -> putS int (0 :: Word8) >> putS int x
-      Field_LogStr x -> putS int (1 :: Word8) >> mapPrimE (putS text x)
+      Field_LogStr x -> putS int (1 :: Word8) >> putS text x
   }
 
-trace :: NixSerializer r LoggerSError Trace
+trace :: NixSerializer LoggerSError Trace
 trace = Serializer
   { getS = do
       tracePosition <- (\case 0 -> Nothing; x -> Just x) <$> getS (int @Int)
@@ -880,10 +843,10 @@ trace = Serializer
       pure Trace{..}
   , putS = \Trace{..} -> do
       putS int $ Data.Maybe.fromMaybe 0 tracePosition
-      mapPrimE $ putS text traceHint
+      putS text traceHint
   }
 
-basicError :: NixSerializer r LoggerSError BasicError
+basicError :: NixSerializer LoggerSError BasicError
 basicError = Serializer
   { getS = do
       basicErrorMessage <- mapPrimE $ getS text
@@ -891,11 +854,11 @@ basicError = Serializer
       pure BasicError{..}
 
   , putS = \BasicError{..} -> do
-      mapPrimE $ putS text basicErrorMessage
+      putS text basicErrorMessage
       putS int basicErrorExitStatus
   }
 
-errorInfo :: NixSerializer r LoggerSError ErrorInfo
+errorInfo :: NixSerializer LoggerSError ErrorInfo
 errorInfo = Serializer
   { getS = do
       etyp <- mapPrimE $ getS text
@@ -910,17 +873,17 @@ errorInfo = Serializer
       pure ErrorInfo{..}
 
   , putS = \ErrorInfo{..} -> do
-      mapPrimE $ do
+      do
         putS text $ Data.Text.pack "Error"
       putS verbosity errorInfoLevel
-      mapPrimE $ do
+      do
         putS text $ Data.Text.pack "Error" -- removed error name
         putS text errorInfoMessage
         putS int $ Data.Maybe.fromMaybe 0 errorInfoPosition
       putS (list trace) errorInfoTraces
   }
 
-loggerOpCode :: NixSerializer r LoggerSError LoggerOpCode
+loggerOpCode :: NixSerializer LoggerSError LoggerOpCode
 loggerOpCode = Serializer
   { getS = do
       c <- getS int
@@ -932,9 +895,9 @@ loggerOpCode = Serializer
   }
 
 logger
-  :: HasProtoVersion r
-  => NixSerializer r LoggerSError Logger
-logger = Serializer
+  :: ProtoVersion
+  -> NixSerializer LoggerSError Logger
+logger pv = Serializer
   { getS = getS loggerOpCode >>= \case
       LoggerOpCode_Next ->
         mapPrimE $
@@ -951,7 +914,6 @@ logger = Serializer
         pure Logger_Last
 
       LoggerOpCode_Error -> do
-        pv <- Control.Monad.Reader.asks hasProtoVersion
         Logger_Error <$>
           if protoVersion_minor pv >= 26
           then Right <$> getS errorInfo
@@ -979,7 +941,7 @@ logger = Serializer
     , putS = \case
         Logger_Next s -> do
           putS loggerOpCode LoggerOpCode_Next
-          mapPrimE $ putS text s
+          putS text s
 
         Logger_Read i -> do
           putS loggerOpCode LoggerOpCode_Read
@@ -987,7 +949,7 @@ logger = Serializer
 
         Logger_Write s -> do
           putS loggerOpCode LoggerOpCode_Write
-          mapPrimE $ putS byteString s
+          putS byteString s
 
         Logger_Last ->
           putS loggerOpCode LoggerOpCode_Last
@@ -995,12 +957,12 @@ logger = Serializer
         Logger_Error basicOrInfo -> do
           putS loggerOpCode LoggerOpCode_Error
 
-          minor <- protoVersion_minor <$> Control.Monad.Reader.asks hasProtoVersion
+          let minor = protoVersion_minor pv
 
           case basicOrInfo of
-            Left _ | minor >= 26 -> throwError $ LoggerSError_TooNewForBasicError
+            Left _ | minor >= 26 -> error "protocol too new" -- throwError $ LoggerSError_TooNewForBasicError
             Left e | otherwise -> putS basicError e
-            Right _ | minor < 26 -> throwError $ LoggerSError_TooOldForErrorInfo
+            Right _ | minor < 26 -> error "protocol too old" -- throwError $ LoggerSError_TooOldForErrorInfo
             Right e -> putS errorInfo e
 
         Logger_StartActivity{..} -> do
@@ -1008,8 +970,7 @@ logger = Serializer
           putS activityID startActivityID
           putS verbosity startActivityVerbosity
           putS maybeActivity startActivityType
-          mapPrimE $
-            putS byteString startActivityString
+          putS byteString startActivityString
           putS (list field) startActivityFields
           putS activityID startActivityParentID
 
@@ -1024,10 +985,10 @@ logger = Serializer
           putS (list field) resultFields
   }
 
-verbosity :: NixSerializer r LoggerSError Verbosity
+verbosity :: NixSerializer LoggerSError Verbosity
 verbosity = Serializer
   { getS = mapPrimE $ getS enum
-  , putS = mapPrimE . putS enum
+  , putS = putS enum
   }
 
 -- * Handshake
@@ -1037,7 +998,7 @@ data HandshakeSError
   | HandshakeSError_InvalidTrustedFlag Word8
   deriving (Eq, Ord, Generic, Show)
 
-workerMagic :: NixSerializer r HandshakeSError WorkerMagic
+workerMagic :: NixSerializer HandshakeSError WorkerMagic
 workerMagic = Serializer
   { getS = do
       c <- getS int
@@ -1048,7 +1009,7 @@ workerMagic = Serializer
   , putS = putS int . workerMagicToWord64
   }
 
-trustedFlag :: NixSerializer r HandshakeSError (Maybe TrustedFlag)
+trustedFlag :: NixSerializer HandshakeSError (Maybe TrustedFlag)
 trustedFlag = Serializer
   { getS = do
       n :: Word8 <- getS int
@@ -1065,7 +1026,7 @@ trustedFlag = Serializer
 
 -- * Worker protocol
 
-storeText :: NixSerializer r SError StoreText
+storeText :: NixSerializer SError StoreText
 storeText = Serializer
   { getS = do
       storeTextName <- getS storePathName
@@ -1076,7 +1037,7 @@ storeText = Serializer
       putS text storeTextText
   }
 
-workerOp :: NixSerializer r SError WorkerOp
+workerOp :: NixSerializer SError WorkerOp
 workerOp = enum
 
 -- * Request
@@ -1085,17 +1046,15 @@ data RequestSError
   = RequestSError_NotYetImplemented WorkerOp
   | RequestSError_ReservedOp WorkerOp
   | RequestSError_PrimGet SError
-  | RequestSError_PrimPut SError
   | RequestSError_PrimWorkerOp SError
   deriving (Eq, Ord, Generic, Show)
 
 storeRequest
-  :: ( HasProtoVersion r
-     , HasStoreDir r
-     )
-  => NixSerializer r RequestSError (Some StoreRequest)
-storeRequest = Serializer
-  { getS = mapErrorST RequestSError_PrimWorkerOp (getS workerOp) >>= \case
+  :: StoreDir
+  -> ProtoVersion
+  -> NixSerializer RequestSError (Some StoreRequest)
+storeRequest storeDir pv = Serializer
+  { getS = withExceptT RequestSError_PrimWorkerOp (getS workerOp) >>= \case
       WorkerOp_AddToStore -> mapGetE $ do
         pathName <- getS storePathName
         _fixed <- getS bool -- obsolete
@@ -1108,8 +1067,8 @@ storeRequest = Serializer
         pure $ Some (AddToStore pathName recursive hashAlgo repair)
 
       WorkerOp_AddToStoreNar -> mapGetE $ do
-        storePath' <- getS storePath
-        metadata <- getS pathMetadata
+        storePath' <- getS $ storePath storeDir
+        metadata <- getS $ pathMetadata storeDir
         repair <- getS bool
         let repairMode = if repair then RepairMode_DoRepair else RepairMode_DontRepair
         dontCheckSigs <- getS bool
@@ -1119,35 +1078,35 @@ storeRequest = Serializer
 
       WorkerOp_AddTextToStore -> mapGetE $ do
         txt <- getS storeText
-        paths <- getS (hashSet storePath)
+        paths <- getS $ hashSet $ storePath storeDir
         let repair = RepairMode_DontRepair
         pure $ Some (AddTextToStore txt paths repair)
 
       WorkerOp_AddSignatures -> mapGetE $ do
-        path <- getS storePath
+        path <- getS $ storePath storeDir
         signatures <- getS (set signature)
         pure $ Some (AddSignatures path signatures)
 
       WorkerOp_AddIndirectRoot -> mapGetE $ do
-        Some . AddIndirectRoot <$> getS storePath
+        Some . AddIndirectRoot <$> getS (storePath storeDir)
 
       WorkerOp_AddTempRoot -> mapGetE $ do
-        Some . AddTempRoot <$> getS storePath
+        Some . AddTempRoot <$> getS (storePath storeDir)
 
       WorkerOp_BuildPaths -> mapGetE $ do
-        derived <- getS (set derivedPath)
+        derived <- getS (set $ derivedPath storeDir pv)
         buildMode' <- getS buildMode
         pure $ Some (BuildPaths derived buildMode')
 
       WorkerOp_BuildDerivation -> mapGetE $ do
-        path <- getS storePath
-        drv <- getS basicDerivation
+        path <- getS $ storePath storeDir
+        drv <- getS $ basicDerivation storeDir
         buildMode' <- getS buildMode
         pure $ Some (BuildDerivation path drv buildMode')
 
       WorkerOp_CollectGarbage -> mapGetE $ do
         gcOptionsOperation <- getS enum
-        gcOptionsPathsToDelete <- getS (hashSet storePath)
+        gcOptionsPathsToDelete <- getS (hashSet $ storePath storeDir)
         gcOptionsIgnoreLiveness <- getS bool
         gcOptionsMaxFreed <- getS int
         -- obsolete fields
@@ -1156,19 +1115,19 @@ storeRequest = Serializer
         pure $ Some (CollectGarbage GCOptions{..})
 
       WorkerOp_EnsurePath -> mapGetE $ do
-        Some . EnsurePath <$> getS storePath
+        Some . EnsurePath <$> getS (storePath storeDir)
 
       WorkerOp_FindRoots -> mapGetE $ do
         pure $ Some FindRoots
 
       WorkerOp_IsValidPath -> mapGetE $ do
-        Some . IsValidPath <$> getS storePath
+        Some . IsValidPath <$> getS (storePath storeDir)
 
       WorkerOp_NarFromPath -> mapGetE $ do
-        Some . NarFromPath <$> getS storePath
+        Some . NarFromPath <$> getS (storePath storeDir)
 
       WorkerOp_QueryValidPaths -> mapGetE $ do
-        paths <- getS (hashSet storePath)
+        paths <- getS (hashSet $ storePath storeDir)
         substituteMode <- getS enum
         pure $ Some (QueryValidPaths paths substituteMode)
 
@@ -1176,28 +1135,28 @@ storeRequest = Serializer
         pure $ Some QueryAllValidPaths
 
       WorkerOp_QuerySubstitutablePaths -> mapGetE $ do
-        Some . QuerySubstitutablePaths <$> getS (hashSet storePath)
+        Some . QuerySubstitutablePaths <$> getS (hashSet $ storePath storeDir)
 
       WorkerOp_QueryPathInfo -> mapGetE $ do
-        Some . QueryPathInfo <$> getS storePath
+        Some . QueryPathInfo <$> getS (storePath storeDir)
 
       WorkerOp_QueryReferrers -> mapGetE $ do
-        Some . QueryReferrers <$> getS storePath
+        Some . QueryReferrers <$> getS (storePath storeDir)
 
       WorkerOp_QueryValidDerivers -> mapGetE $ do
-        Some . QueryValidDerivers <$> getS storePath
+        Some . QueryValidDerivers <$> getS (storePath storeDir)
 
       WorkerOp_QueryDerivationOutputs -> mapGetE $ do
-        Some . QueryDerivationOutputs <$> getS storePath
+        Some . QueryDerivationOutputs <$> getS (storePath storeDir)
 
       WorkerOp_QueryDerivationOutputNames -> mapGetE $ do
-        Some . QueryDerivationOutputNames <$> getS storePath
+        Some . QueryDerivationOutputNames <$> getS (storePath storeDir)
 
       WorkerOp_QueryPathFromHashPart -> mapGetE $ do
         Some . QueryPathFromHashPart <$> getS storePathHashPart
 
       WorkerOp_QueryMissing -> mapGetE $ do
-        Some . QueryMissing <$> getS (set derivedPath)
+        Some . QueryMissing <$> getS (set $ derivedPath storeDir pv)
 
       WorkerOp_OptimiseStore -> mapGetE $ do
         pure $ Some OptimiseStore
@@ -1235,7 +1194,7 @@ storeRequest = Serializer
       w@WorkerOp_SetOptions -> notYet w
 
   , putS = \case
-      Some (AddToStore pathName recursive hashAlgo _repair) -> mapPutE $ do
+      Some (AddToStore pathName recursive hashAlgo _repair) -> do
         putS workerOp WorkerOp_AddToStore
 
         putS storePathName pathName
@@ -1248,121 +1207,121 @@ storeRequest = Serializer
         putS bool (recursive == FileIngestionMethod_NixArchive)
         putS someHashAlgo hashAlgo
 
-      Some (AddToStoreNar storePath' metadata repair checkSigs) -> mapPutE $ do
+      Some (AddToStoreNar storePath' metadata repair checkSigs) -> do
         putS workerOp WorkerOp_AddToStoreNar
 
-        putS storePath storePath'
-        putS pathMetadata metadata
+        putS (storePath storeDir) storePath'
+        putS (pathMetadata storeDir) metadata
         putS bool $ repair == RepairMode_DoRepair
         putS bool $ checkSigs == CheckMode_DontCheck
 
-      Some (AddTextToStore txt paths _repair) -> mapPutE $ do
+      Some (AddTextToStore txt paths _repair) -> do
         putS workerOp WorkerOp_AddTextToStore
 
         putS storeText txt
-        putS (hashSet storePath) paths
+        putS (hashSet $ storePath storeDir) paths
 
-      Some (AddSignatures path signatures) -> mapPutE $ do
+      Some (AddSignatures path signatures) -> do
         putS workerOp WorkerOp_AddSignatures
 
-        putS storePath path
+        putS (storePath storeDir) path
         putS (set signature) signatures
 
-      Some (AddIndirectRoot path) -> mapPutE $ do
+      Some (AddIndirectRoot path) -> do
         putS workerOp WorkerOp_AddIndirectRoot
-        putS storePath path
+        putS (storePath storeDir) path
 
-      Some (AddTempRoot path) -> mapPutE $ do
+      Some (AddTempRoot path) -> do
         putS workerOp WorkerOp_AddTempRoot
-        putS storePath path
+        putS (storePath storeDir) path
 
-      Some (BuildPaths derived buildMode') -> mapPutE $ do
+      Some (BuildPaths derived buildMode') -> do
         putS workerOp WorkerOp_BuildPaths
 
-        putS (set derivedPath) derived
+        putS (set $ derivedPath storeDir pv) derived
         putS buildMode buildMode'
 
-      Some (BuildDerivation path drv buildMode') -> mapPutE $ do
+      Some (BuildDerivation path drv buildMode') -> do
         putS workerOp WorkerOp_BuildDerivation
 
-        putS storePath path
-        putS basicDerivation drv
+        putS (storePath storeDir) path
+        putS (basicDerivation storeDir) drv
         putS buildMode buildMode'
 
-      Some (CollectGarbage GCOptions{..}) -> mapPutE $ do
+      Some (CollectGarbage GCOptions{..}) -> do
         putS workerOp WorkerOp_CollectGarbage
 
         putS enum gcOptionsOperation
-        putS (hashSet storePath) gcOptionsPathsToDelete
+        putS (hashSet $ storePath storeDir) gcOptionsPathsToDelete
         putS bool gcOptionsIgnoreLiveness
         putS int gcOptionsMaxFreed
         -- obsolete fields
         Control.Monad.forM_ [0..(2 :: Word8)]
           $ pure $ putS int (0 :: Word8)
 
-      Some (EnsurePath path) -> mapPutE $ do
+      Some (EnsurePath path) -> do
         putS workerOp WorkerOp_EnsurePath
-        putS storePath path
+        putS (storePath storeDir) path
 
-      Some FindRoots -> mapPutE $ do
+      Some FindRoots -> do
         putS workerOp WorkerOp_FindRoots
 
-      Some (IsValidPath path) -> mapPutE $ do
+      Some (IsValidPath path) -> do
         putS workerOp WorkerOp_IsValidPath
-        putS storePath path
+        putS (storePath storeDir) path
 
-      Some (NarFromPath path) -> mapPutE $ do
+      Some (NarFromPath path) -> do
         putS workerOp WorkerOp_NarFromPath
-        putS storePath path
+        putS (storePath storeDir) path
 
-      Some (QueryValidPaths paths substituteMode) -> mapPutE $ do
+      Some (QueryValidPaths paths substituteMode) -> do
         putS workerOp WorkerOp_QueryValidPaths
 
-        putS (hashSet storePath) paths
+        putS (hashSet $ storePath storeDir) paths
         putS enum substituteMode
 
-      Some QueryAllValidPaths -> mapPutE $ do
+      Some QueryAllValidPaths -> do
         putS workerOp WorkerOp_QueryAllValidPaths
 
-      Some (QuerySubstitutablePaths paths) -> mapPutE $ do
+      Some (QuerySubstitutablePaths paths) -> do
         putS workerOp WorkerOp_QuerySubstitutablePaths
-        putS (hashSet storePath) paths
+        putS (hashSet $ storePath storeDir) paths
 
-      Some (QueryPathInfo path) -> mapPutE $ do
+      Some (QueryPathInfo path) -> do
         putS workerOp WorkerOp_QueryPathInfo
-        putS storePath path
+        putS (storePath storeDir) path
 
-      Some (QueryReferrers path) -> mapPutE $ do
+      Some (QueryReferrers path) -> do
         putS workerOp WorkerOp_QueryReferrers
-        putS storePath path
+        putS (storePath storeDir) path
 
-      Some (QueryValidDerivers path) -> mapPutE $ do
+      Some (QueryValidDerivers path) -> do
         putS workerOp WorkerOp_QueryValidDerivers
-        putS storePath path
+        putS (storePath storeDir) path
 
-      Some (QueryDerivationOutputs path) -> mapPutE $ do
+      Some (QueryDerivationOutputs path) -> do
         putS workerOp WorkerOp_QueryDerivationOutputs
-        putS storePath path
+        putS (storePath storeDir) path
 
-      Some (QueryDerivationOutputNames path) -> mapPutE $ do
+      Some (QueryDerivationOutputNames path) -> do
         putS workerOp WorkerOp_QueryDerivationOutputNames
-        putS storePath path
+        putS (storePath storeDir) path
 
-      Some (QueryPathFromHashPart pathHashPart) -> mapPutE $ do
+      Some (QueryPathFromHashPart pathHashPart) -> do
         putS workerOp WorkerOp_QueryPathFromHashPart
         putS storePathHashPart pathHashPart
 
-      Some (QueryMissing derived) -> mapPutE $ do
+      Some (QueryMissing derived) -> do
         putS workerOp WorkerOp_QueryMissing
-        putS (set derivedPath) derived
+        putS (set $ derivedPath storeDir pv) derived
 
-      Some OptimiseStore -> mapPutE $ do
+      Some OptimiseStore -> do
         putS workerOp WorkerOp_OptimiseStore
 
-      Some SyncWithGC -> mapPutE $ do
+      Some SyncWithGC -> do
         putS workerOp WorkerOp_SyncWithGC
 
-      Some (VerifyStore checkMode repairMode) -> mapPutE $ do
+      Some (VerifyStore checkMode repairMode) -> do
         putS workerOp WorkerOp_VerifyStore
         putS enum checkMode
         putS enum repairMode
@@ -1370,15 +1329,9 @@ storeRequest = Serializer
   where
     mapGetE
       :: Functor m
-      => SerialT r SError m a
-      -> SerialT r RequestSError m a
-    mapGetE = mapErrorST RequestSError_PrimGet
-
-    mapPutE
-      :: Functor m
-      => SerialT r SError m a
-      -> SerialT r RequestSError m a
-    mapPutE = mapErrorST RequestSError_PrimPut
+      => ExceptT SError m a
+      -> ExceptT RequestSError m a
+    mapGetE = withExceptT RequestSError_PrimGet
 
     notYet
       :: MonadError RequestSError m
@@ -1396,7 +1349,6 @@ storeRequest = Serializer
 
 data ReplySError
   = ReplySError_PrimGet SError
-  | ReplySError_PrimPut SError
   | ReplySError_DerivationOutput SError
   | ReplySError_GCResult SError
   | ReplySError_Metadata SError
@@ -1408,20 +1360,14 @@ data ReplySError
 
 mapGetER
   :: Functor m
-  => SerialT r SError m a
-  -> SerialT r ReplySError m a
-mapGetER = mapErrorST ReplySError_PrimGet
-
-mapPutER
-  :: Functor m
-  => SerialT r SError m a
-  -> SerialT r ReplySError m a
-mapPutER = mapErrorST ReplySError_PrimPut
+  => ExceptT SError m a
+  -> ExceptT ReplySError m a
+mapGetER = withExceptT ReplySError_PrimGet
 
 -- | Parse a bool returned at the end of simple operations.
 -- This is always 1 (@True@) so we assert that it really is so.
 -- Errors for these operations are indicated via @Logger_Error@.
-opSuccess :: NixSerializer r ReplySError SuccessCodeReply
+opSuccess :: NixSerializer ReplySError SuccessCodeReply
 opSuccess = Serializer
   { getS = do
       retCode <- mapGetER $ getS bool
@@ -1429,10 +1375,10 @@ opSuccess = Serializer
         (retCode == True)
         $ throwError ReplySError_UnexpectedFalseOpSuccess
       pure SuccessCodeReply
-  , putS = \_ -> mapPutER $ putS bool True
+  , putS = \_ -> putS bool True
   }
 
-noop :: a -> NixSerializer r ReplySError a
+noop :: a -> NixSerializer ReplySError a
 noop ret = Serializer
   { getS = pure ret
   , putS = \_ -> pure ()
@@ -1440,37 +1386,38 @@ noop ret = Serializer
 
 -- *** Realisation
 
-derivationOutputTyped :: NixSerializer r ReplySError (System.Nix.Realisation.DerivationOutput OutputName)
+derivationOutputTyped :: NixSerializer ReplySError (System.Nix.Realisation.DerivationOutput OutputName)
 derivationOutputTyped = mapErrorS ReplySError_DerivationOutput $
   mapPrismSerializer
-    ( Data.Bifunctor.first SError_DerivationOutput
+    AlmostPrism
+    { _almostPrism_get =
+      ExceptT
+      . Identity
+      . Data.Bifunctor.first SError_DerivationOutput
       . System.Nix.Realisation.derivationOutputParser
           System.Nix.OutputName.mkOutputName
-    )
-    ( Data.Text.Lazy.toStrict
+    , _almostPrism_put =
+      Data.Text.Lazy.toStrict
       . Data.Text.Lazy.Builder.toLazyText
       . System.Nix.Realisation.derivationOutputBuilder
-          System.Nix.OutputName.unOutputName
-    )
+          (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
+    }
     text
 
-realisation :: NixSerializer r ReplySError Realisation
+realisation :: NixSerializer ReplySError Realisation
 realisation = mapErrorS ReplySError_Realisation json
 
-realisationWithId :: NixSerializer r ReplySError RealisationWithId
+realisationWithId :: NixSerializer ReplySError RealisationWithId
 realisationWithId = mapErrorS ReplySError_RealisationWithId json
 
 -- *** BuildResult
 
 buildResult
-  :: ( HasProtoVersion r
-     , HasStoreDir r
-     )
-  => NixSerializer r ReplySError BuildResult
-buildResult = Serializer
+  :: StoreDir
+  -> ProtoVersion
+  -> NixSerializer ReplySError BuildResult
+buildResult storeDir pv = Serializer
   { getS = do
-      pv <- Control.Monad.Reader.asks hasProtoVersion
-
       buildResultStatus <- mapGetER $ getS enum
       buildResultErrorMessage <- mapGetER $ getS maybeText
 
@@ -1500,11 +1447,9 @@ buildResult = Serializer
       pure BuildResult{..}
 
   , putS = \BuildResult{..} -> do
-      pv <- Control.Monad.Reader.asks hasProtoVersion
-
-      mapPutER $ putS enum buildResultStatus
-      mapPutER $ putS maybeText buildResultErrorMessage
-      Control.Monad.when (protoVersion_minor pv >= 29) $ mapPutER $ do
+      putS enum buildResultStatus
+      putS maybeText buildResultErrorMessage
+      Control.Monad.when (protoVersion_minor pv >= 29) $ do
         putS int $ Data.Maybe.fromMaybe 0 buildResultTimesBuilt
         putS bool $ Data.Maybe.fromMaybe False buildResultIsNonDeterministic
         putS time $ Data.Maybe.fromMaybe t0 buildResultStartTime
@@ -1523,29 +1468,29 @@ buildResult = Serializer
 -- *** GCResult
 
 gcResult
-  :: HasStoreDir r
-  => NixSerializer r ReplySError GCResult
-gcResult = mapErrorS ReplySError_GCResult $ Serializer
+  :: StoreDir
+  -> NixSerializer ReplySError GCResult
+gcResult storeDir = mapErrorS ReplySError_GCResult $ Serializer
   { getS = do
-      gcResultDeletedPaths <- getS (hashSet storePath)
+      gcResultDeletedPaths <- getS (hashSet $ storePath storeDir)
       gcResultBytesFreed <- getS int
       Control.Monad.void $ getS (int @Word64) -- obsolete
       pure GCResult{..}
   , putS = \GCResult{..} -> do
-      putS (hashSet storePath) gcResultDeletedPaths
+      putS (hashSet $ storePath storeDir) gcResultDeletedPaths
       putS int gcResultBytesFreed
       putS (int @Word64) 0 -- obsolete
   }
 
 -- *** GCRoot
 
-gcRoot :: NixSerializer r ReplySError GCRoot
+gcRoot :: NixSerializer ReplySError GCRoot
 gcRoot = Serializer
   { getS = mapGetER $ do
       getS byteString >>= \case
         p | p == censored -> pure GCRoot_Censored
         p -> pure (GCRoot_Path p)
-  , putS = mapPutER . putS byteString . \case
+  , putS = putS byteString . \case
       GCRoot_Censored -> censored
       GCRoot_Path p -> p
   }
@@ -1554,21 +1499,21 @@ gcRoot = Serializer
 -- *** Missing
 
 missing
-  :: HasStoreDir r
-  => NixSerializer r ReplySError Missing
-missing = mapErrorS ReplySError_Missing $ Serializer
+  :: StoreDir
+  -> NixSerializer ReplySError Missing
+missing storeDir = mapErrorS ReplySError_Missing $ Serializer
   { getS = do
-      missingWillBuild <- getS (hashSet storePath)
-      missingWillSubstitute <- getS (hashSet storePath)
-      missingUnknownPaths <- getS (hashSet storePath)
+      missingWillBuild <- getS (hashSet $ storePath storeDir)
+      missingWillSubstitute <- getS (hashSet $ storePath storeDir)
+      missingUnknownPaths <- getS (hashSet $ storePath storeDir)
       missingDownloadSize <- getS int
       missingNarSize <- getS int
 
       pure Missing{..}
   , putS = \Missing{..} -> do
-      putS (hashSet storePath) missingWillBuild
-      putS (hashSet storePath) missingWillSubstitute
-      putS (hashSet storePath) missingUnknownPaths
+      putS (hashSet $ storePath storeDir) missingWillBuild
+      putS (hashSet $ storePath storeDir) missingWillSubstitute
+      putS (hashSet $ storePath storeDir) missingUnknownPaths
       putS int missingDownloadSize
       putS int missingNarSize
   }
@@ -1576,15 +1521,15 @@ missing = mapErrorS ReplySError_Missing $ Serializer
 -- *** Maybe (Metadata StorePath)
 
 maybePathMetadata
-  :: HasStoreDir r
-  => NixSerializer r ReplySError (Maybe (Metadata StorePath))
-maybePathMetadata = mapErrorS ReplySError_Metadata $ Serializer
+  :: StoreDir
+  -> NixSerializer ReplySError (Maybe (Metadata StorePath))
+maybePathMetadata storeDir = mapErrorS ReplySError_Metadata $ Serializer
   { getS = do
       valid <- getS bool
       if valid
-      then pure <$> getS pathMetadata
+      then pure <$> getS (pathMetadata storeDir)
       else pure Nothing
   , putS = \case
       Nothing -> putS bool False
-      Just pm -> putS bool True >> putS pathMetadata pm
+      Just pm -> putS bool True >> putS (pathMetadata storeDir) pm
   }
