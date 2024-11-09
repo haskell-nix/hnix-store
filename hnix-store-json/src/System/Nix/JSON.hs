@@ -83,14 +83,14 @@ instance ToJSON (DerivationOutput OutputName) where
     . Data.Text.Lazy.toStrict
     . Data.Text.Lazy.Builder.toLazyText
     . System.Nix.Realisation.derivationOutputBuilder
-        System.Nix.OutputName.unOutputName
+        (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
 
   toEncoding =
     toEncoding
     . Data.Text.Lazy.toStrict
     . Data.Text.Lazy.Builder.toLazyText
     . System.Nix.Realisation.derivationOutputBuilder
-        System.Nix.OutputName.unOutputName
+        (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
 
 instance ToJSONKey (DerivationOutput OutputName) where
   toJSONKey =
@@ -98,7 +98,7 @@ instance ToJSONKey (DerivationOutput OutputName) where
     $ Data.Text.Lazy.toStrict
     . Data.Text.Lazy.Builder.toLazyText
     . System.Nix.Realisation.derivationOutputBuilder
-        System.Nix.OutputName.unOutputName
+        (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
 
 instance FromJSON (DerivationOutput OutputName) where
   parseJSON =

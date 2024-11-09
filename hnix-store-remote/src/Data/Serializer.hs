@@ -29,18 +29,18 @@ module Data.Serializer
   , SimpleSerializer
   -- ** Simple runners
   , runGetSimple
-  , runPutSimple
   -- * From Get/Put, Serialize
   , lift2
   , liftSerialize
   -- * Combinators
+  , AlmostPrism(..)
+  , maybeAlmostPrism
   , mapIsoSerializer
   , mapPrismSerializer
   , tup
   -- * Utility
   , GetSerializerError(..)
   , transformGetError
-  , transformPutError
   -- * Re-exports
   , Get
   , PutM
@@ -49,16 +49,16 @@ module Data.Serializer
 #if !MIN_VERSION_base(4,18,0)
 import Control.Applicative (liftA2)
 #endif
-import Control.Monad.Except (MonadError, throwError)
-import Control.Monad.Trans (lift)
-import Control.Monad.Trans (MonadTrans)
+import Control.Monad.Morph
 import Control.Monad.Trans.Identity (IdentityT, runIdentityT)
 import Data.ByteString (ByteString)
+import Data.Functor.Identity
 import Data.Serialize (Serialize)
+import qualified Data.Serialize
 import Data.Serialize.Get (Get, runGet)
 import Data.Serialize.Put (Putter, PutM, runPutM)
+import Data.Traversable
 
-import qualified Data.Serialize
 
 -- * Serializer
 
@@ -68,21 +68,17 @@ import qualified Data.Serialize
 -- for e.g. adding @ExceptT@ or @ReaderT@ layers.
 data Serializer t a = Serializer
   { getS :: t Get a
-  , putS :: a -> t PutM ()
+  , putS :: a -> PutM ()
   }
 
 -- ** Runners
 
 -- | Runner for putS of @Serializer@
 runPutS
-  :: ( Monad (t PutM)
-     , MonadTrans t
-     )
-  => Serializer t a        -- ^ Serializer
-  -> (t PutM () -> PutM b) -- ^ Tranformer runner
+  :: Serializer t a        -- ^ Serializer
   -> a                     -- ^ Value to (out)put
-  -> (b, ByteString)
-runPutS s run a = runPutM $ run $ (putS s) a
+  -> ByteString
+runPutS s = snd . runPutM . putS s
 
 -- | Runner for getS of @Serializer@
 runGetS
@@ -110,15 +106,6 @@ runGetSimple
 runGetSimple s b =
   runGetS s (runIdentityT) b
 
--- | Runner for putS of @SimpleSerializer@
-runPutSimple
-  :: SimpleSerializer a
-  -> a
-  -> ByteString
-runPutSimple s =
-    snd
-  . runPutS s runIdentityT
-
 -- * From Get/Put, Serialize
 
 -- | Lift @Get a@ and @Putter a@ into @Serializer@
@@ -130,7 +117,7 @@ lift2
   -> Serializer t a
 lift2 f g = Serializer
   { getS = lift f
-  , putS = lift . g
+  , putS = g
   }
 
 -- | Lift @Serialize a@ instance into @Serializer@
@@ -158,17 +145,34 @@ mapIsoSerializer f g s = Serializer
   , putS = putS s . g
   }
 
+data AlmostPrism t a b = AlmostPrism
+  { _almostPrism_get :: a -> t Identity b
+  -- ^ Map over @getS@
+  , _almostPrism_put :: b -> a
+  -- ^ Map over @putS@
+  }
+
+maybeAlmostPrism
+  :: Applicative (t Identity)
+  => AlmostPrism t a b
+  -> AlmostPrism t (Maybe a) (Maybe b)
+maybeAlmostPrism ap = AlmostPrism
+  { _almostPrism_get = traverse $ _almostPrism_get ap
+  , _almostPrism_put = fmap $ _almostPrism_put ap
+  }
+
 -- | Map over @Serializer@ where @getS@
 -- can return @Either@
 mapPrismSerializer
-  :: MonadError eGet (t Get)
-  => (a -> Either eGet b) -- ^ Map over @getS@
-  -> (b -> a)             -- ^ Map over @putS@
+  :: ( Monad (t Get)
+     , MFunctor t
+     )
+  => AlmostPrism t a b
   -> Serializer t a
   -> Serializer t b
-mapPrismSerializer f g s = Serializer
-  { getS = either throwError pure . f =<< getS s
-  , putS = putS s . g
+mapPrismSerializer p s = Serializer
+  { getS = hoist generalize . _almostPrism_get p =<< getS s
+  , putS = putS s . _almostPrism_put p
   }
 
 -- | Tuple combinator
@@ -206,9 +210,3 @@ transformGetError = \case
   Left stringyRunGetError -> Left (SerializerError_GetFail stringyRunGetError)
   Right (Left myGetError) -> Left (SerializerError_Get myGetError)
   Right (Right res) -> Right res
-
--- | Helper for transforming @runPutM@ result
-transformPutError
-  :: (Either customPutError (), ByteString)
-  -> Either customPutError ByteString
-transformPutError (e, r) = either Left (pure $ Right r) e

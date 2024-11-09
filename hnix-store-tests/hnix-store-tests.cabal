@@ -66,8 +66,10 @@ library
     , generic-arbitrary < 1.1
     , hashable
     , hspec
+    , monoidal-containers
     , QuickCheck
     , text
+    , these
     , time
     , unordered-containers
     , vector

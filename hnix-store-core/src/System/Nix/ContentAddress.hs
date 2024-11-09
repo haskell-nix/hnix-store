@@ -10,6 +10,7 @@ module System.Nix.ContentAddress (
   ) where
 
 import Control.Applicative
+import Control.DeepSeq (NFData)
 import Crypto.Hash (Digest)
 import Data.Attoparsec.Text (Parser)
 import Data.Dependent.Sum (DSum)
@@ -31,6 +32,8 @@ data ContentAddressMethod
   -- addTextToStore. It is addressed according to a sha256sum of the
   -- file contents.
   deriving (Eq, Generic, Ord, Show)
+
+instance NFData ContentAddressMethod
 
 -- | An address for a content-addressable store path, i.e. one whose
 -- store path hash is purely a function of its contents (as opposed to

@@ -33,6 +33,12 @@ in
       [
         haskellLib.compose.buildFromSdist
       ];
+  hnix-store-aterm =
+    lib.pipe
+      (hself.callCabal2nix "hnix-store-aterm" ./hnix-store-aterm {})
+      [
+        haskellLib.compose.buildFromSdist
+      ];
   hnix-store-json =
     lib.pipe
       (hself.callCabal2nix "hnix-store-json" ./hnix-store-json {})
