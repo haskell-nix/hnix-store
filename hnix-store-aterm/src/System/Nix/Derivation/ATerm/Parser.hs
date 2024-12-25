@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
@@ -6,27 +7,37 @@
 
 -- | Parsing logic
 
-module Nix.Derivation.Parser
+module System.Nix.Derivation.ATerm.Parser
     ( -- * Parser
       parseDerivation
     , parseDerivationWith
-    , parseDerivationOutputWith
-    , parseDerivationInputsWith
+    , parseDerivationOutput
+    , parseDerivationInputs
     , textParser
     ) where
 
 import Data.Attoparsec.Text.Lazy (Parser)
+import Data.Constraint.Extras (Has(has))
+import Data.Dependent.Sum
 import Data.These (These(This))
 import Data.Map (Map)
+import Data.Map.Monoidal (MonoidalMap(..))
 import Data.Set (Set)
+import Data.Some
 import Data.Text (Text)
 import Data.Vector (Vector)
-import Nix.Derivation.Types
-    ( Derivation(..)
+import System.Nix.ContentAddress
+import System.Nix.Derivation
+    ( Derivation
+    , Derivation'(..)
     , DerivationOutput(..)
     , DerivedPathMap(..)
+    , ChildNode(..)
     , DerivationInputs(..)
     )
+import System.Nix.Hash
+import System.Nix.StorePath
+import System.Nix.OutputName
 
 import qualified Data.Attoparsec.Text
 import qualified Data.Attoparsec.Text.Lazy
@@ -34,7 +45,6 @@ import qualified Data.Map
 import qualified Data.Set
 import qualified Data.Text
 import qualified Data.Vector
-import qualified System.FilePath
 
 listOf :: Parser a -> Parser [a]
 listOf element = do
@@ -44,39 +54,24 @@ listOf element = do
     pure es
 
 -- | Parse a derivation
-parseDerivation
-    :: Parser (Derivation
-                  FilePath
-                  Text
-                  Text
-                  (DerivationOutput FilePath Text)
-                  (DerivationInputs FilePath Text)
-              )
-parseDerivation =
+parseDerivation :: StoreDir -> Parser Derivation
+parseDerivation sd =
     parseDerivationWith
-        textParser
-        textParser
-        (parseDerivationOutputWith filepathParser textParser)
-        (parseDerivationInputsWith filepathParser textParser)
+        (parseDerivationInputs sd)
+        (parseDerivationOutput sd)
 
 -- | Parse a derivation using custom
 -- parsers for filepaths, texts, outputNames and derivation inputs/outputs
 parseDerivationWith
-    :: ( Ord fp
-       , Ord txt
-       , Ord outputName
-       )
-    => Parser txt
-    -> Parser outputName
+    :: Parser drvInputs
     -> Parser drvOutput
-    -> Parser drvInputs
-    -> Parser (Derivation fp txt outputName drvOutput drvInputs)
-parseDerivationWith string outputName parseOutput parseInputs = do
+    -> Parser (Derivation' drvInputs drvOutput)
+parseDerivationWith parseInputs parseOutput = do
     "Derive("
 
     let keyValue0 = do
             "("
-            key <- outputName
+            key <- outputNameParser
             ","
             drvOutput <- parseOutput
             ")"
@@ -89,23 +84,23 @@ parseDerivationWith string outputName parseOutput parseInputs = do
 
     ","
 
-    platform <- string
+    platform <- textParser
 
     ","
 
-    builder <- string
+    builder <- textParser
 
     ","
 
-    args <- vectorOf string
+    args <- vectorOf textParser
 
     ","
 
     let keyValue1 = do
             "("
-            key <- string
+            key <- textParser
             ","
-            value <- string
+            value <- textParser
             ")"
             pure (key, value)
     env <- mapOf keyValue1
@@ -114,13 +109,20 @@ parseDerivationWith string outputName parseOutput parseInputs = do
 
     pure Derivation {..}
 
+splitMethodHashAlgo :: Text -> Parser (ContentAddressMethod, Some HashAlgo)
+splitMethodHashAlgo methodHashAlgo = do
+  (method, hashAlgoS) <- case Data.Text.splitOn ":" methodHashAlgo of
+    ["r", hashAlgo] -> pure (ContentAddressMethod_NixArchive, hashAlgo)
+    ["text", hashAlgo] -> pure (ContentAddressMethod_NixArchive, hashAlgo)
+    [hashAlgo] -> pure (ContentAddressMethod_Flat, hashAlgo)
+    _ -> fail "invalid number of colons or unknown CA method prefix"
+  hashAlgo <- either fail pure $ textToAlgo hashAlgoS
+  pure (method, hashAlgo)
+
 -- | Parse a derivation output
-parseDerivationOutputWith
-    :: Parser fp
-    -> Parser txt
-    -> Parser (DerivationOutput fp txt)
-parseDerivationOutputWith filepath textParser = do
-    mPath <- maybeTextParser filepath
+parseDerivationOutput :: StoreDir -> Parser DerivationOutput
+parseDerivationOutput sd = do
+    mPath <- maybeTextParser $ storePathParser sd
     ","
     mHashAlgo <- maybeTextParser textParser
     ","
@@ -128,34 +130,37 @@ parseDerivationOutputWith filepath textParser = do
     case (mPath, mHashAlgo, mHash) of
         (Just path, Nothing, Nothing) ->
               pure InputAddressedDerivationOutput {..}
-        (Just path, Just hashAlgo, Just hash) ->
+        (Just _pathS, Just methodHashAlgo, Just hash0) -> do
+              -- TODO double check pathS
+              (method, Some hashAlgo) <- splitMethodHashAlgo methodHashAlgo
+              hash' <- either fail pure $ has @NamedAlgo hashAlgo $
+                  decodeDigestWith NixBase32 hash0
+              let hash = hashAlgo :=> hash'
               pure FixedDerivationOutput {..}
-        (Nothing, Just hashAlgo, Nothing) ->
+        (Nothing, Just methodHashAlgo, Nothing) -> do
+              (method, hashAlgo) <- splitMethodHashAlgo methodHashAlgo
               pure ContentAddressedDerivationOutput {..}
         _ ->
             fail "bad output in derivation"
 
 -- | Parse a derivation inputs
-parseDerivationInputsWith
-    :: ( Ord fp
-       , Ord outputName
-       )
-    => Parser fp
-    -> Parser outputName
-    -> Parser (DerivationInputs fp outputName)
-parseDerivationInputsWith filepath outputName = do
+parseDerivationInputs :: StoreDir -> Parser DerivationInputs
+parseDerivationInputs sd = do
     let keyValue = do
             "("
-            key <- filepath
+            key <- storePathParser sd
             ","
-            value <- setOf outputName
+            value <- setOf outputNameParser
             ")"
-            pure (key, This value)
-    drvs <- DerivedPathMap <$> mapOf keyValue
+            pure
+                ( key
+                , ChildNode $ This value
+                )
+    drvs <- DerivedPathMap . MonoidalMap <$> mapOf keyValue
 
     ","
 
-    srcs <- setOf filepath
+    srcs <- setOf $ storePathParser sd
     pure DerivationInputs {..}
 
 maybeTextParser :: Parser a -> Parser (Maybe a)
@@ -195,15 +200,19 @@ textParser = do
 
     Data.Text.concat <$> loop
 
-filepathParser :: Parser FilePath
-filepathParser = do
-    text <- textParser
-    let str = Data.Text.unpack text
-    case (Data.Text.uncons text, System.FilePath.isValid str) of
-        (Just ('/', _), True) -> do
-            pure str
-        _ -> do
-            fail ("bad path ‘" <> Data.Text.unpack text <> "’ in derivation")
+outputNameParser :: Parser OutputName
+outputNameParser = do
+  n <- textParser
+  case mkOutputName n of
+    Left e -> fail $ show e -- TODO
+    Right sp -> pure sp
+
+storePathParser :: StoreDir -> Parser StorePath
+storePathParser sd = do
+  f <- textParser
+  case System.Nix.StorePath.parsePathFromText sd f of
+    Left e -> fail $ show e -- TODO
+    Right sp -> pure sp
 
 setOf :: Ord a => Parser a -> Parser (Set a)
 setOf element = do

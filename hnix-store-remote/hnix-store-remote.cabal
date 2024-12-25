@@ -106,6 +106,7 @@ library
     , hnix-store-json >= 0.1
     , hnix-store-nar >= 0.1
     , hnix-store-tests >= 0.1
+    , hnix-store-aterm
     , aeson
     , attoparsec
     , bytestring

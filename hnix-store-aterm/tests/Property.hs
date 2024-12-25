@@ -65,8 +65,8 @@ instance Arbitrary (DerivationInputs FilePath Text) where
 instance Arbitrary (DerivedPathMap FilePath Text) where
     arbitrary = DerivedPathMap . fmap This <$> arbitrary
 
-instance Arbitrary 
-  (Derivation 
+instance Arbitrary
+  (Derivation
     FilePath
     Text
     Text
@@ -83,10 +83,10 @@ instance Arbitrary
         pure Derivation {..}
 
 property
-  :: Derivation 
-     FilePath 
-     Text 
-     Text 
+  :: Derivation
+     FilePath
+     Text
+     Text
      (DerivationOutput FilePath Text)
      (DerivationInputs FilePath Text)
   -> Bool

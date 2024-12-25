@@ -38,6 +38,7 @@ import Data.Some (Some)
 import Data.Word (Word64)
 
 import System.Nix.Build (BuildMode, BuildResult)
+import qualified System.Nix.Derivation.Aterm
 import System.Nix.DerivedPath (DerivedPath)
 import System.Nix.Hash (HashAlgo(..))
 import System.Nix.Nar (NarSource)
@@ -149,7 +150,7 @@ buildDerivation sp mode = do
       Left e -> throwError $ RemoteStoreError_DerivationParse e
       Right drv -> do
         let drv' = drv
-              { System.Nix.Derivation.inputs = 
+              { System.Nix.Derivation.inputs =
                   System.Nix.Derivation.srcs
                     (System.Nix.Derivation.inputs drv)
               }

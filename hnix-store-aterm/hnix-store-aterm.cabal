@@ -33,20 +33,23 @@ Library
     Default-Language: Haskell2010
     Hs-Source-Dirs: src
     Build-Depends:
-        base            >= 4.6.0.0  && < 5   ,
         attoparsec      >= 0.12.0.0 && < 0.15,
+        base            >= 4.6.0.0  && < 5   ,
+        constraints-extras,
         containers                     < 0.8 ,
         deepseq         >= 1.4.0.0  && < 1.6 ,
+        dependent-sum,
+        hnix-store-core,
+        monoidal-containers,
+        some,
         text            >= 0.8.0.0  && < 2.2 ,
         these,
-        vector                         < 0.14,
-        filepath                       < 1.5
+        vector                         < 0.14
     Exposed-Modules:
-        Nix.Derivation
+        System.Nix.Derivation.ATerm
     Other-Modules:
-        Nix.Derivation.Builder,
-        Nix.Derivation.Parser,
-        Nix.Derivation.Types
+        System.Nix.Derivation.ATerm.Builder,
+        System.Nix.Derivation.ATerm.Parser
     GHC-Options: -Wall
 
 Executable pretty-derivation

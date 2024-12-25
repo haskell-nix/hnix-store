@@ -26,7 +26,7 @@
 -- ... you could parse that derivation using:
 --
 -- >>> text <- Data.Text.Lazy.IO.readFile "/nix/store/zzhs4fb83x5ygvjqn5rdpmpnishpdgy6-perl-MIME-Types-2.13.drv"
--- >>> let result = Data.Attoparsec.Text.Lazy.parse Nix.Derivation.parseDerivation text
+-- >>> let result = Data.Attoparsec.Text.Lazy.parse System.Nix.Derivation.ATerm.parseDerivation text
 -- >>> result
 -- Done "" (Derivation {outputs = fromList [("devdoc",DerivationOutput {path = File
 -- Path "/nix/store/15x9ii8c3n5wb5lg80cm8x0yk6zy7rha-perl-MIME-Types-2.13-devdoc", 
@@ -76,9 +76,10 @@
 -- E-Types-2.13.tar.gz\"),(\"stdenv\",\"/nix/store/s3rlr45jzlzx0d6k2azlpxa5zwzr7xyy
 -- -stdenv\"),(\"system\",\"x86_64-linux\")])"
 
-module Nix.Derivation
+module System.Nix.Derivation.ATerm
     ( -- * Types
-      Derivation(..)
+      Derivation
+    , Derivation'(..)
     , DerivationOutput(..)
     , DerivationInputs(..)
     , DerivedPathMap(..)
@@ -97,6 +98,6 @@ module Nix.Derivation
     , buildDerivationInputsWith
     ) where
 
-import Nix.Derivation.Builder
-import Nix.Derivation.Parser
-import Nix.Derivation.Types
+import System.Nix.Derivation
+import System.Nix.Derivation.ATerm.Builder
+import System.Nix.Derivation.ATerm.Parser

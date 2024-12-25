@@ -7,7 +7,7 @@ import Test.Hspec (SpecWith, Spec, describe, it, shouldBe)
 import Data.ByteString (ByteString)
 import Data.Word (Word64)
 import System.Nix.Build (BuildMode(..), BuildStatus(..))
-import System.Nix.Store.Remote.Serializer 
+import System.Nix.Store.Remote.Serializer
   ( activity
   , activityResult
   , enum

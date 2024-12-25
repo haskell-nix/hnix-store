@@ -4,7 +4,7 @@
 
 -- | Rendering logic
 
-module Nix.Derivation.Builder
+module System.Nix.Derivation.ATerm.Builder
     ( -- * Builder
       buildDerivation
     , buildDerivationWith
@@ -12,19 +12,29 @@ module Nix.Derivation.Builder
     , buildDerivationInputsWith
     ) where
 
+import Data.Dependent.Sum
 import Data.Map (Map)
+import Data.Map.Monoidal (MonoidalMap(..))
 import Data.Maybe (fromMaybe)
 import Data.Set (Set)
+import Data.Some
+import Data.These (These(..))
 import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder)
 import Data.These.Combinators (justThis)
 import Data.Vector (Vector)
-import Nix.Derivation.Types
-    ( Derivation(..)
+import System.Nix.ContentAddress
+import System.Nix.Derivation
+    ( Derivation
+    , Derivation'(..)
     , DerivationOutput(..)
     , DerivationInputs(..)
     , DerivedPathMap(..)
+    , unChildNode
     )
+import System.Nix.Hash
+import System.Nix.StorePath
+import System.Nix.OutputName
 
 import qualified Data.Map
 import qualified Data.Set
@@ -34,32 +44,22 @@ import qualified Data.Vector
 
 -- | Render a derivation as a `Builder`
 buildDerivation
-    :: Derivation
-           FilePath
-           Text
-           Text
-           (DerivationOutput FilePath Text)
-           (DerivationInputs FilePath Text)
+    :: StoreDir
+    -> Derivation
     -> Builder
-buildDerivation =
+buildDerivation sd =
     buildDerivationWith
-        string'
-        string'
-        (buildDerivationOutputWith filepath' string' emptyString')
-        (buildDerivationInputsWith filepath' string')
-  where
-    emptyString' = string' Data.Text.empty
+        (buildDerivationInputs sd)
+        (buildDerivationOutput sd)
 
 -- | Render a derivation as a `Builder` using custom
--- renderer for filepaths, texts, outputNames and derivation inputs/outputs
+-- renderer for storePaths, texts, outputNames and derivation inputs/outputs
 buildDerivationWith
-    :: (txt -> Builder)
-    -> (outputName -> Builder)
+    :: (drvInputs -> Builder)
     -> (drvOutput -> Builder)
-    -> (drvInputs -> Builder)
-    -> Derivation fp txt outputName drvOutput drvInputs
+    -> Derivation' drvInputs drvOutput
     -> Builder
-buildDerivationWith string outputName drvOutput drvInputs (Derivation {..}) =
+buildDerivationWith drvInputs drvOutput (Derivation {..}) =
         "Derive("
     <>  mapOf keyValue0 outputs
     <>  ","
@@ -88,52 +88,63 @@ buildDerivationWith string outputName drvOutput drvInputs (Derivation {..}) =
         <>  string value
         <>  ")"
 
+buildMethodHashAlgo method hashAlgo = Data.Text.intercalate ":" $
+  (case method of
+    ContentAddressMethod_NixArchive -> ["r"]
+    ContentAddressMethod_Text -> ["text"]
+    ContentAddressMethod_Flat -> [])
+  <>
+  [withSome hashAlgo algoToText]
+
 -- | Render a @DerivationOutput@ as a `Builder` using custom
--- renderer for filepaths
-buildDerivationOutputWith
-    :: (fp -> Builder)
-    -> (txt -> Builder)
+-- renderer for storePaths
+buildDerivationOutput
+    :: StoreDir
+    -> DerivationOutput
     -> Builder
-    -> DerivationOutput fp txt
-    -> Builder
-buildDerivationOutputWith filepath string emptyString = \case
+buildDerivationOutput storeDir = \case
   InputAddressedDerivationOutput {..} ->
-        filepath path
+        storePath storeDir path
     <>  ","
     <>  emptyString
     <>  ","
     <>  emptyString
-  FixedDerivationOutput {..} ->
-        filepath path
-    <>  ","
-    <>  string hashAlgo
-    <>  ","
-    <>  string hash
+  FixedDerivationOutput {..} -> case hash of
+    hashAlgo :=> hash' ->
+          storePath storeDir _path -- TODO compute path
+      <>  ","
+      <>  string (buildMethodHashAlgo method $ Some hashAlgo)
+      <>  ","
+      <>  string (encodeDigestWith NixBase32 hash')
   ContentAddressedDerivationOutput {..} ->
         emptyString
     <>  ","
-    <>  string hashAlgo
+    <>  string (buildMethodHashAlgo method hashAlgo)
     <>  ","
     <>  emptyString
+  where
+    emptyString = string Data.Text.empty
 
 -- | Render a @DerivationInputs@ as a `Builder` using custom
--- renderer for filepaths and output names
-buildDerivationInputsWith
-    :: (fp -> Builder)
-    -> (outputName -> Builder)
-    -> DerivationInputs fp outputName
+-- renderer for storePaths and output names
+buildDerivationInputs
+    :: StoreDir
+    -> DerivationInputs
     -> Builder
-buildDerivationInputsWith filepath outputName (DerivationInputs {..}) =
-        mapOf keyValue (unDerivedPathMap drvs)
+buildDerivationInputs storeDir (DerivationInputs {..}) =
+        mapOf keyValue (getMonoidalMap $ unDerivedPathMap drvs)
     <>  ","
-    <>  setOf filepath srcs
+    <>  setOf (storePath storeDir) srcs
   where
     keyValue (key, value) =
             "("
-        <>  filepath key
+        <>  storePath storeDir key
         <>  ","
-        <>  setOf outputName (fromMaybe Data.Set.empty $ justThis value)
+        <>  setOf outputName outputNames
         <>  ")"
+     where outputNames = case unChildNode value of
+             This os -> os
+             _ -> error "dynamic derivations are not supported in the ATerm format yet"
 
 mapOf :: ((k, v) -> Builder) -> Map k v -> Builder
 mapOf keyValue m = listOf keyValue (Data.Map.toList m)
@@ -154,8 +165,11 @@ setOf element xs = listOf element (Data.Set.toList xs)
 vectorOf :: (a -> Builder) -> Vector a -> Builder
 vectorOf element xs = listOf element (Data.Vector.toList xs)
 
-string' :: Text -> Builder
-string' = Data.Text.Lazy.Builder.fromText . Data.Text.pack . show
+string :: Text -> Builder
+string = Data.Text.Lazy.Builder.fromText . Data.Text.pack . show
 
-filepath' :: FilePath -> Builder
-filepath' p = string' $ Data.Text.pack p
+outputName :: OutputName -> Builder
+outputName = string . unStorePathName . unOutputName
+
+storePath :: StoreDir -> StorePath -> Builder
+storePath sd = string . storePathToText sd

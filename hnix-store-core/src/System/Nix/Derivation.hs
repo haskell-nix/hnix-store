@@ -46,7 +46,7 @@ import System.Nix.StorePath (StorePath)
 import System.Nix.OutputName (OutputName)
 
 data Derivation' inputs output = Derivation
-    { outputs   :: Map Text output
+    { outputs   :: Map OutputName output
     -- ^ Outputs produced by this derivation where keys are output names
     , inputs    :: inputs
     -- ^ Inputs (sources and derivations)
