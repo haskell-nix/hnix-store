@@ -16,7 +16,6 @@ import System.Nix.Store.Remote.Serializer
   , runP
   , LoggerSError
   , NixSerializer
-  , SError
   )
 import System.Nix.Store.Remote.Types
 
@@ -34,22 +33,22 @@ spec = do
       -> SpecWith ()
     itE name constr value =
       it name
-        $ ((runP enum () constr) :: Either SError ByteString)
+        $ ((runP enum constr) :: ByteString)
           `shouldBe`
-          (runP (int @Word64) () value)
+          (runP (int @Word64) value)
 
     itE'
       :: Show a
-      => NixSerializer () LoggerSError a
+      => NixSerializer LoggerSError a
       -> String
       -> a
       -> Word64
       -> SpecWith ()
     itE' s name constr value =
       it name
-        $ ((runP s () constr) :: Either LoggerSError ByteString)
+        $ ((runP s constr) :: ByteString)
           `shouldBe`
-          (runP (int @Word64) () (value))
+          (runP (int @Word64) (value))
 
   describe "Enums" $ do
     describe "BuildMode enum order matches Nix" $ do

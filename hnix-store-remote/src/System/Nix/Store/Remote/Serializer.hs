@@ -102,10 +102,8 @@ module System.Nix.Store.Remote.Serializer
   ) where
 
 import Control.Monad.Except (MonadError, throwError, )
-import Control.Monad.Reader (MonadReader)
-import Control.Monad.Trans (MonadTrans, lift)
-import Control.Monad.Trans.Reader (ReaderT, runReaderT, withReaderT)
-import Control.Monad.Trans.Except (ExceptT(..), mapExceptT, runExceptT, withExceptT)
+import Control.Monad.Trans (lift)
+import Control.Monad.Trans.Except (ExceptT(..), runExceptT, withExceptT)
 import Crypto.Hash (Digest, HashAlgorithm, SHA256)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.ByteString (ByteString)
@@ -147,15 +145,12 @@ import System.Nix.StorePath.Metadata (Metadata(..), StorePathTrust(..))
 import System.Nix.Store.Remote.Types
 
 import qualified Control.Monad
-import qualified Control.Monad.Reader
 import qualified Data.Aeson
 import qualified Data.Attoparsec.Text
 import qualified Data.Bifunctor
 import qualified Data.Bits
 import qualified Data.ByteString
 import qualified Data.ByteString.Char8
-import qualified Data.ByteString.Lazy
-import qualified Data.Coerce
 import qualified Data.HashSet
 import qualified Data.Map.Strict
 import qualified Data.Maybe
@@ -228,10 +223,9 @@ data ForPV a
 
 runG
   :: NixSerializer e a
-  -> r
   -> ByteString
   -> Either (GetSerializerError e) a
-runG serializer r =
+runG serializer =
     transformGetError
   . runGetS
       serializer
@@ -640,7 +634,7 @@ someHashAlgo =
 -- * Digest
 
 digest
-  :: forall a r
+  :: forall a
    . HashAlgorithm a
   => BaseEncoding
   -> NixSerializer SError (Digest a)
@@ -723,18 +717,20 @@ derivationOutput storeDir = Serializer
 
 basicDerivation
   :: StoreDir
-  -> NixSerializer SError BasicDerivation
+  -> NixSerializer SError (StorePathName -> BasicDerivation)
 basicDerivation storeDir = Serializer
   { getS = do
-      outputs <- getS $ mapS text $ derivationOutput storeDir
+      outputs <- getS $ mapS outputName $ derivationOutput storeDir
       inputs <- getS $ set $ storePath storeDir
       platform <- getS text
       builder <- getS text
       args <- getS $ vector text
       env <- getS $ mapS text text
-      pure Derivation{..}
-  , putS = \Derivation{..} -> do
-      putS (mapS text $ derivationOutput storeDir) outputs
+      pure $ \name -> Derivation{..}
+  , putS = \f -> do
+      -- We don't use the name here
+      let Derivation{..} = f $ error "must not matter"
+      putS (mapS outputName $ derivationOutput storeDir) outputs
       putS (set $ storePath storeDir) inputs
       putS text platform
       putS text builder
@@ -1100,7 +1096,7 @@ storeRequest storeDir pv = Serializer
 
       WorkerOp_BuildDerivation -> mapGetE $ do
         path <- getS $ storePath storeDir
-        drv <- getS $ basicDerivation storeDir
+        drv <- getS (basicDerivation storeDir) <*> pure (System.Nix.StorePath.storePathName path)
         buildMode' <- getS buildMode
         pure $ Some (BuildDerivation path drv buildMode')
 
@@ -1245,7 +1241,7 @@ storeRequest storeDir pv = Serializer
         putS workerOp WorkerOp_BuildDerivation
 
         putS (storePath storeDir) path
-        putS (basicDerivation storeDir) drv
+        putS (basicDerivation storeDir) $ \_ -> drv
         putS buildMode buildMode'
 
       Some (CollectGarbage GCOptions{..}) -> do

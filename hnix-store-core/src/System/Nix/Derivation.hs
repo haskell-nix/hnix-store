@@ -42,11 +42,13 @@ import GHC.Generics (Generic)
 import System.Nix.ContentAddress (ContentAddressMethod)
 import System.Nix.Hash (HashAlgo)
 import System.Nix.DerivedPath (SingleDerivedPath(..))
-import System.Nix.StorePath (StorePath)
+import System.Nix.StorePath (StorePath, StorePathName)
 import System.Nix.OutputName (OutputName)
 
 data Derivation' inputs output = Derivation
-    { outputs   :: Map OutputName output
+    { name      :: StorePathName
+    -- ^ Name of the derivation, needed for calculating output paths
+    , outputs   :: Map OutputName output
     -- ^ Outputs produced by this derivation where keys are output names
     , inputs    :: inputs
     -- ^ Inputs (sources and derivations)

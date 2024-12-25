@@ -16,6 +16,7 @@ module System.Nix.Derivation.ATerm.Parser
     , textParser
     ) where
 
+import Control.Monad (when)
 import Data.Attoparsec.Text.Lazy (Parser)
 import Data.Constraint.Extras (Has(has))
 import Data.Dependent.Sum
@@ -37,6 +38,7 @@ import System.Nix.Derivation
     )
 import System.Nix.Hash
 import System.Nix.StorePath
+import System.Nix.StorePath.ContentAddressed
 import System.Nix.OutputName
 
 import qualified Data.Attoparsec.Text
@@ -54,7 +56,7 @@ listOf element = do
     pure es
 
 -- | Parse a derivation
-parseDerivation :: StoreDir -> Parser Derivation
+parseDerivation :: StoreDir -> StorePathName -> Parser Derivation
 parseDerivation sd =
     parseDerivationWith
         (parseDerivationInputs sd)
@@ -64,16 +66,17 @@ parseDerivation sd =
 -- parsers for filepaths, texts, outputNames and derivation inputs/outputs
 parseDerivationWith
     :: Parser drvInputs
-    -> Parser drvOutput
+    -> (StorePathName -> OutputName -> Parser drvOutput)
+    -> StorePathName
     -> Parser (Derivation' drvInputs drvOutput)
-parseDerivationWith parseInputs parseOutput = do
+parseDerivationWith parseInputs parseOutput name = do
     "Derive("
 
     let keyValue0 = do
             "("
             key <- outputNameParser
             ","
-            drvOutput <- parseOutput
+            drvOutput <- parseOutput name key
             ")"
             return (key, drvOutput)
     outputs <- mapOf keyValue0
@@ -120,8 +123,8 @@ splitMethodHashAlgo methodHashAlgo = do
   pure (method, hashAlgo)
 
 -- | Parse a derivation output
-parseDerivationOutput :: StoreDir -> Parser DerivationOutput
-parseDerivationOutput sd = do
+parseDerivationOutput :: StoreDir -> StorePathName -> OutputName -> Parser DerivationOutput
+parseDerivationOutput sd drvName outputName = do
     mPath <- maybeTextParser $ storePathParser sd
     ","
     mHashAlgo <- maybeTextParser textParser
@@ -130,12 +133,14 @@ parseDerivationOutput sd = do
     case (mPath, mHashAlgo, mHash) of
         (Just path, Nothing, Nothing) ->
               pure InputAddressedDerivationOutput {..}
-        (Just _pathS, Just methodHashAlgo, Just hash0) -> do
-              -- TODO double check pathS
+        (Just path, Just methodHashAlgo, Just hash0) -> do
               (method, Some hashAlgo) <- splitMethodHashAlgo methodHashAlgo
               hash' <- either fail pure $ has @NamedAlgo hashAlgo $
                   decodeDigestWith NixBase32 hash0
               let hash = hashAlgo :=> hash'
+              let expectedPath = makeFixedOutputPath sd method hash mempty $ outputStoreObjectName drvName outputName
+              when (path /= expectedPath) $
+                fail "fixed output path does not match info"
               pure FixedDerivationOutput {..}
         (Nothing, Just methodHashAlgo, Nothing) -> do
               (method, hashAlgo) <- splitMethodHashAlgo methodHashAlgo

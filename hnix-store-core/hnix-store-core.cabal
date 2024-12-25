@@ -72,6 +72,7 @@ library
     , System.Nix.Signature
     , System.Nix.Store.Types
     , System.Nix.StorePath
+    , System.Nix.StorePath.ContentAddressed
     , System.Nix.StorePath.Metadata
   build-depends:
       base >=4.12 && <5

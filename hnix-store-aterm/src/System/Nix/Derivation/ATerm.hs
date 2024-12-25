@@ -87,15 +87,15 @@ module System.Nix.Derivation.ATerm
       -- * Parse derivations
     , parseDerivation
     , parseDerivationWith
-    , parseDerivationOutputWith
-    , parseDerivationInputsWith
+    , parseDerivationOutput
+    , parseDerivationInputs
     , textParser
 
       -- * Render derivations
     , buildDerivation
     , buildDerivationWith
-    , buildDerivationOutputWith
-    , buildDerivationInputsWith
+    , buildDerivationOutput
+    , buildDerivationInputs
     ) where
 
 import System.Nix.Derivation

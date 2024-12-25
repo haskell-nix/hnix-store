@@ -38,7 +38,7 @@ import Data.Some (Some)
 import Data.Word (Word64)
 
 import System.Nix.Build (BuildMode, BuildResult)
-import qualified System.Nix.Derivation.Aterm
+import qualified System.Nix.Derivation.ATerm
 import System.Nix.DerivedPath (DerivedPath)
 import System.Nix.Hash (HashAlgo(..))
 import System.Nix.Nar (NarSource)
@@ -146,7 +146,7 @@ buildDerivation sp mode = do
     $ Data.Text.IO.readFile
     $ System.Nix.StorePath.storePathToFilePath sd sp
   case Data.Attoparsec.Text.parseOnly
-    (System.Nix.Derivation.parseDerivation sd) drvContents of
+    (System.Nix.Derivation.ATerm.parseDerivation sd $ System.Nix.StorePath.storePathName sp) drvContents of
       Left e -> throwError $ RemoteStoreError_DerivationParse e
       Right drv -> do
         let drv' = drv

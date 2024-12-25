@@ -4,15 +4,13 @@ module NixSerializerSpec (spec) where
 
 import Crypto.Hash (MD5, SHA1, SHA256, SHA512)
 import Data.Some (Some(Some))
-import Data.Time (UTCTime)
 import Test.Hspec (Expectation, Spec, describe, parallel, shouldBe)
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck (Gen, arbitrary, forAll, suchThat)
 
+import Data.Serializer (mapIsoSerializer)
 import System.Nix.Arbitrary ()
-import System.Nix.Derivation (Derivation)
 import System.Nix.Build (BuildResult(..))
-import System.Nix.StorePath (StoreDir)
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types.Logger (Logger(..))
@@ -21,45 +19,46 @@ import System.Nix.Store.Remote.Types.StoreConfig (ProtoStoreConfig(..))
 import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
 
 -- | Test for roundtrip using @NixSerializer@
-roundtripSReader
-  :: forall r e a
+roundtripS
+  :: forall e a
    . ( Eq a
      , Show a
      , Eq e
      , Show e
      )
-  => NixSerializer r e a
-  -> r
+  => NixSerializer e a
   -> a
   -> Expectation
-roundtripSReader serializer readerVal a =
-    (runG serializer readerVal
-    <$> runP serializer readerVal a)
-    `shouldBe` (pure $ pure a)
+roundtripS serializer a =
+    (runG serializer
+     $ runP serializer a)
+    `shouldBe` (pure a)
 
-roundtripS
-  :: ( Eq a
+roundtripSReader
+  :: forall r e a
+  .  ( Eq a
      , Show a
      , Eq e
      , Show e
      )
-  => NixSerializer () e a
+  => (r -> NixSerializer e a)
+  -> r
   -> a
   -> Expectation
-roundtripS serializer = roundtripSReader serializer ()
+roundtripSReader serializer r = roundtripS $ serializer r
 
 spec :: Spec
 spec = parallel $ do
   describe "Prim" $ do
-    prop "Int" $ roundtripS @Int @() int
+    prop "Int" $ roundtripS @() $ int @Int
     prop "Bool" $ roundtripS bool
     prop "ByteString" $ roundtripS byteString
     prop "Text" $ roundtripS text
     prop "Maybe Text" $ roundtripS maybeText
-    prop "UTCTime" $ roundtripS @UTCTime @() time
+    prop "UTCTime" $ roundtripS @() time
 
   describe "Combinators" $ do
-    prop "list" $ roundtripS @[Int] @() (list int)
+    prop "list" $ roundtripS @() (list $ int @Int)
     prop "set" $ roundtripS (set byteString)
     prop "hashSet" $ roundtripS (hashSet byteString)
     prop "mapS" $ roundtripS (mapS (int @Int) byteString)
@@ -71,7 +70,7 @@ spec = parallel $ do
       prop "< 1.28"
         $ \sd -> forAll (arbitrary `suchThat` ((< 28) . protoVersion_minor))
         $ \pv ->
-            roundtripSReader @ProtoStoreConfig buildResult (ProtoStoreConfig sd pv)
+            roundtripS (buildResult sd pv)
             . (\x -> x { buildResultBuiltOutputs = Nothing })
             . (\x -> x { buildResultTimesBuilt = Nothing
                        , buildResultIsNonDeterministic = Nothing
@@ -81,7 +80,7 @@ spec = parallel $ do
               )
       prop "= 1.28"
         $ \sd ->
-            roundtripSReader @ProtoStoreConfig buildResult (ProtoStoreConfig sd (ProtoVersion 1 28))
+            roundtripS (buildResult sd $ ProtoVersion 1 28)
             . (\x -> x { buildResultTimesBuilt = Nothing
                        , buildResultIsNonDeterministic = Nothing
                        , buildResultStartTime = Nothing
@@ -91,10 +90,10 @@ spec = parallel $ do
       prop "> 1.28"
         $ \sd -> forAll (arbitrary `suchThat` ((> 28) . protoVersion_minor))
         $ \pv ->
-            roundtripSReader @ProtoStoreConfig buildResult (ProtoStoreConfig sd pv)
+            roundtripS $ buildResult sd pv
 
     prop "StorePath" $
-      roundtripSReader @StoreDir storePath
+      roundtripSReader storePath
 
     prop "StorePathHashPart" $
       roundtripS storePathHashPart
@@ -103,7 +102,7 @@ spec = parallel $ do
       roundtripS storePathName
 
     prop "Metadata (StorePath)" $
-      roundtripSReader @StoreDir pathMetadata
+      roundtripSReader pathMetadata
 
     prop "Some HashAlgo" $
       roundtripS someHashAlgo
@@ -114,10 +113,10 @@ spec = parallel $ do
       prop "SHA256" $ roundtripS . digest @SHA256
       prop "SHA512" $ roundtripS . digest @SHA512
 
-    prop "Derivation" $ \sd ->
-      roundtripSReader @StoreDir basicDerivation sd
+    prop "Derivation" $ \sd name ->
+      roundtripS $ mapIsoSerializer ($ name) const $ basicDerivation sd
 
-    prop "ProtoVersion" $ roundtripS @ProtoVersion @() protoVersion
+    prop "ProtoVersion" $ roundtripS @() protoVersion
 
     describe "Logger" $ do
       prop "ActivityID" $ roundtripS activityID
@@ -133,7 +132,7 @@ spec = parallel $ do
         $ forAll (arbitrary :: Gen ProtoVersion)
         $ \pv ->
             forAll (arbitrary `suchThat` errorInfoIf (protoVersion_minor pv >= 26))
-        $ roundtripSReader logger pv
+        $ roundtripS $ logger pv
 
   describe "Handshake" $ do
     prop "WorkerMagic" $ roundtripS workerMagic
@@ -146,14 +145,16 @@ spec = parallel $ do
     prop "StoreRequest"
       $ \testStoreConfig ->
           forAll (arbitrary `suchThat` (restrictProtoVersion (hasProtoVersion testStoreConfig)))
-          $ roundtripSReader @ProtoStoreConfig storeRequest testStoreConfig
+          $ roundtripS $ storeRequest
+              (protoStoreConfigDir testStoreConfig)
+              (protoStoreConfigProtoVersion testStoreConfig)
 
   describe "StoreReply" $ do
     prop "()" $ roundtripS opSuccess
-    prop "GCResult" $ roundtripSReader @StoreDir gcResult
+    prop "GCResult" $ roundtripSReader gcResult
     prop "GCRoot" $ roundtripS gcRoot
-    prop "Missing" $ roundtripSReader @StoreDir missing
-    prop "Maybe (Metadata StorePath)" $ roundtripSReader @StoreDir maybePathMetadata
+    prop "Missing" $ roundtripSReader missing
+    prop "Maybe (Metadata StorePath)" $ roundtripSReader maybePathMetadata
 
 restrictProtoVersion :: ProtoVersion -> Some StoreRequest -> Bool
 restrictProtoVersion v (Some (BuildPaths _ _)) | v < ProtoVersion 1 30 = False

@@ -185,6 +185,7 @@ test-suite remote
     , time
     , hspec
     , QuickCheck
+    , transformers
 
 test-suite remote-io
   import: commons

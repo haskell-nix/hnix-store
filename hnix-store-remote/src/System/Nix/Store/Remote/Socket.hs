@@ -9,7 +9,6 @@ import Data.Serialize.Put (Put, runPut)
 import Network.Socket.ByteString (recv, sendAll)
 import System.Nix.Store.Remote.MonadStore (MonadRemoteStore(..), RemoteStoreError(..))
 import System.Nix.Store.Remote.Serializer (NixSerializer, runP)
-import System.Nix.Store.Remote.Types (ProtoStoreConfig)
 
 import qualified Control.Exception
 import qualified Data.ByteString

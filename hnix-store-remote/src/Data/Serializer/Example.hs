@@ -101,7 +101,6 @@ cmdS
   :: forall t
   . ( MonadTrans t
     , Monad (t Get)
-    , Monad (t PutM)
     )
   => Serializer t (Some Cmd)
 cmdS = Serializer

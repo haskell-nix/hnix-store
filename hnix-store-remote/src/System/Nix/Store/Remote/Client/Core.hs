@@ -21,17 +21,18 @@ import System.Nix.Store.Remote.MonadStore
   )
 import System.Nix.Store.Remote.Socket (sockPutS, sockGetS)
 import System.Nix.Store.Remote.Serializer
-  ( bool
+  ( ReplySError(ReplySError_PrimGet)
+  , bool
   , int
   , mapErrorS
   , protoVersion
+  , storePath
   , storeRequest
   , text
   , trustedFlag
   , workerMagic
   )
 
-import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types.Handshake (ClientHandshakeOutput(..))
 import System.Nix.Store.Remote.Types.Logger (Logger)
 import System.Nix.Store.Remote.Types.NoReply (NoReply(..))
@@ -56,12 +57,12 @@ doReq
 doReq = \case
   x -> do
     storeDir <- getStoreDir
-    protoVersion <- getProtoVersion
+    pv <- getProtoVersion
 
     sockPutS
       (mapErrorS
         RemoteStoreError_SerializerRequest
-          $ storeRequest storeDir protoVersion
+          $ storeRequest storeDir pv
       )
       (Some x)
 

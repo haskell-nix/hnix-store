@@ -8,20 +8,18 @@ module System.Nix.Derivation.ATerm.Builder
     ( -- * Builder
       buildDerivation
     , buildDerivationWith
-    , buildDerivationOutputWith
-    , buildDerivationInputsWith
+    , buildDerivationOutput
+    , buildDerivationInputs
     ) where
 
 import Data.Dependent.Sum
 import Data.Map (Map)
 import Data.Map.Monoidal (MonoidalMap(..))
-import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import Data.Some
 import Data.These (These(..))
 import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder)
-import Data.These.Combinators (justThis)
 import Data.Vector (Vector)
 import System.Nix.ContentAddress
 import System.Nix.Derivation
@@ -34,6 +32,7 @@ import System.Nix.Derivation
     )
 import System.Nix.Hash
 import System.Nix.StorePath
+import System.Nix.StorePath.ContentAddressed
 import System.Nix.OutputName
 
 import qualified Data.Map
@@ -56,7 +55,7 @@ buildDerivation sd =
 -- renderer for storePaths, texts, outputNames and derivation inputs/outputs
 buildDerivationWith
     :: (drvInputs -> Builder)
-    -> (drvOutput -> Builder)
+    -> (StorePathName -> OutputName -> drvOutput -> Builder)
     -> Derivation' drvInputs drvOutput
     -> Builder
 buildDerivationWith drvInputs drvOutput (Derivation {..}) =
@@ -76,9 +75,9 @@ buildDerivationWith drvInputs drvOutput (Derivation {..}) =
   where
     keyValue0 (key, output) =
             "("
-        <>  outputName key
+        <>  buildOutputName key
         <>  ","
-        <>  drvOutput output
+        <>  drvOutput name key output
         <>  ")"
 
     keyValue1 (key, value) =
@@ -88,6 +87,7 @@ buildDerivationWith drvInputs drvOutput (Derivation {..}) =
         <>  string value
         <>  ")"
 
+buildMethodHashAlgo :: ContentAddressMethod -> Some HashAlgo -> Text
 buildMethodHashAlgo method hashAlgo = Data.Text.intercalate ":" $
   (case method of
     ContentAddressMethod_NixArchive -> ["r"]
@@ -100,9 +100,11 @@ buildMethodHashAlgo method hashAlgo = Data.Text.intercalate ":" $
 -- renderer for storePaths
 buildDerivationOutput
     :: StoreDir
+    -> StorePathName
+    -> OutputName
     -> DerivationOutput
     -> Builder
-buildDerivationOutput storeDir = \case
+buildDerivationOutput storeDir drvName outputName = \case
   InputAddressedDerivationOutput {..} ->
         storePath storeDir path
     <>  ","
@@ -111,7 +113,7 @@ buildDerivationOutput storeDir = \case
     <>  emptyString
   FixedDerivationOutput {..} -> case hash of
     hashAlgo :=> hash' ->
-          storePath storeDir _path -- TODO compute path
+          storePath storeDir (makeFixedOutputPath storeDir method hash mempty $ outputStoreObjectName drvName outputName)
       <>  ","
       <>  string (buildMethodHashAlgo method $ Some hashAlgo)
       <>  ","
@@ -140,7 +142,7 @@ buildDerivationInputs storeDir (DerivationInputs {..}) =
             "("
         <>  storePath storeDir key
         <>  ","
-        <>  setOf outputName outputNames
+        <>  setOf buildOutputName outputNames
         <>  ")"
      where outputNames = case unChildNode value of
              This os -> os
@@ -168,8 +170,8 @@ vectorOf element xs = listOf element (Data.Vector.toList xs)
 string :: Text -> Builder
 string = Data.Text.Lazy.Builder.fromText . Data.Text.pack . show
 
-outputName :: OutputName -> Builder
-outputName = string . unStorePathName . unOutputName
+buildOutputName :: OutputName -> Builder
+buildOutputName = string . unStorePathName . unOutputName
 
 storePath :: StoreDir -> StorePath -> Builder
 storePath sd = string . storePathToText sd

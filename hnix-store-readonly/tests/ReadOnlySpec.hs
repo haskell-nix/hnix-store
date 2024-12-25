@@ -10,6 +10,7 @@ import Data.ByteString (ByteString)
 import Data.Dependent.Sum (DSum(..))
 import System.Nix.Hash (HashAlgo(..))
 import System.Nix.StorePath (StorePath, StorePathName)
+import System.Nix.StorePath.ContentAddressed
 import System.Nix.ContentAddress (ContentAddressMethod(..))
 
 import qualified Data.HashSet
