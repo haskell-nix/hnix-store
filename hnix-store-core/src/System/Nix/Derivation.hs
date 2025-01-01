@@ -29,9 +29,9 @@ import Crypto.Hash (Digest)
 import Data.Dependent.Sum (DSum(..))
 import Data.Map (Map)
 import Data.Map.Monoidal (MonoidalMap)
-import qualified Data.Map.Monoidal
+import Data.Map.Monoidal qualified
 import Data.Set (Set)
-import qualified Data.Set
+import Data.Set qualified
 import Data.Some (Some(..))
 import Data.GADT.DeepSeq (GNFData(..))
 import Data.Text (Text)

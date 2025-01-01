@@ -38,6 +38,7 @@ module Data.Serializer
   , mapIsoSerializer
   , mapPrismSerializer
   , tup
+  , depTup
   -- * Utility
   , GetSerializerError(..)
   , transformGetError
@@ -54,7 +55,7 @@ import Control.Monad.Trans.Identity (IdentityT, runIdentityT)
 import Data.ByteString (ByteString)
 import Data.Functor.Identity
 import Data.Serialize (Serialize)
-import qualified Data.Serialize
+import Data.Serialize qualified
 import Data.Serialize.Get (Get, runGet)
 import Data.Serialize.Put (Putter, PutM, runPutM)
 
@@ -187,6 +188,24 @@ tup a b = Serializer
   , putS = \(x, y) -> do
       putS a x
       putS b y
+  }
+
+-- | Dependent tuple combinator
+depTup
+  :: ( Monad (t Get)
+     , Monad (t PutM)
+     )
+  => Serializer t a
+  -> (a -> Serializer t b)
+  -> Serializer t (a, b)
+depTup sa sb = Serializer
+  { getS = do
+    a <- getS sa
+    b <- getS $ sb a
+    pure (a, b)
+  , putS = \(x, y) -> do
+      putS sa x
+      putS (sb x) y
   }
 
 -- * Utilities

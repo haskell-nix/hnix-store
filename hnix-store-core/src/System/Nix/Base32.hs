@@ -12,15 +12,15 @@ import Data.Text (Text)
 import Data.Vector (Vector)
 import Data.Word (Word8)
 
-import qualified Data.Bits
-import qualified Data.Bool
-import qualified Data.ByteString
-import qualified Data.ByteString.Char8
-import qualified Data.List
-import qualified Data.Maybe
-import qualified Data.Text
-import qualified Data.Vector
-import qualified Numeric
+import Data.Bits qualified
+import Data.Bool qualified
+import Data.ByteString qualified
+import Data.ByteString.Char8 qualified
+import Data.List qualified
+import Data.Maybe qualified
+import Data.Text qualified
+import Data.Vector qualified
+import Numeric qualified
 
 -- omitted: E O U T
 digits32 :: Vector Char

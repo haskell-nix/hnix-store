@@ -33,7 +33,7 @@ import System.Nix.Store.Remote.Types.Logger (Logger, BasicError, ErrorInfo)
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion)
 import System.Nix.Store.Remote.Types.StoreConfig (ProtoStoreConfig(..))
 
-import qualified Data.DList
+import Data.DList qualified
 
 data RemoteStoreState = RemoteStoreState {
     remoteStoreStateConfig :: ProtoStoreConfig

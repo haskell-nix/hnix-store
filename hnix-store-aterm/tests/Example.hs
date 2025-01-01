@@ -1,9 +1,9 @@
 module Main where
 
-import qualified Nix.Derivation
-import qualified Data.Attoparsec.Text.Lazy
-import qualified Data.Text.Lazy.Builder
-import qualified Data.Text.Lazy.IO
+import Nix.Derivation qualified
+import Data.Attoparsec.Text.Lazy qualified
+import Data.Text.Lazy.Builder qualified
+import Data.Text.Lazy.IO qualified
 
 import Data.Attoparsec.Text.Lazy (Result(..))
 

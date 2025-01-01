@@ -22,11 +22,11 @@ import Data.Text (Text)
 import GHC.Generics (Generic)
 import System.Nix.Base (decodeWith, encodeWith, BaseEncoding(Base64))
 
-import qualified Crypto.PubKey.Ed25519 as Ed25519
-import qualified Data.Attoparsec.Text
-import qualified Data.ByteArray
-import qualified Data.Char
-import qualified Data.Text
+import Crypto.PubKey.Ed25519 qualified as Ed25519
+import Data.Attoparsec.Text qualified
+import Data.ByteArray qualified
+import Data.Char qualified
+import Data.Text qualified
 
 -- | An ed25519 signature.
 newtype Signature = Signature Ed25519.Signature

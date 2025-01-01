@@ -1,10 +1,10 @@
 import Criterion (Benchmark)
 
-import qualified Criterion
-import qualified Criterion.Main
-import qualified Data.Attoparsec.Text.Lazy
-import qualified Data.Text.Lazy.IO
-import qualified Nix.Derivation
+import Criterion qualified
+import Criterion.Main qualified
+import Data.Attoparsec.Text.Lazy qualified
+import Data.Text.Lazy.IO qualified
+import Nix.Derivation qualified
 
 main :: IO ()
 main = Criterion.Main.defaultMain benchmarks

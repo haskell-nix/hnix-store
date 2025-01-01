@@ -38,7 +38,8 @@ import Data.Some (Some)
 import Data.Word (Word64)
 
 import System.Nix.Build (BuildMode, BuildResult)
-import qualified System.Nix.Derivation.ATerm
+import System.Nix.Derivation.Traditional qualified
+import System.Nix.Derivation.ATerm qualified
 import System.Nix.DerivedPath (DerivedPath)
 import System.Nix.Hash (HashAlgo(..))
 import System.Nix.Nar (NarSource)
@@ -56,11 +57,11 @@ import System.Nix.Store.Remote.Client.Core
 import System.Nix.FileContentAddress (FileIngestionMethod(..))
 import System.Nix.Store.Types (RepairMode(..))
 
-import qualified Control.Monad.IO.Class
-import qualified Data.Attoparsec.Text
-import qualified Data.Text.IO
-import qualified System.Nix.Derivation
-import qualified System.Nix.StorePath
+import Control.Monad.IO.Class qualified
+import Data.Attoparsec.Text qualified
+import Data.Text.IO qualified
+import System.Nix.Derivation qualified
+import System.Nix.StorePath qualified
 
 -- | Add `NarSource` to the store
 addToStore
@@ -151,7 +152,7 @@ buildDerivation sp mode = do
       Right drv -> do
         let drv' = drv
               { System.Nix.Derivation.inputs =
-                  System.Nix.Derivation.srcs
+                  System.Nix.Derivation.Traditional.traditionalSrcs
                     (System.Nix.Derivation.inputs drv)
               }
         doReq (BuildDerivation sp drv' mode)

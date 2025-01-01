@@ -8,9 +8,9 @@ import Test.Hspec (Expectation, Spec, describe, parallel, shouldBe)
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck (Gen, arbitrary, forAll, suchThat)
 
-import Data.Serializer (mapIsoSerializer)
 import System.Nix.Arbitrary ()
 import System.Nix.Build (BuildResult(..))
+import System.Nix.Derivation qualified
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types.Logger (Logger(..))
@@ -113,8 +113,8 @@ spec = parallel $ do
       prop "SHA256" $ roundtripS . digest @SHA256
       prop "SHA512" $ roundtripS . digest @SHA512
 
-    prop "Derivation" $ \sd name ->
-      roundtripS $ mapIsoSerializer ($ name) const $ basicDerivation sd
+    prop "Derivation" $ \sd drv ->
+      roundtripS (basicDerivation sd $ System.Nix.Derivation.name drv) drv
 
     prop "ProtoVersion" $ roundtripS @() protoVersion
 

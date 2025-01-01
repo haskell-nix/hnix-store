@@ -5,10 +5,10 @@ module System.Nix.Hash.Truncation
 import Data.Word (Word8)
 import Data.ByteString (ByteString)
 
-import qualified Data.ByteString
-import qualified Data.Bits
-import qualified Data.Bool
-import qualified Data.List
+import Data.ByteString qualified
+import Data.Bits qualified
+import Data.Bool qualified
+import Data.List qualified
 
 -- | Bytewise truncation of a 'Digest'.
 --

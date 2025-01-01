@@ -10,10 +10,10 @@ import Network.Socket.ByteString (recv, sendAll)
 import System.Nix.Store.Remote.MonadStore (MonadRemoteStore(..), RemoteStoreError(..))
 import System.Nix.Store.Remote.Serializer (NixSerializer, runP)
 
-import qualified Control.Exception
-import qualified Data.ByteString
-import qualified Data.Serializer
-import qualified Data.Serialize.Get
+import Control.Exception qualified
+import Data.ByteString qualified
+import Data.Serializer qualified
+import Data.Serialize.Get qualified
 
 genericIncremental
   :: ( MonadIO m

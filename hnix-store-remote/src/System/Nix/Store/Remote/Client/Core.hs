@@ -40,8 +40,8 @@ import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..))
 import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
 import System.Nix.Store.Remote.Types.WorkerMagic (WorkerMagic(..))
 
-import qualified Data.ByteString
-import qualified Network.Socket.ByteString
+import Data.ByteString qualified
+import Network.Socket.ByteString qualified
 
 type Run m a = m (Either RemoteStoreError a, DList Logger)
 

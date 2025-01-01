@@ -101,31 +101,55 @@ module System.Nix.Store.Remote.Serializer
   , maybePathMetadata
   ) where
 
+
+import Control.Monad qualified
 import Control.Monad.Except (MonadError, throwError, )
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (ExceptT(..), runExceptT, withExceptT)
 import Crypto.Hash (Digest, HashAlgorithm, SHA256)
 import Data.Aeson (FromJSON, ToJSON)
+import Data.Aeson qualified
+import Data.Attoparsec.Text qualified
+import Data.Bifunctor qualified
+import Data.Bits qualified
 import Data.ByteString (ByteString)
-import qualified Data.ByteString.Lazy
+import Data.ByteString qualified
+import Data.ByteString.Char8 qualified
+import Data.ByteString.Lazy qualified
 import Data.Dependent.Sum (DSum((:=>)))
 import Data.Fixed (Uni)
 import Data.Functor.Identity
-import Data.Hashable (Hashable)
 import Data.HashSet (HashSet)
+import Data.HashSet qualified
+import Data.Hashable (Hashable)
 import Data.Map (Map)
+import Data.Map.Strict qualified
+import Data.Maybe qualified
+import Data.Serialize.Get qualified
+import Data.Serialize.Put qualified
 import Data.Serializer
 import Data.Set (Set)
+import Data.Set qualified
 import Data.Some (Some(Some))
+import Data.Some qualified
 import Data.Text (Text)
+import Data.Text qualified
+import Data.Text.Encoding qualified
+import Data.Text.Lazy qualified
 import Data.Text.Lazy.Builder (Builder)
+import Data.Text.Lazy.Builder qualified
 import Data.Time (NominalDiffTime, UTCTime)
+import Data.Time.Clock.POSIX qualified
 import Data.Vector (Vector)
+import Data.Vector qualified
 import Data.Word (Word8, Word32, Word64)
 import GHC.Generics (Generic)
 import System.Nix.Base (BaseEncoding(Base16, NixBase32))
+import System.Nix.Base qualified
 import System.Nix.Build (BuildMode, BuildResult(..))
 import System.Nix.ContentAddress (ContentAddress)
+import System.Nix.ContentAddress qualified
+import System.Nix.Derivation.Traditional
 import System.Nix.Derivation
   ( BasicDerivation
   , Derivation'(..)
@@ -133,45 +157,22 @@ import System.Nix.Derivation
   -- , DerivationInputs(..)
   )
 import System.Nix.DerivedPath (DerivedPath(..), ParseOutputsError)
+import System.Nix.DerivedPath qualified
+import System.Nix.FileContentAddress (FileIngestionMethod(..))
 import System.Nix.Hash (HashAlgo(..))
+import System.Nix.Hash qualified
 import System.Nix.JSON ()
 import System.Nix.OutputName (OutputName)
+import System.Nix.OutputName qualified
 import System.Nix.Realisation (DerivationOutputError, Realisation(..), RealisationWithId(..))
+import System.Nix.Realisation qualified
 import System.Nix.Signature (Signature, NarSignature)
-import System.Nix.FileContentAddress (FileIngestionMethod(..))
+import System.Nix.Signature qualified
+import System.Nix.Store.Remote.Types
 import System.Nix.Store.Types (RepairMode(..))
 import System.Nix.StorePath (StoreDir, InvalidNameError, InvalidPathError, StorePath, StorePathHashPart, StorePathName)
+import System.Nix.StorePath qualified
 import System.Nix.StorePath.Metadata (Metadata(..), StorePathTrust(..))
-import System.Nix.Store.Remote.Types
-
-import qualified Control.Monad
-import qualified Data.Aeson
-import qualified Data.Attoparsec.Text
-import qualified Data.Bifunctor
-import qualified Data.Bits
-import qualified Data.ByteString
-import qualified Data.ByteString.Char8
-import qualified Data.HashSet
-import qualified Data.Map.Strict
-import qualified Data.Maybe
-import qualified Data.Serialize.Get
-import qualified Data.Serialize.Put
-import qualified Data.Set
-import qualified Data.Some
-import qualified Data.Text
-import qualified Data.Text.Encoding
-import qualified Data.Text.Lazy
-import qualified Data.Text.Lazy.Builder
-import qualified Data.Time.Clock.POSIX
-import qualified Data.Vector
-import qualified System.Nix.Base
-import qualified System.Nix.ContentAddress
-import qualified System.Nix.DerivedPath
-import qualified System.Nix.Hash
-import qualified System.Nix.OutputName
-import qualified System.Nix.Realisation
-import qualified System.Nix.Signature
-import qualified System.Nix.StorePath
 
 mapErrorS
   :: (e -> e')
@@ -399,17 +400,23 @@ hashSet =
     Data.HashSet.toList
   . list
 
+mapS'
+  :: Ord k
+  => NixSerializer e (k, v)
+  -> NixSerializer e (Map k v)
+mapS' kv =
+  mapIsoSerializer
+    Data.Map.Strict.fromList
+    Data.Map.Strict.toList
+  $ list
+  $ kv
+
 mapS
   :: Ord k
   => NixSerializer e k
   -> NixSerializer e v
   -> NixSerializer e (Map k v)
-mapS k v =
-  mapIsoSerializer
-    Data.Map.Strict.fromList
-    Data.Map.Strict.toList
-  $ list
-  $ tup k v
+mapS k v = mapS' $ tup k v
 
 vector
   :: Ord a
@@ -676,61 +683,40 @@ namedDigest = Serializer
 
 derivationOutput
   :: StoreDir
+  -> StorePathName
+  -> OutputName
   -> NixSerializer SError DerivationOutput
-derivationOutput storeDir = Serializer
+derivationOutput storeDir drvName outputName' = Serializer
   { getS = do
-      mPath <- getS $ maybePath storeDir
-      mHashAlgo <- getS maybeText
-      mHash <- getS maybeText
-      case (mPath, mHashAlgo, mHash) of
-        (Just path, Nothing, Nothing) ->
-          pure InputAddressedDerivationOutput {..}
-        (Just path, Just hashAlgo, Just hash) ->
-          error "TODO"
-          -- pure FixedDerivationOutput {..}
-        (Nothing, Just hashAlgo, Nothing) ->
-          error "TODO"
-          -- pure ContentAddressedDerivationOutput {..}
-        _ ->
-          throwError $ SError_DerivationOutputInvalidCombo
-            (Data.Maybe.isJust mPath)
-            (Data.Maybe.isJust mHashAlgo)
-            (Data.Maybe.isJust mHash)
-  , putS = \case
-      InputAddressedDerivationOutput{..} -> do
-        putS (storePath storeDir) path
-        putS text Data.Text.empty
-        putS text Data.Text.empty
-      FixedDerivationOutput{..} -> do
-        pure ()
-        --putS storePath path
-        --putS text hashAlgo
-        --putS text hash
-      ContentAddressedDerivationOutput{..} -> do
-        pure ()
-        --putS text Data.Text.empty
-        --putS text hashAlgo
-        --putS text Data.Text.empty
+      rawPath <- getS text
+      rawMethodHashAlgo <- getS text
+      rawHash <- getS text
+      parseRawDerivationOutput storeDir drvName outputName' $ RawDerivationOutput {..}
+  , putS = \output -> do
+      let RawDerivationOutput {..} = renderRawDerivationOutput storeDir drvName outputName' output
+      putS text rawPath
+      putS text rawMethodHashAlgo
+      putS text rawHash
   }
 
 -- * Derivation
 
 basicDerivation
   :: StoreDir
-  -> NixSerializer SError (StorePathName -> BasicDerivation)
-basicDerivation storeDir = Serializer
+  -> StorePathName
+  -> NixSerializer SError BasicDerivation
+basicDerivation storeDir drvName = Serializer
   { getS = do
-      outputs <- getS $ mapS outputName $ derivationOutput storeDir
+      outputs <- getS $ mapS' $ depTup outputName $ derivationOutput storeDir drvName
       inputs <- getS $ set $ storePath storeDir
       platform <- getS text
       builder <- getS text
       args <- getS $ vector text
       env <- getS $ mapS text text
-      pure $ \name -> Derivation{..}
-  , putS = \f -> do
-      -- We don't use the name here
-      let Derivation{..} = f $ error "must not matter"
-      putS (mapS outputName $ derivationOutput storeDir) outputs
+      let name = drvName
+      pure $ Derivation{..}
+  , putS = \Derivation{..} -> do
+      putS (mapS' $ depTup outputName $ derivationOutput storeDir drvName) outputs
       putS (set $ storePath storeDir) inputs
       putS text platform
       putS text builder
@@ -1096,7 +1082,7 @@ storeRequest storeDir pv = Serializer
 
       WorkerOp_BuildDerivation -> mapGetE $ do
         path <- getS $ storePath storeDir
-        drv <- getS (basicDerivation storeDir) <*> pure (System.Nix.StorePath.storePathName path)
+        drv <- getS (basicDerivation storeDir $ System.Nix.StorePath.storePathName path)
         buildMode' <- getS buildMode
         pure $ Some (BuildDerivation path drv buildMode')
 
@@ -1241,7 +1227,7 @@ storeRequest storeDir pv = Serializer
         putS workerOp WorkerOp_BuildDerivation
 
         putS (storePath storeDir) path
-        putS (basicDerivation storeDir) $ \_ -> drv
+        putS (basicDerivation storeDir $ name drv) drv
         putS buildMode buildMode'
 
       Some (CollectGarbage GCOptions{..}) -> do

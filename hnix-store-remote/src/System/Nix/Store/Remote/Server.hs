@@ -31,11 +31,11 @@ import System.Nix.Store.Remote.Types.Logger (BasicError(..), ErrorInfo, Logger(.
 import System.Nix.Store.Remote.MonadStore (MonadRemoteStore(..), WorkerError(..), WorkerException(..), RemoteStoreError(..), RemoteStoreT, runRemoteStoreT)
 import System.Nix.Store.Remote.Types.Handshake (ServerHandshakeInput(..), ServerHandshakeOutput(..))
 import System.Nix.Store.Remote.Types.WorkerMagic (WorkerMagic(..))
-import qualified Data.Some
-import qualified Data.Text
-import qualified Data.Text.IO
-import qualified System.Timeout
-import qualified Network.Socket.ByteString
+import Data.Some qualified
+import Data.Text qualified
+import Data.Text.IO qualified
+import System.Timeout qualified
+import Network.Socket.ByteString qualified
 
 type WorkerHelper m
   = forall a

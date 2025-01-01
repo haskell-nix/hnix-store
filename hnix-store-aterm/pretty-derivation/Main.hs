@@ -2,10 +2,10 @@ module Main where
 
 import Data.Attoparsec.Text.Lazy (Result(..))
 
-import qualified Data.Attoparsec.Text.Lazy
-import qualified Data.Text.Lazy.IO
-import qualified Nix.Derivation
-import qualified Text.Show.Pretty
+import Data.Attoparsec.Text.Lazy qualified
+import Data.Text.Lazy.IO qualified
+import Nix.Derivation qualified
+import Text.Show.Pretty qualified
 
 main :: IO ()
 main = do

@@ -28,6 +28,7 @@ common commons
     , FlexibleInstances
     , ScopedTypeVariables
     , StandaloneDeriving
+    , ImportQualifiedPost
     , RecordWildCards
     , TypeApplications
     , LambdaCase

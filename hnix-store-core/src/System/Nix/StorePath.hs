@@ -48,17 +48,17 @@ import Data.Text (Text)
 import GHC.Generics (Generic)
 import System.Nix.Base (BaseEncoding(NixBase32))
 
-import qualified Data.Bifunctor
-import qualified Data.ByteString.Char8
-import qualified Data.Char
-import qualified Data.Text
-import qualified Data.Text.Encoding
-import qualified Data.Attoparsec.Text.Lazy
-import qualified System.FilePath
+import Data.Bifunctor qualified
+import Data.ByteString.Char8 qualified
+import Data.Char qualified
+import Data.Text qualified
+import Data.Text.Encoding qualified
+import Data.Attoparsec.Text.Lazy qualified
+import System.FilePath qualified
 
-import qualified System.Nix.Base
-import qualified System.Nix.Hash
-import qualified System.Nix.Base32
+import System.Nix.Base qualified
+import System.Nix.Hash qualified
+import System.Nix.Base32 qualified
 
 -- | A path in a Nix store.
 --

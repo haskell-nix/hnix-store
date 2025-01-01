@@ -15,8 +15,8 @@ import System.Nix.Hash (HashAlgo(..))
 import System.Nix.Store.Types (PathFilter, RepairMode)
 import System.Nix.StorePath (StoreDir, StorePath, StorePathName)
 
-import qualified Crypto.Hash
-import qualified System.Nix.Nar
+import Crypto.Hash qualified
+import System.Nix.Nar qualified
 
 digestPath
   :: FilePath             -- ^ Local `FilePath` to add

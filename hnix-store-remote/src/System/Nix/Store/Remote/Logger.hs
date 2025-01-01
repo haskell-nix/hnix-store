@@ -12,10 +12,10 @@ import System.Nix.Store.Remote.MonadStore (MonadRemoteStore, RemoteStoreError(..
 import System.Nix.Store.Remote.Types.Logger (Logger(..))
 import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion)
 
-import qualified Control.Monad
-import qualified Data.Serialize.Get
-import qualified Data.Serializer
-import qualified Network.Socket.ByteString
+import Control.Monad qualified
+import Data.Serialize.Get qualified
+import Data.Serializer qualified
+import Network.Socket.ByteString qualified
 
 processOutput
   :: MonadRemoteStore m

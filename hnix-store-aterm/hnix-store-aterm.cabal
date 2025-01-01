@@ -1,9 +1,9 @@
+Cabal-Version: 2.2
 Name: hnix-store-aterm
 Version: 1.1.3
-Cabal-Version: >=1.10
 Build-Type: Simple
 Tested-With: GHC == 7.8.4, GHC == 7.10.3, GHC == 8.0.2, GHC == 8.8.3
-License: BSD3
+License: BSD-3-Clause
 License-File: LICENSE
 Copyright: 2017 Gabriella Gonzalez
 Author: Gabriella Gonzalez
@@ -29,8 +29,13 @@ Source-Repository head
     Type: git
     Location: https://github.com/Gabriella439/Haskell-Nix-Derivation-Library
 
-Library
+Common commons
+    Default-Extensions:
+        ImportQualifiedPost
     Default-Language: Haskell2010
+
+Library
+    Import: commons
     Hs-Source-Dirs: src
     Build-Depends:
         attoparsec      >= 0.12.0.0 && < 0.15,
@@ -47,13 +52,14 @@ Library
         vector                         < 0.14
     Exposed-Modules:
         System.Nix.Derivation.ATerm
+        System.Nix.Derivation.Traditional
     Other-Modules:
         System.Nix.Derivation.ATerm.Builder,
         System.Nix.Derivation.ATerm.Parser
     GHC-Options: -Wall
 
 Executable pretty-derivation
-    Default-Language: Haskell2010
+    Import: commons
     Hs-Source-Dirs: pretty-derivation
     Build-Depends:
         base           >= 4.6.0.0  && < 5   ,
@@ -65,7 +71,7 @@ Executable pretty-derivation
     Main-Is: Main.hs
 
 Test-Suite example
-    Default-Language: Haskell2010
+    Import: commons
     Type: exitcode-stdio-1.0
     Hs-Source-Dirs: tests
     Main-Is: Example.hs
@@ -77,7 +83,7 @@ Test-Suite example
         text
 
 Test-Suite property
-    Default-Language: Haskell2010
+    Import: commons
     Type: exitcode-stdio-1.0
     Hs-Source-Dirs: tests
     Main-Is: Property.hs
@@ -93,7 +99,7 @@ Test-Suite property
         filepath                       < 1.5
 
 Benchmark benchmark
-    Default-Language: Haskell2010
+    Import: commons
     Type:             exitcode-stdio-1.0
     HS-Source-Dirs:   bench
     Main-Is:          Main.hs

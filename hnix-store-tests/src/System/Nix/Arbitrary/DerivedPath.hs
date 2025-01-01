@@ -3,7 +3,7 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 module System.Nix.Arbitrary.DerivedPath where
 
-import qualified Data.Set
+import Data.Set qualified
 import Test.QuickCheck (Arbitrary(..), oneof)
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
 import System.Nix.Arbitrary.OutputName ()

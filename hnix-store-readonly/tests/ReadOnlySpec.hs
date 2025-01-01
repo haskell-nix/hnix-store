@@ -13,8 +13,8 @@ import System.Nix.StorePath (StorePath, StorePathName)
 import System.Nix.StorePath.ContentAddressed
 import System.Nix.ContentAddress (ContentAddressMethod(..))
 
-import qualified Data.HashSet
-import qualified System.Nix.StorePath
+import Data.HashSet qualified
+import System.Nix.StorePath qualified
 
 import System.Nix.Store.ReadOnly
 

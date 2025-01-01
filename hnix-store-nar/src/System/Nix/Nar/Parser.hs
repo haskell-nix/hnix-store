@@ -11,42 +11,42 @@ module System.Nix.Nar.Parser
   ) where
 
 
-import qualified Algebra.Graph                   as Graph
-import qualified Algebra.Graph.ToGraph           as Graph
-import qualified Control.Concurrent              as Concurrent
-import qualified Control.Exception.Lifted        as Exception.Lifted
+import Algebra.Graph qualified                   as Graph
+import Algebra.Graph.ToGraph qualified           as Graph
+import Control.Concurrent qualified              as Concurrent
+import Control.Exception.Lifted qualified        as Exception.Lifted
 import           Control.Monad                    ( forM
                                                   , when
                                                   , forM_
                                                   )
-import qualified Control.Monad.Except            as Except
-import qualified Control.Monad.Fail              as Fail
-import qualified Control.Monad.IO.Class          as IO
-import qualified Control.Monad.Reader            as Reader
-import qualified Control.Monad.State             as State
-import qualified Control.Monad.Trans             as Trans
-import qualified Control.Monad.Trans.Control     as Base
+import Control.Monad.Except qualified            as Except
+import Control.Monad.Fail qualified              as Fail
+import Control.Monad.IO.Class qualified          as IO
+import Control.Monad.Reader qualified            as Reader
+import Control.Monad.State qualified             as State
+import Control.Monad.Trans qualified             as Trans
+import Control.Monad.Trans.Control qualified     as Base
 import           Data.ByteString                  (ByteString)
-import qualified Data.ByteString                 as Bytes
+import Data.ByteString qualified                 as Bytes
 import           Data.Bool                        ( bool )
-import qualified Data.Either                     as Either
+import Data.Either qualified                     as Either
 import           Data.Int                         ( Int64 )
-import qualified Data.IORef                      as IORef
-import qualified Data.CaseInsensitive            as CI
-import qualified Data.HashMap.Strict             as HashMap
-import qualified Data.List                       as List
-import qualified Data.Map                        as Map
+import Data.IORef qualified                      as IORef
+import Data.CaseInsensitive qualified            as CI
+import Data.HashMap.Strict qualified             as HashMap
+import Data.List qualified                       as List
+import Data.Map qualified                        as Map
 import           Data.Maybe                       ( catMaybes )
-import qualified Data.Serialize                  as Serialize
+import Data.Serialize qualified                  as Serialize
 import           Data.Text                        ( Text )
-import qualified Data.Text                       as Text
-import qualified Data.Text.Encoding              as Text
-import qualified System.Directory                as Directory
+import Data.Text qualified                       as Text
+import Data.Text.Encoding qualified              as Text
+import System.Directory qualified                as Directory
 import           System.FilePath                 as FilePath
-import qualified System.IO                       as IO
+import System.IO qualified                       as IO
 
-import qualified System.Nix.Nar.Effects as Nar
-import qualified System.Nix.Nar.Options as Nar
+import System.Nix.Nar.Effects qualified as Nar
+import System.Nix.Nar.Options qualified as Nar
 
 -- | NarParser is a monad for parsing a Nar file as a byte stream
 --   and reconstructing the file system objects inside

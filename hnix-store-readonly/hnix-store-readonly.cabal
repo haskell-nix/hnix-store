@@ -22,6 +22,7 @@ common commons
   default-extensions:
       Rank2Types
     , ScopedTypeVariables
+    , ImportQualifiedPost
     , TypeApplications
   default-language: Haskell2010
 

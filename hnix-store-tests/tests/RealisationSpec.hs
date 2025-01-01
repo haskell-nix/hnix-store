@@ -6,11 +6,11 @@ import Test.Hspec.Nix (roundtrips)
 
 import System.Nix.Arbitrary ()
 
-import qualified Data.Text.Lazy
-import qualified Data.Text.Lazy.Builder
-import qualified System.Nix.StorePath
-import qualified System.Nix.OutputName
-import qualified System.Nix.Realisation
+import Data.Text.Lazy qualified
+import Data.Text.Lazy.Builder qualified
+import System.Nix.StorePath qualified
+import System.Nix.OutputName qualified
+import System.Nix.Realisation qualified
 
 spec :: Spec
 spec = do

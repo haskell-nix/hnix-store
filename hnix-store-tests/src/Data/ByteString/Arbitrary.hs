@@ -3,7 +3,7 @@ module Data.ByteString.Arbitrary () where
 
 import Data.ByteString (ByteString)
 import Test.QuickCheck (Arbitrary(..))
-import qualified Data.ByteString.Char8
+import Data.ByteString.Char8 qualified
 
 instance Arbitrary ByteString where
   arbitrary = Data.ByteString.Char8.pack <$> arbitrary

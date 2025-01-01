@@ -17,15 +17,15 @@ import System.Nix.ContentAddress (ContentAddressMethod (..))
 import System.Nix.Hash (BaseEncoding(Base16), HashAlgo(..))
 import System.Nix.StorePath (StoreDir, StorePath, StorePathName)
 
-import qualified Crypto.Hash
-import qualified Data.ByteString.Char8
-import qualified Data.ByteString
-import qualified Data.HashSet
-import qualified Data.List
-import qualified Data.Text
-import qualified Data.Text.Encoding
-import qualified System.Nix.Hash
-import qualified System.Nix.StorePath
+import Crypto.Hash qualified
+import Data.ByteString.Char8 qualified
+import Data.ByteString qualified
+import Data.HashSet qualified
+import Data.List qualified
+import Data.Text qualified
+import Data.Text.Encoding qualified
+import System.Nix.Hash qualified
+import System.Nix.StorePath qualified
 
 data References = References
   { references_others :: HashSet StorePath

@@ -1,6 +1,6 @@
 module Main where
 
-import qualified System.Nix.Store.DB.Run
+import System.Nix.Store.DB.Run qualified
 
 -- This only tests that database can be created
 -- in-memory using migrateAll and that queryEverything

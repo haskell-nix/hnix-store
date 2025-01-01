@@ -19,12 +19,12 @@ import Nix.Derivation
 import Prelude hiding (FilePath, either)
 import Test.QuickCheck (Arbitrary(..), Gen, oneof)
 
-import qualified Data.Attoparsec.Text.Lazy
-import qualified Data.Text
-import qualified Data.Text.Lazy.Builder
-import qualified Data.Vector
-import qualified Nix.Derivation
-import qualified Test.QuickCheck
+import Data.Attoparsec.Text.Lazy qualified
+import Data.Text qualified
+import Data.Text.Lazy.Builder qualified
+import Data.Vector qualified
+import Nix.Derivation qualified
+import Test.QuickCheck qualified
 
 instance Arbitrary Text where
     arbitrary = fmap Data.Text.pack arbitrary
