@@ -14,7 +14,7 @@ import Data.Text.Lazy.Builder qualified
 -- TODO(srk): this won't roundtrip as Arbitrary Text
 -- contains wild stuff like control characters and UTF8 sequences.
 -- Either fix in hnix-store-aterm or use wrapper type
--- (but we use Nix.Derivation.textParser so we need Text for now)
+-- (but we use System.Nix.Derivation.ATerm.textParser so we need Text for now)
 spec :: Spec
 spec = do
   describe "Derivation" $ do

@@ -35,7 +35,7 @@ t devdoc"),("propagatedBuildInputs",""),("propagatedNativeBuildInputs",""),("src
 
 ```
 >>> text <- Data.Text.Lazy.IO.readFile "/nix/store/zzhs4fb83x5ygvjqn5rdpmpnishpdgy6-perl-MIME-Types-2.13.drv"
->>> let result = Data.Attoparsec.Text.Lazy.parse Nix.Derivation.parseDerivation text
+>>> let result = Data.Attoparsec.Text.Lazy.parse System.Nix.Derivation.ATerm.parseDerivation text
 >>> result
 Done "" (Derivation {outputs = fromList [("devdoc",DerivationOutput {path = File
 Path "/nix/store/15x9ii8c3n5wb5lg80cm8x0yk6zy7rha-perl-MIME-Types-2.13-devdoc", 

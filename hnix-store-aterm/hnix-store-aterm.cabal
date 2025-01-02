@@ -66,6 +66,7 @@ Executable pretty-derivation
         attoparsec     >= 0.12.0.0 && < 0.15,
         pretty-show    >= 1.6.11   && < 1.11,
         text                                ,
+        hnix-store-core                     ,
         hnix-store-aterm
     GHC-Options: -Wall
     Main-Is: Main.hs
@@ -79,7 +80,8 @@ Test-Suite example
     Build-Depends:
         base           >= 4.6.0.0  && < 5   ,
         attoparsec     >= 0.12.0.0 && < 0.15,
-        hnix-store-aterm                      ,
+        hnix-store-core                      ,
+        hnix-store-aterm                     ,
         text
 
 Test-Suite property
@@ -91,7 +93,10 @@ Test-Suite property
     Build-Depends:
         base            >= 4.6.0.0  && < 5   ,
         attoparsec      >= 0.12.0.0 && < 0.15,
-        hnix-store-aterm                       ,
+        hnix-store-core                      ,
+        hnix-store-aterm                     ,
+        hnix-store-tests                     ,
+        generic-arbitrary              < 1.1 ,
         QuickCheck                     < 2.16,
         text                                 ,
         these                                ,
@@ -109,5 +114,6 @@ Benchmark benchmark
         base            >= 4.6.0.0  && < 5   ,
         attoparsec      >= 0.12.0.0 && < 0.15,
         criterion       >= 1.1.4.0  && < 1.7 ,
-        hnix-store-aterm                       ,
+        hnix-store-core                      ,
+        hnix-store-aterm                     ,
         text
