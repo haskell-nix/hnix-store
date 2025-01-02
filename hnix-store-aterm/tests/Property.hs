@@ -16,6 +16,7 @@ import Data.Attoparsec.Text.Lazy qualified
 import Data.Text.Lazy.Builder qualified
 import Test.QuickCheck (Arbitrary(..))
 import Test.QuickCheck qualified
+import Test.QuickCheck.Property (failed, succeeded, Result(..))
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
 
 import System.Nix.StorePath
@@ -35,8 +36,11 @@ property
   -> Derivation'
      TraditionalDerivationInputs
      DerivationOutput
-  -> Bool
-property storeDir derivation0 = either == Right derivation0
+  -> Result
+property storeDir derivation0 =
+    if either == expected
+    then succeeded
+    else failed { reason = unlines ["", show either, show expected] }
   where
     builder = System.Nix.Derivation.ATerm.buildDerivation storeDir derivation0
 
@@ -47,8 +51,12 @@ property storeDir derivation0 = either == Right derivation0
           (System.Nix.Derivation.ATerm.parseDerivation storeDir (name derivation0))
           text
 
+    either, expected :: Either String (Derivation' TraditionalDerivationInputs DerivationOutput)
+
     either =
         Data.Attoparsec.Text.Lazy.eitherResult result
+
+    expected = Right derivation0
 
 main :: IO ()
 main = Test.QuickCheck.quickCheck property
