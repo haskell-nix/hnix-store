@@ -37,11 +37,12 @@ mkOutputName = fmap OutputName . System.Nix.StorePath.mkStorePathName
 
 -- | Compute the name of an output (store object) from the output name
 -- and the derivation name
-outputStoreObjectName :: StorePathName -> OutputName -> StorePathName
+--
+-- Invalid character errors are not possible, but total length errors are
+outputStoreObjectName :: StorePathName -> OutputName -> Either InvalidNameError StorePathName
 outputStoreObjectName drvName outputName = case outputNameS of
-  "out" -> drvName
-  _  -> either (error "impossible, internal error") id $
-    System.Nix.StorePath.mkStorePathName $
+  "out" -> Right drvName
+  _  -> System.Nix.StorePath.mkStorePathName $
       unStorePathName drvName
       <> "-"
       <> outputNameS

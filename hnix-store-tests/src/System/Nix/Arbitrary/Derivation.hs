@@ -1,35 +1,57 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE GADTs #-}
 -- due to recent generic-arbitrary
 {-# OPTIONS_GHC -fconstraint-solver-iterations=0 #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 module System.Nix.Arbitrary.Derivation where
 
+import Data.Dependent.Sum
+import Data.Either (isRight)
+import Data.Map qualified
 import Data.Map.Monoidal
-import Data.These
-import Data.Text (Text)
+import Data.Some
 import Data.Text.Arbitrary ()
+import Data.These
 import Data.Vector.Arbitrary ()
-import System.Nix.Derivation
-import System.Nix.StorePath (StorePath)
+import Test.QuickCheck.Arbitrary.Generic
+import Test.QuickCheck.Gen
 
-import Test.QuickCheck (Arbitrary(..))
-import Test.QuickCheck.Arbitrary.Generic (Arg, GenericArbitrary(..))
+import System.Nix.Derivation
+import System.Nix.ContentAddress
+import System.Nix.Hash
+import System.Nix.OutputName
 import System.Nix.Arbitrary.ContentAddress ()
 import System.Nix.Arbitrary.Hash ()
 import System.Nix.Arbitrary.StorePath ()
 import System.Nix.Arbitrary.OutputName ()
 
-deriving via GenericArbitrary
-    (Derivation' inputs output)
-  instance
-    ( Arbitrary inputs
-    , Arbitrary output
-    , Arg (Derivation' inputs output) inputs
-    , Arg (Derivation' inputs output) output
-    ) => Arbitrary (Derivation' inputs output)
+instance
+  ( Arbitrary inputs
+  , Arbitrary output
+  , Arg (Derivation' inputs output) inputs
+  , Arg (Derivation' inputs output) output
+  ) => Arbitrary (Derivation' inputs output)
+ where
+  arbitrary = genericArbitrary `suchThat` \drv ->
+    -- ensure output path name is not too long
+    all (\on -> isRight $ outputStoreObjectName (name drv) on)
+    $ Data.Map.keys (outputs drv)
+  shrink = genericShrink
 
-deriving via GenericArbitrary DerivationOutput
-  instance Arbitrary DerivationOutput
+instance Arbitrary DerivationOutput where
+  arbitrary = genericArbitrary `suchThat` \case
+    InputAddressedDerivationOutput {} -> True
+    FixedDerivationOutput {method, hash = hashAlgo :=> _} -> f method hashAlgo
+    ContentAddressedDerivationOutput {method, hashAlgo = Some hashAlgo } -> f method hashAlgo
+    where
+      -- Ensure a valid combination
+      f = \case
+        ContentAddressMethod_Text -> \case
+          HashAlgo_SHA256 -> True
+          _ -> False
+        _ -> \_ -> True
+  shrink = genericShrink
 
 deriving via GenericArbitrary DerivationInputs
   instance Arbitrary DerivationInputs

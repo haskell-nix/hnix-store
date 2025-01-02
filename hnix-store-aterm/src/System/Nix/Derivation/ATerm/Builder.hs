@@ -133,7 +133,17 @@ vectorOf :: (a -> Builder) -> Vector a -> Builder
 vectorOf element xs = listOf element (Data.Vector.toList xs)
 
 string :: Text -> Builder
-string = Data.Text.Lazy.Builder.fromText . Data.Text.pack . show
+string =
+    Data.Text.Lazy.Builder.fromText
+    . (\input -> Data.Text.concat ["\"", Data.Text.concatMap escapeChar input, "\""])
+  where
+    escapeChar :: Char -> Text
+    escapeChar '\"' = "\\\""
+    escapeChar '\\' = "\\\\"
+    escapeChar '\n' = "\\n"
+    escapeChar '\r' = "\\r"
+    escapeChar '\t' = "\\t"
+    escapeChar c    = Data.Text.singleton c
 
 buildOutputName :: OutputName -> Builder
 buildOutputName = string . unStorePathName . unOutputName
