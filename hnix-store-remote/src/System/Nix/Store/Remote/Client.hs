@@ -147,14 +147,23 @@ buildDerivation sp mode = do
     $ Data.Text.IO.readFile
     $ System.Nix.StorePath.storePathToFilePath sd sp
   case Data.Attoparsec.Text.parseOnly
-    (System.Nix.Derivation.ATerm.parseDerivation sd $ System.Nix.StorePath.storePathName sp) drvContents of
+    (System.Nix.Derivation.ATerm.parseTraditionalDerivation sd) drvContents of
       Left e -> throwError $ RemoteStoreError_DerivationParse e
       Right drv -> do
-        let drv' = drv
-              { System.Nix.Derivation.inputs =
-                  System.Nix.Derivation.Traditional.traditionalSrcs
-                    (System.Nix.Derivation.inputs drv)
-              }
+        let name = System.Nix.StorePath.storePathName sp
+        outputs <- case
+          System.Nix.Derivation.toSpecificOutputs sd name $
+            System.Nix.Derivation.Traditional.anonOutputs drv
+          of
+           Nothing -> throwError $ RemoteStoreError_DerivationParse "TODO get error"
+           Just os -> pure os
+        let drv' = System.Nix.Derivation.Traditional.withName name $
+              System.Nix.Derivation.Traditional.TraditionalDerivation
+                { System.Nix.Derivation.Traditional.anonOutputs = outputs
+                , System.Nix.Derivation.Traditional.anonInputs =
+                    System.Nix.Derivation.Traditional.traditionalSrcs
+                      (System.Nix.Derivation.Traditional.anonInputs drv)
+                }
         doReq (BuildDerivation sp drv' mode)
 
 -- | Build paths if they are an actual derivations.

@@ -96,6 +96,7 @@ Test-Suite property
         hnix-store-core                      ,
         hnix-store-aterm                     ,
         hnix-store-tests                     ,
+        containers                           ,
         generic-arbitrary              < 1.1 ,
         QuickCheck                     < 2.16,
         text                                 ,

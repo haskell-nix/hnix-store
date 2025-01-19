@@ -10,7 +10,7 @@ import Test.QuickCheck (Gen, arbitrary, forAll, suchThat)
 
 import System.Nix.Arbitrary ()
 import System.Nix.Build (BuildResult(..))
-import System.Nix.Derivation qualified
+import System.Nix.Derivation.Traditional qualified
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types.Logger (Logger(..))
@@ -114,7 +114,8 @@ spec = parallel $ do
       prop "SHA512" $ roundtripS . digest @SHA512
 
     prop "Derivation" $ \sd drv ->
-      roundtripS (basicDerivation sd $ System.Nix.Derivation.name drv) drv
+      roundtripS (basicDerivation sd) $
+        System.Nix.Derivation.Traditional.withoutName drv
 
     prop "ProtoVersion" $ roundtripS @() protoVersion
 

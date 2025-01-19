@@ -22,10 +22,7 @@ benchmarks =
     bench0 example =
         Criterion.bench "example" (Criterion.nf parseExample example)
 
-    name = either (error . show) id $ mkStorePathName "ghc-8.0.2-with-packages"
-
     parseExample =
         Data.Attoparsec.Text.Lazy.parse $
-            System.Nix.Derivation.ATerm.parseDerivation
+            System.Nix.Derivation.ATerm.parseTraditionalDerivation
                (StoreDir "/nix/store")
-               name

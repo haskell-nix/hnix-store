@@ -78,26 +78,27 @@
 
 module System.Nix.Derivation.ATerm
     ( -- * Types
-      Derivation
-    , Derivation'(..)
-    , DerivationOutput(..)
-    , DerivationInputs(..)
+      TraditionalDerivation'(..)
+    , FreeformDerivationOutput(..)
+    , FreeformDerivationOutputs
+    , TraditionalDerivationInputs(..)
     , DerivedPathMap(..)
 
       -- * Parse derivations
-    , parseDerivation
-    , parseDerivationWith
-    , parseDerivationOutput
-    , parseDerivationInputs
+    , parseTraditionalDerivation
+    , parseTraditionalDerivationWith
+    , parseFreeformDerivationOutput
+    , parseTraditionalDerivationInputs
     , textParser
 
       -- * Render derivations
-    , buildDerivation
-    , buildDerivationWith
-    , buildDerivationOutput
-    , buildDerivationInputs
+    , buildTraditionalDerivation
+    , buildTraditionalDerivationWith
+    , buildFreeformDerivationOutput
+    , buildTraditionalDerivationInputs
     ) where
 
 import System.Nix.Derivation
+import System.Nix.Derivation.Traditional
 import System.Nix.Derivation.ATerm.Builder
 import System.Nix.Derivation.ATerm.Parser

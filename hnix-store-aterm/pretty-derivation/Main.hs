@@ -14,9 +14,8 @@ main = do
     text <- Data.Text.Lazy.IO.getContents
     case
       Data.Attoparsec.Text.Lazy.parse
-        (System.Nix.Derivation.ATerm.parseDerivation
-          (StoreDir "/nix/store")
-          (error "todo get name from outputs if needed"))
+        (System.Nix.Derivation.ATerm.parseTraditionalDerivation
+          (StoreDir "/nix/store"))
         text
       of
         Fail _ _ err      -> fail err

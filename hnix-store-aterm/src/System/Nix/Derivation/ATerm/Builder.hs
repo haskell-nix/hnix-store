@@ -6,10 +6,10 @@
 
 module System.Nix.Derivation.ATerm.Builder
     ( -- * Builder
-      buildDerivation
-    , buildDerivationWith
-    , buildDerivationOutput
-    , buildDerivationInputs
+      buildTraditionalDerivation
+    , buildTraditionalDerivationWith
+    , buildFreeformDerivationOutput
+    , buildTraditionalDerivationInputs
     ) where
 
 import Data.Map (Map)
@@ -18,8 +18,8 @@ import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder)
 import Data.Vector (Vector)
 import System.Nix.Derivation
-    ( Derivation'(..)
-    , DerivationOutput(..)
+    ( FreeformDerivationOutput(..)
+    , FreeformDerivationOutputs
     )
 import System.Nix.Derivation.Traditional
 import System.Nix.StorePath
@@ -32,42 +32,42 @@ import Data.Text.Lazy.Builder qualified
 import Data.Vector qualified
 
 -- | Render a derivation as a `Builder`
-buildDerivation
+buildTraditionalDerivation
     :: StoreDir
-    -> Derivation' TraditionalDerivationInputs DerivationOutput
+    -> TraditionalDerivation' TraditionalDerivationInputs FreeformDerivationOutputs
     -> Builder
-buildDerivation sd =
-    buildDerivationWith
-        (buildDerivationInputs sd)
-        (buildDerivationOutput sd)
+buildTraditionalDerivation sd =
+    buildTraditionalDerivationWith
+        (buildTraditionalDerivationInputs sd)
+        (\_ -> buildFreeformDerivationOutput sd)
 
 -- | Render a derivation as a `Builder` using custom
 -- renderer for storePaths, texts, outputNames and derivation inputs/outputs
-buildDerivationWith
+buildTraditionalDerivationWith
     :: (drvInputs -> Builder)
-    -> (StorePathName -> OutputName -> drvOutput -> Builder)
-    -> Derivation' drvInputs drvOutput
+    -> (OutputName -> drvOutput -> Builder)
+    -> TraditionalDerivation' drvInputs (Map OutputName drvOutput)
     -> Builder
-buildDerivationWith drvInputs drvOutput (Derivation {..}) =
+buildTraditionalDerivationWith drvInputs drvOutput (TraditionalDerivation {..}) =
         "Derive("
-    <>  mapOf keyValue0 outputs
+    <>  mapOf keyValue0 anonOutputs
     <>  ","
-    <>  drvInputs inputs
+    <>  drvInputs anonInputs
     <>  ","
-    <>  string platform
+    <>  string anonPlatform
     <>  ","
-    <>  string builder
+    <>  string anonBuilder
     <>  ","
-    <>  vectorOf string args
+    <>  vectorOf string anonArgs
     <>  ","
-    <>  mapOf keyValue1 env
+    <>  mapOf keyValue1 anonEnv
     <>  ")"
   where
     keyValue0 (key, output) =
             "("
         <>  buildOutputName key
         <>  ","
-        <>  drvOutput name key output
+        <>  drvOutput key output
         <>  ")"
 
     keyValue1 (key, value) =
@@ -77,15 +77,13 @@ buildDerivationWith drvInputs drvOutput (Derivation {..}) =
         <>  string value
         <>  ")"
 
--- | Render a @DerivationOutput@ as a `Builder` using custom
+-- | Render a @FreeformDerivationOutput@ as a `Builder` using custom
 -- renderer for storePaths
-buildDerivationOutput
+buildFreeformDerivationOutput
     :: StoreDir
-    -> StorePathName
-    -> OutputName
-    -> DerivationOutput
+    -> FreeformDerivationOutput
     -> Builder
-buildDerivationOutput storeDir drvName outputName =
+buildFreeformDerivationOutput storeDir =
   ( \RawDerivationOutput {..} ->
         string rawPath
     <>  ","
@@ -93,15 +91,15 @@ buildDerivationOutput storeDir drvName outputName =
     <>  ","
     <>  string rawHash
   )
-  . renderRawDerivationOutput storeDir drvName outputName
+  . renderRawDerivationOutput storeDir
 
--- | Render a @DerivationInputs@ as a `Builder` using custom
+-- | Render a @TraditionalDerivationInputs@ as a `Builder` using custom
 -- renderer for storePaths and output names
-buildDerivationInputs
+buildTraditionalDerivationInputs
     :: StoreDir
     -> TraditionalDerivationInputs
     -> Builder
-buildDerivationInputs storeDir (TraditionalDerivationInputs {..}) =
+buildTraditionalDerivationInputs storeDir (TraditionalDerivationInputs {..}) =
         mapOf keyValue traditionalDrvs
     <>  ","
     <>  setOf (storePath storeDir) traditionalSrcs

@@ -9,10 +9,10 @@
 
 module System.Nix.Derivation.ATerm.Parser
     ( -- * Parser
-      parseDerivation
-    , parseDerivationWith
-    , parseDerivationOutput
-    , parseDerivationInputs
+      parseTraditionalDerivation
+    , parseTraditionalDerivationWith
+    , parseFreeformDerivationOutput
+    , parseTraditionalDerivationInputs
     , textParser
     ) where
 
@@ -28,11 +28,11 @@ import Data.Text qualified
 import Data.Vector (Vector)
 import Data.Vector qualified
 
-import System.Nix.Derivation.Traditional
 import System.Nix.Derivation
-    ( Derivation'(..)
-    , DerivationOutput(..)
+    ( FreeformDerivationOutput(..)
+    , FreeformDerivationOutputs
     )
+import System.Nix.Derivation.Traditional
 import System.Nix.StorePath
 import System.Nix.OutputName
 
@@ -44,46 +44,47 @@ listOf element = do
     pure es
 
 -- | Parse a derivation
-parseDerivation :: StoreDir -> StorePathName -> Parser (Derivation' TraditionalDerivationInputs DerivationOutput)
-parseDerivation sd =
-    parseDerivationWith
-        (parseDerivationInputs sd)
-        (parseDerivationOutput sd)
+parseTraditionalDerivation
+  :: StoreDir
+  -> Parser (TraditionalDerivation' TraditionalDerivationInputs FreeformDerivationOutputs)
+parseTraditionalDerivation sd =
+    parseTraditionalDerivationWith
+        (parseTraditionalDerivationInputs sd)
+        (\_ -> parseFreeformDerivationOutput sd)
 
 -- | Parse a derivation using custom
 -- parsers for filepaths, texts, outputNames and derivation inputs/outputs
-parseDerivationWith
+parseTraditionalDerivationWith
     :: Parser drvInputs
-    -> (StorePathName -> OutputName -> Parser drvOutput)
-    -> StorePathName
-    -> Parser (Derivation' drvInputs drvOutput)
-parseDerivationWith parseInputs parseOutput name = do
+    -> (OutputName -> Parser drvOutput)
+    -> Parser (TraditionalDerivation' drvInputs (Map OutputName drvOutput))
+parseTraditionalDerivationWith parseInputs parseOutput = do
     "Derive("
 
     let keyValue0 = do
             "("
             key <- outputNameParser
             ","
-            drvOutput <- parseOutput name key
+            drvOutput <- parseOutput key
             ")"
             return (key, drvOutput)
-    outputs <- mapOf keyValue0
+    anonOutputs <- mapOf keyValue0
 
     ","
 
-    inputs <- parseInputs
+    anonInputs <- parseInputs
 
     ","
 
-    platform <- textParser
+    anonPlatform <- textParser
 
     ","
 
-    builder <- textParser
+    anonBuilder <- textParser
 
     ","
 
-    args <- vectorOf textParser
+    anonArgs <- vectorOf textParser
 
     ","
 
@@ -94,25 +95,25 @@ parseDerivationWith parseInputs parseOutput name = do
             value <- textParser
             ")"
             pure (key, value)
-    env <- mapOf keyValue1
+    anonEnv <- mapOf keyValue1
 
     ")"
 
-    pure Derivation {..}
+    pure TraditionalDerivation {..}
 
 -- | Parse a derivation output
-parseDerivationOutput :: StoreDir -> StorePathName -> OutputName -> Parser DerivationOutput
-parseDerivationOutput sd drvName outputName = do
+parseFreeformDerivationOutput :: StoreDir -> Parser FreeformDerivationOutput
+parseFreeformDerivationOutput sd = do
     rawPath <- textParser
     ","
     rawMethodHashAlgo <- textParser
     ","
     rawHash <- textParser
-    parseRawDerivationOutput sd drvName outputName $ RawDerivationOutput {..}
+    parseRawDerivationOutput sd $ RawDerivationOutput {..}
 
 -- | Parse a derivation inputs
-parseDerivationInputs :: StoreDir -> Parser TraditionalDerivationInputs
-parseDerivationInputs sd = do
+parseTraditionalDerivationInputs :: StoreDir -> Parser TraditionalDerivationInputs
+parseTraditionalDerivationInputs sd = do
     traditionalDrvs <- mapOf $ do
          "("
          key <- storePathParser sd

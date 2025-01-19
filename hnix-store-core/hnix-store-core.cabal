@@ -87,6 +87,7 @@ library
     , deepseq
     , dependent-sum > 0.7
     , dependent-sum-template >= 0.2.0.1 && < 0.3
+    , dependent-monoidal-map
     , filepath
     , hashable
     -- Required for crypton low-level type convertion

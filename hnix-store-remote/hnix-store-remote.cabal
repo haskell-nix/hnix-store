@@ -180,6 +180,7 @@ test-suite remote
     , hnix-store-core
     , hnix-store-remote
     , hnix-store-tests
+    , hnix-store-aterm
     , bytestring
     , crypton
     , some > 1.0.5 && < 2

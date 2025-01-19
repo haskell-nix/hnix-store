@@ -4,6 +4,7 @@
 {-# LANGUAGE KindSignatures    #-}
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE RankNTypes        #-}
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
@@ -15,31 +16,37 @@ module System.Nix.Derivation.Traditional
     ( RawDerivationOutput(..)
     , parseRawDerivationOutput
     , renderRawDerivationOutput
+    , TraditionalDerivation'(..)
+    , withName
+    , withoutName
     , TraditionalDerivationInputs(..)
     , inputsToTraditional
+    , inputsFromTraditional
     ) where
 
 
-import Control.Monad (when)
 import Control.DeepSeq (NFData(..))
 import Data.Constraint.Extras (Has(has))
 import Data.Dependent.Sum (DSum(..))
 import Data.Map (Map)
+import Data.Map qualified
 import Data.Map.Monoidal (MonoidalMap(..))
 import Data.Map.Monoidal qualified
+import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import Data.Some
 import Data.Text (Text)
 import Data.Text qualified
 import Data.These (These(..))
-import GHC.Generics (Generic)
+import Data.Vector (Vector)
+import Data.Traversable (for)
+import GHC.Generics (Generic, (:.:)(..))
 
 import System.Nix.ContentAddress (ContentAddressMethod(..))
 import System.Nix.Derivation
 import System.Nix.Hash
-import System.Nix.OutputName (OutputName, outputStoreObjectName)
+import System.Nix.OutputName (OutputName)
 import System.Nix.StorePath
-import System.Nix.StorePath.ContentAddressed
 
 -- | Useful for the ATerm format, and remote protocols that need the same parsing
 -- If it won't for the protocol, we would just inline this into the ATerm code proper.
@@ -53,63 +60,41 @@ parseRawDerivationOutput
   :: forall m
   .  MonadFail m
   => StoreDir
-  -> StorePathName
-  -> OutputName
   -> RawDerivationOutput
-  -> m DerivationOutput
-parseRawDerivationOutput storeDir drvName outputName (RawDerivationOutput {..}) = do
-    let onNonEmptyText :: Text -> (Text -> m a) -> m (Maybe a)
-        onNonEmptyText = flip $ \f -> \case
-          "" -> pure Nothing
-          t -> Just <$> f t
-    mPath <- onNonEmptyText rawPath $ \t -> case System.Nix.StorePath.parsePathFromText storeDir t of
-      Left e -> fail $ show e -- TODO
-      Right sp -> pure sp
-    mHashAlgo <- onNonEmptyText rawMethodHashAlgo splitMethodHashAlgo
-    mHash <- onNonEmptyText rawHash pure
-    case (mPath, mHashAlgo, mHash) of
-        (Just path, Nothing, Nothing) ->
-              pure InputAddressedDerivationOutput {..}
-        (Just path, Just (method, Some hashAlgo), Just hash0) -> do
-              hash' <- either fail pure $ has @NamedAlgo hashAlgo $
-                  decodeDigestWith NixBase32 hash0
-              let hash = hashAlgo :=> hash'
-              fullOutputName <- either (fail . show) pure $
-                outputStoreObjectName drvName outputName
-              let expectedPath = makeFixedOutputPath storeDir method hash mempty fullOutputName
-              when (path /= expectedPath) $
-                fail "fixed output path does not match info"
-              pure FixedDerivationOutput {..}
-        (Nothing, Just (method, hashAlgo), Nothing) -> do
-              pure ContentAddressedDerivationOutput {..}
-        _ ->
-            fail "bad output in derivation"
+  -> m FreeformDerivationOutput
+parseRawDerivationOutput storeDir (RawDerivationOutput {..}) = do
+  let onNonEmptyText :: Text -> (Text -> m a) -> m (Maybe a)
+      onNonEmptyText = flip $ \f -> \case
+        "" -> pure Nothing
+        t -> Just <$> f t
+  mPath <- onNonEmptyText rawPath $ \t -> case System.Nix.StorePath.parsePathFromText storeDir t of
+    Left e -> fail $ show e -- TODO
+    Right sp -> pure sp
+  mMethodHashAlgo <- onNonEmptyText rawMethodHashAlgo splitMethodHashAlgo
+  mHash0 <- onNonEmptyText rawHash pure
+  mContentAddressing <- case mMethodHashAlgo of
+    Nothing -> case mHash0 of
+      Nothing -> pure Nothing
+      Just _ -> fail "Hash without method and hash algo is not allowed"
+    Just (method, Some hashAlgo) -> do
+      mHash <- for mHash0 $ \hash0 ->
+        either fail pure $ has @NamedAlgo hashAlgo $
+          decodeDigestWith NixBase32 hash0
+      pure $ Just (method, hashAlgo :=> Comp1 mHash)
+  pure FreeformDerivationOutput { mPath, mContentAddressing }
 
 renderRawDerivationOutput
     :: StoreDir
-    -> StorePathName
-    -> OutputName
-    -> DerivationOutput
+    -> FreeformDerivationOutput
     -> RawDerivationOutput
-renderRawDerivationOutput storeDir drvName outputName = \case
-  InputAddressedDerivationOutput {..} -> RawDerivationOutput
-    { rawPath = storePathToText storeDir path
-    , rawMethodHashAlgo = ""
-    , rawHash = ""
+renderRawDerivationOutput storeDir (FreeformDerivationOutput {..}) =
+  RawDerivationOutput
+    { rawPath = fromMaybe "" $ storePathToText storeDir <$> mPath
+    , rawMethodHashAlgo = flip (maybe "") mContentAddressing $ \(method, hashAlgo :=> _) ->
+        buildMethodHashAlgo method $ Some hashAlgo
+    , rawHash = fromMaybe "" $ mContentAddressing >>= \(_, _ :=> Comp1 hash') ->
+        encodeDigestWith NixBase32 <$> hash'
     }
-  FixedDerivationOutput {..} -> case hash of
-    hashAlgo :=> hash' -> RawDerivationOutput
-      { rawPath = storePathToText storeDir $ makeFixedOutputPath storeDir method hash mempty
-          $ either (error . show) id -- TODO do better
-          $ outputStoreObjectName drvName outputName
-      , rawMethodHashAlgo = buildMethodHashAlgo method $ Some hashAlgo
-      , rawHash = encodeDigestWith NixBase32 hash'
-      }
-  ContentAddressedDerivationOutput {..} -> RawDerivationOutput
-      { rawPath = ""
-      , rawMethodHashAlgo = buildMethodHashAlgo method hashAlgo
-      , rawHash = ""
-      }
 
 buildMethodHashAlgo :: ContentAddressMethod -> Some HashAlgo -> Text
 buildMethodHashAlgo method hashAlgo = Data.Text.intercalate ":" $
@@ -129,6 +114,51 @@ splitMethodHashAlgo methodHashAlgo = do
     _ -> fail "invalid number of colons or unknown CA method prefix"
   hashAlgo <- either fail pure $ textToAlgo hashAlgoS
   pure (method, hashAlgo)
+
+----------------
+
+-- | The ATerm format doesn't include the derivation name. That must
+-- instead be gotten out of band, e.g. from the Store Path.
+data TraditionalDerivation' inputs outputs = TraditionalDerivation
+    { anonOutputs   :: outputs
+    -- ^ Outputs produced by this derivation where keys are output names
+    , anonInputs    :: inputs
+    -- ^ Inputs (sources and derivations)
+    , anonPlatform  :: Text
+    -- ^ Platform required for this derivation
+    , anonBuilder   :: Text
+    -- ^ Code to build the derivation, which can be a path or a builtin function
+    , anonArgs      :: Vector Text
+    -- ^ Arguments passed to the executable used to build to derivation
+    , anonEnv       :: Map Text Text
+    -- ^ Environment variables provided to the executable used to build the
+    -- derivation
+    } deriving (Eq, Generic, Ord, Show)
+
+instance (NFData inputs, NFData outputs) => NFData (TraditionalDerivation' inputs outputs)
+
+withName :: StorePathName -> TraditionalDerivation' inputs outputs -> Derivation' inputs outputs
+withName name drv0 = Derivation
+  { name = name
+  , outputs = anonOutputs drv0
+  , inputs = anonInputs drv0
+  , platform = anonPlatform drv0
+  , builder = anonBuilder drv0
+  , args = anonArgs drv0
+  , env = anonEnv drv0
+  }
+
+withoutName :: Derivation' inputs outputs -> TraditionalDerivation' inputs outputs
+withoutName drv0 = TraditionalDerivation
+  { anonOutputs = outputs drv0
+  , anonPlatform = platform drv0
+  , anonInputs = inputs drv0
+  , anonBuilder = builder drv0
+  , anonArgs = args drv0
+  , anonEnv = env drv0
+  }
+
+----------------
 
 -- | Useful for the ATerm format
 data TraditionalDerivationInputs = TraditionalDerivationInputs
@@ -162,3 +192,10 @@ inputsToTraditional is = (\drvs -> TraditionalDerivationInputs
            _ -> Left storePath -- TODO make better error, e.g. by partitioning the map
         ) . unChildNode)
      . unDerivedPathMap
+
+inputsFromTraditional :: TraditionalDerivationInputs -> DerivationInputs
+inputsFromTraditional TraditionalDerivationInputs { traditionalSrcs, traditionalDrvs } = DerivationInputs
+  { srcs = traditionalSrcs
+  , drvs = DerivedPathMap $ Data.Map.Monoidal.fromList $
+      fmap (fmap ChildNode . fmap This) (Data.Map.toList traditionalDrvs)
+  }
