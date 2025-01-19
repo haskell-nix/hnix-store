@@ -158,7 +158,7 @@ buildDerivation sp mode = do
            Nothing -> throwError $ RemoteStoreError_DerivationParse "TODO get error"
            Just os -> pure os
         let drv' = System.Nix.Derivation.Traditional.withName name $
-              System.Nix.Derivation.Traditional.TraditionalDerivation
+              drv
                 { System.Nix.Derivation.Traditional.anonOutputs = outputs
                 , System.Nix.Derivation.Traditional.anonInputs =
                     System.Nix.Derivation.Traditional.traditionalSrcs
