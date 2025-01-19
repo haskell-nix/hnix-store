@@ -9,16 +9,16 @@ import System.Nix.Arbitrary.Hash ()
 import System.Nix.Arbitrary.OutputName ()
 import System.Nix.Arbitrary.Signature ()
 import System.Nix.Arbitrary.StorePath ()
-import System.Nix.Realisation (DerivationOutput, Realisation)
+import System.Nix.Realisation (BuildTraceKey, Realisation)
 
 import Test.QuickCheck (Arbitrary(..))
 import Test.QuickCheck.Arbitrary.Generic (Arg, GenericArbitrary(..), genericArbitrary, genericShrink)
 
 instance
-  ( Arg (DerivationOutput outputName) outputName
+  ( Arg (BuildTraceKey outputName) outputName
   , Arbitrary outputName
   ) =>
-  Arbitrary (DerivationOutput outputName)
+  Arbitrary (BuildTraceKey outputName)
   where
     arbitrary = genericArbitrary
     shrink = genericShrink

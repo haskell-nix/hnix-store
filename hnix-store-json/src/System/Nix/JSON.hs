@@ -13,7 +13,7 @@ import Data.Aeson
 import Deriving.Aeson
 import System.Nix.Base (BaseEncoding(NixBase32))
 import System.Nix.OutputName (OutputName)
-import System.Nix.Realisation (DerivationOutput, Realisation, RealisationWithId(..))
+import System.Nix.Realisation (BuildTraceKey, Realisation, RealisationWithId(..))
 import System.Nix.Signature (Signature)
 import System.Nix.StorePath (StoreDir(..), StorePath, StorePathName, StorePathHashPart)
 
@@ -77,46 +77,46 @@ instance FromJSON StorePath where
     . Data.Text.cons '/'
     )
 
-instance ToJSON (DerivationOutput OutputName) where
+instance ToJSON (BuildTraceKey OutputName) where
   toJSON =
     toJSON
     . Data.Text.Lazy.toStrict
     . Data.Text.Lazy.Builder.toLazyText
-    . System.Nix.Realisation.derivationOutputBuilder
+    . System.Nix.Realisation.buildTraceKeyBuilder
         (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
 
   toEncoding =
     toEncoding
     . Data.Text.Lazy.toStrict
     . Data.Text.Lazy.Builder.toLazyText
-    . System.Nix.Realisation.derivationOutputBuilder
+    . System.Nix.Realisation.buildTraceKeyBuilder
         (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
 
-instance ToJSONKey (DerivationOutput OutputName) where
+instance ToJSONKey (BuildTraceKey OutputName) where
   toJSONKey =
     Data.Aeson.Types.toJSONKeyText
     $ Data.Text.Lazy.toStrict
     . Data.Text.Lazy.Builder.toLazyText
-    . System.Nix.Realisation.derivationOutputBuilder
+    . System.Nix.Realisation.buildTraceKeyBuilder
         (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
 
-instance FromJSON (DerivationOutput OutputName) where
+instance FromJSON (BuildTraceKey OutputName) where
   parseJSON =
-    withText "DerivationOutput OutputName"
+    withText "BuildTraceKey OutputName"
     ( either
         (fail . show)
         pure
-    . System.Nix.Realisation.derivationOutputParser
+    . System.Nix.Realisation.buildTraceKeyParser
         System.Nix.OutputName.mkOutputName
     )
 
-instance FromJSONKey (DerivationOutput OutputName) where
+instance FromJSONKey (BuildTraceKey OutputName) where
   fromJSONKey =
     FromJSONKeyTextParser
     ( either
         (fail . show)
         pure
-    . System.Nix.Realisation.derivationOutputParser
+    . System.Nix.Realisation.buildTraceKeyParser
         System.Nix.OutputName.mkOutputName
     )
 
@@ -159,8 +159,8 @@ deriving
   instance FromJSON Realisation
 
 -- For a keyed version of Realisation
--- we use RealisationWithId (DerivationOutput OutputName, Realisation)
--- instead of Realisation.id :: (DerivationOutput OutputName)
+-- we use RealisationWithId (BuildTraceKey OutputName, Realisation)
+-- instead of Realisation.id :: (BuildTraceKey OutputName)
 -- field.
 instance ToJSON RealisationWithId where
   toJSON (RealisationWithId (drvOut, r)) =

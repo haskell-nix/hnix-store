@@ -10,7 +10,7 @@ import Test.Hspec.Nix (forceRight, roundtrips)
 import System.Nix.Arbitrary ()
 import System.Nix.JSON ()
 import System.Nix.OutputName (OutputName)
-import System.Nix.Realisation (DerivationOutput(..), Realisation(..))
+import System.Nix.Realisation (BuildTraceKey(..), Realisation(..))
 import System.Nix.Signature (Signature)
 import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart)
 
@@ -31,14 +31,14 @@ roundtripsJSON
   -> Expectation
 roundtripsJSON = roundtrips encode decode
 
-sampleDerivationOutput :: DerivationOutput OutputName
-sampleDerivationOutput = DerivationOutput
-  { derivationOutputHash =
+sampleBuildTraceKey :: BuildTraceKey OutputName
+sampleBuildTraceKey = BuildTraceKey
+  { buildTraceKeyHash =
       forceRight
       $ System.Nix.Hash.mkNamedDigest
           "sha256"
           "1b4sb93wp679q4zx9k1ignby1yna3z7c4c2ri3wphylbc2dwsys0"
-  , derivationOutputOutput =
+  , buildTraceKeyOutput =
       forceRight
       $ System.Nix.OutputName.mkOutputName "foo"
   }
@@ -70,7 +70,7 @@ sampleRealisation1 = Realisation
           ]
   , realisationDependencies =
       Data.Map.fromList
-      [ ( sampleDerivationOutput
+      [ ( sampleBuildTraceKey
         , forceRight
           $ System.Nix.StorePath.parsePathFromText
               def
@@ -86,13 +86,13 @@ spec = do
       prop "StorePathName" $ roundtripsJSON @StorePathName
       prop "StorePathHashPart" $ roundtripsJSON @StorePathHashPart
       prop "StorePath" $ roundtripsJSON @StorePath
-      prop "DerivationOutput OutputName" $ roundtripsJSON @(DerivationOutput OutputName)
+      prop "BuildTraceKey OutputName" $ roundtripsJSON @(BuildTraceKey OutputName)
       prop "Signature" $ roundtripsJSON @Signature
       prop "Realisation" $ roundtripsJSON @Realisation
 
     describe "ground truth" $ do
-      it "sampleDerivationOutput matches preimage" $
-        encode sampleDerivationOutput `shouldBe` "\"sha256:1b4sb93wp679q4zx9k1ignby1yna3z7c4c2ri3wphylbc2dwsys0!foo\""
+      it "sampleBuildTraceKey matches preimage" $
+        encode sampleBuildTraceKey `shouldBe` "\"sha256:1b4sb93wp679q4zx9k1ignby1yna3z7c4c2ri3wphylbc2dwsys0!foo\""
 
       it "sampleRealisation0 matches preimage" $
         encode sampleRealisation0 `shouldBe` "{\"outPath\":\"cdips4lakfk1qbf1x68fq18wnn3r5r14-builder.sh\",\"signatures\":[],\"dependentRealisations\":{}}"

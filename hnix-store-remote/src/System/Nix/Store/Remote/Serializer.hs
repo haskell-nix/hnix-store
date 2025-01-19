@@ -86,7 +86,7 @@ module System.Nix.Store.Remote.Serializer
   , opSuccess
   , noop
   -- *** Realisation
-  , derivationOutputTyped
+  , buildTraceKeyTyped
   , realisation
   , realisationWithId
   -- *** BuildResult
@@ -159,7 +159,7 @@ import System.Nix.Hash qualified
 import System.Nix.JSON ()
 import System.Nix.OutputName (OutputName)
 import System.Nix.OutputName qualified
-import System.Nix.Realisation (DerivationOutputError, Realisation(..), RealisationWithId(..))
+import System.Nix.Realisation (BuildTraceKeyError, Realisation(..), RealisationWithId(..))
 import System.Nix.Realisation qualified
 import System.Nix.Signature (Signature, NarSignature)
 import System.Nix.Signature qualified
@@ -194,7 +194,7 @@ data SError
   | SError_ContentAddress String
   | SError_DerivingPath
   | SError_DerivedPath ParseOutputsError
-  | SError_DerivationOutput DerivationOutputError
+  | SError_BuildTraceKey BuildTraceKeyError
   | SError_Digest String
   | SError_EnumOutOfMinBound Int
   | SError_EnumOutOfMaxBound Int
@@ -1328,7 +1328,7 @@ storeRequest storeDir pv = Serializer
 
 data ReplySError
   = ReplySError_PrimGet SError
-  | ReplySError_DerivationOutput SError
+  | ReplySError_BuildTraceKey SError
   | ReplySError_GCResult SError
   | ReplySError_Metadata SError
   | ReplySError_Missing SError
@@ -1365,20 +1365,20 @@ noop ret = Serializer
 
 -- *** Realisation
 
-derivationOutputTyped :: NixSerializer ReplySError (System.Nix.Realisation.DerivationOutput OutputName)
-derivationOutputTyped = mapErrorS ReplySError_DerivationOutput $
+buildTraceKeyTyped :: NixSerializer ReplySError (System.Nix.Realisation.BuildTraceKey OutputName)
+buildTraceKeyTyped = mapErrorS ReplySError_BuildTraceKey $
   mapPrismSerializer
     AlmostPrism
     { _almostPrism_get =
       ExceptT
       . Identity
-      . Data.Bifunctor.first SError_DerivationOutput
-      . System.Nix.Realisation.derivationOutputParser
+      . Data.Bifunctor.first SError_BuildTraceKey
+      . System.Nix.Realisation.buildTraceKeyParser
           System.Nix.OutputName.mkOutputName
     , _almostPrism_put =
       Data.Text.Lazy.toStrict
       . Data.Text.Lazy.Builder.toLazyText
-      . System.Nix.Realisation.derivationOutputBuilder
+      . System.Nix.Realisation.buildTraceKeyBuilder
           (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
     }
     text
@@ -1421,7 +1421,7 @@ buildResult storeDir pv = Serializer
           . Data.Map.Strict.fromList
           . map (\(_, RealisationWithId (a, b)) -> (a, b))
           . Data.Map.Strict.toList
-          <$> getS (mapS derivationOutputTyped realisationWithId)
+          <$> getS (mapS buildTraceKeyTyped realisationWithId)
         else pure Nothing
       pure BuildResult{..}
 
@@ -1434,7 +1434,7 @@ buildResult storeDir pv = Serializer
         putS time $ Data.Maybe.fromMaybe t0 buildResultStartTime
         putS time $ Data.Maybe.fromMaybe t0 buildResultStopTime
       Control.Monad.when (protoVersion_minor pv >= 28)
-        $ putS (mapS derivationOutputTyped realisationWithId)
+        $ putS (mapS buildTraceKeyTyped realisationWithId)
         $ Data.Map.Strict.fromList
         $ map (\(a, b) -> (a, RealisationWithId (a, b)))
         $ Data.Map.Strict.toList
