@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module JSONSpec where
 
-import Data.Aeson (ToJSON, FromJSON, decode, encode)
+import Data.Aeson (ToJSON, FromJSON, eitherDecode, encode)
 import Data.Default.Class (Default(def))
 import Data.Map qualified
 import Data.Set qualified
@@ -29,7 +29,7 @@ roundtripsJSON
      )
   => a
   -> Expectation
-roundtripsJSON = roundtrips encode decode
+roundtripsJSON = roundtrips encode eitherDecode
 
 sampleBuildTraceKey :: BuildTraceKey OutputName
 sampleBuildTraceKey = BuildTraceKey
@@ -87,7 +87,7 @@ spec = do
       prop "StorePathHashPart" $ roundtripsJSON @StorePathHashPart
       prop "StorePath" $ roundtripsJSON @StorePath
       prop "FreeformDerivationOutput" $ roundtripsJSON @FreeformDerivationOutput
-      --prop "Derivation" $ roundtripsJSON @Derivation
+      prop "Derivation" $ roundtripsJSON @Derivation
       prop "BuildTraceKey OutputName" $ roundtripsJSON @(BuildTraceKey OutputName)
       prop "Signature" $ roundtripsJSON @Signature
       prop "Realisation" $ roundtripsJSON @Realisation

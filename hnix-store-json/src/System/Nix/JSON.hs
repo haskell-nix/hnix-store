@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-|
 Description : JSON serialization
@@ -10,23 +11,27 @@ which is required for `-remote`.
 module System.Nix.JSON where
 
 import Data.Aeson
-import Data.Default.Class
 import Data.Aeson.KeyMap qualified
 import Data.Aeson.Types qualified
 import Data.Attoparsec.Text qualified
 import Data.Char qualified
 import Data.Constraint.Extras (Has(has))
+import Data.Default.Class
 import Data.Dependent.Sum
-import Data.Maybe (maybeToList)
+import Data.Map.Monoidal qualified
+import Data.Maybe (fromMaybe, maybeToList)
+import Data.Set qualified
 import Data.Some
 import Data.Text.Lazy qualified
 import Data.Text.Lazy.Builder qualified
+import Data.These
+import Data.These.Combinators
 import Deriving.Aeson
 import GHC.Generics
 
 import System.Nix.Base qualified
 import System.Nix.ContentAddress
-import System.Nix.Derivation (FreeformDerivationOutput(..))
+import System.Nix.Derivation
 import System.Nix.Hash
 import System.Nix.OutputName (OutputName)
 import System.Nix.OutputName qualified
@@ -34,8 +39,7 @@ import System.Nix.Realisation (BuildTraceKey, Realisation, RealisationWithId(..)
 import System.Nix.Realisation qualified
 import System.Nix.Signature (Signature)
 import System.Nix.Signature qualified
-import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart)
-import System.Nix.StorePath qualified
+import System.Nix.StorePath
 
 instance ToJSON StorePathName where
   toJSON = toJSON . System.Nix.StorePath.unStorePathName
@@ -80,6 +84,31 @@ instance FromJSON StorePath where
     . System.Nix.StorePath.parsePathFromText def
     )
 
+instance ToJSONKey StorePath where
+  toJSONKey = Data.Aeson.Types.toJSONKeyText $ System.Nix.StorePath.storePathToText def
+
+instance FromJSONKey StorePath where
+  fromJSONKey = FromJSONKeyTextParser $ either (fail . show) pure . System.Nix.StorePath.parsePathFromText def
+
+deriving newtype instance FromJSON DerivedPathMap
+deriving newtype instance ToJSON DerivedPathMap
+
+instance FromJSON ChildNode where
+  parseJSON = withObject "ChildNode" $ \obj -> do
+    outputs <- obj .: "outputs"
+    dynamicOutputs <- obj .: "dynamicOutputs"
+    ChildNode <$> case (Data.Set.null outputs, Data.Map.Monoidal.null dynamicOutputs) of
+      (False, True) -> pure $ This outputs
+      (True, False) -> pure $ That dynamicOutputs
+      (False, False) -> pure $ These outputs dynamicOutputs
+      (True, True) -> fail "outputs and dynamic outputs cannot both be empty"
+
+instance ToJSON ChildNode where
+  toJSON (ChildNode cn) = object
+    [ "outputs" .= fromMaybe Data.Set.empty (justHere cn)
+    , "dynamicOutputs" .= fromMaybe Data.Map.Monoidal.empty (justThere cn)
+    ]
+
 instance FromJSON FreeformDerivationOutput where
   parseJSON = withObject "FreeformDerivationOutput" $ \obj ->
     FreeformDerivationOutput
@@ -108,6 +137,46 @@ instance ToJSON FreeformDerivationOutput where
         , maybeToList $ ("hash" .=) . encodeDigestWith Base16 <$> mHash
         ]
       ]
+
+instance FromJSONKey StorePathName where
+  fromJSONKey = FromJSONKeyTextParser $ either (fail . show) pure . mkStorePathName
+
+instance ToJSONKey StorePathName where
+  toJSONKey = Data.Aeson.Types.toJSONKeyText unStorePathName
+
+deriving newtype instance FromJSON OutputName
+deriving newtype instance ToJSON OutputName
+deriving newtype instance FromJSONKey OutputName
+deriving newtype instance ToJSONKey OutputName
+
+-- | TODO: hacky, we need to stop assuming StoreDir for
+-- StorePath to and from JSON
+instance FromJSON Derivation where
+  parseJSON = withObject "Derivation" $ \v -> do
+    name <- v .: "name"
+    inputs <- DerivationInputs
+      <$> v .: "inputSrcs"
+      <*> v .: "inputDrvs"
+    Derivation name
+      <$> (toSpecificOutputs def name =<< v .: "outputs")
+      <*> pure inputs
+      <*> v .: "system"
+      <*> v .: "builder"
+      <*> v .: "args"
+      <*> v .: "env"
+
+instance ToJSON Derivation where
+  toJSON (Derivation name outputs (DerivationInputs inputSrcs inputDrvs) system builder args env) =
+    object [ "name" .= name
+           , "outputs" .= fromSpecificOutputs def name outputs
+           , "inputSrcs" .= inputSrcs
+           , "inputDrvs" .= inputDrvs
+           , "system" .= system
+           , "builder" .= builder
+           , "args" .= args
+           , "env" .= env
+           ]
+
 
 instance ToJSON (BuildTraceKey OutputName) where
   toJSON =

@@ -41,11 +41,14 @@ library
     , aeson >= 2.0 && < 3.0
     , attoparsec
     , constraints-extras
+    , containers
     , data-default-class
     , dependent-sum
     , deriving-aeson >= 0.2
     , hnix-store-core >= 0.8
+    , monoidal-containers
     , text
+    , these
   hs-source-dirs:      src
 
 test-suite json
