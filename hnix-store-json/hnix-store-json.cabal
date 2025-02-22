@@ -38,10 +38,13 @@ library
       System.Nix.JSON
   build-depends:
       base >=4.12 && <5
-    , hnix-store-core >= 0.8
     , aeson >= 2.0 && < 3.0
     , attoparsec
+    , constraints-extras
+    , data-default-class
+    , dependent-sum
     , deriving-aeson >= 0.2
+    , hnix-store-core >= 0.8
     , text
   hs-source-dirs:      src
 

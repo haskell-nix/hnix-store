@@ -10,24 +10,31 @@ which is required for `-remote`.
 module System.Nix.JSON where
 
 import Data.Aeson
-import Deriving.Aeson
-import System.Nix.Base (BaseEncoding(NixBase32))
-import System.Nix.OutputName (OutputName)
-import System.Nix.Realisation (BuildTraceKey, Realisation, RealisationWithId(..))
-import System.Nix.Signature (Signature)
-import System.Nix.StorePath (StoreDir(..), StorePath, StorePathName, StorePathHashPart)
-
+import Data.Default.Class
 import Data.Aeson.KeyMap qualified
 import Data.Aeson.Types qualified
 import Data.Attoparsec.Text qualified
 import Data.Char qualified
-import Data.Text qualified
+import Data.Constraint.Extras (Has(has))
+import Data.Dependent.Sum
+import Data.Maybe (maybeToList)
+import Data.Some
 import Data.Text.Lazy qualified
 import Data.Text.Lazy.Builder qualified
+import Deriving.Aeson
+import GHC.Generics
+
 import System.Nix.Base qualified
+import System.Nix.ContentAddress
+import System.Nix.Derivation (FreeformDerivationOutput(..))
+import System.Nix.Hash
+import System.Nix.OutputName (OutputName)
 import System.Nix.OutputName qualified
+import System.Nix.Realisation (BuildTraceKey, Realisation, RealisationWithId(..))
 import System.Nix.Realisation qualified
+import System.Nix.Signature (Signature)
 import System.Nix.Signature qualified
+import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart)
 import System.Nix.StorePath qualified
 
 instance ToJSON StorePathName where
@@ -53,19 +60,16 @@ instance FromJSON StorePathHashPart where
     . System.Nix.Base.decodeWith NixBase32
     )
 
+-- | TODO: hacky, we need to stop assuming StoreDir for
+-- StorePath to and from JSON
 instance ToJSON StorePath where
   toJSON =
     toJSON
-    -- TODO: hacky, we need to stop requiring StoreDir for
-    -- StorePath rendering and have a distinct
-    -- types for rooted|unrooted paths
-    . Data.Text.drop 1
-    . System.Nix.StorePath.storePathToText (StoreDir mempty)
+    . System.Nix.StorePath.storePathToText def
 
   toEncoding =
     toEncoding
-    . Data.Text.drop 1
-    . System.Nix.StorePath.storePathToText (StoreDir mempty)
+    . System.Nix.StorePath.storePathToText def
 
 instance FromJSON StorePath where
   parseJSON =
@@ -73,9 +77,37 @@ instance FromJSON StorePath where
     ( either
         (fail . show)
         pure
-    . System.Nix.StorePath.parsePathFromText (StoreDir mempty)
-    . Data.Text.cons '/'
+    . System.Nix.StorePath.parsePathFromText def
     )
+
+instance FromJSON FreeformDerivationOutput where
+  parseJSON = withObject "FreeformDerivationOutput" $ \obj ->
+    FreeformDerivationOutput
+      <$> obj .:? "path"
+      <*> (((,) <$> (obj .:? "method") <*> (obj .:? "hashAlgo")) >>= \case
+        (Nothing, Nothing) -> pure Nothing
+        (Just methodS, Just hashAlgoS) -> do
+          method <- either fail pure $ textToMethod methodS
+          Some hashAlgo <- either fail pure $ textToAlgo hashAlgoS
+          hash <- obj .:? "hash" >>= \case
+            Nothing -> pure Nothing
+            Just hashS -> either fail pure $ has @NamedAlgo hashAlgo $
+              Just <$> decodeDigestWith Base16 hashS
+          pure $ Just (method, hashAlgo :=> Comp1 hash)
+        (Nothing, Just _) -> fail "Cannot have \"hashAlgo\" without \"method\""
+        (Just _, Nothing) -> fail "Cannot have \"method\" without \"hashAlgo\""
+      )
+
+instance ToJSON FreeformDerivationOutput where
+  toJSON (FreeformDerivationOutput mPath mContentAddressing ) =
+    object $ concat $
+      [ maybeToList $ ("path" .=) <$> mPath
+      , flip (maybe []) mContentAddressing $ \(method, hashAlgo :=> Comp1 mHash) -> concat
+        [ ["method" .= methodToText method]
+        , ["hashAlgo" .= algoToText hashAlgo]
+        , maybeToList $ ("hash" .=) . encodeDigestWith Base16 <$> mHash
+        ]
+      ]
 
 instance ToJSON (BuildTraceKey OutputName) where
   toJSON =
