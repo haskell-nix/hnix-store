@@ -16,12 +16,12 @@ spec_hash =
 
   describe "placeholder" $ do
 
-    it "" $ do
+    it "output called 'object'" $ do
 
       let objectPlaceholder = "/07fvp8gkd5mhhfi1lqjfwq7sxnpmdfczz27lizfxiz6fpwad8sy4"
       shouldBe (renderPlaceholder $ createPlaceholder (OutputName $ bad "object"))
                objectPlaceholder
-    it "" $ do
+    it "output called 'interface'" $ do
 
       let interfacePlaceholder = "/1ang7n5l91vn079693l42ahmcxgf34r0qad1l01y4lf7d3cwm5lg"
       shouldBe (renderPlaceholder $ createPlaceholder (OutputName $ bad "interface"))
@@ -38,13 +38,13 @@ spec_nixhash =
 
 
   describe "downstream placeholder" $ do
-    it "" $ do
+    it "known derivation, unknown output store path cause CA" $ do
       Right p <- pure $ parsePathFromText (StoreDir "/nix/store") "/nix/store/g1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q-foo.drv"
       let dp = renderDownstreamPlaceholder $ unknownCaOutput p (OutputName $ bad "out")
       shouldBe dp "/0c6rn30q4frawknapgwq386zq358m8r6msvywcvc89n6m5p2dgbz"
-    
-    it "" $ do
+
+    it "unknown derivation" $ do
       Right p <- pure $ parsePathFromText (StoreDir "/nix/store") "/nix/store/g1w7hy3qg1w7hy3qg1w7hy3qg1w7hy3q-foo.drv.drv"
       let dp = renderDownstreamPlaceholder $ unknownDerivation (unknownCaOutput p (OutputName $ bad "out")) (OutputName $ bad "out")
       shouldBe dp "/0gn6agqxjyyalf0dpihgyf49xq5hqxgw100f0wydnj6yqrhqsb3w"
-    
+

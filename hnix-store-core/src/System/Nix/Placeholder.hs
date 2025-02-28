@@ -12,6 +12,7 @@ module System.Nix.Placeholder
   , downstreamPlaceholderFromSingleDerivedPathBuilt
   ) where
 
+import Data.ByteArray qualified
 import Crypto.Hash (Digest, SHA256)
 import Crypto.Hash qualified
 import Data.Text (Text)
@@ -23,8 +24,7 @@ import System.Nix.Hash
 import System.Nix.StorePath
 import System.Nix.DerivedPath
 import System.Nix.OutputName
-
-import Debug.Trace
+import System.Nix.Hash.Truncation
 
 -- | For a derivation's own outputs
 newtype Placeholder = Placeholder
@@ -82,7 +82,7 @@ renderDownstreamPlaceholder (DownstreamPlaceholder h) = T.cons '/' (encodeDigest
 unknownCaOutput :: StorePath -> OutputName -> DownstreamPlaceholder
 unknownCaOutput drvPath outputName =
   let
-    clearText = traceShowId $ T.intercalate ":"
+    clearText = T.intercalate ":"
       [ "nix-upstream-output"
       , storePathHashPartToText $ storePathHash drvPath
       , either (error . show) unStorePathName $ do
@@ -99,9 +99,9 @@ unknownCaOutput drvPath outputName =
 unknownDerivation :: DownstreamPlaceholder -> OutputName -> DownstreamPlaceholder
 unknownDerivation (DownstreamPlaceholder h) outputName =
   let
-    clearText = traceShowId $ T.intercalate ":"
+    clearText = T.intercalate ":"
       [ "nix-computed-output"
-      , encodeDigestWith NixBase32 h
+      , encodeWith NixBase32 $ System.Nix.Hash.Truncation.truncateInNixWay 20 $ Data.ByteArray.convert h
       , unStorePathName $ unOutputName outputName
       ]
   in DownstreamPlaceholder (Crypto.Hash.hash $ T.encodeUtf8 clearText)
