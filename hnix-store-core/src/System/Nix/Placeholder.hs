@@ -1,11 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module System.Nix.Placeholder
-  ( DownstreamPlaceholder
-  , render
+  ( Placeholder
+  , createPlaceholder
+  , renderPlaceholder
+
+  , DownstreamPlaceholder
+  , renderDownstreamPlaceholder
   , unknownCaOutput
   , unknownDerivation
-  , fromSingleDerivedPathBuilt
+  , downstreamPlaceholderFromSingleDerivedPathBuilt
   ) where
 
 import Crypto.Hash (Digest, SHA256)
@@ -19,6 +23,26 @@ import System.Nix.Hash
 import System.Nix.StorePath
 import System.Nix.DerivedPath
 import System.Nix.OutputName
+
+-- | For a derivation's own outputs
+newtype Placeholder = Placeholder
+  { placeholder_hash :: Digest SHA256
+  } deriving (Show, Eq)
+
+-- | Given an output name, make a placeholder
+createPlaceholder :: OutputName -> Placeholder
+createPlaceholder outputName =
+  let
+    clearText = T.intercalate ":"
+      [ "nix-output"
+      , unStorePathName $ unOutputName outputName
+      ]
+  in Placeholder (Crypto.Hash.hash $ T.encodeUtf8 clearText)
+
+-- | This creates an opaque and almost certainly unique string
+-- deterministically from the placeholder.
+renderPlaceholder :: DownstreamPlaceholder -> Text
+renderPlaceholder (DownstreamPlaceholder h) = T.cons '/' (encodeDigestWith NixBase32 h)
 
 -- | Downstream Placeholders are opaque and almost certainly unique
 -- values used to allow derivations to refer to store objects which are
@@ -40,13 +64,13 @@ import System.Nix.OutputName
 -- resolving logic can substitute those strings for store paths when
 -- resolving `Derivation.inputs.drvs` to `BasicDerivation.input.srcs`.
 newtype DownstreamPlaceholder = DownstreamPlaceholder
-  { hash :: Digest SHA256
+  { downstreamPlaceholder_hash :: Digest SHA256
   } deriving (Show, Eq)
 
 -- | This creates an opaque and almost certainly unique string
 -- deterministically from the placeholder.
-render :: DownstreamPlaceholder -> Text
-render (DownstreamPlaceholder h) = T.cons '/' (encodeDigestWith NixBase32 h)
+renderDownstreamPlaceholder :: DownstreamPlaceholder -> Text
+renderDownstreamPlaceholder (DownstreamPlaceholder h) = T.cons '/' (encodeDigestWith NixBase32 h)
 
 -- | Create a placeholder for an unknown output of a content-addressed
 -- derivation.
@@ -55,12 +79,13 @@ render (DownstreamPlaceholder h) = T.cons '/' (encodeDigestWith NixBase32 h)
 -- the output doesn't yet have a known store path.
 unknownCaOutput :: StorePath -> OutputName -> DownstreamPlaceholder
 unknownCaOutput drvPath outputName =
-  let clearText = T.intercalate ":"
-        [ "nix-upstream-output"
-        , storePathHashPartToText $ storePathHash drvPath
-        , T.dropEnd 4 (unStorePathName $ storePathName drvPath) -- Remove ".drv" extension
-        , unStorePathName $ unOutputName outputName
-        ]
+  let
+    clearText = T.intercalate ":"
+      [ "nix-upstream-output"
+      , storePathHashPartToText $ storePathHash drvPath
+      , T.dropEnd 4 (unStorePathName $ storePathName drvPath) -- Remove ".drv" extension
+      , unStorePathName $ unOutputName outputName
+      ]
   in DownstreamPlaceholder (Crypto.Hash.hash $ T.encodeUtf8 clearText)
 
 -- | Create a placehold for the output of an unknown derivation.
@@ -70,11 +95,12 @@ unknownCaOutput drvPath outputName =
 -- and we just have (another) placeholder for it.
 unknownDerivation :: DownstreamPlaceholder -> OutputName -> DownstreamPlaceholder
 unknownDerivation (DownstreamPlaceholder h) outputName =
-  let clearText = T.intercalate ":"
-        [ "nix-computed-output"
-        , encodeDigestWith NixBase32 h
-        , unStorePathName $ unOutputName outputName
-        ]
+  let
+    clearText = T.intercalate ":"
+      [ "nix-computed-output"
+      , encodeDigestWith NixBase32 h
+      , unStorePathName $ unOutputName outputName
+      ]
   in DownstreamPlaceholder (Crypto.Hash.hash $ T.encodeUtf8 clearText)
 
 -- | Convenience constructor that handles both cases (unknown
@@ -83,9 +109,9 @@ unknownDerivation (DownstreamPlaceholder h) outputName =
 --
 -- Recursively builds up a placeholder from a
 -- `SingleDerivedPath::Built.drvPath` chain.
-fromSingleDerivedPathBuilt :: SingleDerivedPath -> OutputName -> DownstreamPlaceholder
-fromSingleDerivedPathBuilt drvPath outputName = case drvPath of
+downstreamPlaceholderFromSingleDerivedPathBuilt :: SingleDerivedPath -> OutputName -> DownstreamPlaceholder
+downstreamPlaceholderFromSingleDerivedPathBuilt drvPath outputName = case drvPath of
   SingleDerivedPath_Opaque drvPath' ->
     unknownCaOutput drvPath' outputName
   SingleDerivedPath_Built drvPath' outputName' ->
-    unknownDerivation (fromSingleDerivedPathBuilt drvPath' outputName') outputName
+    unknownDerivation (downstreamPlaceholderFromSingleDerivedPathBuilt drvPath' outputName') outputName
