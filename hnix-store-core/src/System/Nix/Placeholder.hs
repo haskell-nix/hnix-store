@@ -24,6 +24,8 @@ import System.Nix.StorePath
 import System.Nix.DerivedPath
 import System.Nix.OutputName
 
+import Debug.Trace
+
 -- | For a derivation's own outputs
 newtype Placeholder = Placeholder
   { placeholder_hash :: Digest SHA256
@@ -41,8 +43,8 @@ createPlaceholder outputName =
 
 -- | This creates an opaque and almost certainly unique string
 -- deterministically from the placeholder.
-renderPlaceholder :: DownstreamPlaceholder -> Text
-renderPlaceholder (DownstreamPlaceholder h) = T.cons '/' (encodeDigestWith NixBase32 h)
+renderPlaceholder :: Placeholder -> Text
+renderPlaceholder (Placeholder h) = T.cons '/' (encodeDigestWith NixBase32 h)
 
 -- | Downstream Placeholders are opaque and almost certainly unique
 -- values used to allow derivations to refer to store objects which are
@@ -80,11 +82,12 @@ renderDownstreamPlaceholder (DownstreamPlaceholder h) = T.cons '/' (encodeDigest
 unknownCaOutput :: StorePath -> OutputName -> DownstreamPlaceholder
 unknownCaOutput drvPath outputName =
   let
-    clearText = T.intercalate ":"
+    clearText = traceShowId $ T.intercalate ":"
       [ "nix-upstream-output"
       , storePathHashPartToText $ storePathHash drvPath
-      , T.dropEnd 4 (unStorePathName $ storePathName drvPath) -- Remove ".drv" extension
-      , unStorePathName $ unOutputName outputName
+      , either (error . show) unStorePathName $ do
+          name <- mkStorePathName $ T.dropEnd 4 (unStorePathName $ storePathName drvPath) -- Remove ".drv" extension
+          outputStoreObjectName name outputName
       ]
   in DownstreamPlaceholder (Crypto.Hash.hash $ T.encodeUtf8 clearText)
 
@@ -96,7 +99,7 @@ unknownCaOutput drvPath outputName =
 unknownDerivation :: DownstreamPlaceholder -> OutputName -> DownstreamPlaceholder
 unknownDerivation (DownstreamPlaceholder h) outputName =
   let
-    clearText = T.intercalate ":"
+    clearText = traceShowId $ T.intercalate ":"
       [ "nix-computed-output"
       , encodeDigestWith NixBase32 h
       , unStorePathName $ unOutputName outputName
