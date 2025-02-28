@@ -63,6 +63,7 @@ library
     , System.Nix.ContentAddress
     , System.Nix.Derivation
     , System.Nix.DerivedPath
+    , System.Nix.Placeholder
     , System.Nix.Fingerprint
     , System.Nix.FileContentAddress
     , System.Nix.Hash
