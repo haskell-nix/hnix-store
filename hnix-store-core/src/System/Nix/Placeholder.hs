@@ -10,6 +10,7 @@ module System.Nix.Placeholder
   , unknownCaOutput
   , unknownDerivation
   , downstreamPlaceholderFromSingleDerivedPathBuilt
+  , pathOrPlaceholderFromSingleDerivedPath
   ) where
 
 import Data.ByteArray qualified
@@ -118,3 +119,11 @@ downstreamPlaceholderFromSingleDerivedPathBuilt drvPath outputName = case drvPat
     unknownCaOutput drvPath' outputName
   SingleDerivedPath_Built drvPath' outputName' ->
     unknownDerivation (downstreamPlaceholderFromSingleDerivedPathBuilt drvPath' outputName') outputName
+
+-- | Convenience function which makes a string, using the store path if
+-- opaque, or placeholder if built.
+pathOrPlaceholderFromSingleDerivedPath :: StoreDir -> SingleDerivedPath -> Text
+pathOrPlaceholderFromSingleDerivedPath storeDir = \case
+  SingleDerivedPath_Opaque path -> storePathToText storeDir path
+  SingleDerivedPath_Built drvPath outputName -> renderDownstreamPlaceholder
+    $ downstreamPlaceholderFromSingleDerivedPathBuilt drvPath outputName
