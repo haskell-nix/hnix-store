@@ -28,8 +28,7 @@ buildDerivation = buildDerivationWith filepath' string'
 
 -- | Render a derivation as a `Builder` using custom
 -- renderer for filepath and string
-buildDerivationWith :: (Monoid fp, Monoid txt)
-                    => (fp -> Builder)
+buildDerivationWith :: (fp -> Builder)
                     -> (txt -> Builder)
                     -> Derivation fp txt
                     -> Builder
@@ -56,9 +55,9 @@ buildDerivationWith filepath string (Derivation {..}) =
         <>  ","
         <>  filepath path
         <>  ","
-        <>  string mempty
+        <>  "\"\""
         <>  ","
-        <>  string mempty
+        <>  "\"\""
         <>  ")"
 
     keyValue0 (key, FixedDerivationOutput {..}) =
@@ -76,11 +75,11 @@ buildDerivationWith filepath string (Derivation {..}) =
             "("
         <>  string key
         <>  ","
-        <>  filepath mempty
+        <>  mempty
         <>  ","
         <>  string hashAlgo
         <>  ","
-        <>  string mempty
+        <>  "\"\""
         <>  ")"
 
     keyValue1 (key, value) =
