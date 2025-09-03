@@ -11,6 +11,9 @@ jobs:
       with:
         name: "hnix-store"
         signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
+    - if: "matrix.os == 'ubuntu-latest'"
+      name: Allow unprivileged userns
+      run: sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0
     - uses: "actions/checkout@v4"
       with:
         submodules: recursive
