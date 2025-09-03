@@ -80,8 +80,8 @@ library
     , data-default-class
     , text
     , time
-    , esqueleto >= 3.5.10 && < 3.6
-    , persistent >= 2.14.5 && < 2.15
+    , esqueleto >= 3.5.10 && < 3.7
+    , persistent >= 2.14.5 && < 2.18
     , persistent-sqlite >= 2.13.1 && < 2.14
     , template-haskell
     , monad-logger
