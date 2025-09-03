@@ -1,6 +1,6 @@
 cabal-version:       2.2
 name:                hnix-store-db
-version:             0.1.0.0
+version:             0.1.0.1
 synopsis:            Nix store database support
 description:         Implementation of the Nix store database
 homepage:            https://github.com/haskell-nix/hnix-store
