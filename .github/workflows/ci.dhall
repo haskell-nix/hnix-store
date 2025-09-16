@@ -10,11 +10,18 @@ in    haskellCi.generalCi
               with extraSteps.pre
                    =
                     defSteps.extraSteps.pre
-                  # [ haskellCi.installCachixStep "hnix-store" ]
+                  # [ haskellCi.installCachixStep "hnix-store"
+                    , haskellCi.BuildStep.NameIf
+                        { name = "Allow unprivileged userns"
+                        , run =
+                            "sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0"
+                        , `if` = "matrix.os == 'ubuntu-latest'"
+                        }
+                    ]
             )
         )
         haskellCi.DhallMatrix::{
-        , ghc = [ haskellCi.GHC.GHC982, haskellCi.GHC.GHC966 ]
+        , ghc = [ haskellCi.GHC.GHC9102, haskellCi.GHC.GHC984 ]
         , os = [ haskellCi.OS.Ubuntu, haskellCi.OS.MacOS ]
         }
     : haskellCi.CI.Type

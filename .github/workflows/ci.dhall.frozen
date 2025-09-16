@@ -1,6 +1,6 @@
 let haskellCi =
       https://raw.githubusercontent.com/sorki/github-actions-dhall/main/haskell-ci.dhall
-        sha256:eff4d52e4243777fbe2c800778b24092ace8cd83165cf46b90d5c22e3ebfdd81
+        sha256:1f1a5102e99ea92eb585b4d36aaeabb0bd93d39e62ba82f3080250fdc234e33a
 
 let defSteps = haskellCi.defaultCabalSteps
 
@@ -11,11 +11,18 @@ in    haskellCi.generalCi
               with extraSteps.pre
                    =
                     defSteps.extraSteps.pre
-                  # [ haskellCi.installCachixStep "hnix-store" ]
+                  # [ haskellCi.installCachixStep "hnix-store"
+                    , haskellCi.BuildStep.NameIf
+                        { name = "Allow unprivileged userns"
+                        , run =
+                            "sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0"
+                        , `if` = "matrix.os == 'ubuntu-latest'"
+                        }
+                    ]
             )
         )
         haskellCi.DhallMatrix::{
-        , ghc = [ haskellCi.GHC.GHC982, haskellCi.GHC.GHC966 ]
+        , ghc = [ haskellCi.GHC.GHC9102, haskellCi.GHC.GHC984 ]
         , os = [ haskellCi.OS.Ubuntu, haskellCi.OS.MacOS ]
         }
     : haskellCi.CI.Type
