@@ -15,11 +15,17 @@ let
       } // (lib.filterAttrs (n: v: n != "url") x));
 in
 {
-  # srk 2024-07-28: allow template-haskell 2.22 (GHC 9.8)
-  # https://github.com/obsidiansystems/dependent-sum-template/pull/13
-  dependent-sum-template =
-    haskellLib.doJailbreak
-      hsuper.dependent-sum-template_0_2_0_1;
+  # srk 2025-09-03: until revised version lands in unstable
+  # (due to filepath bound https://github.com/Gabriella439/Haskell-Nix-Derivation-Library/pull/29)
+  nix-derivation = hself.callHackageDirect
+    { pkg = "nix-derivation";
+      ver = "1.1.3";
+      sha256 = "sha256-pklIwd0Atp45AT9x2n3PWAV7tFRqTzv89ViG2iAjoe0=";
+      rev =
+        { revision = "2";
+          sha256 = "sha256-Vv0NIHevaQOyFWBn79Q8OAYZa/Yhas/N1lBHfjANAm4=";
+        };
+    } {};
 
   hnix-store-core =
     lib.pipe
