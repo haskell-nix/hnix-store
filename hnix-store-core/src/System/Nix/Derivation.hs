@@ -6,6 +6,8 @@
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE TemplateHaskell   #-}
 {-# LANGUAGE UndecidableInstances #-}
+-- See TODOs bellow
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 -- | Shared types
 
