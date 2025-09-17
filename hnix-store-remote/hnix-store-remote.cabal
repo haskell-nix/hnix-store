@@ -184,7 +184,6 @@ test-suite remote
     , bytestring
     , crypton
     , some > 1.0.5 && < 2
-    , time
     , hspec
     , QuickCheck
     , transformers
