@@ -68,10 +68,8 @@ library
     , generic-arbitrary < 1.1
     , hashable
     , hspec
-    , monoidal-containers
     , QuickCheck
     , text
-    , these
     , time
     , unordered-containers
     , vector
@@ -98,8 +96,6 @@ test-suite props
     , hnix-store-core
     , hnix-store-tests
     , attoparsec
-    , dependent-sum
-    , containers
     , text
     , hspec
     , QuickCheck
