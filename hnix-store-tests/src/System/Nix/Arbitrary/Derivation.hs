@@ -33,12 +33,18 @@ import System.Nix.Arbitrary.OutputName ()
 -- | ensure output path name is not too long
 shortEnoughOutputName :: StorePathName -> Gen OutputName
 shortEnoughOutputName drvName =
-  if availableSpace < 1 then out
-  else oneof [out, resize availableSpace arbitrary]
+  if availableSpace < 1
+  then
+    out
+  else do
+    len <- choose (1, availableSpace)
+    oneof [out, shorten len <$> arbitrary]
  where
   nameLen = Data.Text.length (unStorePathName drvName)
   availableSpace = 211 - nameLen - 1 -- for the - in <drvName>-<outputname>
-  out = pure $ OutputName $ either undefined id $ mkStorePathName $ pack "out"
+  out = pure $ toOutputName $ pack "out"
+  shorten n = toOutputName . Data.Text.take n . unStorePathName . unOutputName
+  toOutputName = OutputName . either undefined id . mkStorePathName
 
 -- | Also ensures at least one output
 shortEnoughOutputsName :: Arbitrary a => StorePathName -> Gen (Map OutputName a)
@@ -120,7 +126,7 @@ deriving via GenericArbitrary DerivedPathMap
 
 instance Arbitrary ChildNode where
   -- Scale down exponentially, or the resulting tree may explode in size.
-  arbitrary = scale (`div` 2) $ do
+  arbitrary = scale (`div` 5) $ do
    oneof [
       ChildNode . This . Data.Set.fromList <$> ((:) <$> arbitrary <*> arbitrary)
     , ChildNode . That . Data.Map.Monoidal.fromList <$> ((:) <$> arbitrary <*> arbitrary)
