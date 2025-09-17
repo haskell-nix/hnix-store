@@ -16,7 +16,7 @@ import System.Nix.ContentAddress (ContentAddressMethod(..))
 import Data.HashSet qualified
 import System.Nix.StorePath qualified
 
-import System.Nix.Store.ReadOnly
+import System.Nix.Store.ReadOnly ()
 
 testDigest :: DSum HashAlgo Digest
 testDigest = HashAlgo_SHA256 :=> Crypto.Hash.hash @ByteString "testDigest"
