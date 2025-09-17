@@ -1395,7 +1395,7 @@ buildResult
   :: StoreDir
   -> ProtoVersion
   -> NixSerializer ReplySError BuildResult
-buildResult storeDir pv = Serializer
+buildResult _storeDir pv = Serializer
   { getS = do
       buildResultStatus <- mapGetER $ getS enum
       buildResultErrorMessage <- mapGetER $ getS maybeText
