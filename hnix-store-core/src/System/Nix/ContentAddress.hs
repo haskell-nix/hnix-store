@@ -2,6 +2,8 @@
 
 module System.Nix.ContentAddress (
     ContentAddress (..)
+  , methodToText
+  , textToMethod
   , ContentAddressMethod (..)
   , contentAddressBuilder
   , contentAddressParser
@@ -10,18 +12,20 @@ module System.Nix.ContentAddress (
   ) where
 
 import Control.Applicative
+import Control.DeepSeq (NFData)
 import Crypto.Hash (Digest)
 import Data.Attoparsec.Text (Parser)
+import Data.Attoparsec.Text qualified
 import Data.Dependent.Sum (DSum)
 import Data.Text (Text)
+import Data.Text qualified
+import Data.Text.Lazy qualified
 import Data.Text.Lazy.Builder (Builder)
+import Data.Text.Lazy.Builder qualified
 import GHC.Generics (Generic)
-import System.Nix.Hash (HashAlgo)
 
-import qualified Data.Attoparsec.Text
-import qualified Data.Text.Lazy
-import qualified Data.Text.Lazy.Builder
-import qualified System.Nix.Hash
+import System.Nix.Hash (HashAlgo)
+import System.Nix.Hash qualified
 
 data ContentAddressMethod
   = ContentAddressMethod_Flat
@@ -31,6 +35,21 @@ data ContentAddressMethod
   -- addTextToStore. It is addressed according to a sha256sum of the
   -- file contents.
   deriving (Eq, Generic, Ord, Show)
+
+methodToText :: ContentAddressMethod -> Text
+methodToText = \case
+  ContentAddressMethod_Flat -> "flat"
+  ContentAddressMethod_NixArchive -> "nar"
+  ContentAddressMethod_Text -> "text"
+
+textToMethod :: Text -> Either String ContentAddressMethod
+textToMethod = \case
+  "flat" -> Right ContentAddressMethod_Flat
+  "nar" -> Right ContentAddressMethod_NixArchive
+  "text" -> Right ContentAddressMethod_Text
+  name -> Left $ "Unknown store object content-addressing method " <> Data.Text.unpack name
+
+instance NFData ContentAddressMethod
 
 -- | An address for a content-addressable store path, i.e. one whose
 -- store path hash is purely a function of its contents (as opposed to

@@ -29,11 +29,11 @@ import Database.Esqueleto.Experimental
 import System.Nix.StorePath (StoreDir, StorePath, StorePathHashPart)
 import System.Nix.Store.DB.Schema
 
-import qualified Data.ByteString.Char8
-import qualified Data.Maybe
-import qualified Data.Text
-import qualified System.Nix.StorePath
-import qualified System.Nix.StorePath.Metadata
+import Data.ByteString.Char8 qualified
+import Data.Maybe qualified
+import Data.Text qualified
+import System.Nix.StorePath qualified
+import System.Nix.StorePath.Metadata qualified
 
 -- * Queries
 

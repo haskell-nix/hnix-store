@@ -4,10 +4,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 module System.Nix.Arbitrary.Signature where
 
-import qualified Crypto.PubKey.Ed25519
+import Crypto.PubKey.Ed25519 qualified
 import Crypto.Random (drgNewTest, withDRG)
-import qualified Data.ByteString as BS
-import qualified Data.Text as Text
+import Data.ByteString qualified as BS
+import Data.Text qualified as Text
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
 import Test.QuickCheck
 

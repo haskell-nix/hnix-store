@@ -33,14 +33,14 @@ module System.Nix.Nar
   , Nar.NarSource
   ) where
 
-import qualified Control.Concurrent                as Concurrent
-import qualified Data.ByteString                   as BS
-import qualified System.IO                         as IO
+import Control.Concurrent qualified                as Concurrent
+import Data.ByteString qualified                   as BS
+import System.IO qualified                         as IO
 
-import qualified System.Nix.Nar.Effects   as Nar
-import qualified System.Nix.Nar.Options   as Nar
-import qualified System.Nix.Nar.Parser    as Nar
-import qualified System.Nix.Nar.Streamer  as Nar
+import System.Nix.Nar.Effects qualified   as Nar
+import System.Nix.Nar.Options qualified   as Nar
+import System.Nix.Nar.Parser qualified    as Nar
+import System.Nix.Nar.Streamer qualified  as Nar
 
 -- For a description of the NAR format, see Eelco's thesis
 -- https://nixos.org/~eelco/pubs/phd-thesis.pdf

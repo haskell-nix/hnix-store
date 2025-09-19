@@ -7,10 +7,10 @@ import Data.ByteString (ByteString)
 
 import Control.Monad (forM_)
 import Crypto.Hash (MD5, SHA1, SHA256, hash)
-import qualified Data.ByteString.Base16      as B16
-import qualified System.Nix.Base32           as B32
-import qualified Data.ByteString.Base64.Lazy as B64
-import qualified Data.ByteString.Lazy        as BSL
+import Data.ByteString.Base16 qualified      as B16
+import System.Nix.Base32 qualified           as B32
+import Data.ByteString.Base64.Lazy qualified as B64
+import Data.ByteString.Lazy qualified        as BSL
 
 
 import System.Nix.Base

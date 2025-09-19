@@ -6,7 +6,7 @@ module System.Nix.Nar.Options
   ) where
 
 import Data.Text (Text)
-import qualified System.Info
+import System.Info qualified
 
 -- | Options for configuring how NAR files are encoded and decoded.
 data NarOptions = NarOptions {

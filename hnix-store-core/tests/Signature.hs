@@ -5,11 +5,11 @@
 
 module Signature where
 
-import qualified Data.ByteString as BS
+import Data.ByteString qualified as BS
 import Test.Hspec
 import Data.Text (Text)
-import qualified Crypto.PubKey.Ed25519
-import qualified System.Nix.Base
+import Crypto.PubKey.Ed25519 qualified
+import System.Nix.Base qualified
 import System.Nix.Base (BaseEncoding(Base64))
 import Crypto.Error (CryptoFailable(..))
 

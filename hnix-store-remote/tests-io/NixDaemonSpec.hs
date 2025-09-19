@@ -28,26 +28,26 @@ import System.Nix.StorePath.Metadata (Metadata(..))
 import System.Nix.Store.Remote
 import System.Nix.Store.Remote.Server (WorkerHelper)
 import System.Process (CreateProcess(..), ProcessHandle)
-import qualified Control.Concurrent
-import qualified Control.Exception
-import qualified Data.ByteString.Char8
-import qualified Data.Either
-import qualified Data.HashSet
-import qualified Data.Map
-import qualified Data.Set
-import qualified Data.Text
-import qualified Data.Text.Encoding
-import qualified DataSink
-import qualified SampleNar
-import qualified System.Directory
-import qualified System.Environment
-import qualified System.IO.Temp
-import qualified System.Linux.Namespaces
-import qualified System.Nix.StorePath
-import qualified System.Nix.Nar
-import qualified System.Posix.User
-import qualified System.Process
-import qualified Test.Hspec
+import Control.Concurrent qualified
+import Control.Exception qualified
+import Data.ByteString.Char8 qualified
+import Data.Either qualified
+import Data.HashSet qualified
+import Data.Map qualified
+import Data.Set qualified
+import Data.Text qualified
+import Data.Text.Encoding qualified
+import DataSink qualified
+import SampleNar qualified
+import System.Directory qualified
+import System.Environment qualified
+import System.IO.Temp qualified
+import System.Linux.Namespaces qualified
+import System.Nix.StorePath qualified
+import System.Nix.Nar qualified
+import System.Posix.User qualified
+import System.Process qualified
+import Test.Hspec qualified
 
 createProcessEnv
   :: FilePath

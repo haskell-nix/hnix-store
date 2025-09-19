@@ -20,8 +20,8 @@ import System.Nix.Hash (HashAlgo, algoDigestBuilder)
 import System.Nix.StorePath
 import System.Nix.StorePath.Metadata (Metadata(..))
 
-import qualified Data.HashSet as HashSet
-import qualified Data.Text as Text
+import Data.HashSet qualified as HashSet
+import Data.Text qualified as Text
 
 -- | Produce the message signed by a NAR signature
 metadataFingerprint :: StoreDir -> StorePath -> Metadata StorePath -> Text

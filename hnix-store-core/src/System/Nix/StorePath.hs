@@ -38,6 +38,7 @@ module System.Nix.StorePath
   , unsafeMakeStorePathHashPart
   ) where
 
+import Control.DeepSeq (NFData)
 import Crypto.Hash (HashAlgorithm)
 import Data.Attoparsec.Text.Lazy (Parser, (<?>))
 import Data.ByteString (ByteString)
@@ -47,17 +48,17 @@ import Data.Text (Text)
 import GHC.Generics (Generic)
 import System.Nix.Base (BaseEncoding(NixBase32))
 
-import qualified Data.Bifunctor
-import qualified Data.ByteString.Char8
-import qualified Data.Char
-import qualified Data.Text
-import qualified Data.Text.Encoding
-import qualified Data.Attoparsec.Text.Lazy
-import qualified System.FilePath
+import Data.Bifunctor qualified
+import Data.ByteString.Char8 qualified
+import Data.Char qualified
+import Data.Text qualified
+import Data.Text.Encoding qualified
+import Data.Attoparsec.Text.Lazy qualified
+import System.FilePath qualified
 
-import qualified System.Nix.Base
-import qualified System.Nix.Hash
-import qualified System.Nix.Base32
+import System.Nix.Base qualified
+import System.Nix.Hash qualified
+import System.Nix.Base32 qualified
 
 -- | A path in a Nix store.
 --
@@ -77,6 +78,8 @@ data StorePath = StorePath
     storePathName :: !StorePathName
   }
   deriving (Eq, Generic, Ord)
+
+instance NFData StorePath
 
 instance Hashable StorePath where
   hashWithSalt s StorePath{..} =
@@ -98,12 +101,16 @@ newtype StorePathName = StorePathName
     unStorePathName :: Text
   } deriving (Eq, Generic, Hashable, Ord, Show)
 
+instance NFData StorePathName
+
 -- | The hash algorithm used for store path hashes.
 newtype StorePathHashPart = StorePathHashPart
   { -- | Extract the contents of the hash.
     unStorePathHashPart :: ByteString
   }
   deriving (Eq, Generic, Hashable, Ord, Show)
+
+instance NFData StorePathHashPart
 
 -- | Make @StorePathHashPart@ from @ByteString@ (hash part of the @StorePath@)
 -- using specific @HashAlgorithm@
@@ -144,19 +151,16 @@ parseNameText :: Text -> Either InvalidNameError Text
 parseNameText n
   | n == ""
     = Left EmptyName
-  | Data.Text.length n > 211
-    = Left $ NameTooLong (Data.Text.length n)
   | Data.Text.head n == '.'
-    = Left $ LeadingDot
-  | not
-    $ Data.Text.null
-    $ Data.Text.filter
-        (not . validStorePathNameChar)
-        n
-    = Left
-      $ InvalidCharacters
-      $ Data.Text.filter (not . validStorePathNameChar) n
+    = Left LeadingDot
+  | nLength > 211
+    = Left $ NameTooLong nLength
+  | not $ Data.Text.null invalidCharacters
+    = Left $ InvalidCharacters invalidCharacters
   | otherwise = pure n
+ where
+  invalidCharacters = Data.Text.filter (not . validStorePathNameChar) n
+  nLength = Data.Text.length n
 
 validStorePathNameChar :: Char -> Bool
 validStorePathNameChar c =

@@ -4,7 +4,7 @@
 module StorePath where
 
 import Test.Hspec (Spec, describe, it, shouldBe)
-import qualified Data.Text
+import Data.Text qualified
 
 import System.Nix.StorePath (parseNameText, InvalidNameError(..))
 

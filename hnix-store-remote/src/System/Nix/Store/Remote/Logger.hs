@@ -2,20 +2,20 @@ module System.Nix.Store.Remote.Logger
   ( processOutput
   ) where
 
-import Control.Monad.Except (throwError)
+import Control.Monad.Except (runExceptT, throwError)
 import Control.Monad.IO.Class (liftIO)
 import Data.ByteString (ByteString)
 import Data.Serialize (Result(..))
-import System.Nix.Store.Remote.Serializer (LoggerSError, logger, runSerialT)
+import System.Nix.Store.Remote.Serializer (LoggerSError, logger)
 import System.Nix.Store.Remote.Socket (sockGet8)
 import System.Nix.Store.Remote.MonadStore (MonadRemoteStore, RemoteStoreError(..), appendLog, getDataSource, getDataSink, getStoreSocket, getProtoVersion)
 import System.Nix.Store.Remote.Types.Logger (Logger(..))
 import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion)
 
-import qualified Control.Monad
-import qualified Data.Serialize.Get
-import qualified Data.Serializer
-import qualified Network.Socket.ByteString
+import Control.Monad qualified
+import Data.Serialize.Get qualified
+import Data.Serializer qualified
+import Network.Socket.ByteString qualified
 
 processOutput
   :: MonadRemoteStore m
@@ -30,7 +30,7 @@ processOutput = do
     -> Result (Either LoggerSError Logger)
   decoder protoVersion =
     Data.Serialize.Get.runGetPartial
-      (runSerialT protoVersion $ Data.Serializer.getS logger)
+      (runExceptT $ Data.Serializer.getS $ logger protoVersion)
 
   go
     :: MonadRemoteStore m

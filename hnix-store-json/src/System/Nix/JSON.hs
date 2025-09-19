@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-|
 Description : JSON serialization
@@ -10,25 +11,35 @@ which is required for `-remote`.
 module System.Nix.JSON where
 
 import Data.Aeson
+import Data.Aeson.KeyMap qualified
+import Data.Aeson.Types qualified
+import Data.Attoparsec.Text qualified
+import Data.Char qualified
+import Data.Constraint.Extras (Has(has))
+import Data.Default.Class
+import Data.Dependent.Sum
+import Data.Map.Monoidal qualified
+import Data.Maybe (fromMaybe, maybeToList)
+import Data.Set qualified
+import Data.Some
+import Data.Text.Lazy qualified
+import Data.Text.Lazy.Builder qualified
+import Data.These
+import Data.These.Combinators
 import Deriving.Aeson
-import System.Nix.Base (BaseEncoding(NixBase32))
-import System.Nix.OutputName (OutputName)
-import System.Nix.Realisation (DerivationOutput, Realisation, RealisationWithId(..))
-import System.Nix.Signature (Signature)
-import System.Nix.StorePath (StoreDir(..), StorePath, StorePathName, StorePathHashPart)
+import GHC.Generics
 
-import qualified Data.Aeson.KeyMap
-import qualified Data.Aeson.Types
-import qualified Data.Attoparsec.Text
-import qualified Data.Char
-import qualified Data.Text
-import qualified Data.Text.Lazy
-import qualified Data.Text.Lazy.Builder
-import qualified System.Nix.Base
-import qualified System.Nix.OutputName
-import qualified System.Nix.Realisation
-import qualified System.Nix.Signature
-import qualified System.Nix.StorePath
+import System.Nix.Base qualified
+import System.Nix.ContentAddress
+import System.Nix.Derivation
+import System.Nix.Hash
+import System.Nix.OutputName (OutputName)
+import System.Nix.OutputName qualified
+import System.Nix.Realisation (BuildTraceKey, Realisation, RealisationWithId(..))
+import System.Nix.Realisation qualified
+import System.Nix.Signature (Signature)
+import System.Nix.Signature qualified
+import System.Nix.StorePath
 
 instance ToJSON StorePathName where
   toJSON = toJSON . System.Nix.StorePath.unStorePathName
@@ -53,19 +64,16 @@ instance FromJSON StorePathHashPart where
     . System.Nix.Base.decodeWith NixBase32
     )
 
+-- | TODO: hacky, we need to stop assuming StoreDir for
+-- StorePath to and from JSON
 instance ToJSON StorePath where
   toJSON =
     toJSON
-    -- TODO: hacky, we need to stop requiring StoreDir for
-    -- StorePath rendering and have a distinct
-    -- types for rooted|unrooted paths
-    . Data.Text.drop 1
-    . System.Nix.StorePath.storePathToText (StoreDir mempty)
+    . System.Nix.StorePath.storePathToText def
 
   toEncoding =
     toEncoding
-    . Data.Text.drop 1
-    . System.Nix.StorePath.storePathToText (StoreDir mempty)
+    . System.Nix.StorePath.storePathToText def
 
 instance FromJSON StorePath where
   parseJSON =
@@ -73,50 +81,143 @@ instance FromJSON StorePath where
     ( either
         (fail . show)
         pure
-    . System.Nix.StorePath.parsePathFromText (StoreDir mempty)
-    . Data.Text.cons '/'
+    . System.Nix.StorePath.parsePathFromText def
     )
 
-instance ToJSON (DerivationOutput OutputName) where
+instance ToJSONKey StorePath where
+  toJSONKey = Data.Aeson.Types.toJSONKeyText $ System.Nix.StorePath.storePathToText def
+
+instance FromJSONKey StorePath where
+  fromJSONKey = FromJSONKeyTextParser $ either (fail . show) pure . System.Nix.StorePath.parsePathFromText def
+
+deriving newtype instance FromJSON DerivedPathMap
+deriving newtype instance ToJSON DerivedPathMap
+
+instance FromJSON ChildNode where
+  parseJSON = withObject "ChildNode" $ \obj -> do
+    outputs <- obj .: "outputs"
+    dynamicOutputs <- obj .: "dynamicOutputs"
+    ChildNode <$> case (Data.Set.null outputs, Data.Map.Monoidal.null dynamicOutputs) of
+      (False, True) -> pure $ This outputs
+      (True, False) -> pure $ That dynamicOutputs
+      (False, False) -> pure $ These outputs dynamicOutputs
+      (True, True) -> fail "outputs and dynamic outputs cannot both be empty"
+
+instance ToJSON ChildNode where
+  toJSON (ChildNode cn) = object
+    [ "outputs" .= fromMaybe Data.Set.empty (justHere cn)
+    , "dynamicOutputs" .= fromMaybe Data.Map.Monoidal.empty (justThere cn)
+    ]
+
+instance FromJSON FreeformDerivationOutput where
+  parseJSON = withObject "FreeformDerivationOutput" $ \obj ->
+    FreeformDerivationOutput
+      <$> obj .:? "path"
+      <*> (((,) <$> (obj .:? "method") <*> (obj .:? "hashAlgo")) >>= \case
+        (Nothing, Nothing) -> pure Nothing
+        (Just methodS, Just hashAlgoS) -> do
+          method <- either fail pure $ textToMethod methodS
+          Some hashAlgo <- either fail pure $ textToAlgo hashAlgoS
+          hash <- obj .:? "hash" >>= \case
+            Nothing -> pure Nothing
+            Just hashS -> either fail pure $ has @NamedAlgo hashAlgo $
+              Just <$> decodeDigestWith Base16 hashS
+          pure $ Just (method, hashAlgo :=> Comp1 hash)
+        (Nothing, Just _) -> fail "Cannot have \"hashAlgo\" without \"method\""
+        (Just _, Nothing) -> fail "Cannot have \"method\" without \"hashAlgo\""
+      )
+
+instance ToJSON FreeformDerivationOutput where
+  toJSON (FreeformDerivationOutput mPath mContentAddressing ) =
+    object $ concat $
+      [ maybeToList $ ("path" .=) <$> mPath
+      , flip (maybe []) mContentAddressing $ \(method, hashAlgo :=> Comp1 mHash) -> concat
+        [ ["method" .= methodToText method]
+        , ["hashAlgo" .= algoToText hashAlgo]
+        , maybeToList $ ("hash" .=) . encodeDigestWith Base16 <$> mHash
+        ]
+      ]
+
+instance FromJSONKey StorePathName where
+  fromJSONKey = FromJSONKeyTextParser $ either (fail . show) pure . mkStorePathName
+
+instance ToJSONKey StorePathName where
+  toJSONKey = Data.Aeson.Types.toJSONKeyText unStorePathName
+
+deriving newtype instance FromJSON OutputName
+deriving newtype instance ToJSON OutputName
+deriving newtype instance FromJSONKey OutputName
+deriving newtype instance ToJSONKey OutputName
+
+-- | TODO: hacky, we need to stop assuming StoreDir for
+-- StorePath to and from JSON
+instance FromJSON Derivation where
+  parseJSON = withObject "Derivation" $ \v -> do
+    name <- v .: "name"
+    inputs <- DerivationInputs
+      <$> v .: "inputSrcs"
+      <*> v .: "inputDrvs"
+    Derivation name
+      <$> (toSpecificOutputs def name =<< v .: "outputs")
+      <*> pure inputs
+      <*> v .: "system"
+      <*> v .: "builder"
+      <*> v .: "args"
+      <*> v .: "env"
+
+instance ToJSON Derivation where
+  toJSON (Derivation name outputs (DerivationInputs inputSrcs inputDrvs) system builder args env) =
+    object [ "name" .= name
+           , "outputs" .= fromSpecificOutputs def name outputs
+           , "inputSrcs" .= inputSrcs
+           , "inputDrvs" .= inputDrvs
+           , "system" .= system
+           , "builder" .= builder
+           , "args" .= args
+           , "env" .= env
+           ]
+
+
+instance ToJSON (BuildTraceKey OutputName) where
   toJSON =
     toJSON
     . Data.Text.Lazy.toStrict
     . Data.Text.Lazy.Builder.toLazyText
-    . System.Nix.Realisation.derivationOutputBuilder
-        System.Nix.OutputName.unOutputName
+    . System.Nix.Realisation.buildTraceKeyBuilder
+        (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
 
   toEncoding =
     toEncoding
     . Data.Text.Lazy.toStrict
     . Data.Text.Lazy.Builder.toLazyText
-    . System.Nix.Realisation.derivationOutputBuilder
-        System.Nix.OutputName.unOutputName
+    . System.Nix.Realisation.buildTraceKeyBuilder
+        (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
 
-instance ToJSONKey (DerivationOutput OutputName) where
+instance ToJSONKey (BuildTraceKey OutputName) where
   toJSONKey =
     Data.Aeson.Types.toJSONKeyText
     $ Data.Text.Lazy.toStrict
     . Data.Text.Lazy.Builder.toLazyText
-    . System.Nix.Realisation.derivationOutputBuilder
-        System.Nix.OutputName.unOutputName
+    . System.Nix.Realisation.buildTraceKeyBuilder
+        (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
 
-instance FromJSON (DerivationOutput OutputName) where
+instance FromJSON (BuildTraceKey OutputName) where
   parseJSON =
-    withText "DerivationOutput OutputName"
+    withText "BuildTraceKey OutputName"
     ( either
         (fail . show)
         pure
-    . System.Nix.Realisation.derivationOutputParser
+    . System.Nix.Realisation.buildTraceKeyParser
         System.Nix.OutputName.mkOutputName
     )
 
-instance FromJSONKey (DerivationOutput OutputName) where
+instance FromJSONKey (BuildTraceKey OutputName) where
   fromJSONKey =
     FromJSONKeyTextParser
     ( either
         (fail . show)
         pure
-    . System.Nix.Realisation.derivationOutputParser
+    . System.Nix.Realisation.buildTraceKeyParser
         System.Nix.OutputName.mkOutputName
     )
 
@@ -159,8 +260,8 @@ deriving
   instance FromJSON Realisation
 
 -- For a keyed version of Realisation
--- we use RealisationWithId (DerivationOutput OutputName, Realisation)
--- instead of Realisation.id :: (DerivationOutput OutputName)
+-- we use RealisationWithId (BuildTraceKey OutputName, Realisation)
+-- instead of Realisation.id :: (BuildTraceKey OutputName)
 -- field.
 instance ToJSON RealisationWithId where
   toJSON (RealisationWithId (drvOut, r)) =

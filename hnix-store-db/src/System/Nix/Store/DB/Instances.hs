@@ -15,13 +15,13 @@ import System.Nix.ContentAddress (ContentAddress)
 import System.Nix.StorePath (StorePath)
 import System.Nix.StorePath.Metadata (StorePathTrust(..))
 
-import qualified Data.Attoparsec.Text
-import qualified Data.Bifunctor
-import qualified Data.Text
-import qualified Data.Time.Clock.POSIX
+import Data.Attoparsec.Text qualified
+import Data.Bifunctor qualified
+import Data.Text qualified
+import Data.Time.Clock.POSIX qualified
 
-import qualified System.Nix.ContentAddress
-import qualified System.Nix.StorePath
+import System.Nix.ContentAddress qualified
+import System.Nix.StorePath qualified
 
 instance PersistField StorePath where
   toPersistValue = PersistText . System.Nix.StorePath.storePathToText def

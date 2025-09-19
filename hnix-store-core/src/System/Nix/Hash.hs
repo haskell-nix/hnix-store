@@ -25,12 +25,14 @@ module System.Nix.Hash
   , digestBuilder
   ) where
 
+import Control.DeepSeq (NFData(..))
 import Crypto.Hash (Digest, HashAlgorithm, MD5(..), SHA1(..), SHA256(..), SHA512(..))
 import Data.ByteString (ByteString)
 import Data.Constraint.Extras (Has(has))
 import Data.Constraint.Extras.TH (deriveArgDict)
 import Data.Dependent.Sum (DSum((:=>)))
 import Data.GADT.Compare.TH (deriveGEq, deriveGCompare)
+import Data.GADT.DeepSeq (GNFData(..))
 import Data.GADT.Show.TH (deriveGShow)
 import Data.Kind (Type)
 import Data.Some (Some(Some))
@@ -38,12 +40,12 @@ import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder)
 import System.Nix.Base (BaseEncoding(..))
 
-import qualified Crypto.Hash
-import qualified Data.ByteArray
-import qualified Data.Text
-import qualified Data.Text.Lazy.Builder
-import qualified System.Nix.Base
-import qualified System.Nix.Hash.Truncation
+import Crypto.Hash qualified
+import Data.ByteArray qualified
+import Data.Text qualified
+import Data.Text.Lazy.Builder qualified
+import System.Nix.Base qualified
+import System.Nix.Hash.Truncation qualified
 
 -- | A 'HashAlgorithm' with a canonical name, for serialization
 -- purposes (e.g. SRI hashes)
@@ -72,6 +74,16 @@ deriveGEq ''HashAlgo
 deriveGCompare ''HashAlgo
 deriveGShow ''HashAlgo
 deriveArgDict ''HashAlgo
+
+instance NFData (HashAlgo a) where
+  rnf = \case
+    HashAlgo_MD5 -> ()
+    HashAlgo_SHA1 -> ()
+    HashAlgo_SHA256 -> ()
+    HashAlgo_SHA512 -> ()
+
+instance GNFData HashAlgo where
+  grnf = rnf
 
 algoToText :: forall t. HashAlgo t -> Text
 algoToText x = has @NamedAlgo x (algoName @t)

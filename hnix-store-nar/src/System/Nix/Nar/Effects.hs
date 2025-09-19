@@ -16,10 +16,10 @@ import Data.Int (Int64)
 import Data.Kind (Type)
 import System.IO (Handle, IOMode(WriteMode))
 
-import qualified Control.Monad
-import qualified Data.ByteString
-import qualified Data.ByteString.Lazy        as Bytes.Lazy
-import qualified System.Directory            as Directory
+import Control.Monad qualified
+import Data.ByteString qualified
+import Data.ByteString.Lazy qualified        as Bytes.Lazy
+import System.Directory qualified            as Directory
 import           System.Posix.Files          ( createSymbolicLink
                                              , fileMode
                                              , fileSize
@@ -37,8 +37,8 @@ import           System.Posix.Files          ( createSymbolicLink
                                              , setFileMode
                                              , unionFileModes
                                              )
-import qualified System.IO                   as IO
-import qualified Control.Exception.Lifted    as Exception.Lifted
+import System.IO qualified                   as IO
+import Control.Exception.Lifted qualified    as Exception.Lifted
 
 data IsExecutable = NonExecutable | Executable
   deriving (Eq, Show)

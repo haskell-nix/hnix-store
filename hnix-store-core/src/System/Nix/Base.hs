@@ -8,11 +8,11 @@ import Data.ByteString (ByteString)
 import Data.Text (Text)
 import GHC.Generics (Generic)
 
-import qualified Data.Text.Encoding
-import qualified Data.ByteString.Base16
-import qualified Data.ByteString.Base64
+import Data.Text.Encoding qualified
+import Data.ByteString.Base16 qualified
+import Data.ByteString.Base64 qualified
 
-import qualified System.Nix.Base32 -- Nix has own Base32 encoding
+import System.Nix.Base32 qualified -- Nix has own Base32 encoding
 
 -- | Constructors to indicate the base encodings
 data BaseEncoding

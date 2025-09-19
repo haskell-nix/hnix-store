@@ -12,23 +12,23 @@ module System.Nix.Nar.Streamer
 
 import Data.ByteString (ByteString)
 import Data.Int (Int64)
-import qualified Data.Map.Strict                 as Map
+import Data.Map.Strict qualified                 as Map
 
 import           Control.Monad                    ( forM_
                                                   , when
                                                   )
-import qualified Control.Monad.IO.Class          as IO
-import qualified Data.ByteString                 as Bytes
-import qualified Data.ByteString.Lazy            as Bytes.Lazy
-import qualified Data.Foldable
-import qualified Data.List
-import qualified Data.Serialize                  as Serial
-import qualified Data.Text                       as T (pack, unpack)
-import qualified Data.Text.Encoding              as TE (encodeUtf8)
+import Control.Monad.IO.Class qualified          as IO
+import Data.ByteString qualified                 as Bytes
+import Data.ByteString.Lazy qualified            as Bytes.Lazy
+import Data.Foldable qualified
+import Data.List qualified
+import Data.Serialize qualified                  as Serial
+import Data.Text qualified                       as T (pack, unpack)
+import Data.Text.Encoding qualified              as TE (encodeUtf8)
 import           System.FilePath                 ((</>))
 
-import qualified System.Nix.Nar.Effects as Nar
-import qualified System.Nix.Nar.Options as Nar
+import System.Nix.Nar.Effects qualified as Nar
+import System.Nix.Nar.Options qualified as Nar
 
 -- | NarSource
 -- The source to provide nar to the handler `(ByteString -> m ())`.

@@ -13,7 +13,7 @@ import System.Nix.Arbitrary.UTCTime ()
 
 import System.Nix.Build
 
-import qualified Data.Time.Clock.POSIX
+import Data.Time.Clock.POSIX qualified
 
 deriving via GenericArbitrary BuildMode
   instance Arbitrary BuildMode

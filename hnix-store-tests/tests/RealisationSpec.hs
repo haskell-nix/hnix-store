@@ -6,21 +6,22 @@ import Test.Hspec.Nix (roundtrips)
 
 import System.Nix.Arbitrary ()
 
-import qualified Data.Text.Lazy
-import qualified Data.Text.Lazy.Builder
-import qualified System.Nix.OutputName
-import qualified System.Nix.Realisation
+import Data.Text.Lazy qualified
+import Data.Text.Lazy.Builder qualified
+import System.Nix.StorePath qualified
+import System.Nix.OutputName qualified
+import System.Nix.Realisation qualified
 
 spec :: Spec
 spec = do
-  describe "DerivationOutput" $ do
+  describe "BuildTraceKey" $ do
     prop "roundtrips" $
       roundtrips
         ( Data.Text.Lazy.toStrict
         . Data.Text.Lazy.Builder.toLazyText
-        . System.Nix.Realisation.derivationOutputBuilder
-            System.Nix.OutputName.unOutputName
+        . System.Nix.Realisation.buildTraceKeyBuilder
+            (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
         )
-        ( System.Nix.Realisation.derivationOutputParser
+        ( System.Nix.Realisation.buildTraceKeyParser
             System.Nix.OutputName.mkOutputName
         )

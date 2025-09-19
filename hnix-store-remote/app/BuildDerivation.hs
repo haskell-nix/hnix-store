@@ -3,11 +3,11 @@ module Main where
 
 import Data.Default.Class (Default(def))
 
-import qualified Data.Text
-import qualified System.Environment
-import qualified System.Nix.Build
-import qualified System.Nix.StorePath
-import qualified System.Nix.Store.Remote
+import Data.Text qualified
+import System.Environment qualified
+import System.Nix.Build qualified
+import System.Nix.StorePath qualified
+import System.Nix.Store.Remote qualified
 
 main :: IO ()
 main = System.Environment.getArgs >>= \case

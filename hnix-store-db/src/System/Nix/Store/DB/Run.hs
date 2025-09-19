@@ -24,17 +24,17 @@ import Database.Persist.Sqlite (SqliteConnectionInfo)
 
 import System.Nix.Store.DB.Query
 
-import qualified Control.Monad
-import qualified Control.Monad.IO.Class
-import qualified Control.Monad.Logger
-import qualified Data.ByteString.Char8
-import qualified Database.Esqueleto.Experimental
-import qualified Database.Persist.Sql
-import qualified Database.Persist.Sqlite
-import qualified System.Log.FastLogger
-import qualified System.Nix.StorePath
-import qualified System.Nix.Store.DB.Schema
-import qualified System.Nix.Store.DB.Util
+import Control.Monad qualified
+import Control.Monad.IO.Class qualified
+import Control.Monad.Logger qualified
+import Data.ByteString.Char8 qualified
+import Database.Esqueleto.Experimental qualified
+import Database.Persist.Sql qualified
+import Database.Persist.Sqlite qualified
+import System.Log.FastLogger qualified
+import System.Nix.StorePath qualified
+import System.Nix.Store.DB.Schema qualified
+import System.Nix.Store.DB.Util qualified
 
 -- | @SqliteConnectionInfo@ for accessing
 -- systems database in /nix/var/nix/db/db.sqlite

@@ -3,7 +3,7 @@ module Data.Text.Arbitrary () where
 
 import Data.Text (Text)
 import Test.QuickCheck (Arbitrary(..), frequency, suchThat)
-import qualified Data.Text
+import Data.Text qualified
 
 instance Arbitrary Text where
   arbitrary = Data.Text.pack <$> arbitrary
