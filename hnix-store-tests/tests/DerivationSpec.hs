@@ -29,17 +29,6 @@ spec = do
         (toSpecificOutput @Maybe storeDir storePathName outputName)
         output
 
-  -- Sometimes infinite loops, not sure why
-
-  -- describe "DerivationOutputs" $ do
-  --   prop "roundtrips to FreeformDerivationOutputs" $ verboseCheck $ \storeDir storePathName -> do
-  --     outputs <- generate $ shortEnoughOutputs storePathName
-  --     _ <- roundtrips
-  --       (fromSpecificOutputs storeDir storePathName)
-  --       (toSpecificOutputs @Maybe storeDir storePathName)
-  --       outputs
-  --     pure ()
-
 -- -- | Useful for debugging
 -- instance MonadFail (Either String) where
 --   fail = Left
