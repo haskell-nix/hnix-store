@@ -9,12 +9,12 @@ module System.Nix.Arbitrary.Derivation where
 
 import Data.Constraint.Extras
 import Data.Dependent.Sum
-import Data.Either (isRight)
 import Data.Map (Map)
 import Data.Map qualified
+import Data.Set (Set)
 import Data.Some
+import Data.Text
 import Data.Text.Arbitrary ()
-import Data.Set qualified
 import Data.Vector.Arbitrary ()
 import Test.QuickCheck.Arbitrary.Generic
 import Test.QuickCheck.Gen
@@ -32,9 +32,20 @@ import System.Nix.Arbitrary.StorePath ()
 import System.Nix.Arbitrary.OutputName ()
 
 -- | ensure output path name is not too long
-shortEnoughOutputName :: StorePathName -> Gen (OutputName)
+shortEnoughOutputName :: StorePathName -> Gen OutputName
 shortEnoughOutputName drvName =
-  arbitrary `suchThat` \outputName -> isRight $ outputStoreObjectName drvName outputName
+  if availableSpace < 1
+  then
+    out
+  else do
+    len <- choose (1, availableSpace)
+    oneof [out, shorten len <$> arbitrary]
+ where
+  nameLen = Data.Text.length (unStorePathName drvName)
+  availableSpace = 211 - nameLen - 1 -- for the - in <drvName>-<outputname>
+  out = pure $ toOutputName $ pack "out"
+  shorten n = toOutputName . Data.Text.take n . unStorePathName . unOutputName
+  toOutputName = OutputName . either undefined id . mkStorePathName
 
 -- | Also ensures at least one output
 shortEnoughOutputsName :: Arbitrary a => StorePathName -> Gen (Map OutputName a)
@@ -46,11 +57,9 @@ shortEnoughOutputs drvName =
 
 -- | Ensure a valid combination
 ensureValidMethodAlgo :: ContentAddressMethod -> HashAlgo a -> Bool
-ensureValidMethodAlgo = \case
-  ContentAddressMethod_Text -> \case
-    HashAlgo_SHA256 -> True
-    _ -> False
-  _ -> \_ -> True
+ensureValidMethodAlgo ContentAddressMethod_Text HashAlgo_SHA256 = True
+ensureValidMethodAlgo ContentAddressMethod_Text _ = False
+ensureValidMethodAlgo _ _ = True
 
 instance
   ( Arbitrary inputs
@@ -120,8 +129,13 @@ instance Arbitrary DerivedPathMap where
 deriving via GenericArbitrary DerivedPathMap
   instance Arbitrary DerivedPathMap
 
-deriving via GenericArbitrary ChildNode
-  instance Arbitrary ChildNode
+instance Arbitrary ChildNode where
+  -- Scale down exponentially, or the resulting tree may explode in size.
+  arbitrary = scale (`div` 5) $ do
+   oneof [
+      ChildNode . This . Data.Set.fromList <$> ((:) <$> arbitrary <*> arbitrary)
+    , ChildNode . That . Data.Map.Monoidal.fromList <$> ((:) <$> arbitrary <*> arbitrary)
+    ]
 
 -- TODO these belong elsewhere
 

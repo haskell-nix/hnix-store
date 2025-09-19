@@ -151,19 +151,16 @@ parseNameText :: Text -> Either InvalidNameError Text
 parseNameText n
   | n == ""
     = Left EmptyName
-  | Data.Text.length n > 211
-    = Left $ NameTooLong (Data.Text.length n)
   | Data.Text.head n == '.'
-    = Left $ LeadingDot
-  | not
-    $ Data.Text.null
-    $ Data.Text.filter
-        (not . validStorePathNameChar)
-        n
-    = Left
-      $ InvalidCharacters
-      $ Data.Text.filter (not . validStorePathNameChar) n
+    = Left LeadingDot
+  | nLength > 211
+    = Left $ NameTooLong nLength
+  | not $ Data.Text.null invalidCharacters
+    = Left $ InvalidCharacters invalidCharacters
   | otherwise = pure n
+ where
+  invalidCharacters = Data.Text.filter (not . validStorePathNameChar) n
+  nLength = Data.Text.length n
 
 validStorePathNameChar :: Char -> Bool
 validStorePathNameChar c =
