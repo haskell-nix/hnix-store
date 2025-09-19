@@ -23,10 +23,19 @@ import System.Nix.Store.Remote.Socket (sockPutS, sockGetS)
 import System.Nix.Store.Remote.Serializer
   ( ReplySError(ReplySError_PrimGet)
   , bool
+  , buildResult
+  , gcResult
+  , gcRoot
+  , hashSet
   , int
+  , maybePathMetadata
   , mapErrorS
+  , mapS
+  , missing
+  , opSuccess
   , protoVersion
   , storePath
+  , storePathName
   , storeRequest
   , text
   , trustedFlag
@@ -95,6 +104,61 @@ doReq = \case
         processOutput
         pure NoReply
 
+      AddTextToStore {} -> do
+        processOutput
+        sockGetS $ mapErrorS (RemoteStoreError_SerializerReply . ReplySError_PrimGet) $ storePath storeDir
+
+      AddSignatures _path _sigs -> do
+        processOutput
+        sockGetS $ mapErrorS RemoteStoreError_SerializerReply opSuccess
+
+      AddIndirectRoot _path -> do
+        processOutput
+        sockGetS $ mapErrorS RemoteStoreError_SerializerReply opSuccess
+
+      AddTempRoot _path -> do
+        processOutput
+        sockGetS $ mapErrorS RemoteStoreError_SerializerReply opSuccess
+
+      BuildPaths {} -> do
+        processOutput
+        sockGetS $ mapErrorS RemoteStoreError_SerializerReply opSuccess
+
+      BuildDerivation {} -> do
+        processOutput
+        sockGetS
+          $ mapErrorS
+              RemoteStoreError_SerializerReply
+              $ buildResult storeDir pv
+
+      CollectGarbage _gcOpts -> do
+        processOutput
+        sockGetS
+          $ mapErrorS
+              RemoteStoreError_SerializerReply
+              $ gcResult storeDir
+
+      EnsurePath _path -> do
+        processOutput
+        sockGetS $ mapErrorS RemoteStoreError_SerializerReply opSuccess
+
+      FindRoots -> do
+        processOutput
+        sockGetS
+          $ mapErrorS RemoteStoreError_SerializerReply
+          $ mapS
+              gcRoot
+              $ mapErrorS
+                  ReplySError_PrimGet
+                  (storePath storeDir)
+
+      IsValidPath _path -> do
+        processOutput
+        sockGetS
+          $ mapErrorS
+              (RemoteStoreError_SerializerReply . ReplySError_PrimGet)
+              bool
+
       NarFromPath _ -> do
         maybeSink <- getDataSink
         sink <- case maybeSink of
@@ -111,10 +175,91 @@ doReq = \case
         copyToSink sink narSize soc
         pure NoReply
 
-      _ -> do
+      QueryValidPaths {} -> do
         processOutput
-        error "need to keep casing on arguments"
-        --sockGetS $ mapErrorS (RemoteStoreError_SerializerReply . ReplySError_PrimGet)
+        sockGetS
+          $ mapErrorS
+              (RemoteStoreError_SerializerReply . ReplySError_PrimGet)
+              $ hashSet (storePath storeDir)
+
+      QueryAllValidPaths -> do
+        processOutput
+        sockGetS
+          $ mapErrorS
+              (RemoteStoreError_SerializerReply . ReplySError_PrimGet)
+              $ hashSet (storePath storeDir)
+
+      QuerySubstitutablePaths {} -> do
+        processOutput
+        sockGetS
+          $ mapErrorS
+              (RemoteStoreError_SerializerReply . ReplySError_PrimGet)
+              $ hashSet (storePath storeDir)
+
+
+      QueryPathInfo {} -> do
+        processOutput
+        sockGetS
+          $ mapErrorS
+              RemoteStoreError_SerializerReply
+              $ maybePathMetadata storeDir
+
+      QueryReferrers _path -> do
+        processOutput
+        sockGetS
+          $ mapErrorS
+              (RemoteStoreError_SerializerReply . ReplySError_PrimGet)
+              $ hashSet (storePath storeDir)
+
+      QueryValidDerivers _path -> do
+        processOutput
+        sockGetS
+          $ mapErrorS
+              (RemoteStoreError_SerializerReply . ReplySError_PrimGet)
+              $ hashSet (storePath storeDir)
+
+      QueryDerivationOutputs _path -> do
+        processOutput
+        sockGetS
+          $ mapErrorS
+              (RemoteStoreError_SerializerReply . ReplySError_PrimGet)
+              $ hashSet (storePath storeDir)
+
+      QueryDerivationOutputNames _path -> do
+        processOutput
+        sockGetS
+          $ mapErrorS
+              (RemoteStoreError_SerializerReply . ReplySError_PrimGet)
+              $ hashSet storePathName
+
+      QueryPathFromHashPart _pathHashPart -> do
+        processOutput
+        sockGetS
+          $ mapErrorS
+              (RemoteStoreError_SerializerReply . ReplySError_PrimGet)
+              $ storePath storeDir
+
+      QueryMissing _derivedPathSet -> do
+        processOutput
+        sockGetS
+          $ mapErrorS
+              RemoteStoreError_SerializerReply
+              $ missing storeDir
+
+      OptimiseStore -> do
+        processOutput
+        sockGetS $ mapErrorS RemoteStoreError_SerializerReply opSuccess
+
+      SyncWithGC -> do
+        processOutput
+        sockGetS $ mapErrorS RemoteStoreError_SerializerReply opSuccess
+
+      VerifyStore {} -> do
+        processOutput
+        sockGetS
+          $ mapErrorS
+              (RemoteStoreError_SerializerReply . ReplySError_PrimGet)
+              bool
 
 copyToSink
   :: forall m

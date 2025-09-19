@@ -96,13 +96,9 @@ Test-Suite property
         hnix-store-core                      ,
         hnix-store-aterm                     ,
         hnix-store-tests                     ,
-        containers                           ,
         generic-arbitrary              < 1.1 ,
         QuickCheck                     < 2.16,
         text                                 ,
-        these                                ,
-        vector                         < 0.14,
-        filepath                       < 1.5
 
 Benchmark benchmark
     Import: commons

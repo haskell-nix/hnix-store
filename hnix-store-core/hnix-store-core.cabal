@@ -118,7 +118,6 @@ test-suite core
     tasty-discover:tasty-discover
   build-depends:
       hnix-store-core
-    , attoparsec
     , base
     , base16-bytestring
     , base64-bytestring
@@ -128,7 +127,6 @@ test-suite core
     , data-default-class
     , hspec
     , tasty
-    , tasty-golden
     , tasty-hspec
     , text
     , time
