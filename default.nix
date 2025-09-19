@@ -1,4 +1,7 @@
-{ pkgs ? import <nixpkgs> {}
+{ pkgs ? import (fetchTarball {
+    url = "https://github.com/NixOS/nixpkgs/tarball/c23193b943c6c689d70ee98ce3128239ed9e32d1"; # nixos-unstable
+    sha256 = "0vgk8mrprrh6w7zw2id3hc858kqw5pwdc52ma2f95rz36gchxcc4";
+  }) {}
 , compiler ? null
 }:
 let

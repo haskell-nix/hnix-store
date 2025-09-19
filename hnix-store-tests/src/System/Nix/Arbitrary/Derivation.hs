@@ -9,13 +9,12 @@ module System.Nix.Arbitrary.Derivation where
 
 import Data.Constraint.Extras
 import Data.Dependent.Sum
-import Data.Map
-import Data.Map.Monoidal
-import Data.Set
+import Data.Map (Map)
+import Data.Map qualified
+import Data.Set (Set)
 import Data.Some
-import Data.Text.Arbitrary ()
 import Data.Text
-import Data.These
+import Data.Text.Arbitrary ()
 import Data.Vector.Arbitrary ()
 import Test.QuickCheck.Arbitrary.Generic
 import Test.QuickCheck.Gen
@@ -23,8 +22,10 @@ import Test.QuickCheck.Gen
 import System.Nix.StorePath
 import System.Nix.ContentAddress
 import System.Nix.Hash
+import System.Nix.DerivedPath
 import System.Nix.Derivation
 import System.Nix.OutputName
+import System.Nix.Arbitrary.DerivedPath ()
 import System.Nix.Arbitrary.ContentAddress ()
 import System.Nix.Arbitrary.Hash (genDSum)
 import System.Nix.Arbitrary.StorePath ()
@@ -121,6 +122,10 @@ instance Arbitrary (Some DerivationType)  where
 deriving via GenericArbitrary DerivationInputs
   instance Arbitrary DerivationInputs
 
+instance Arbitrary DerivedPathMap where
+  arbitrary = foldMap (uncurry derivedPathMapFromSingleDerivedPathBuilt) <$> (arbitrary :: Gen (Data.Set.Set (SingleDerivedPath, OutputName)))
+
+{-
 deriving via GenericArbitrary DerivedPathMap
   instance Arbitrary DerivedPathMap
 
@@ -142,3 +147,4 @@ deriving via GenericArbitrary (These a b)
            , Arbitrary a
            , Arbitrary b
            ) => Arbitrary (These a b)
+-}

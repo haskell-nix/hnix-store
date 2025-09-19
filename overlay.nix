@@ -14,13 +14,7 @@ let
         rev    = "refs/pull/${builtins.elemAt parts 2}/head";
       } // (lib.filterAttrs (n: v: n != "url") x));
 in
-lib.optionalAttrs (hsuper ? dependent-sum-template_0_2_0_1) {
-  # srk 2024-07-28: allow template-haskell 2.22 (GHC 9.8)
-  # https://github.com/obsidiansystems/dependent-sum-template/pull/13
-  dependent-sum-template =
-    haskellLib.doJailbreak
-      hsuper.dependent-sum-template_0_2_0_1;
-} // {
+{
   hnix-store-core =
     lib.pipe
       (hself.callCabal2nix "hnix-store-core" ./hnix-store-core {})
