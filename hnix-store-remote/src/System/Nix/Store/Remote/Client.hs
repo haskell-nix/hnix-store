@@ -55,11 +55,11 @@ import System.Nix.Store.Remote.Client.Core
 import System.Nix.FileContentAddress (FileIngestionMethod(..))
 import System.Nix.Store.Types (RepairMode(..))
 
-import qualified Control.Monad.IO.Class
-import qualified Data.Attoparsec.Text
-import qualified Data.Text.IO
-import qualified System.Nix.Derivation
-import qualified System.Nix.StorePath
+import Control.Monad.IO.Class qualified
+import Data.Attoparsec.Text qualified
+import Data.Text.IO qualified
+import System.Nix.Derivation qualified
+import System.Nix.StorePath qualified
 
 -- | Add `NarSource` to the store
 addToStore

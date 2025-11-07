@@ -13,13 +13,13 @@ import Data.Text.Lazy.Builder (Builder)
 import Nix.Derivation (Derivation(..), DerivationOutput(..))
 import System.Nix.StorePath (StoreDir, StorePath)
 
-import qualified Data.Attoparsec.Text.Lazy
-import qualified Data.Text
-import qualified Data.Text.Lazy
-import qualified Data.Text.Lazy.Builder
+import Data.Attoparsec.Text.Lazy qualified
+import Data.Text qualified
+import Data.Text.Lazy qualified
+import Data.Text.Lazy.Builder qualified
 
-import qualified Nix.Derivation
-import qualified System.Nix.StorePath
+import Nix.Derivation qualified
+import System.Nix.StorePath qualified
 
 parseDerivation :: StoreDir -> Parser (Derivation StorePath Text)
 parseDerivation expectedRoot =

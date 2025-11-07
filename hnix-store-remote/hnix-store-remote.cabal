@@ -32,6 +32,7 @@ common commons
     , FlexibleContexts
     , FlexibleInstances
     , GADTs
+    , ImportQualifiedPost
     , RecordWildCards
     , ScopedTypeVariables
     , StandaloneDeriving
@@ -135,6 +136,7 @@ library
   ghc-options:         -Wall
 
 executable build-derivation
+  import: commons
   if !flag(build-derivation)
     buildable: False
   build-depends:
@@ -143,12 +145,12 @@ executable build-derivation
     , hnix-store-remote
     , data-default-class
     , text
-  default-language: Haskell2010
   main-is: BuildDerivation.hs
   hs-source-dirs:      app
   ghc-options: -Wall -threaded -rtsopts "-with-rtsopts -N"
 
 executable remote-readme
+  import: commons
   if !flag(build-readme)
     buildable: False
   build-depends:
@@ -157,7 +159,6 @@ executable remote-readme
     , hnix-store-remote
   build-tool-depends:
       markdown-unlit:markdown-unlit
-  default-language: Haskell2010
   main-is: README.lhs
   ghc-options: -pgmL markdown-unlit -Wall
 

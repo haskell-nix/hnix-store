@@ -4,7 +4,7 @@ module Data.Vector.Arbitrary () where
 
 import Data.Vector (Vector)
 import Test.QuickCheck (Arbitrary(..), Arbitrary1(..), arbitrary1, shrink1)
-import qualified Data.Vector
+import Data.Vector qualified
 
 instance Arbitrary1 Vector where
   liftArbitrary =

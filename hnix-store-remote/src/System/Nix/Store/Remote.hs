@@ -33,14 +33,14 @@ import System.Nix.Store.Remote.Client
 import System.Nix.Store.Remote.Server (WorkerHelper, runProxyDaemon)
 import System.Nix.Store.Remote.Types
 
-import qualified Control.Monad.Catch
-import qualified Network.Socket
+import Control.Monad.Catch qualified
+import Network.Socket qualified
 -- see TODO bellow
---import qualified System.Directory
+--import System.Directory qualified
 
 -- wip justdoit
 import System.Nix.StorePath (StorePath)
-import qualified System.Nix.StorePath
+import System.Nix.StorePath qualified
 
 -- * Compat
 

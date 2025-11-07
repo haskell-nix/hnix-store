@@ -12,7 +12,7 @@ import System.Nix.Hash (HashAlgo(..))
 
 import Test.QuickCheck (Arbitrary(arbitrary), oneof)
 
-import qualified Crypto.Hash
+import Crypto.Hash qualified
 
 -- * Arbitrary @Digest@s
 

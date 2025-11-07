@@ -23,10 +23,10 @@ import System.Nix.OutputName (OutputName, InvalidNameError)
 import System.Nix.Signature (Signature)
 import System.Nix.StorePath (StorePath)
 
-import qualified Data.Bifunctor
-import qualified Data.Text
-import qualified Data.Text.Lazy.Builder
-import qualified System.Nix.Hash
+import Data.Bifunctor qualified
+import Data.Text qualified
+import Data.Text.Lazy.Builder qualified
+import System.Nix.Hash qualified
 
 -- | Output of the derivation
 data DerivationOutput a = DerivationOutput

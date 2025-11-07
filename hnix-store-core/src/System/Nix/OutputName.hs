@@ -16,7 +16,7 @@ import Data.Text (Text)
 import GHC.Generics (Generic)
 import System.Nix.StorePath (InvalidNameError)
 
-import qualified System.Nix.StorePath
+import System.Nix.StorePath qualified
 
 -- | Name of the derived path output
 -- Typically used for "dev", "doc" sub-outputs

@@ -17,18 +17,18 @@ import System.Nix.Realisation (DerivationOutput, Realisation, RealisationWithId(
 import System.Nix.Signature (Signature)
 import System.Nix.StorePath (StoreDir(..), StorePath, StorePathName, StorePathHashPart)
 
-import qualified Data.Aeson.KeyMap
-import qualified Data.Aeson.Types
-import qualified Data.Attoparsec.Text
-import qualified Data.Char
-import qualified Data.Text
-import qualified Data.Text.Lazy
-import qualified Data.Text.Lazy.Builder
-import qualified System.Nix.Base
-import qualified System.Nix.OutputName
-import qualified System.Nix.Realisation
-import qualified System.Nix.Signature
-import qualified System.Nix.StorePath
+import Data.Aeson.KeyMap qualified
+import Data.Aeson.Types qualified
+import Data.Attoparsec.Text qualified
+import Data.Char qualified
+import Data.Text qualified
+import Data.Text.Lazy qualified
+import Data.Text.Lazy.Builder qualified
+import System.Nix.Base qualified
+import System.Nix.OutputName qualified
+import System.Nix.Realisation qualified
+import System.Nix.Signature qualified
+import System.Nix.StorePath qualified
 
 instance ToJSON StorePathName where
   toJSON = toJSON . System.Nix.StorePath.unStorePathName

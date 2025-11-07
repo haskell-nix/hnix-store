@@ -14,8 +14,8 @@ import Database.Persist.Quasi
 import Database.Persist.Sqlite (SqliteConnectionInfo)
 import Database.Persist.TH (persistWith)
 
-import qualified Database.Persist.Sqlite
-import qualified Lens.Micro
+import Database.Persist.Sqlite qualified
+import Lens.Micro qualified
 
 -- | Coerce table names to their plural names
 -- i.e. ValidPath -> ValidPaths

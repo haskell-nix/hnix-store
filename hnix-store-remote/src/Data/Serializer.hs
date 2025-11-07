@@ -58,7 +58,7 @@ import Data.Serialize (Serialize)
 import Data.Serialize.Get (Get, runGet)
 import Data.Serialize.Put (Putter, PutM, runPutM)
 
-import qualified Data.Serialize
+import Data.Serialize qualified
 
 -- * Serializer
 

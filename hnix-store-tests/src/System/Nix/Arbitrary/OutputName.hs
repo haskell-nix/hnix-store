@@ -3,8 +3,8 @@
 module System.Nix.Arbitrary.OutputName where
 
 import System.Nix.OutputName (OutputName)
-import qualified Data.Text
-import qualified System.Nix.OutputName
+import Data.Text qualified
+import System.Nix.OutputName qualified
 
 import Test.QuickCheck (Arbitrary(arbitrary), choose, elements, vectorOf)
 

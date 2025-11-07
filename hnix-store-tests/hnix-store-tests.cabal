@@ -26,6 +26,7 @@ common commons
       DerivingStrategies
     , DerivingVia
     , FlexibleInstances
+    , ImportQualifiedPost
     , ScopedTypeVariables
     , StandaloneDeriving
     , RecordWildCards

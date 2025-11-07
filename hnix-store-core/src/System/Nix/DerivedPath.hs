@@ -16,12 +16,12 @@ import Data.Text (Text)
 import System.Nix.OutputName (OutputName, InvalidNameError)
 import System.Nix.StorePath (StoreDir(..), StorePath, InvalidPathError)
 
-import qualified Data.Bifunctor
-import qualified Data.ByteString.Char8
-import qualified Data.Set
-import qualified Data.Text
-import qualified System.Nix.OutputName
-import qualified System.Nix.StorePath
+import Data.Bifunctor qualified
+import Data.ByteString.Char8 qualified
+import Data.Set qualified
+import Data.Text qualified
+import System.Nix.OutputName qualified
+import System.Nix.StorePath qualified
 
 data OutputsSpec =
     OutputsSpec_All

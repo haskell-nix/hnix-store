@@ -25,8 +25,8 @@ import Data.Default.Class
 import Data.STRef
 import Data.Word
 
-import qualified Data.ByteString
-import qualified System.Nix.Nar
+import Data.ByteString qualified
+import System.Nix.Nar qualified
 
 -- | Sample data for an AddToStoreNar operation
 data SampleNar
