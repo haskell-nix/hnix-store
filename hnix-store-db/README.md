@@ -24,14 +24,14 @@ This example is runnable via `cabal run db-readme`.
 
 import Data.Default.Class (Default(def))
 
-import qualified Control.Monad
-import qualified Control.Monad.IO.Class
+import Control.Monad qualified
+import Control.Monad.IO.Class qualified
 
-import qualified Database.Esqueleto.Experimental
+import Database.Esqueleto.Experimental qualified
 
-import qualified System.Nix.StorePath
-import qualified System.Nix.Store.DB.Run
-import qualified System.Nix.Store.DB.Schema
+import System.Nix.StorePath qualified
+import System.Nix.Store.DB.Run qualified
+import System.Nix.Store.DB.Schema qualified
 
 import System.Nix.Store.DB.Query
 

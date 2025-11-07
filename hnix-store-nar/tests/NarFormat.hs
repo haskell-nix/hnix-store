@@ -4,7 +4,7 @@
 module NarFormat where
 
 import           Control.Applicative              (many, optional, (<|>))
-import qualified Control.Concurrent               as Concurrent
+import Control.Concurrent qualified               as Concurrent
 import           Control.Exception                (SomeException, try)
 import           Control.Monad                    (replicateM, void, forM_, when)
 import           Crypto.Hash                      (hash, Digest, SHA256)
@@ -15,35 +15,35 @@ import           Data.Serialize                   (Get, getByteString,
 import           Data.Serialize                   (Putter, putInt64le,
                                                    putByteString, runPut)
 import           Data.Bool                        (bool)
-import qualified Data.ByteString                  as BS
-import qualified Data.ByteString.Base64           as B64
-import qualified Data.ByteString.Char8            as BSC
-import qualified Data.ByteString.Lazy             as BSL
-import qualified Data.ByteString.Lazy.Char8       as BSLC
+import Data.ByteString qualified                  as BS
+import Data.ByteString.Base64 qualified           as B64
+import Data.ByteString.Char8 qualified            as BSC
+import Data.ByteString.Lazy qualified             as BSL
+import Data.ByteString.Lazy.Char8 qualified       as BSLC
 import           Data.Int                         ( Int64 )
-import qualified Data.Map                         as Map
+import Data.Map qualified                         as Map
 import           Data.Maybe                       (fromMaybe)
-import qualified Data.Text                        as T
-import qualified Data.Text.Encoding               as E
+import Data.Text qualified                        as T
+import Data.Text.Encoding qualified               as E
 import           GHC.Generics                     ( Generic )
 import           System.Directory                 ( doesDirectoryExist
                                                   , doesPathExist
                                                   , removeDirectoryRecursive
                                                   , removeFile
                                                   )
-import qualified System.Directory                 as Directory
+import System.Directory qualified                 as Directory
 import           System.Environment               (getEnv)
 import           System.FilePath                  ((<.>), (</>))
-import qualified System.IO                        as IO
-import qualified System.IO.Temp                   as Temp
-import qualified System.Posix.Files               as Unix
-import qualified System.Posix.Process             as Unix
-import qualified System.Process                   as P
+import System.IO qualified                        as IO
+import System.IO.Temp qualified                   as Temp
+import System.Posix.Files qualified               as Unix
+import System.Posix.Process qualified             as Unix
+import System.Process qualified                   as P
 import           Test.Tasty                       as T
 import           Test.Hspec
-import qualified Test.Tasty.HUnit                 as HU
+import Test.Tasty.HUnit qualified                 as HU
 import           Test.Tasty.QuickCheck
-import qualified Text.Printf                      as Printf
+import Text.Printf qualified                      as Printf
 import           Text.Read                        (readMaybe)
 
 import System.Nix.Nar.Streamer (IsExecutable(Executable, NonExecutable))

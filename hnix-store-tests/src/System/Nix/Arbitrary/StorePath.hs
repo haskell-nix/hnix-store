@@ -6,14 +6,14 @@ module System.Nix.Arbitrary.StorePath where
 import Control.Applicative (liftA2)
 #endif
 import Crypto.Hash (MD5, SHA1, SHA256, SHA512)
-import qualified Data.ByteString.Char8
-import qualified Data.Text
+import Data.ByteString.Char8 qualified
+import Data.Text qualified
 import System.Nix.StorePath (StoreDir(..)
   , StorePath
   , StorePathName
   , StorePathHashPart
   )
-import qualified System.Nix.StorePath
+import System.Nix.StorePath qualified
 
 import Test.QuickCheck (Arbitrary(arbitrary), choose, elements, oneof, vectorOf)
 

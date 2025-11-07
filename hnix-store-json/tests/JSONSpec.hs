@@ -14,12 +14,12 @@ import System.Nix.Realisation (DerivationOutput(..), Realisation(..))
 import System.Nix.Signature (Signature)
 import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart)
 
-import qualified Data.Map
-import qualified Data.Set
-import qualified System.Nix.Hash
-import qualified System.Nix.OutputName
-import qualified System.Nix.Signature
-import qualified System.Nix.StorePath
+import Data.Map qualified
+import Data.Set qualified
+import System.Nix.Hash qualified
+import System.Nix.OutputName qualified
+import System.Nix.Signature qualified
+import System.Nix.StorePath qualified
 
 roundtripsJSON
   :: ( Eq a

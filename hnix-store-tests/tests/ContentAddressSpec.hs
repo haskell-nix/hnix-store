@@ -5,7 +5,7 @@ import Test.Hspec.QuickCheck (prop)
 import Test.Hspec.Nix (roundtrips)
 import System.Nix.Arbitrary ()
 
-import qualified System.Nix.ContentAddress
+import System.Nix.ContentAddress qualified
 
 spec :: Spec
 spec = do

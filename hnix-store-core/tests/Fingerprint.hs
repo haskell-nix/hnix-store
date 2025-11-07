@@ -16,10 +16,10 @@ import Data.Time.Clock (UTCTime(..))
 import Data.Time.Calendar.OrdinalDate (fromOrdinalDate)
 import Test.Hspec
 
-import qualified Crypto.PubKey.Ed25519 as Ed25519
-import qualified Data.HashSet as HashSet
-import qualified Data.Set as Set
-import qualified Data.Text.Encoding as Text
+import Crypto.PubKey.Ed25519 qualified as Ed25519
+import Data.HashSet qualified as HashSet
+import Data.Set qualified as Set
+import Data.Text.Encoding qualified as Text
 
 spec_fingerprint :: Spec
 spec_fingerprint = do

@@ -7,9 +7,9 @@ import Test.Tasty.Golden (goldenVsFile)
 import System.Nix.Derivation (parseDerivation, buildDerivation)
 
 import Data.Default.Class (Default(def))
-import qualified Data.Attoparsec.Text.Lazy
-import qualified Data.Text.Lazy.IO
-import qualified Data.Text.Lazy.Builder
+import Data.Attoparsec.Text.Lazy qualified
+import Data.Text.Lazy.IO qualified
+import Data.Text.Lazy.Builder qualified
 
 processDerivation :: FilePath -> FilePath -> IO ()
 processDerivation source dest = do

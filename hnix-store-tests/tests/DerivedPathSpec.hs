@@ -6,7 +6,7 @@ import Test.Hspec.Nix (roundtrips)
 
 import System.Nix.Arbitrary ()
 
-import qualified System.Nix.DerivedPath
+import System.Nix.DerivedPath qualified
 
 spec :: Spec
 spec = do

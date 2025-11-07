@@ -140,37 +140,37 @@ import System.Nix.StorePath (HasStoreDir(..), InvalidNameError, InvalidPathError
 import System.Nix.StorePath.Metadata (Metadata(..), StorePathTrust(..))
 import System.Nix.Store.Remote.Types
 
-import qualified Control.Monad
-import qualified Control.Monad.Reader
-import qualified Data.Aeson
-import qualified Data.Attoparsec.Text
-import qualified Data.Bifunctor
-import qualified Data.Bits
-import qualified Data.ByteString
-import qualified Data.ByteString.Char8
-import qualified Data.ByteString.Lazy
-import qualified Data.Coerce
-import qualified Data.HashSet
-import qualified Data.Map.Strict
-import qualified Data.Maybe
-import qualified Data.Serialize.Get
-import qualified Data.Serialize.Put
-import qualified Data.Set
-import qualified Data.Some
-import qualified Data.Text
-import qualified Data.Text.Encoding
-import qualified Data.Text.Lazy
-import qualified Data.Text.Lazy.Builder
-import qualified Data.Time.Clock.POSIX
-import qualified Data.Vector
-import qualified System.Nix.Base
-import qualified System.Nix.ContentAddress
-import qualified System.Nix.DerivedPath
-import qualified System.Nix.Hash
-import qualified System.Nix.OutputName
-import qualified System.Nix.Realisation
-import qualified System.Nix.Signature
-import qualified System.Nix.StorePath
+import Control.Monad qualified
+import Control.Monad.Reader qualified
+import Data.Aeson qualified
+import Data.Attoparsec.Text qualified
+import Data.Bifunctor qualified
+import Data.Bits qualified
+import Data.ByteString qualified
+import Data.ByteString.Char8 qualified
+import Data.ByteString.Lazy qualified
+import Data.Coerce qualified
+import Data.HashSet qualified
+import Data.Map.Strict qualified
+import Data.Maybe qualified
+import Data.Serialize.Get qualified
+import Data.Serialize.Put qualified
+import Data.Set qualified
+import Data.Some qualified
+import Data.Text qualified
+import Data.Text.Encoding qualified
+import Data.Text.Lazy qualified
+import Data.Text.Lazy.Builder qualified
+import Data.Time.Clock.POSIX qualified
+import Data.Vector qualified
+import System.Nix.Base qualified
+import System.Nix.ContentAddress qualified
+import System.Nix.DerivedPath qualified
+import System.Nix.Hash qualified
+import System.Nix.OutputName qualified
+import System.Nix.Realisation qualified
+import System.Nix.Signature qualified
+import System.Nix.StorePath qualified
 
 -- | Transformer for @Serializer@
 newtype SerialT r e m a = SerialT

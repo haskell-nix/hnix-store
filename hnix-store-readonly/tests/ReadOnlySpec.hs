@@ -12,8 +12,8 @@ import System.Nix.Hash (HashAlgo(..))
 import System.Nix.StorePath (StorePath, StorePathName)
 import System.Nix.ContentAddress (ContentAddressMethod(..))
 
-import qualified Data.HashSet
-import qualified System.Nix.StorePath
+import Data.HashSet qualified
+import System.Nix.StorePath qualified
 
 import System.Nix.Store.ReadOnly
 

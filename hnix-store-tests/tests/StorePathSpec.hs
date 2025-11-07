@@ -7,7 +7,7 @@ import Test.Hspec.Nix (roundtrips)
 import System.Nix.Arbitrary ()
 import System.Nix.StorePath
 
-import qualified Data.Attoparsec.Text
+import Data.Attoparsec.Text qualified
 
 spec :: Spec
 spec = do

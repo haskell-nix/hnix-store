@@ -14,7 +14,7 @@ import System.Nix.Arbitrary.UTCTime ()
 import System.Nix.StorePath (StorePath)
 import System.Nix.StorePath.Metadata (Metadata(..), StorePathTrust)
 
-import qualified System.Nix.Hash
+import System.Nix.Hash qualified
 
 import Test.QuickCheck (Arbitrary(..), suchThat)
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))

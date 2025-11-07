@@ -25,6 +25,7 @@ common commons
     , DeriveGeneric
     , DerivingVia
     , FlexibleInstances
+    , ImportQualifiedPost
     , LambdaCase
     , RecordWildCards
     , StandaloneDeriving

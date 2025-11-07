@@ -38,12 +38,12 @@ import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder)
 import System.Nix.Base (BaseEncoding(..))
 
-import qualified Crypto.Hash
-import qualified Data.ByteArray
-import qualified Data.Text
-import qualified Data.Text.Lazy.Builder
-import qualified System.Nix.Base
-import qualified System.Nix.Hash.Truncation
+import Crypto.Hash qualified
+import Data.ByteArray qualified
+import Data.Text qualified
+import Data.Text.Lazy.Builder qualified
+import System.Nix.Base qualified
+import System.Nix.Hash.Truncation qualified
 
 -- | A 'HashAlgorithm' with a canonical name, for serialization
 -- purposes (e.g. SRI hashes)

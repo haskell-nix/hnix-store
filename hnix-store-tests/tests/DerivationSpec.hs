@@ -7,9 +7,9 @@ import Test.Hspec.Nix (roundtrips)
 import System.Nix.Arbitrary ()
 import System.Nix.Derivation (parseDerivation, buildDerivation)
 
-import qualified Data.Attoparsec.Text
-import qualified Data.Text.Lazy
-import qualified Data.Text.Lazy.Builder
+import Data.Attoparsec.Text qualified
+import Data.Text.Lazy qualified
+import Data.Text.Lazy.Builder qualified
 
 -- TODO(srk): this won't roundtrip as Arbitrary Text
 -- contains wild stuff like control characters and UTF8 sequences.

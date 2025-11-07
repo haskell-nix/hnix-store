@@ -18,10 +18,10 @@ import Data.Text.Lazy.Builder (Builder)
 import GHC.Generics (Generic)
 import System.Nix.Hash (HashAlgo)
 
-import qualified Data.Attoparsec.Text
-import qualified Data.Text.Lazy
-import qualified Data.Text.Lazy.Builder
-import qualified System.Nix.Hash
+import Data.Attoparsec.Text qualified
+import Data.Text.Lazy qualified
+import Data.Text.Lazy.Builder qualified
+import System.Nix.Hash qualified
 
 data ContentAddressMethod
   = ContentAddressMethod_Flat
