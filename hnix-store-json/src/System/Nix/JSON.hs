@@ -8,8 +8,11 @@ This module is mostly a stub for now
 providing (From|To)JSON for Realisation type
 which is required for `-remote`.
 -}
-module System.Nix.JSON where
+module System.Nix.JSON
+  ( HashJSON(..)
+  ) where
 
+import Crypto.Hash (Digest)
 import Data.Aeson
 import Data.Aeson.KeyMap qualified
 import Data.Aeson.Types qualified
@@ -22,6 +25,7 @@ import Data.Map.Monoidal qualified
 import Data.Maybe (fromMaybe, maybeToList)
 import Data.Set qualified
 import Data.Some
+import Data.Text qualified
 import Data.Text.Lazy qualified
 import Data.Text.Lazy.Builder qualified
 import Data.These
@@ -29,6 +33,7 @@ import Data.These.Combinators
 import Deriving.Aeson
 import GHC.Generics
 
+import System.Nix.Base (baseEncodingToText, textToBaseEncoding)
 import System.Nix.Base qualified
 import System.Nix.ContentAddress
 import System.Nix.Derivation
@@ -39,7 +44,8 @@ import System.Nix.Realisation (BuildTraceKey, Realisation, RealisationWithId(..)
 import System.Nix.Realisation qualified
 import System.Nix.Signature (Signature)
 import System.Nix.Signature qualified
-import System.Nix.StorePath
+import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart, storePathHash, storePathName, mkStorePathName, unStorePathName, parseBasePathFromText)
+import System.Nix.StorePath qualified
 
 instance ToJSON StorePathName where
   toJSON = toJSON . System.Nix.StorePath.unStorePathName
@@ -64,31 +70,41 @@ instance FromJSON StorePathHashPart where
     . System.Nix.Base.decodeWith NixBase32
     )
 
--- | TODO: hacky, we need to stop assuming StoreDir for
--- StorePath to and from JSON
 instance ToJSON StorePath where
-  toJSON =
-    toJSON
-    . System.Nix.StorePath.storePathToText def
+  toJSON sp =
+    toJSON $ Data.Text.concat
+      [ System.Nix.StorePath.storePathHashPartToText (storePathHash sp)
+      , "-"
+      , System.Nix.StorePath.unStorePathName (storePathName sp)
+      ]
 
-  toEncoding =
-    toEncoding
-    . System.Nix.StorePath.storePathToText def
+  toEncoding sp =
+    toEncoding $ Data.Text.concat
+      [ System.Nix.StorePath.storePathHashPartToText (storePathHash sp)
+      , "-"
+      , System.Nix.StorePath.unStorePathName (storePathName sp)
+      ]
 
 instance FromJSON StorePath where
   parseJSON =
     withText "StorePath"
     ( either
-        (fail . show)
+        (fail . show @System.Nix.StorePath.InvalidPathError)
         pure
-    . System.Nix.StorePath.parsePathFromText def
+    . parseBasePathFromText
     )
 
 instance ToJSONKey StorePath where
-  toJSONKey = Data.Aeson.Types.toJSONKeyText $ System.Nix.StorePath.storePathToText def
+  toJSONKey = Data.Aeson.Types.toJSONKeyText $ \sp ->
+    Data.Text.concat
+      [ System.Nix.StorePath.storePathHashPartToText (storePathHash sp)
+      , "-"
+      , System.Nix.StorePath.unStorePathName (storePathName sp)
+      ]
 
 instance FromJSONKey StorePath where
-  fromJSONKey = FromJSONKeyTextParser $ either (fail . show) pure . System.Nix.StorePath.parsePathFromText def
+  fromJSONKey = FromJSONKeyTextParser $
+    either (fail . show @System.Nix.StorePath.InvalidPathError) pure . parseBasePathFromText
 
 deriving newtype instance FromJSON DerivedPathMap
 deriving newtype instance ToJSON DerivedPathMap
@@ -234,6 +250,31 @@ instance FromJSON Signature where
     . Data.Attoparsec.Text.parseOnly
         System.Nix.Signature.signatureParser
     )
+
+-- | Needed to avoid overlapping instances
+newtype HashJSON = HashJSON { unHashJSON :: DSum HashAlgo Digest }
+  deriving (Eq, Show)
+
+instance ToJSON HashJSON where
+  toJSON (HashJSON (algo :=> digest)) =
+    object
+      [ "algorithm" .= algoToText algo
+      , "format" .= baseEncodingToText Base64  -- Default to base64 for output
+      , "hash" .= encodeDigestWith Base64 digest
+      ]
+
+instance FromJSON HashJSON where
+  parseJSON = withObject "HashJSON" $ \obj -> do
+    algoText <- obj .: "algorithm"
+    formatText <- obj .: "format"
+    hashText <- obj .: "hash"
+
+    Some algo <- either fail pure $ textToAlgo algoText
+    format <- either fail pure $ textToBaseEncoding formatText
+
+    digest <- has @NamedAlgo algo $ either fail pure $ decodeDigestWith format hashText
+
+    pure $ HashJSON (algo :=> digest)
 
 data LowerLeading
 instance StringModifier LowerLeading where
