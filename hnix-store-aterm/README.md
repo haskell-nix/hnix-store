@@ -1,6 +1,5 @@
 # `hnix-store-aterm`
 
-[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/Gabriella439/Haskell-Nix-Derivation-Library/ci.yaml?branch=main)](https://github.com/Gabriella439/Haskell-Nix-Derivation-Library/actions/workflows/ci.yaml)
 [![Hackage version](https://img.shields.io/hackage/v/hnix-store-aterm.svg?color=success)](https://hackage.haskell.org/package/hnix-store-aterm)
 [![Dependencies](https://img.shields.io/hackage-deps/v/hnix-store-aterm?label=Dependencies)](https://packdeps.haskellers.com/feed?needle=hnix-store-aterm)
 

@@ -27,7 +27,7 @@ Extra-Source-Files:
     tests/example1.drv
 Source-Repository head
     Type: git
-    Location: https://github.com/Gabriella439/Haskell-Nix-Derivation-Library
+    Location: https://github.com/haskell-nix/hnix-store
 
 Common commons
     Default-Extensions:
