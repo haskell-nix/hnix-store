@@ -69,6 +69,7 @@ library
     , dependent-sum
     , deriving-aeson >= 0.2
     , text
+    , time
   hs-source-dirs:      src
 
 test-suite json
@@ -76,6 +77,7 @@ test-suite json
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+    BuildResultSpec
     ContentAddressSpec
     DerivedPathSpec
     HashSpec

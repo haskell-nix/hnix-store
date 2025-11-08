@@ -16,21 +16,28 @@ import Control.Applicative ((<|>))
 import Crypto.Hash (Digest)
 import Data.Aeson
 import Data.Aeson.KeyMap qualified
+import Data.Aeson.Types (Parser)
 import Data.Aeson.Types qualified
 import Data.Attoparsec.Text qualified
 import Data.Char qualified
 import Data.Constraint.Extras (Has(has))
 import Data.Dependent.Sum
 import Data.Foldable (toList)
+import Data.Map.Strict qualified
+import Data.Maybe (maybeToList)
 import Data.Set qualified
 import Data.Some
 import Data.Text (Text)
+import Data.Text qualified
 import Data.Text.Lazy qualified
 import Data.Text.Lazy.Builder qualified
+import Data.Time (diffUTCTime)
+import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Deriving.Aeson
 
 import System.Nix.Base (baseEncodingToText, textToBaseEncoding)
 import System.Nix.Base qualified
+import System.Nix.Build (BuildResult(..), BuildSuccess(..), BuildFailure(..), BuildSuccessStatus(..), BuildFailureStatus(..))
 import System.Nix.ContentAddress
 import System.Nix.DerivedPath (DerivedPath(..), OutputsSpec(..), SingleDerivedPath(..))
 import System.Nix.Hash
@@ -280,3 +287,118 @@ instance FromJSON RealisationWithId where
     drvOut <- o .: "id"
     pure (RealisationWithId (drvOut, r))
   parseJSON x = fail $ "Expected Object but got " ++ show x
+
+-- BuildSuccessStatus enum to/from JSON as strings
+instance ToJSON BuildSuccessStatus where
+  toJSON BuildSuccessStatus_Built = String "Built"
+  toJSON BuildSuccessStatus_Substituted = String "Substituted"
+  toJSON BuildSuccessStatus_AlreadyValid = String "AlreadyValid"
+  toJSON BuildSuccessStatus_ResolvesToAlreadyValid = String "ResolvesToAlreadyValid"
+
+instance FromJSON BuildSuccessStatus where
+  parseJSON = withText "BuildSuccessStatus" $ \case
+    "Built" -> pure BuildSuccessStatus_Built
+    "Substituted" -> pure BuildSuccessStatus_Substituted
+    "AlreadyValid" -> pure BuildSuccessStatus_AlreadyValid
+    "ResolvesToAlreadyValid" -> pure BuildSuccessStatus_ResolvesToAlreadyValid
+    other -> fail $ "Unknown BuildSuccessStatus: " ++ Data.Text.unpack other
+
+-- BuildFailureStatus enum to/from JSON as strings
+instance ToJSON BuildFailureStatus where
+  toJSON BuildFailureStatus_PermanentFailure = String "PermanentFailure"
+  toJSON BuildFailureStatus_InputRejected = String "InputRejected"
+  toJSON BuildFailureStatus_OutputRejected = String "OutputRejected"
+  toJSON BuildFailureStatus_TransientFailure = String "TransientFailure"
+  toJSON BuildFailureStatus_CachedFailure = String "CachedFailure"
+  toJSON BuildFailureStatus_TimedOut = String "TimedOut"
+  toJSON BuildFailureStatus_MiscFailure = String "MiscFailure"
+  toJSON BuildFailureStatus_DependencyFailed = String "DependencyFailed"
+  toJSON BuildFailureStatus_LogLimitExceeded = String "LogLimitExceeded"
+  toJSON BuildFailureStatus_NotDeterministic = String "NotDeterministic"
+  toJSON BuildFailureStatus_NoSubstituters = String "NoSubstituters"
+  toJSON BuildFailureStatus_HashMismatch = String "HashMismatch"
+
+instance FromJSON BuildFailureStatus where
+  parseJSON = withText "BuildFailureStatus" $ \case
+    "PermanentFailure" -> pure BuildFailureStatus_PermanentFailure
+    "InputRejected" -> pure BuildFailureStatus_InputRejected
+    "OutputRejected" -> pure BuildFailureStatus_OutputRejected
+    "TransientFailure" -> pure BuildFailureStatus_TransientFailure
+    "CachedFailure" -> pure BuildFailureStatus_CachedFailure
+    "TimedOut" -> pure BuildFailureStatus_TimedOut
+    "MiscFailure" -> pure BuildFailureStatus_MiscFailure
+    "DependencyFailed" -> pure BuildFailureStatus_DependencyFailed
+    "LogLimitExceeded" -> pure BuildFailureStatus_LogLimitExceeded
+    "NotDeterministic" -> pure BuildFailureStatus_NotDeterministic
+    "NoSubstituters" -> pure BuildFailureStatus_NoSubstituters
+    "HashMismatch" -> pure BuildFailureStatus_HashMismatch
+    other -> fail $ "Unknown BuildFailureStatus: " ++ Data.Text.unpack other
+
+-- BuildResult JSON instances
+instance ToJSON BuildResult where
+  toJSON (BuildResult status timesBuilt startTime stopTime cpuUser cpuSystem) =
+    case status of
+      Right (BuildSuccess successStatus builtOutputs) ->
+        -- Convert Map (BuildTraceKey OutputName) Realisation to Map OutputName RealisationWithId
+        let builtOutputsForJSON = Data.Map.Strict.fromList
+              [ (outName, RealisationWithId (btk, r))
+              | (btk@(BuildTraceKey _hash outName), r) <- Data.Map.Strict.toList builtOutputs
+              ]
+        in object $ concat
+          [ [ "success" .= True
+            , "status" .= successStatus
+            , "builtOutputs" .= builtOutputsForJSON
+            , "timesBuilt" .= timesBuilt
+            , "startTime" .= (floor (realToFrac (diffUTCTime startTime (posixSecondsToUTCTime 0)) :: Double) :: Integer)
+            , "stopTime" .= (floor (realToFrac (diffUTCTime stopTime (posixSecondsToUTCTime 0)) :: Double) :: Integer)
+            ]
+          , maybeToList $ ("cpuUser" .=) <$> cpuUser
+          , maybeToList $ ("cpuSystem" .=) <$> cpuSystem
+          ]
+      Left (BuildFailure failureStatus errorMsg isNonDeterministic) ->
+        object
+          [ "success" .= False
+          , "status" .= failureStatus
+          , "errorMsg" .= errorMsg
+          , "isNonDeterministic" .= isNonDeterministic
+          , "timesBuilt" .= timesBuilt
+          , "startTime" .= (floor (realToFrac (diffUTCTime startTime (posixSecondsToUTCTime 0)) :: Double) :: Integer)
+          , "stopTime" .= (floor (realToFrac (diffUTCTime stopTime (posixSecondsToUTCTime 0)) :: Double) :: Integer)
+          ]
+
+instance FromJSON BuildResult where
+  parseJSON = withObject "BuildResult" $ \obj -> do
+    success <- obj .: "success"
+    timesBuilt <- obj .: "timesBuilt"
+    startTimeSeconds <- obj .: "startTime"
+    stopTimeSeconds <- obj .: "stopTime"
+    let startTime = posixSecondsToUTCTime (fromInteger startTimeSeconds)
+        stopTime = posixSecondsToUTCTime (fromInteger stopTimeSeconds)
+
+    buildResultStatus <- if success
+      then do
+        successStatus <- obj .: "status"
+        -- Parse as Map OutputName RealisationWithId, then convert to Map (BuildTraceKey OutputName) Realisation
+        builtOutputsWithId <- obj .: "builtOutputs" :: Parser (Data.Map.Strict.Map OutputName RealisationWithId)
+        let builtOutputs = Data.Map.Strict.fromList
+              [ (btk, r)
+              | (_outName, RealisationWithId (btk, r)) <- Data.Map.Strict.toList builtOutputsWithId
+              ]
+        pure $ Right (BuildSuccess successStatus builtOutputs)
+      else do
+        failureStatus <- obj .: "status"
+        errorMsg <- obj .: "errorMsg"
+        isNonDeterministic <- obj .: "isNonDeterministic"
+        pure $ Left (BuildFailure failureStatus errorMsg isNonDeterministic)
+
+    buildResultCpuUser <- obj .:? "cpuUser"
+    buildResultCpuSystem <- obj .:? "cpuSystem"
+
+    pure BuildResult
+      { buildResultStatus = buildResultStatus
+      , buildResultTimesBuilt = timesBuilt
+      , buildResultStartTime = startTime
+      , buildResultStopTime = stopTime
+      , buildResultCpuUser = buildResultCpuUser
+      , buildResultCpuSystem = buildResultCpuSystem
+      }
