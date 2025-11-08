@@ -15,7 +15,6 @@ module System.Nix.JSON
 import Control.Applicative ((<|>))
 import Crypto.Hash (Digest)
 import Data.Aeson
-import Data.Aeson.Key qualified
 import Data.Aeson.KeyMap qualified
 import Data.Aeson.Types (Parser)
 import Data.Aeson.Types qualified
@@ -36,7 +35,7 @@ import Data.Text.Lazy qualified
 import Data.Text.Lazy.Builder qualified
 import Data.These
 import Data.These.Combinators
-import Data.Time (UTCTime, diffUTCTime)
+import Data.Time (diffUTCTime)
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Deriving.Aeson
 import GHC.Generics
@@ -47,7 +46,6 @@ import System.Nix.Build (BuildResult(..), BuildSuccess(..), BuildFailure(..), Bu
 import System.Nix.ContentAddress
 import System.Nix.Derivation
 import System.Nix.DerivedPath (DerivedPath(..), OutputsSpec(..), SingleDerivedPath(..))
-import System.Nix.DerivedPath qualified
 import System.Nix.Hash
 import System.Nix.OutputName (OutputName)
 import System.Nix.OutputName qualified
