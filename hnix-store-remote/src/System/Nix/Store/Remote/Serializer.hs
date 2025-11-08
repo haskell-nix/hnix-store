@@ -125,7 +125,7 @@ import Data.Vector (Vector)
 import Data.Word (Word8, Word32, Word64)
 import GHC.Generics (Generic)
 import System.Nix.Base (BaseEncoding(Base16, NixBase32))
-import System.Nix.Build (BuildMode, BuildResult(..))
+import System.Nix.Build (BuildMode, BuildResult(..), BuildSuccess(..), BuildFailure(..), BuildSuccessStatus(..), BuildFailureStatus(..))
 import System.Nix.ContentAddress (ContentAddress)
 import System.Nix.Derivation (Derivation(..), DerivationOutput(..))
 import System.Nix.DerivedPath (DerivedPath(..), ParseOutputsError)
@@ -1448,54 +1448,118 @@ buildResult = Serializer
   { getS = do
       pv <- Control.Monad.Reader.asks hasProtoVersion
 
-      buildResultStatus <- mapGetER $ getS enum
-      buildResultErrorMessage <- mapGetER $ getS maybeText
+      statusWord <- mapGetER $ getS enum
+      errorMessage <- mapGetER $ getS maybeText
 
       ( buildResultTimesBuilt
-        , buildResultIsNonDeterministic
+        , isNonDeterministic
         , buildResultStartTime
         , buildResultStopTime
         ) <-
         if protoVersion_minor pv >= 29
         then mapGetER $ do
-          tb <- (\case 0 -> Nothing; x -> Just x) <$> getS int
+          tb <- getS int
           nondet <- getS bool
           start <- (\case x | x == t0 -> Nothing; x -> Just x) <$> getS time
           end <- (\case x | x == t0 -> Nothing; x -> Just x) <$> getS time
-          pure $ (tb, pure nondet, start, end)
-        else pure $ (Nothing, Nothing, Nothing, Nothing)
+          pure $ (tb, nondet, start, end)
+        else pure $ (0, False, Nothing, Nothing)
 
-      buildResultBuiltOutputs <-
+      parsedBuiltOutputs <-
         if protoVersion_minor pv >= 28
-        then
-            pure
-          . Data.Map.Strict.fromList
-          . map (\(_, RealisationWithId (a, b)) -> (a, b))
-          . Data.Map.Strict.toList
-          <$> getS (mapS buildTraceKeyTyped realisationWithId)
-        else pure Nothing
-      pure BuildResult{..}
+        then do
+          wireMap <- getS (mapS buildTraceKeyTyped realisationWithId)
+          pure
+            $ Data.Map.Strict.fromList
+            $ map (\(_, RealisationWithId (a, b)) -> (a, b))
+            $ Data.Map.Strict.toList wireMap
+        else pure mempty
+
+      let buildResultStatus = case (wireToStatus statusWord, errorMessage) of
+            (Right successStatus, _) -> Right $ BuildSuccess successStatus parsedBuiltOutputs
+            (Left failureStatus, Just errorMsg) -> Left $ BuildFailure failureStatus errorMsg isNonDeterministic
+            (Left failureStatus, Nothing) -> Left $ BuildFailure failureStatus Data.Text.empty isNonDeterministic
+
+      let buildResultStartTime' = Data.Maybe.fromMaybe t0 buildResultStartTime
+          buildResultStopTime' = Data.Maybe.fromMaybe t0 buildResultStopTime
+          buildResultCpuUser = Nothing
+          buildResultCpuSystem = Nothing
+
+      pure BuildResult
+        { buildResultStatus = buildResultStatus
+        , buildResultTimesBuilt = buildResultTimesBuilt
+        , buildResultStartTime = buildResultStartTime'
+        , buildResultStopTime = buildResultStopTime'
+        , buildResultCpuUser = buildResultCpuUser
+        , buildResultCpuSystem = buildResultCpuSystem
+        }
 
   , putS = \BuildResult{..} -> do
       pv <- Control.Monad.Reader.asks hasProtoVersion
 
-      mapPutER $ putS enum buildResultStatus
-      mapPutER $ putS maybeText buildResultErrorMessage
-      Control.Monad.when (protoVersion_minor pv >= 29) $ mapPutER $ do
-        putS int $ Data.Maybe.fromMaybe 0 buildResultTimesBuilt
-        putS bool $ Data.Maybe.fromMaybe False buildResultIsNonDeterministic
-        putS time $ Data.Maybe.fromMaybe t0 buildResultStartTime
-        putS time $ Data.Maybe.fromMaybe t0 buildResultStopTime
+      let (statusWord, errorMessage, isNonDeterministic, builtOutputs) = case buildResultStatus of
+            Right (BuildSuccess st bo) -> (successStatusToWire st, Nothing, False, bo)
+            Left (BuildFailure st em nd) -> (failureStatusToWire st, Just em, nd, mempty)
+
+      mapPutER $ putS enum statusWord
+      mapPutER $ putS maybeText errorMessage
+      Control.Monad.when (protoVersion_minor pv >= 29) $ do
+        putS int buildResultTimesBuilt
+        mapPutER $ putS bool isNonDeterministic
+        putS time buildResultStartTime
+        putS time buildResultStopTime
       Control.Monad.when (protoVersion_minor pv >= 28)
         $ putS (mapS buildTraceKeyTyped realisationWithId)
         $ Data.Map.Strict.fromList
         $ map (\(a, b) -> (a, RealisationWithId (a, b)))
         $ Data.Map.Strict.toList
-        $ Data.Maybe.fromMaybe mempty buildResultBuiltOutputs
+        $ builtOutputs
   }
   where
     t0 :: UTCTime
     t0 = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
+
+    -- Convert wire format status code to either success or failure status
+    wireToStatus :: Word8 -> Either BuildFailureStatus BuildSuccessStatus
+    wireToStatus 0 = Right BuildSuccessStatus_Built
+    wireToStatus 1 = Right BuildSuccessStatus_Substituted
+    wireToStatus 2 = Right BuildSuccessStatus_AlreadyValid
+    wireToStatus 3 = Left BuildFailureStatus_PermanentFailure
+    wireToStatus 4 = Left BuildFailureStatus_InputRejected
+    wireToStatus 5 = Left BuildFailureStatus_OutputRejected
+    wireToStatus 6 = Left BuildFailureStatus_TransientFailure
+    wireToStatus 7 = Left BuildFailureStatus_CachedFailure
+    wireToStatus 8 = Left BuildFailureStatus_TimedOut
+    wireToStatus 9 = Left BuildFailureStatus_MiscFailure
+    wireToStatus 10 = Left BuildFailureStatus_DependencyFailed
+    wireToStatus 11 = Left BuildFailureStatus_LogLimitExceeded
+    wireToStatus 12 = Left BuildFailureStatus_NotDeterministic
+    wireToStatus 13 = Right BuildSuccessStatus_ResolvesToAlreadyValid
+    wireToStatus 14 = Left BuildFailureStatus_NoSubstituters
+    wireToStatus 15 = Left BuildFailureStatus_HashMismatch
+    wireToStatus _ = Left BuildFailureStatus_MiscFailure
+
+    -- Convert success status to wire format
+    successStatusToWire :: BuildSuccessStatus -> Word8
+    successStatusToWire BuildSuccessStatus_Built = 0
+    successStatusToWire BuildSuccessStatus_Substituted = 1
+    successStatusToWire BuildSuccessStatus_AlreadyValid = 2
+    successStatusToWire BuildSuccessStatus_ResolvesToAlreadyValid = 13
+
+    -- Convert failure status to wire format
+    failureStatusToWire :: BuildFailureStatus -> Word8
+    failureStatusToWire BuildFailureStatus_PermanentFailure = 3
+    failureStatusToWire BuildFailureStatus_InputRejected = 4
+    failureStatusToWire BuildFailureStatus_OutputRejected = 5
+    failureStatusToWire BuildFailureStatus_TransientFailure = 6
+    failureStatusToWire BuildFailureStatus_CachedFailure = 7
+    failureStatusToWire BuildFailureStatus_TimedOut = 8
+    failureStatusToWire BuildFailureStatus_MiscFailure = 9
+    failureStatusToWire BuildFailureStatus_DependencyFailed = 10
+    failureStatusToWire BuildFailureStatus_LogLimitExceeded = 11
+    failureStatusToWire BuildFailureStatus_NotDeterministic = 12
+    failureStatusToWire BuildFailureStatus_NoSubstituters = 14
+    failureStatusToWire BuildFailureStatus_HashMismatch = 15
 
 -- *** GCResult
 

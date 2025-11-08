@@ -9,9 +9,11 @@ import Test.Hspec (Expectation, Spec, describe, parallel, shouldBe)
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck (Gen, arbitrary, forAll, suchThat)
 
+import Data.Time.Clock.POSIX qualified
+
 import System.Nix.Arbitrary ()
+import System.Nix.Build (BuildResult(..), BuildSuccess(..), BuildFailure(..))
 import System.Nix.Derivation (Derivation(inputDrvs))
-import System.Nix.Build (BuildResult(..))
 import System.Nix.StorePath (StoreDir)
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
@@ -72,26 +74,39 @@ spec = parallel $ do
         $ \sd -> forAll (arbitrary `suchThat` ((< 28) . protoVersion_minor))
         $ \pv ->
             roundtripSReader @ProtoStoreConfig buildResult (ProtoStoreConfig sd pv)
-            . (\x -> x { buildResultBuiltOutputs = Nothing })
-            . (\x -> x { buildResultTimesBuilt = Nothing
-                       , buildResultIsNonDeterministic = Nothing
-                       , buildResultStartTime = Nothing
-                       , buildResultStopTime = Nothing
+            . (\x -> x { buildResultStatus = case buildResultStatus x of
+                          Right (BuildSuccess st _bo) -> Right (BuildSuccess st mempty)
+                          Left (BuildFailure st em _nd) -> Left (BuildFailure st em False)
+                       })
+            . (\x -> x { buildResultTimesBuilt = 0
+                       , buildResultStartTime = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
+                       , buildResultStopTime = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
+                       , buildResultCpuUser = Nothing
+                       , buildResultCpuSystem = Nothing
                        }
               )
       prop "= 1.28"
         $ \sd ->
             roundtripSReader @ProtoStoreConfig buildResult (ProtoStoreConfig sd (ProtoVersion 1 28))
-            . (\x -> x { buildResultTimesBuilt = Nothing
-                       , buildResultIsNonDeterministic = Nothing
-                       , buildResultStartTime = Nothing
-                       , buildResultStopTime = Nothing
+            . (\x -> x { buildResultStatus = case buildResultStatus x of
+                          Right s -> Right s
+                          Left (BuildFailure st em _nd) -> Left (BuildFailure st em False)
+                       })
+            . (\x -> x { buildResultTimesBuilt = 0
+                       , buildResultStartTime = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
+                       , buildResultStopTime = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
+                       , buildResultCpuUser = Nothing
+                       , buildResultCpuSystem = Nothing
                        }
               )
       prop "> 1.28"
         $ \sd -> forAll (arbitrary `suchThat` ((> 28) . protoVersion_minor))
         $ \pv ->
             roundtripSReader @ProtoStoreConfig buildResult (ProtoStoreConfig sd pv)
+            . (\x -> x { buildResultCpuUser = Nothing
+                       , buildResultCpuSystem = Nothing
+                       }
+              )
 
     prop "StorePath" $
       roundtripSReader @StoreDir storePath
