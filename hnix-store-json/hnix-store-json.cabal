@@ -17,6 +17,7 @@ extra-doc-files:
 extra-source-files:
     README.md
 data-files:
+    upstream-libstore-data/build-result/*.json
     upstream-libstore-data/realisation/*.json
     upstream-libutil-data/nars/*.nar
 
@@ -53,6 +54,7 @@ library
     , monoidal-containers
     , text
     , these
+    , time
   hs-source-dirs:      src
 
 test-suite json
@@ -60,6 +62,7 @@ test-suite json
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+    BuildResultSpec
     ContentAddressSpec
     DerivedPathSpec
     HashSpec
@@ -87,3 +90,4 @@ test-suite json
     , dependent-sum
     , hspec
     , some
+    , time
