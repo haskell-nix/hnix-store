@@ -186,6 +186,7 @@ test-suite remote
     , some > 1.0.5 && < 2
     , hspec
     , QuickCheck
+    , time
     , transformers
 
 test-suite remote-io
