@@ -17,6 +17,8 @@ extra-doc-files:
     CHANGELOG.md
 extra-source-files:
     README.md
+  , tests/samples/example0.drv
+  , tests/samples/example1.drv
 
 common commons
   ghc-options:  -Wall
