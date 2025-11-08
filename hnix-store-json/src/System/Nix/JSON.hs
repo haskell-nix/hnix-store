@@ -276,6 +276,20 @@ instance FromJSON HashJSON where
 
     pure $ HashJSON (algo :=> digest)
 
+instance ToJSON ContentAddress where
+  toJSON (ContentAddress method digest) =
+    object
+      [ "hash" .= HashJSON digest
+      , "method" .= methodToText method
+      ]
+
+instance FromJSON ContentAddress where
+  parseJSON = withObject "ContentAddress" $ \obj -> do
+    HashJSON digest <- obj .: "hash"
+    methodText <- obj .: "method"
+    method <- either fail pure $ textToMethod methodText
+    pure $ ContentAddress method digest
+
 data LowerLeading
 instance StringModifier LowerLeading where
   getStringModifier "" = ""
