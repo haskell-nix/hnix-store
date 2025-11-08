@@ -29,24 +29,23 @@ upstreamSHA256Nix32 = HashJSON $ forceRight $ mkNamedDigest "sha256" "0fz12qc1ni
 
 spec :: Spec
 spec = do
-  describe "Hash" $ do
-    describe "upstream Nix test data" $ do
-      it "parses simple.json" $ do
-        path <- getDataFileName "upstream-libutil-data/hash/simple.json"
-        json <- BSL.readFile path
-        eitherDecode json `shouldBe` Right upstreamSimpleHash
+  describe "upstream Nix test data" $ do
+    it "parses simple.json" $ do
+      path <- getDataFileName "upstream-libutil-data/hash/simple.json"
+      json <- BSL.readFile path
+      eitherDecode json `shouldBe` Right upstreamSimpleHash
 
-      it "parses sha256-base16.json" $ do
-        path <- getDataFileName "upstream-libutil-data/hash/sha256-base16.json"
-        json <- BSL.readFile path
-        eitherDecode json `shouldBe` Right upstreamSHA256Base16
+    it "parses sha256-base16.json" $ do
+      path <- getDataFileName "upstream-libutil-data/hash/sha256-base16.json"
+      json <- BSL.readFile path
+      eitherDecode json `shouldBe` Right upstreamSHA256Base16
 
-      it "parses sha256-base64.json" $ do
-        path <- getDataFileName "upstream-libutil-data/hash/sha256-base64.json"
-        json <- BSL.readFile path
-        eitherDecode json `shouldBe` Right upstreamSHA256Base64
+    it "parses sha256-base64.json" $ do
+      path <- getDataFileName "upstream-libutil-data/hash/sha256-base64.json"
+      json <- BSL.readFile path
+      eitherDecode json `shouldBe` Right upstreamSHA256Base64
 
-      it "parses sha256-nix32.json" $ do
-        path <- getDataFileName "upstream-libutil-data/hash/sha256-nix32.json"
-        json <- BSL.readFile path
-        eitherDecode json `shouldBe` Right upstreamSHA256Nix32
+    it "parses sha256-nix32.json" $ do
+      path <- getDataFileName "upstream-libutil-data/hash/sha256-nix32.json"
+      json <- BSL.readFile path
+      eitherDecode json `shouldBe` Right upstreamSHA256Nix32
