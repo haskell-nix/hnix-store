@@ -17,41 +17,40 @@ extra-doc-files:
     CHANGELOG.md
 extra-source-files:
     README.md
-  , tests/samples/example0.drv
-  , tests/samples/example1.drv
 
 common commons
   ghc-options:  -Wall
   default-extensions:
       ConstraintKinds
+    , BangPatterns
     , DataKinds
-    , DeriveGeneric
     , DeriveDataTypeable
-    , DeriveFunctor
     , DeriveFoldable
-    , DeriveTraversable
+    , DeriveFunctor
+    , DeriveGeneric
     , DeriveLift
+    , DeriveTraversable
     , DerivingStrategies
     , DerivingVia
     , ExistentialQuantification
+    , ImportQualifiedPost
     , FlexibleContexts
     , FlexibleInstances
     , GADTs
     , ImportQualifiedPost
+    , InstanceSigs
+    , KindSignatures
+    , LambdaCase
+    , MultiParamTypeClasses
+    , MultiWayIf
+    , RecordWildCards
     , ScopedTypeVariables
     , StandaloneDeriving
-    , RecordWildCards
+    , TupleSections
     , TypeApplications
     , TypeFamilies
     , TypeOperators
     , TypeSynonymInstances
-    , InstanceSigs
-    , KindSignatures
-    , MultiParamTypeClasses
-    , MultiWayIf
-    , TupleSections
-    , LambdaCase
-    , BangPatterns
     , ViewPatterns
   default-language: Haskell2010
 
@@ -64,6 +63,7 @@ library
     , System.Nix.ContentAddress
     , System.Nix.Derivation
     , System.Nix.DerivedPath
+    , System.Nix.Placeholder
     , System.Nix.Fingerprint
     , System.Nix.FileContentAddress
     , System.Nix.Hash
@@ -73,6 +73,7 @@ library
     , System.Nix.Signature
     , System.Nix.Store.Types
     , System.Nix.StorePath
+    , System.Nix.StorePath.ContentAddressed
     , System.Nix.StorePath.Metadata
   build-depends:
       base >=4.12 && <5
@@ -80,8 +81,8 @@ library
     , base16-bytestring >= 1.0
     , base64-bytestring >= 1.2.1
     , bytestring
-    , containers
     , constraints-extras
+    , containers
     , crypton
     , data-default-class
     , dependent-sum > 0.7
@@ -106,6 +107,7 @@ test-suite core
     Derivation
     Fingerprint
     Hash
+    Placeholder
     Signature
     StorePath
   hs-source-dirs:
