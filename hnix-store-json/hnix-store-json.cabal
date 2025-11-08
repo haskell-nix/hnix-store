@@ -39,6 +39,7 @@ library
   build-depends:
       base >=4.12 && <5
     , hnix-store-core >= 0.8
+
     , aeson >= 2.0 && < 3.0
     , attoparsec
     , deriving-aeson >= 0.2
@@ -60,6 +61,7 @@ test-suite json
     , hnix-store-core
     , hnix-store-json
     , hnix-store-tests
+
     , aeson
     , containers
     , data-default-class
