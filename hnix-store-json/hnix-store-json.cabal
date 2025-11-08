@@ -61,9 +61,13 @@ test-suite json
   main-is: Spec.hs
   other-modules:
     ContentAddressSpec
+    DerivedPathSpec
     HashSpec
     JSONSpec
+    OutputsSpecSpec
     RealisationSpec
+    SingleDerivedPathSpec
+    StorePathSpec
     Paths_hnix_store_json
   hs-source-dirs:
     tests

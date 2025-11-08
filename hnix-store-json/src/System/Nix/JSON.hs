@@ -12,6 +12,7 @@ module System.Nix.JSON
   ( HashJSON(..)
   ) where
 
+import Control.Applicative ((<|>))
 import Crypto.Hash (Digest)
 import Data.Aeson
 import Data.Aeson.KeyMap qualified
@@ -21,10 +22,12 @@ import Data.Char qualified
 import Data.Constraint.Extras (Has(has))
 import Data.Default.Class
 import Data.Dependent.Sum
+import Data.Foldable (toList)
 import Data.Map.Monoidal qualified
 import Data.Maybe (fromMaybe, maybeToList)
 import Data.Set qualified
 import Data.Some
+import Data.Text (Text)
 import Data.Text qualified
 import Data.Text.Lazy qualified
 import Data.Text.Lazy.Builder qualified
@@ -37,6 +40,8 @@ import System.Nix.Base (baseEncodingToText, textToBaseEncoding)
 import System.Nix.Base qualified
 import System.Nix.ContentAddress
 import System.Nix.Derivation
+import System.Nix.DerivedPath (DerivedPath(..), OutputsSpec(..), SingleDerivedPath(..))
+import System.Nix.DerivedPath qualified
 import System.Nix.Hash
 import System.Nix.OutputName (OutputName)
 import System.Nix.OutputName qualified
@@ -289,6 +294,67 @@ instance FromJSON ContentAddress where
     methodText <- obj .: "method"
     method <- either fail pure $ textToMethod methodText
     pure $ ContentAddress method digest
+
+instance ToJSON OutputsSpec where
+  toJSON OutputsSpec_All = toJSON ["*" :: Text]
+  toJSON (OutputsSpec_Names names) = toJSON $ Data.Set.toList names
+
+instance FromJSON OutputsSpec where
+  parseJSON = withArray "OutputsSpec" $ \arr -> do
+    outputs <- mapM parseJSON (toList arr)
+    if outputs == ["*" :: Text]
+      then pure OutputsSpec_All
+      else do
+        names <- mapM (either (fail . show) pure . System.Nix.OutputName.mkOutputName) outputs
+        pure $ OutputsSpec_Names (Data.Set.fromList names)
+
+instance ToJSON SingleDerivedPath where
+  toJSON (SingleDerivedPath_Opaque path) = toJSON path
+  toJSON (SingleDerivedPath_Built drvPath output) =
+    object
+      [ "drvPath" .= toJSON drvPath
+      , "output" .= output
+      ]
+
+instance FromJSON SingleDerivedPath where
+  parseJSON v = parseOpaque v <|> parseBuilt v
+    where
+      parseOpaque = fmap SingleDerivedPath_Opaque . parseJSON
+      parseBuilt = withObject "SingleDerivedPath_Built" $ \obj ->
+        SingleDerivedPath_Built
+          <$> obj .: "drvPath"
+          <*> obj .: "output"
+
+instance ToJSON DerivedPath where
+  toJSON (DerivedPath_Opaque path) = toJSON path
+  toJSON (DerivedPath_Built drvPath outputs) =
+    case outputs of
+      OutputsSpec_Names names | Data.Set.size names == 1 ->
+        object
+          [ "drvPath" .= toJSON drvPath
+          , "output" .= Data.Set.elemAt 0 names
+          ]
+      _ ->
+        object
+          [ "drvPath" .= toJSON drvPath
+          , "outputs" .= outputs
+          ]
+
+instance FromJSON DerivedPath where
+  parseJSON v = parseOpaque v <|> parseBuilt v
+    where
+      parseOpaque = fmap DerivedPath_Opaque . parseJSON
+      parseBuilt = withObject "DerivedPath_Built" $ \obj -> do
+        drvPath <- obj .: "drvPath"
+        -- Try single output first, then multiple outputs
+        mOutput <- obj .:? "output"
+        mOutputs <- obj .:? "outputs"
+        case (mOutput, mOutputs) of
+          (Just output, Nothing) ->
+            pure $ DerivedPath_Built drvPath (OutputsSpec_Names (Data.Set.singleton output))
+          (Nothing, Just outputs) ->
+            pure $ DerivedPath_Built drvPath outputs
+          _ -> fail "Expected either 'output' or 'outputs' field"
 
 data LowerLeading
 instance StringModifier LowerLeading where
