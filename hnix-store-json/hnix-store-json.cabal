@@ -48,13 +48,9 @@ library
     , constraints-extras
     , containers
     , crypton
-    , data-default-class
     , dependent-sum
     , deriving-aeson >= 0.2
-    , monoidal-containers
     , text
-    , these
-    , time
   hs-source-dirs:      src
 
 test-suite json
@@ -83,11 +79,6 @@ test-suite json
 
     , aeson
     , bytestring
-    , constraints-extras
     , containers
-    , crypton
     , data-default-class
-    , dependent-sum
     , hspec
-    , some
-    , time
