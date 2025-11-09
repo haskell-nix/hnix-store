@@ -25,7 +25,6 @@ import Data.Foldable (toList)
 import Data.Set qualified
 import Data.Some
 import Data.Text (Text)
-import Data.Text qualified
 import Data.Text.Lazy qualified
 import Data.Text.Lazy.Builder qualified
 import Deriving.Aeson
@@ -41,7 +40,7 @@ import System.Nix.Realisation (DerivationOutput(..), Realisation, RealisationWit
 import System.Nix.Realisation qualified
 import System.Nix.Signature (Signature)
 import System.Nix.Signature qualified
-import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart, storePathHash, storePathName, mkStorePathName, unStorePathName, parseBasePathFromText)
+import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart, mkStorePathName, unStorePathName, parseBasePathFromText)
 import System.Nix.StorePath qualified
 
 instance ToJSON StorePathName where
@@ -68,19 +67,8 @@ instance FromJSON StorePathHashPart where
     )
 
 instance ToJSON StorePath where
-  toJSON sp =
-    toJSON $ Data.Text.concat
-      [ System.Nix.StorePath.storePathHashPartToText (storePathHash sp)
-      , "-"
-      , System.Nix.StorePath.unStorePathName (storePathName sp)
-      ]
-
-  toEncoding sp =
-    toEncoding $ Data.Text.concat
-      [ System.Nix.StorePath.storePathHashPartToText (storePathHash sp)
-      , "-"
-      , System.Nix.StorePath.unStorePathName (storePathName sp)
-      ]
+  toJSON = toJSON . System.Nix.StorePath.storePathBaseToText
+  toEncoding = toEncoding . System.Nix.StorePath.storePathBaseToText
 
 instance FromJSON StorePath where
   parseJSON =
@@ -92,12 +80,7 @@ instance FromJSON StorePath where
     )
 
 instance ToJSONKey StorePath where
-  toJSONKey = Data.Aeson.Types.toJSONKeyText $ \sp ->
-    Data.Text.concat
-      [ System.Nix.StorePath.storePathHashPartToText (storePathHash sp)
-      , "-"
-      , System.Nix.StorePath.unStorePathName (storePathName sp)
-      ]
+  toJSONKey = Data.Aeson.Types.toJSONKeyText System.Nix.StorePath.storePathBaseToText
 
 instance FromJSONKey StorePath where
   fromJSONKey = FromJSONKeyTextParser $
