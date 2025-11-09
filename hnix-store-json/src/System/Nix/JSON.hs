@@ -243,33 +243,19 @@ instance FromJSON SingleDerivedPath where
 instance ToJSON DerivedPath where
   toJSON (DerivedPath_Opaque path) = toJSON path
   toJSON (DerivedPath_Built drvPath outputs) =
-    case outputs of
-      OutputsSpec_Names names | Data.Set.size names == 1 ->
-        object
-          [ "drvPath" .= toJSON drvPath
-          , "output" .= Data.Set.elemAt 0 names
-          ]
-      _ ->
-        object
-          [ "drvPath" .= toJSON drvPath
-          , "outputs" .= outputs
-          ]
+    object
+      [ "drvPath" .= toJSON drvPath
+      , "outputs" .= outputs
+      ]
 
 instance FromJSON DerivedPath where
   parseJSON v = parseOpaque v <|> parseBuilt v
     where
       parseOpaque = fmap DerivedPath_Opaque . parseJSON
-      parseBuilt = withObject "DerivedPath_Built" $ \obj -> do
-        drvPath <- obj .: "drvPath"
-        -- Try single output first, then multiple outputs
-        mOutput <- obj .:? "output"
-        mOutputs <- obj .:? "outputs"
-        case (mOutput, mOutputs) of
-          (Just output, Nothing) ->
-            pure $ DerivedPath_Built drvPath (OutputsSpec_Names (Data.Set.singleton output))
-          (Nothing, Just outputs) ->
-            pure $ DerivedPath_Built drvPath outputs
-          _ -> fail "Expected either 'output' or 'outputs' field"
+      parseBuilt = withObject "DerivedPath_Built" $ \obj ->
+        DerivedPath_Built
+          <$> obj .: "drvPath"
+          <*> obj .: "outputs"
 
 data LowerLeading
 instance StringModifier LowerLeading where
