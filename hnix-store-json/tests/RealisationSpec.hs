@@ -4,7 +4,6 @@ module RealisationSpec where
 
 import Data.Aeson (eitherDecode, encode)
 import Data.ByteString.Lazy qualified as BSL
-import Data.Default.Class (Default(def))
 import Data.List (isInfixOf)
 import Data.Map qualified
 import Data.Set qualified
@@ -35,8 +34,7 @@ sampleRealisation0 :: Realisation
 sampleRealisation0 = Realisation
   { realisationOutPath =
       forceRight
-      $ System.Nix.StorePath.parsePath
-          def
+      $ System.Nix.StorePath.parseBasePath
           "/nix/store/cdips4lakfk1qbf1x68fq18wnn3r5r14-builder.sh"
   , realisationSignatures = mempty
   , realisationDependencies = mempty
@@ -46,9 +44,8 @@ sampleRealisation1 :: Realisation
 sampleRealisation1 = Realisation
   { realisationOutPath =
       forceRight
-      $ System.Nix.StorePath.parsePath
-          def
-          "/nix/store/5rwxzi7pal3qhpsyfc16gzkh939q1np6-curl-7.82.0.drv"
+      $ System.Nix.StorePath.parseBasePath
+          "5rwxzi7pal3qhpsyfc16gzkh939q1np6-curl-7.82.0.drv"
   , realisationSignatures =
       Data.Set.fromList
       $ forceRight
@@ -60,9 +57,8 @@ sampleRealisation1 = Realisation
       Data.Map.fromList
       [ ( sampleDerivationOutput
         , forceRight
-          $ System.Nix.StorePath.parsePathFromText
-              def
-              "/nix/store/9472ijanf79nlkb5n1yh57s7867p1930-testFixed"
+          $ System.Nix.StorePath.parseBasePathFromText
+              "9472ijanf79nlkb5n1yh57s7867p1930-testFixed"
         )
       ]
   }
