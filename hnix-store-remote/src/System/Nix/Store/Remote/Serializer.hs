@@ -633,11 +633,10 @@ pathMetadata = Serializer
 
 outputName :: NixSerializer r SError OutputName
 outputName =
-  mapPrismSerializer
-    (Data.Bifunctor.first SError_Name
-     . System.Nix.OutputName.mkOutputName)
+  mapIsoSerializer
+    System.Nix.OutputName.OutputName
     System.Nix.OutputName.unOutputName
-    text
+    storePathName
 
 -- * Signatures
 
@@ -1428,7 +1427,7 @@ derivationOutputTyped = mapErrorS ReplySError_DerivationOutput $
     ( Data.Text.Lazy.toStrict
       . Data.Text.Lazy.Builder.toLazyText
       . System.Nix.Realisation.derivationOutputBuilder
-          System.Nix.OutputName.unOutputName
+          (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
     )
     text
 

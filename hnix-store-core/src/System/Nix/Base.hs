@@ -1,5 +1,8 @@
+{-# LANGUAGE OverloadedStrings #-}
 module System.Nix.Base
   ( BaseEncoding(Base16,NixBase32,Base64)
+  , baseEncodingToText
+  , textToBaseEncoding
   , encodeWith
   , decodeWith
   ) where
@@ -8,6 +11,7 @@ import Data.ByteString (ByteString)
 import Data.Text (Text)
 import GHC.Generics (Generic)
 
+import Data.Text qualified
 import Data.Text.Encoding qualified
 import Data.ByteString.Base16 qualified
 import Data.ByteString.Base64 qualified
@@ -23,6 +27,21 @@ data BaseEncoding
   | Base16
   | Base64
   deriving (Bounded, Eq, Enum, Generic, Ord, Show)
+
+-- | Convert BaseEncoding to its textual representation
+baseEncodingToText :: BaseEncoding -> Text
+baseEncodingToText = \case
+  Base16 -> "base16"
+  NixBase32 -> "nix32"
+  Base64 -> "base64"
+
+-- | Parse BaseEncoding from its textual representation
+textToBaseEncoding :: Text -> Either String BaseEncoding
+textToBaseEncoding = \case
+  "base16" -> Right Base16
+  "nix32" -> Right NixBase32
+  "base64" -> Right Base64
+  other -> Left $ "Unknown base encoding: " ++ Data.Text.unpack other
 
 -- | Encode @ByteString@ with @Base@ encoding, produce @Text@.
 encodeWith :: BaseEncoding -> ByteString -> Text

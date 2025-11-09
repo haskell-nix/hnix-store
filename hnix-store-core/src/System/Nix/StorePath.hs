@@ -30,7 +30,9 @@ module System.Nix.StorePath
   , storePathToNarInfo
   , storePathHashPartToText
   , -- * Parsing 'StorePath's
-    parsePath
+    parseBasePath
+  , parseBasePathFromText
+  , parsePath
   , parsePathFromText
   , pathParser
     -- * Utilities for tests
@@ -144,19 +146,16 @@ parseNameText :: Text -> Either InvalidNameError Text
 parseNameText n
   | n == ""
     = Left EmptyName
-  | Data.Text.length n > 211
-    = Left $ NameTooLong (Data.Text.length n)
   | Data.Text.head n == '.'
-    = Left $ LeadingDot
-  | not
-    $ Data.Text.null
-    $ Data.Text.filter
-        (not . validStorePathNameChar)
-        n
-    = Left
-      $ InvalidCharacters
-      $ Data.Text.filter (not . validStorePathNameChar) n
+    = Left LeadingDot
+  | nLength > 211
+    = Left $ NameTooLong nLength
+  | not $ Data.Text.null invalidCharacters
+    = Left $ InvalidCharacters invalidCharacters
   | otherwise = pure n
+ where
+  invalidCharacters = Data.Text.filter (not . validStorePathNameChar) n
+  nLength = Data.Text.length n
 
 validStorePathNameChar :: Char -> Bool
 validStorePathNameChar c =
@@ -219,14 +218,14 @@ storePathHashPartToText :: StorePathHashPart -> Text
 storePathHashPartToText =
   System.Nix.Base.encodeWith NixBase32 . unStorePathHashPart
 
--- | Parse `StorePath` from `String`, internal
-parsePath'
-  :: StoreDir
-  -> String
+-- | Parse a base name store path --- no store dir prefix.
+--
+-- Internal
+parseBasePath'
+  :: String
   -> Either InvalidPathError StorePath
-parsePath' expectedRoot stringyPath =
+parseBasePath' fname =
   let
-    (rootDir, fname) = System.FilePath.splitFileName stringyPath
     (storeBasedHashPart, namePart) = Data.Text.breakOn "-" $ Data.Text.pack fname
     hashPart =
       Data.Bifunctor.bimap
@@ -237,6 +236,18 @@ parsePath' expectedRoot stringyPath =
       Data.Bifunctor.first
         PathNameInvalid
         $ mkStorePathName . Data.Text.drop 1 $ namePart
+  in
+    StorePath <$> hashPart <*> name
+
+
+-- | Parse `StorePath` from `String`, internal
+parsePath'
+  :: StoreDir
+  -> String
+  -> Either InvalidPathError StorePath
+parsePath' expectedRoot stringyPath =
+  let
+    (rootDir, fname) = System.FilePath.splitFileName stringyPath
     --rootDir' = dropTrailingPathSeparator rootDir
     -- cannot use ^^ as it drops multiple slashes /a/b/// -> /a/b
     rootDir' = init rootDir
@@ -249,7 +260,14 @@ parsePath' expectedRoot stringyPath =
                       , rdMismatchGot = StoreDir $ Data.ByteString.Char8.pack rootDir
                       }
   in
-    either Left (pure $ StorePath <$> hashPart <*> name) storeDir
+    either Left (pure $ parseBasePath' fname) storeDir
+
+-- | Parse `StorePath` from `ByteString`, checking
+-- that store directory matches `expectedRoot`.
+parseBasePath
+  :: ByteString
+  -> Either InvalidPathError StorePath
+parseBasePath = parseBasePath' . Data.ByteString.Char8.unpack
 
 -- | Parse `StorePath` from `ByteString`, checking
 -- that store directory matches `expectedRoot`.
@@ -258,6 +276,13 @@ parsePath
   -> ByteString
   -> Either InvalidPathError StorePath
 parsePath sd = parsePath' sd . Data.ByteString.Char8.unpack
+
+-- | Parse `StorePath` from `Text`, checking
+-- that store directory matches `expectedRoot`.
+parseBasePathFromText
+  :: Text
+  -> Either InvalidPathError StorePath
+parseBasePathFromText = parseBasePath' . Data.Text.unpack
 
 -- | Parse `StorePath` from `Text`, checking
 -- that store directory matches `expectedRoot`.

@@ -62,6 +62,7 @@ library
     , hnix-store-core >= 0.8
     , bytestring
     , containers
+    , constraints-extras
     , crypton
     , dependent-sum > 0.7
     , generic-arbitrary < 1.1

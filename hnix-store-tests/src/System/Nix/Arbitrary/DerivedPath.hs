@@ -8,7 +8,7 @@ import Test.QuickCheck (Arbitrary(..), oneof)
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
 import System.Nix.Arbitrary.OutputName ()
 import System.Nix.Arbitrary.StorePath ()
-import System.Nix.DerivedPath (DerivedPath, OutputsSpec(..))
+import System.Nix.DerivedPath (SingleDerivedPath, DerivedPath, OutputsSpec(..))
 
 instance Arbitrary OutputsSpec where
   arbitrary = oneof
@@ -17,6 +17,9 @@ instance Arbitrary OutputsSpec where
       . Data.Set.fromList
       <$> ((:) <$> arbitrary <*> arbitrary)
     ]
+
+deriving via GenericArbitrary SingleDerivedPath
+  instance Arbitrary SingleDerivedPath
 
 deriving via GenericArbitrary DerivedPath
   instance Arbitrary DerivedPath

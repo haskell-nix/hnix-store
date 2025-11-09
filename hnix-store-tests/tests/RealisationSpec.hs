@@ -8,6 +8,7 @@ import System.Nix.Arbitrary ()
 
 import Data.Text.Lazy qualified
 import Data.Text.Lazy.Builder qualified
+import System.Nix.StorePath qualified
 import System.Nix.OutputName qualified
 import System.Nix.Realisation qualified
 
@@ -19,7 +20,7 @@ spec = do
         ( Data.Text.Lazy.toStrict
         . Data.Text.Lazy.Builder.toLazyText
         . System.Nix.Realisation.derivationOutputBuilder
-            System.Nix.OutputName.unOutputName
+            (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
         )
         ( System.Nix.Realisation.derivationOutputParser
             System.Nix.OutputName.mkOutputName

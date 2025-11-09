@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-|
 Description : JSON serialization
@@ -7,27 +8,40 @@ This module is mostly a stub for now
 providing (From|To)JSON for Realisation type
 which is required for `-remote`.
 -}
-module System.Nix.JSON where
+module System.Nix.JSON
+  ( HashJSON(..)
+  ) where
 
+import Control.Applicative ((<|>))
+import Crypto.Hash (Digest)
 import Data.Aeson
-import Deriving.Aeson
-import System.Nix.Base (BaseEncoding(NixBase32))
-import System.Nix.OutputName (OutputName)
-import System.Nix.Realisation (DerivationOutput, Realisation, RealisationWithId(..))
-import System.Nix.Signature (Signature)
-import System.Nix.StorePath (StoreDir(..), StorePath, StorePathName, StorePathHashPart)
-
 import Data.Aeson.KeyMap qualified
 import Data.Aeson.Types qualified
 import Data.Attoparsec.Text qualified
 import Data.Char qualified
+import Data.Constraint.Extras (Has(has))
+import Data.Dependent.Sum
+import Data.Foldable (toList)
+import Data.Set qualified
+import Data.Some
+import Data.Text (Text)
 import Data.Text qualified
 import Data.Text.Lazy qualified
 import Data.Text.Lazy.Builder qualified
+import Deriving.Aeson
+
+import System.Nix.Base (baseEncodingToText, textToBaseEncoding)
 import System.Nix.Base qualified
+import System.Nix.ContentAddress
+import System.Nix.DerivedPath (DerivedPath(..), OutputsSpec(..), SingleDerivedPath(..))
+import System.Nix.Hash
+import System.Nix.OutputName (OutputName)
 import System.Nix.OutputName qualified
+import System.Nix.Realisation (DerivationOutput(..), Realisation, RealisationWithId(..))
 import System.Nix.Realisation qualified
+import System.Nix.Signature (Signature)
 import System.Nix.Signature qualified
+import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart, storePathHash, storePathName, mkStorePathName, unStorePathName, parseBasePathFromText)
 import System.Nix.StorePath qualified
 
 instance ToJSON StorePathName where
@@ -54,28 +68,51 @@ instance FromJSON StorePathHashPart where
     )
 
 instance ToJSON StorePath where
-  toJSON =
-    toJSON
-    -- TODO: hacky, we need to stop requiring StoreDir for
-    -- StorePath rendering and have a distinct
-    -- types for rooted|unrooted paths
-    . Data.Text.drop 1
-    . System.Nix.StorePath.storePathToText (StoreDir mempty)
+  toJSON sp =
+    toJSON $ Data.Text.concat
+      [ System.Nix.StorePath.storePathHashPartToText (storePathHash sp)
+      , "-"
+      , System.Nix.StorePath.unStorePathName (storePathName sp)
+      ]
 
-  toEncoding =
-    toEncoding
-    . Data.Text.drop 1
-    . System.Nix.StorePath.storePathToText (StoreDir mempty)
+  toEncoding sp =
+    toEncoding $ Data.Text.concat
+      [ System.Nix.StorePath.storePathHashPartToText (storePathHash sp)
+      , "-"
+      , System.Nix.StorePath.unStorePathName (storePathName sp)
+      ]
 
 instance FromJSON StorePath where
   parseJSON =
     withText "StorePath"
     ( either
-        (fail . show)
+        (fail . show @System.Nix.StorePath.InvalidPathError)
         pure
-    . System.Nix.StorePath.parsePathFromText (StoreDir mempty)
-    . Data.Text.cons '/'
+    . parseBasePathFromText
     )
+
+instance ToJSONKey StorePath where
+  toJSONKey = Data.Aeson.Types.toJSONKeyText $ \sp ->
+    Data.Text.concat
+      [ System.Nix.StorePath.storePathHashPartToText (storePathHash sp)
+      , "-"
+      , System.Nix.StorePath.unStorePathName (storePathName sp)
+      ]
+
+instance FromJSONKey StorePath where
+  fromJSONKey = FromJSONKeyTextParser $
+    either (fail . show @System.Nix.StorePath.InvalidPathError) pure . parseBasePathFromText
+
+instance FromJSONKey StorePathName where
+  fromJSONKey = FromJSONKeyTextParser $ either (fail . show) pure . mkStorePathName
+
+instance ToJSONKey StorePathName where
+  toJSONKey = Data.Aeson.Types.toJSONKeyText unStorePathName
+
+deriving newtype instance FromJSON OutputName
+deriving newtype instance ToJSON OutputName
+deriving newtype instance FromJSONKey OutputName
+deriving newtype instance ToJSONKey OutputName
 
 instance ToJSON (DerivationOutput OutputName) where
   toJSON =
@@ -83,14 +120,14 @@ instance ToJSON (DerivationOutput OutputName) where
     . Data.Text.Lazy.toStrict
     . Data.Text.Lazy.Builder.toLazyText
     . System.Nix.Realisation.derivationOutputBuilder
-        System.Nix.OutputName.unOutputName
+        (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
 
   toEncoding =
     toEncoding
     . Data.Text.Lazy.toStrict
     . Data.Text.Lazy.Builder.toLazyText
     . System.Nix.Realisation.derivationOutputBuilder
-        System.Nix.OutputName.unOutputName
+        (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
 
 instance ToJSONKey (DerivationOutput OutputName) where
   toJSONKey =
@@ -98,7 +135,7 @@ instance ToJSONKey (DerivationOutput OutputName) where
     $ Data.Text.Lazy.toStrict
     . Data.Text.Lazy.Builder.toLazyText
     . System.Nix.Realisation.derivationOutputBuilder
-        System.Nix.OutputName.unOutputName
+        (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
 
 instance FromJSON (DerivationOutput OutputName) where
   parseJSON =
@@ -133,6 +170,106 @@ instance FromJSON Signature where
     . Data.Attoparsec.Text.parseOnly
         System.Nix.Signature.signatureParser
     )
+
+-- | Needed to avoid overlapping instances
+newtype HashJSON = HashJSON { unHashJSON :: DSum HashAlgo Digest }
+  deriving (Eq, Show)
+
+instance ToJSON HashJSON where
+  toJSON (HashJSON (algo :=> digest)) =
+    object
+      [ "algorithm" .= algoToText algo
+      , "format" .= baseEncodingToText Base64  -- Default to base64 for output
+      , "hash" .= encodeDigestWith Base64 digest
+      ]
+
+instance FromJSON HashJSON where
+  parseJSON = withObject "HashJSON" $ \obj -> do
+    algoText <- obj .: "algorithm"
+    formatText <- obj .: "format"
+    hashText <- obj .: "hash"
+
+    Some algo <- either fail pure $ textToAlgo algoText
+    format <- either fail pure $ textToBaseEncoding formatText
+
+    digest <- has @NamedAlgo algo $ either fail pure $ decodeDigestWith format hashText
+
+    pure $ HashJSON (algo :=> digest)
+
+instance ToJSON ContentAddress where
+  toJSON (ContentAddress method digest) =
+    object
+      [ "hash" .= HashJSON digest
+      , "method" .= methodToText method
+      ]
+
+instance FromJSON ContentAddress where
+  parseJSON = withObject "ContentAddress" $ \obj -> do
+    HashJSON digest <- obj .: "hash"
+    methodText <- obj .: "method"
+    method <- either fail pure $ textToMethod methodText
+    pure $ ContentAddress method digest
+
+instance ToJSON OutputsSpec where
+  toJSON OutputsSpec_All = toJSON ["*" :: Text]
+  toJSON (OutputsSpec_Names names) = toJSON $ Data.Set.toList names
+
+instance FromJSON OutputsSpec where
+  parseJSON = withArray "OutputsSpec" $ \arr -> do
+    outputs <- mapM parseJSON (toList arr)
+    if outputs == ["*" :: Text]
+      then pure OutputsSpec_All
+      else do
+        names <- mapM (either (fail . show) pure . System.Nix.OutputName.mkOutputName) outputs
+        pure $ OutputsSpec_Names (Data.Set.fromList names)
+
+instance ToJSON SingleDerivedPath where
+  toJSON (SingleDerivedPath_Opaque path) = toJSON path
+  toJSON (SingleDerivedPath_Built drvPath output) =
+    object
+      [ "drvPath" .= toJSON drvPath
+      , "output" .= output
+      ]
+
+instance FromJSON SingleDerivedPath where
+  parseJSON v = parseOpaque v <|> parseBuilt v
+    where
+      parseOpaque = fmap SingleDerivedPath_Opaque . parseJSON
+      parseBuilt = withObject "SingleDerivedPath_Built" $ \obj ->
+        SingleDerivedPath_Built
+          <$> obj .: "drvPath"
+          <*> obj .: "output"
+
+instance ToJSON DerivedPath where
+  toJSON (DerivedPath_Opaque path) = toJSON path
+  toJSON (DerivedPath_Built drvPath outputs) =
+    case outputs of
+      OutputsSpec_Names names | Data.Set.size names == 1 ->
+        object
+          [ "drvPath" .= toJSON drvPath
+          , "output" .= Data.Set.elemAt 0 names
+          ]
+      _ ->
+        object
+          [ "drvPath" .= toJSON drvPath
+          , "outputs" .= outputs
+          ]
+
+instance FromJSON DerivedPath where
+  parseJSON v = parseOpaque v <|> parseBuilt v
+    where
+      parseOpaque = fmap DerivedPath_Opaque . parseJSON
+      parseBuilt = withObject "DerivedPath_Built" $ \obj -> do
+        drvPath <- obj .: "drvPath"
+        -- Try single output first, then multiple outputs
+        mOutput <- obj .:? "output"
+        mOutputs <- obj .:? "outputs"
+        case (mOutput, mOutputs) of
+          (Just output, Nothing) ->
+            pure $ DerivedPath_Built drvPath (OutputsSpec_Names (Data.Set.singleton output))
+          (Nothing, Just outputs) ->
+            pure $ DerivedPath_Built drvPath outputs
+          _ -> fail "Expected either 'output' or 'outputs' field"
 
 data LowerLeading
 instance StringModifier LowerLeading where

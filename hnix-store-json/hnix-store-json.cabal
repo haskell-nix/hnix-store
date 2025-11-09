@@ -16,6 +16,9 @@ extra-doc-files:
     CHANGELOG.md
 extra-source-files:
     README.md
+data-files:
+    upstream-libstore-data/build-result/*.json
+    upstream-libstore-data/realisation/*.json
 
 common commons
   ghc-options:  -Wall
@@ -42,8 +45,16 @@ library
 
     , aeson >= 2.0 && < 3.0
     , attoparsec
+    , constraints-extras
+    , containers
+    , crypton
+    , data-default-class
+    , dependent-sum
     , deriving-aeson >= 0.2
+    , monoidal-containers
     , text
+    , these
+    , time
   hs-source-dirs:      src
 
 test-suite json
@@ -51,7 +62,15 @@ test-suite json
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+    ContentAddressSpec
+    DerivedPathSpec
+    HashSpec
     JSONSpec
+    OutputsSpecSpec
+    RealisationSpec
+    SingleDerivedPathSpec
+    StorePathSpec
+    Paths_hnix_store_json
   hs-source-dirs:
     tests
   build-tool-depends:
@@ -63,6 +82,12 @@ test-suite json
     , hnix-store-tests
 
     , aeson
+    , bytestring
+    , constraints-extras
     , containers
+    , crypton
     , data-default-class
+    , dependent-sum
     , hspec
+    , some
+    , time
