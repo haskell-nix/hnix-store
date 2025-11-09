@@ -1,10 +1,11 @@
 let haskellCi =
-      https://raw.githubusercontent.com/sorki/github-actions-dhall/main/haskell-ci.dhall
-        sha256:1f1a5102e99ea92eb585b4d36aaeabb0bd93d39e62ba82f3080250fdc234e33a
+      https://raw.githubusercontent.com/obsidiansystems/github-actions-dhall/merge-group/haskell-ci.dhall
+        sha256:66e034024b7fa1606428cba5c009999d44dd95613b41acee2700f8e31c7902f1
 
 let defSteps = haskellCi.defaultCabalSteps
 
-in    haskellCi.generalCi
+let ci =
+      haskellCi.generalCi
         ( haskellCi.withNix
             ( defSteps
               with docStep = None haskellCi.BuildStep
@@ -25,4 +26,6 @@ in    haskellCi.generalCi
         , ghc = [ haskellCi.GHC.GHC9102, haskellCi.GHC.GHC984 ]
         , os = [ haskellCi.OS.Ubuntu, haskellCi.OS.MacOS ]
         }
-    : haskellCi.CI.Type
+
+in  ci
+  with on = ci.on // { merge_group = Some haskellCi.MergeGroup.default }
