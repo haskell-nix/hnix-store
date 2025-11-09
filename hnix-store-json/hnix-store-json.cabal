@@ -42,6 +42,8 @@ library
       System.Nix.JSON
   build-depends:
       base >=4.12 && <5
+    , hnix-store-core >= 0.8
+
     , aeson >= 2.0 && < 3.0
     , attoparsec
     , constraints-extras
@@ -50,7 +52,6 @@ library
     , data-default-class
     , dependent-sum
     , deriving-aeson >= 0.2
-    , hnix-store-core >= 0.8
     , monoidal-containers
     , text
     , these
@@ -81,6 +82,7 @@ test-suite json
     , hnix-store-core
     , hnix-store-json
     , hnix-store-tests
+
     , aeson
     , bytestring
     , constraints-extras
