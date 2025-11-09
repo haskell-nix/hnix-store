@@ -1,8 +1,8 @@
 # Unreleased
 
 * Additions:
-   * `System.Nix.Placeholder` module with `createPlaceholder`, `renderPlaceholder`, `DownstreamPlaceholder` support
-   * `System.Nix.StorePath.ContentAddressed` module
+   * `System.Nix.Placeholder` module with `DownstreamPlaceholder`, `createPlaceholder`, and `renderPlaceholder`
+   * `System.Nix.StorePath.ContentAddressed` module, for creating content-addressed store paths
    * `textToMethod`, `methodToText` in `System.Nix.ContentAddress`
    * `parseBasePath`, `parseBasePathFromText` in `System.Nix.StorePath`
    * `textToBaseEncoding`, `baseEncodingToText` in `System.Nix.Base`

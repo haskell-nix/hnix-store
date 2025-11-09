@@ -85,11 +85,6 @@ test-suite json
 
     , aeson
     , bytestring
-    , constraints-extras
     , containers
-    , crypton
-    , data-default-class
-    , dependent-sum
     , hspec
-    , some
     , time
