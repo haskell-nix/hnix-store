@@ -57,5 +57,6 @@ jobs:
         - "macos-latest"
 name: Haskell CI
 'on':
+  merge_group: {}
   pull_request: {}
   push: {}
