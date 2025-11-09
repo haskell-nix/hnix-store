@@ -95,8 +95,8 @@ library
     , memory
     , nix-derivation >= 1.1.1 && <2
     , some > 1.0.5 && < 2
-    , time
     , text
+    , time
     , unordered-containers
     , vector
   hs-source-dirs:      src
