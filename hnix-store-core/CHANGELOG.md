@@ -1,3 +1,18 @@
+# Unreleased
+
+* Additions:
+   * `System.Nix.Placeholder` module with `DownstreamPlaceholder`, `createPlaceholder`, and `renderPlaceholder`
+   * `System.Nix.StorePath.ContentAddressed` module, for creating content-addressed store paths
+   * `textToMethod`, `methodToText` in `System.Nix.ContentAddress`
+   * `parseBasePath`, `parseBasePathFromText` in `System.Nix.StorePath`
+   * `textToBaseEncoding`, `baseEncodingToText` in `System.Nix.Base`
+   * `outputStoreObjectName` in `System.Nix.OutputName`
+   * `SingleDerivedPath` type with `parseSingleDerivedPath`, `singleDerivedPathToText`
+
+* Changes:
+   * `OutputName.unOutputName` now returns `StorePathName` instead of `Text`
+   * `DerivedPath_Built` constructor now takes `SingleDerivedPath` instead of `StorePath`
+
 # [0.8.0.0](https://github.com/haskell-nix/hnix-store/compare/core-0.7.0.0...core-0.8.0.0) 2024-07-31
 
 * Changes:
