@@ -50,10 +50,7 @@ library
     , crypton
     , dependent-sum
     , deriving-aeson >= 0.2
-    , monoidal-containers
     , text
-    , these
-    , time
   hs-source-dirs:      src
 
 test-suite json
@@ -88,4 +85,3 @@ test-suite json
     , dependent-sum
     , hspec
     , some
-    , time
