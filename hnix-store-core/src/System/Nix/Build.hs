@@ -15,7 +15,7 @@ import Data.Text (Text)
 import GHC.Generics (Generic)
 
 import System.Nix.OutputName (OutputName)
-import System.Nix.Realisation (DerivationOutput, Realisation)
+import System.Nix.Realisation (BuildTraceKey, Realisation)
 
 -- | Mode of the build operation
 -- Keep the order of these Enums to match enums from reference implementations
@@ -59,7 +59,7 @@ data BuildResult = BuildResult
   -- ^ Start time of this build (since 1.29)
   , buildResultStopTime           :: Maybe UTCTime
   -- ^ Stop time of this build (since 1.29)
-  , buildResultBuiltOutputs       :: Maybe (Map (DerivationOutput OutputName) Realisation)
+  , buildResultBuiltOutputs       :: Maybe (Map (BuildTraceKey OutputName) Realisation)
   -- ^ Mapping of the output names to @Realisation@s (since 1.28)
   -- (paths with additional info and their dependencies)
   }

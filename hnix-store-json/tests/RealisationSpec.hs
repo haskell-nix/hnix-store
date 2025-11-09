@@ -14,18 +14,18 @@ import Test.Hspec.Nix (forceRight)
 import System.Nix.Hash qualified
 import System.Nix.JSON ()
 import System.Nix.OutputName qualified
-import System.Nix.Realisation (DerivationOutput(..), Realisation(..), RealisationWithId(..))
+import System.Nix.Realisation (BuildTraceKey(..), Realisation(..), RealisationWithId(..))
 import System.Nix.Signature qualified
 import System.Nix.StorePath qualified
 
-sampleDerivationOutput :: DerivationOutput System.Nix.OutputName.OutputName
-sampleDerivationOutput = DerivationOutput
-  { derivationOutputHash =
+sampleBuildTraceKey :: BuildTraceKey System.Nix.OutputName.OutputName
+sampleBuildTraceKey = BuildTraceKey
+  { buildTraceKeyHash =
       forceRight
       $ System.Nix.Hash.mkNamedDigest
           "sha256"
           "1b4sb93wp679q4zx9k1ignby1yna3z7c4c2ri3wphylbc2dwsys0"
-  , derivationOutputOutput =
+  , buildTraceKeyOutput =
       forceRight
       $ System.Nix.OutputName.mkOutputName "foo"
   }
@@ -55,7 +55,7 @@ sampleRealisation1 = Realisation
           ]
   , realisationDependencies =
       Data.Map.fromList
-      [ ( sampleDerivationOutput
+      [ ( sampleBuildTraceKey
         , forceRight
           $ System.Nix.StorePath.parseBasePathFromText
               "9472ijanf79nlkb5n1yh57s7867p1930-testFixed"
@@ -66,13 +66,13 @@ sampleRealisation1 = Realisation
 -- upstream-nix/src/libstore-tests/data/realisation/simple.json
 upstreamSimpleRealisation :: RealisationWithId
 upstreamSimpleRealisation = RealisationWithId
-  ( DerivationOutput
-      { derivationOutputHash =
+  ( BuildTraceKey
+      { buildTraceKeyHash =
           forceRight
           $ System.Nix.Hash.mkNamedDigest
               "sha256"
               "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-      , derivationOutputOutput =
+      , buildTraceKeyOutput =
           forceRight
           $ System.Nix.OutputName.mkOutputName "foo"
       }
@@ -88,13 +88,13 @@ upstreamSimpleRealisation = RealisationWithId
 -- upstream-nix/src/libstore-tests/data/realisation/with-dependent-realisations.json
 upstreamWithDependentRealisations :: RealisationWithId
 upstreamWithDependentRealisations = RealisationWithId
-  ( DerivationOutput
-      { derivationOutputHash =
+  ( BuildTraceKey
+      { buildTraceKeyHash =
           forceRight
           $ System.Nix.Hash.mkNamedDigest
               "sha256"
               "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-      , derivationOutputOutput =
+      , buildTraceKeyOutput =
           forceRight
           $ System.Nix.OutputName.mkOutputName "foo"
       }
@@ -105,13 +105,13 @@ upstreamWithDependentRealisations = RealisationWithId
       , realisationSignatures = mempty
       , realisationDependencies =
           Data.Map.fromList
-          [ ( DerivationOutput
-                { derivationOutputHash =
+          [ ( BuildTraceKey
+                { buildTraceKeyHash =
                     forceRight
                     $ System.Nix.Hash.mkNamedDigest
                         "sha256"
                         "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-                , derivationOutputOutput =
+                , buildTraceKeyOutput =
                     forceRight
                     $ System.Nix.OutputName.mkOutputName "foo"
                 }
@@ -125,8 +125,8 @@ upstreamWithDependentRealisations = RealisationWithId
 spec :: Spec
 spec = do
   describe "ground truth" $ do
-    it "sampleDerivationOutput matches preimage" $
-      encode sampleDerivationOutput `shouldBe` "\"sha256:1b4sb93wp679q4zx9k1ignby1yna3z7c4c2ri3wphylbc2dwsys0!foo\""
+    it "sampleBuildTraceKey matches preimage" $
+      encode sampleBuildTraceKey `shouldBe` "\"sha256:1b4sb93wp679q4zx9k1ignby1yna3z7c4c2ri3wphylbc2dwsys0!foo\""
 
     it "sampleRealisation0 matches preimage (relative paths)" $
       encode sampleRealisation0 `shouldBe` "{\"outPath\":\"cdips4lakfk1qbf1x68fq18wnn3r5r14-builder.sh\",\"signatures\":[],\"dependentRealisations\":{}}"
