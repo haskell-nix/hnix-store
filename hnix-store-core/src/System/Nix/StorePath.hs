@@ -27,6 +27,8 @@ module System.Nix.StorePath
     storePathToFilePath
   , storePathToRawFilePath
   , storePathToText
+  , storePathBaseToText
+  , storePathBaseToRawFilePath
   , storePathToNarInfo
   , storePathHashPartToText
   , -- * Parsing 'StorePath's
@@ -184,13 +186,24 @@ instance Default StoreDir where
 class HasStoreDir r where
   hasStoreDir :: r -> StoreDir
 
--- | Render a 'StorePath' as a 'RawFilePath'.
-storePathToRawFilePath :: StoreDir -> StorePath -> RawFilePath
-storePathToRawFilePath storeDir StorePath{..} =
-  unStoreDir storeDir <> "/" <> hashPart <> "-" <> name
+-- | Render a 'StorePath' as a base path (without store directory).
+-- This is the relative path format: @hashPart-name@
+storePathBaseToRawFilePath :: StorePath -> RawFilePath
+storePathBaseToRawFilePath StorePath{..} =
+  hashPart <> "-" <> name
  where
   hashPart = Data.Text.Encoding.encodeUtf8 $ storePathHashPartToText storePathHash
   name     = Data.Text.Encoding.encodeUtf8 $ unStorePathName storePathName
+
+-- | Render a 'StorePath' as a base path 'Text' (without store directory).
+-- This is the relative path format: @hashPart-name@
+storePathBaseToText :: StorePath -> Text
+storePathBaseToText = Data.Text.Encoding.decodeUtf8 . storePathBaseToRawFilePath
+
+-- | Render a 'StorePath' as a 'RawFilePath'.
+storePathToRawFilePath :: StoreDir -> StorePath -> RawFilePath
+storePathToRawFilePath storeDir sp =
+  unStoreDir storeDir <> "/" <> storePathBaseToRawFilePath sp
 
 -- | Render a 'StorePath' as a 'FilePath'.
 storePathToFilePath :: StoreDir -> StorePath -> FilePath

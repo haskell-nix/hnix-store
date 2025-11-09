@@ -29,3 +29,13 @@ spec = do
         roundtrips
           (storePathToText storeDir)
           (Data.Attoparsec.Text.parseOnly $ pathParser storeDir)
+
+    prop "roundtrips using parseBasePath . storePathBaseToRawFilePath" $
+      roundtrips
+        storePathBaseToRawFilePath
+        parseBasePath
+
+    prop "roundtrips using parseBasePathFromText . storePathBaseToText" $
+      roundtrips
+        storePathBaseToText
+        parseBasePathFromText
