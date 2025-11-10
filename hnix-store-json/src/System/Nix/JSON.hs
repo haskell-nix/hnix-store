@@ -25,7 +25,6 @@ import Data.Foldable (toList)
 import Data.Set qualified
 import Data.Some
 import Data.Text (Text)
-import Data.Text qualified
 import Data.Text.Lazy qualified
 import Data.Text.Lazy.Builder qualified
 import Deriving.Aeson
@@ -41,7 +40,7 @@ import System.Nix.Realisation (DerivationOutput(..), Realisation, RealisationWit
 import System.Nix.Realisation qualified
 import System.Nix.Signature (Signature)
 import System.Nix.Signature qualified
-import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart, storePathHash, storePathName, mkStorePathName, unStorePathName, parseBasePathFromText)
+import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart, mkStorePathName, unStorePathName, parseBasePathFromText)
 import System.Nix.StorePath qualified
 
 instance ToJSON StorePathName where
@@ -68,19 +67,8 @@ instance FromJSON StorePathHashPart where
     )
 
 instance ToJSON StorePath where
-  toJSON sp =
-    toJSON $ Data.Text.concat
-      [ System.Nix.StorePath.storePathHashPartToText (storePathHash sp)
-      , "-"
-      , System.Nix.StorePath.unStorePathName (storePathName sp)
-      ]
-
-  toEncoding sp =
-    toEncoding $ Data.Text.concat
-      [ System.Nix.StorePath.storePathHashPartToText (storePathHash sp)
-      , "-"
-      , System.Nix.StorePath.unStorePathName (storePathName sp)
-      ]
+  toJSON = toJSON . System.Nix.StorePath.storePathBaseToText
+  toEncoding = toEncoding . System.Nix.StorePath.storePathBaseToText
 
 instance FromJSON StorePath where
   parseJSON =
@@ -92,12 +80,7 @@ instance FromJSON StorePath where
     )
 
 instance ToJSONKey StorePath where
-  toJSONKey = Data.Aeson.Types.toJSONKeyText $ \sp ->
-    Data.Text.concat
-      [ System.Nix.StorePath.storePathHashPartToText (storePathHash sp)
-      , "-"
-      , System.Nix.StorePath.unStorePathName (storePathName sp)
-      ]
+  toJSONKey = Data.Aeson.Types.toJSONKeyText System.Nix.StorePath.storePathBaseToText
 
 instance FromJSONKey StorePath where
   fromJSONKey = FromJSONKeyTextParser $
@@ -243,33 +226,19 @@ instance FromJSON SingleDerivedPath where
 instance ToJSON DerivedPath where
   toJSON (DerivedPath_Opaque path) = toJSON path
   toJSON (DerivedPath_Built drvPath outputs) =
-    case outputs of
-      OutputsSpec_Names names | Data.Set.size names == 1 ->
-        object
-          [ "drvPath" .= toJSON drvPath
-          , "output" .= Data.Set.elemAt 0 names
-          ]
-      _ ->
-        object
-          [ "drvPath" .= toJSON drvPath
-          , "outputs" .= outputs
-          ]
+    object
+      [ "drvPath" .= toJSON drvPath
+      , "outputs" .= outputs
+      ]
 
 instance FromJSON DerivedPath where
   parseJSON v = parseOpaque v <|> parseBuilt v
     where
       parseOpaque = fmap DerivedPath_Opaque . parseJSON
-      parseBuilt = withObject "DerivedPath_Built" $ \obj -> do
-        drvPath <- obj .: "drvPath"
-        -- Try single output first, then multiple outputs
-        mOutput <- obj .:? "output"
-        mOutputs <- obj .:? "outputs"
-        case (mOutput, mOutputs) of
-          (Just output, Nothing) ->
-            pure $ DerivedPath_Built drvPath (OutputsSpec_Names (Data.Set.singleton output))
-          (Nothing, Just outputs) ->
-            pure $ DerivedPath_Built drvPath outputs
-          _ -> fail "Expected either 'output' or 'outputs' field"
+      parseBuilt = withObject "DerivedPath_Built" $ \obj ->
+        DerivedPath_Built
+          <$> obj .: "drvPath"
+          <*> obj .: "outputs"
 
 data LowerLeading
 instance StringModifier LowerLeading where

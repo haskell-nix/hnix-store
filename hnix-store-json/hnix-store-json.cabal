@@ -100,5 +100,4 @@ test-suite json
     , aeson
     , bytestring
     , containers
-    , data-default-class
     , hspec
