@@ -14,14 +14,14 @@ import System.Nix.Realisation qualified
 
 spec :: Spec
 spec = do
-  describe "DerivationOutput" $ do
+  describe "BuildTraceKey" $ do
     prop "roundtrips" $
       roundtrips
         ( Data.Text.Lazy.toStrict
         . Data.Text.Lazy.Builder.toLazyText
-        . System.Nix.Realisation.derivationOutputBuilder
+        . System.Nix.Realisation.buildTraceKeyBuilder
             (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
         )
-        ( System.Nix.Realisation.derivationOutputParser
+        ( System.Nix.Realisation.buildTraceKeyParser
             System.Nix.OutputName.mkOutputName
         )

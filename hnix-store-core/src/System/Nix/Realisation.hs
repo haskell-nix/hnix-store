@@ -3,10 +3,10 @@ Description : Derivation realisations
 -}
 
 module System.Nix.Realisation (
-    DerivationOutput(..)
-  , DerivationOutputError(..)
-  , derivationOutputBuilder
-  , derivationOutputParser
+    BuildTraceKey(..)
+  , BuildTraceKeyError(..)
+  , buildTraceKeyBuilder
+  , buildTraceKeyParser
   , Realisation(..)
   , RealisationWithId(..)
   ) where
@@ -29,75 +29,75 @@ import Data.Text.Lazy.Builder qualified
 import System.Nix.Hash qualified
 
 -- | Output of the derivation
-data DerivationOutput a = DerivationOutput
-  { derivationOutputHash :: DSum HashAlgo Digest
+data BuildTraceKey a = BuildTraceKey
+  { buildTraceKeyHash :: DSum HashAlgo Digest
   -- ^ Hash modulo of the derivation
-  , derivationOutputOutput :: a
+  , buildTraceKeyOutput :: a
   -- ^ Output (either a OutputName or StorePatH)
   } deriving (Eq, Generic, Ord, Show)
 
-data DerivationOutputError
-  = DerivationOutputError_Digest String
-  | DerivationOutputError_Name InvalidNameError
-  | DerivationOutputError_NoExclamationMark
-  | DerivationOutputError_NoColon
-  | DerivationOutputError_TooManyParts [Text]
+data BuildTraceKeyError
+  = BuildTraceKeyError_Digest String
+  | BuildTraceKeyError_Name InvalidNameError
+  | BuildTraceKeyError_NoExclamationMark
+  | BuildTraceKeyError_NoColon
+  | BuildTraceKeyError_TooManyParts [Text]
   deriving (Eq, Ord, Show)
 
-derivationOutputParser
+buildTraceKeyParser
   :: (Text -> Either InvalidNameError outputName)
   -> Text
-  -> Either DerivationOutputError (DerivationOutput outputName)
-derivationOutputParser outputName dOut =
+  -> Either BuildTraceKeyError (BuildTraceKey outputName)
+buildTraceKeyParser outputName dOut =
   case Data.Text.splitOn (Data.Text.singleton '!') dOut of
-    [] -> Left DerivationOutputError_NoColon
+    [] -> Left BuildTraceKeyError_NoColon
     [sriHash, oName] -> do
       hash <-
         case Data.Text.splitOn (Data.Text.singleton ':') sriHash of
-          [] -> Left DerivationOutputError_NoColon
+          [] -> Left BuildTraceKeyError_NoColon
           [hashName, digest] ->
             Data.Bifunctor.first
-              DerivationOutputError_Digest
+              BuildTraceKeyError_Digest
               $ System.Nix.Hash.mkNamedDigest hashName digest
-          x -> Left $ DerivationOutputError_TooManyParts x
+          x -> Left $ BuildTraceKeyError_TooManyParts x
       name <-
         Data.Bifunctor.first
-          DerivationOutputError_Name
+          BuildTraceKeyError_Name
           $ outputName oName
 
-      pure $ DerivationOutput hash name
-    x -> Left $ DerivationOutputError_TooManyParts x
+      pure $ BuildTraceKey hash name
+    x -> Left $ BuildTraceKeyError_TooManyParts x
 
-derivationOutputBuilder
+buildTraceKeyBuilder
   :: (outputName -> Text)
-  -> DerivationOutput outputName
+  -> BuildTraceKey outputName
   -> Builder
-derivationOutputBuilder outputName DerivationOutput{..} =
-     System.Nix.Hash.algoDigestBuilder derivationOutputHash
+buildTraceKeyBuilder outputName BuildTraceKey{..} =
+     System.Nix.Hash.algoDigestBuilder buildTraceKeyHash
   <> Data.Text.Lazy.Builder.singleton '!'
-  <> Data.Text.Lazy.Builder.fromText (outputName derivationOutputOutput)
+  <> Data.Text.Lazy.Builder.fromText (outputName buildTraceKeyOutput)
 
 -- | Build realisation context
 --
 -- realisationId is ommited since it is a key
--- of type @DerivationOutput OutputName@ so
+-- of type @BuildTraceKey OutputName@ so
 -- we will use @RealisationWithId@ newtype
 data Realisation = Realisation
   { realisationOutPath :: StorePath
   -- ^ Output path
   , realisationSignatures :: Set Signature
   -- ^ Signatures
-  , realisationDependencies :: Map (DerivationOutput OutputName) StorePath
+  , realisationDependencies :: Map (BuildTraceKey OutputName) StorePath
   -- ^ Dependent realisations required for this one to be valid
   } deriving (Eq, Generic, Ord, Show)
 
 -- | For wire protocol
 --
 -- We store this normalized in @Build.buildResultBuiltOutputs@
--- as @Map (DerivationOutput OutputName) Realisation@
+-- as @Map (BuildTraceKey OutputName) Realisation@
 -- but wire protocol needs it de-normalized so we
 -- need a special (From|To)JSON instances for it
 newtype RealisationWithId = RealisationWithId
-  { unRealisationWithId :: (DerivationOutput OutputName, Realisation)
+  { unRealisationWithId :: (BuildTraceKey OutputName, Realisation)
   }
   deriving (Eq, Generic, Ord, Show)

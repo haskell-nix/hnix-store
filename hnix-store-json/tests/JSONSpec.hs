@@ -12,7 +12,7 @@ import System.Nix.ContentAddress (ContentAddress)
 import System.Nix.DerivedPath (DerivedPath, OutputsSpec, SingleDerivedPath)
 import System.Nix.JSON ({-HashJSON-})
 import System.Nix.OutputName (OutputName)
-import System.Nix.Realisation (DerivationOutput, Realisation)
+import System.Nix.Realisation (BuildTraceKey, Realisation)
 import System.Nix.Signature (Signature)
 import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart)
 
@@ -37,6 +37,6 @@ spec = do
     prop "OutputsSpec" $ roundtripsJSON @OutputsSpec
     prop "SingleDerivedPath" $ roundtripsJSON @SingleDerivedPath
     prop "DerivedPath" $ roundtripsJSON @DerivedPath
-    prop "DerivationOutput OutputName" $ roundtripsJSON @(DerivationOutput OutputName)
+    prop "BuildTraceKey OutputName" $ roundtripsJSON @(BuildTraceKey OutputName)
     prop "Signature" $ roundtripsJSON @Signature
     prop "Realisation" $ roundtripsJSON @Realisation
