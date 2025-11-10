@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MonoLocalBinds #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-|
 Description : JSON serialization
@@ -15,13 +16,13 @@ module System.Nix.JSON
 import Control.Applicative ((<|>))
 import Crypto.Hash (Digest)
 import Data.Aeson
+import Data.Aeson.Key qualified
 import Data.Aeson.KeyMap qualified
 import Data.Aeson.Types (Parser)
 import Data.Aeson.Types qualified
 import Data.Attoparsec.Text qualified
 import Data.Char qualified
 import Data.Constraint.Extras (Has(has))
-import Data.Default.Class
 import Data.Dependent.Sum
 import Data.Foldable (toList)
 import Data.Map.Strict qualified
@@ -38,7 +39,6 @@ import Data.These.Combinators
 import Data.Time (diffUTCTime)
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Deriving.Aeson
-import GHC.Generics
 
 import System.Nix.Base (baseEncodingToText, textToBaseEncoding)
 import System.Nix.Base qualified
@@ -47,7 +47,7 @@ import System.Nix.ContentAddress
 import System.Nix.Derivation
 import System.Nix.DerivedPath (DerivedPath(..), OutputsSpec(..), SingleDerivedPath(..))
 import System.Nix.Hash
-import System.Nix.OutputName (OutputName)
+import System.Nix.OutputName (OutputName, mkOutputName)
 import System.Nix.OutputName qualified
 import System.Nix.Realisation (BuildTraceKey(..), Realisation, RealisationWithId(..))
 import System.Nix.Realisation qualified
@@ -118,34 +118,89 @@ instance ToJSON ChildNode where
     , "dynamicOutputs" .= fromMaybe Data.Map.Monoidal.empty (justThere cn)
     ]
 
-instance FromJSON FreeformDerivationOutput where
-  parseJSON = withObject "FreeformDerivationOutput" $ \obj ->
-    FreeformDerivationOutput
-      <$> obj .:? "path"
-      <*> (((,) <$> (obj .:? "method") <*> (obj .:? "hashAlgo")) >>= \case
-        (Nothing, Nothing) -> pure Nothing
-        (Just methodS, Just hashAlgoS) -> do
-          method <- either fail pure $ textToMethod methodS
-          Some hashAlgo <- either fail pure $ textToAlgo hashAlgoS
-          hash <- obj .:? "hash" >>= \case
-            Nothing -> pure Nothing
-            Just hashS -> either fail pure $ has @NamedAlgo hashAlgo $
-              Just <$> decodeDigestWith Base16 hashS
-          pure $ Just (method, hashAlgo :=> Comp1 hash)
-        (Nothing, Just _) -> fail "Cannot have \"hashAlgo\" without \"method\""
-        (Just _, Nothing) -> fail "Cannot have \"method\" without \"hashAlgo\""
-      )
+-- | Input-addressed derivation output JSON instance
+instance FromJSON InputAddressedDerivationOutput where
+  parseJSON = withObject "InputAddressedDerivationOutput" $ \obj ->
+    InputAddressedDerivationOutput <$> obj .: "path"
 
-instance ToJSON FreeformDerivationOutput where
-  toJSON (FreeformDerivationOutput mPath mContentAddressing ) =
-    object $ concat $
-      [ maybeToList $ ("path" .=) <$> mPath
-      , flip (maybe []) mContentAddressing $ \(method, hashAlgo :=> Comp1 mHash) -> concat
-        [ ["method" .= methodToText method]
-        , ["hashAlgo" .= algoToText hashAlgo]
-        , maybeToList $ ("hash" .=) . encodeDigestWith Base16 <$> mHash
-        ]
+instance ToJSON InputAddressedDerivationOutput where
+  toJSON (InputAddressedDerivationOutput path) =
+    object ["path" .= path]
+
+-- | Fixed derivation output JSON instance
+instance FromJSON FixedDerivationOutput where
+  parseJSON = withObject "FixedDerivationOutput" $ \obj -> do
+    method <- obj .: "method" >>= either fail pure . textToMethod
+    HashJSON hash <- obj .: "hash"
+    pure $ FixedDerivationOutput method hash
+
+instance ToJSON FixedDerivationOutput where
+  toJSON (FixedDerivationOutput method hash) =
+    object
+      [ "method" .= methodToText method
+      , "hash" .= HashJSON hash
       ]
+
+-- | Content-addressed derivation output JSON instance
+instance FromJSON ContentAddressedDerivationOutput where
+  parseJSON = withObject "ContentAddressedDerivationOutput" $ \obj -> do
+    method <- obj .: "method" >>= either fail pure . textToMethod
+    hashAlgo <- obj .: "hashAlgo" >>= either fail pure . textToAlgo
+    pure $ ContentAddressedDerivationOutput method hashAlgo
+
+instance ToJSON ContentAddressedDerivationOutput where
+  toJSON (ContentAddressedDerivationOutput method (Some hashAlgo)) =
+    object
+      [ "method" .= methodToText method
+      , "hashAlgo" .= algoToText hashAlgo
+      ]
+
+-- Helper to parse DerivationOutputs from JSON
+parseDerivationOutputs :: Object -> Parser DerivationOutputs
+parseDerivationOutputs obj = do
+  let outputPairs = Data.Aeson.KeyMap.toList obj
+  case outputPairs of
+    [] -> pure $ DerivationType_InputAddressing :=> mempty
+    (_, firstVal) : _ -> do
+      -- Parse the first output to determine the derivation type
+      withObject "first output" (\first -> do
+        -- Determine type by checking which fields are present
+        let hasPath = Data.Aeson.KeyMap.member "path" first
+            hasMethod = Data.Aeson.KeyMap.member "method" first
+            hasHash = Data.Aeson.KeyMap.member "hash" first
+            hasHashAlgo = Data.Aeson.KeyMap.member "hashAlgo" first
+
+        case (hasPath, hasMethod, hasHash, hasHashAlgo) of
+          (True, False, False, False) -> do
+            -- Input-addressed
+            outputs <- Data.Map.Strict.fromList <$> mapM (\(k, v) -> do
+              outputName <- either (fail . show) pure $ mkOutputName $ Data.Aeson.Key.toText k
+              output <- parseJSON v
+              pure (outputName, output)) outputPairs
+            pure $ DerivationType_InputAddressing :=> outputs
+          (False, True, True, False) -> do
+            -- Fixed
+            outputs <- Data.Map.Strict.fromList <$> mapM (\(k, v) -> do
+              outputName <- either (fail . show) pure $ mkOutputName $ Data.Aeson.Key.toText k
+              output <- parseJSON v
+              pure (outputName, output)) outputPairs
+            pure $ DerivationType_Fixed :=> outputs
+          (False, True, False, True) -> do
+            -- Content-addressed
+            outputs <- Data.Map.Strict.fromList <$> mapM (\(k, v) -> do
+              outputName <- either (fail . show) pure $ mkOutputName $ Data.Aeson.Key.toText k
+              output <- parseJSON v
+              pure (outputName, output)) outputPairs
+            pure $ DerivationType_ContentAddressing :=> outputs
+          _ -> fail $ "Invalid output format: " <> show (hasPath, hasMethod, hasHash, hasHashAlgo)
+        ) firstVal
+
+-- Helper to serialize DerivationOutputs to JSON
+derivationOutputsToJSON :: DerivationOutputs -> Value
+derivationOutputsToJSON (ty :=> outputs) = case ty of
+  DerivationType_InputAddressing -> toJSON outputs
+  DerivationType_Fixed -> toJSON outputs
+  DerivationType_ContentAddressing -> toJSON outputs
 
 instance FromJSONKey StorePathName where
   fromJSONKey = FromJSONKeyTextParser $ either (fail . show) pure . mkStorePathName
@@ -163,12 +218,12 @@ deriving newtype instance ToJSONKey OutputName
 instance FromJSON Derivation where
   parseJSON = withObject "Derivation" $ \v -> do
     name <- v .: "name"
-    inputs <- DerivationInputs
-      <$> v .: "inputSrcs"
-      <*> v .: "inputDrvs"
-    Derivation name
-      <$> (toSpecificOutputs def name =<< v .: "outputs")
-      <*> pure inputs
+    inputs <- v .: "inputs" >>= \inputsObj -> DerivationInputs
+      <$> inputsObj .: "srcs"
+      <*> inputsObj .: "drvs"
+    outputs <- v .: "outputs" >>= parseDerivationOutputs
+    Derivation name outputs
+      <$> pure inputs
       <*> v .: "system"
       <*> v .: "builder"
       <*> v .: "args"
@@ -177,9 +232,11 @@ instance FromJSON Derivation where
 instance ToJSON Derivation where
   toJSON (Derivation name outputs (DerivationInputs inputSrcs inputDrvs) system builder args env) =
     object [ "name" .= name
-           , "outputs" .= fromSpecificOutputs def name outputs
-           , "inputSrcs" .= inputSrcs
-           , "inputDrvs" .= inputDrvs
+           , "outputs" .= derivationOutputsToJSON outputs
+           , "inputs" .= object
+              [ "srcs" .= inputSrcs
+              , "drvs" .= inputDrvs
+              ]
            , "system" .= system
            , "builder" .= builder
            , "args" .= args

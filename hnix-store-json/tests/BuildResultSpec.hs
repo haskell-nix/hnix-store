@@ -4,7 +4,6 @@ module BuildResultSpec where
 
 import Data.Aeson (eitherDecode)
 import Data.ByteString.Lazy qualified as BSL
-import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Paths_hnix_store_json (getDataFileName)
 import Test.Hspec (Spec, describe, it, shouldSatisfy)
 

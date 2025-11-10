@@ -26,6 +26,13 @@ data-files:
     upstream-libstore-data/derived-path/single_built_built.json
     upstream-libstore-data/derived-path/single_built.json
     upstream-libstore-data/derived-path/single_opaque.json
+    upstream-libstore-data/derivation/dyn-dep-derivation.json
+    upstream-libstore-data/derivation/output-caFixedFlat.json
+    upstream-libstore-data/derivation/output-caFixedNAR.json
+    upstream-libstore-data/derivation/output-caFixedText.json
+    upstream-libstore-data/derivation/output-caFloating.json
+    upstream-libstore-data/derivation/output-inputAddressed.json
+    upstream-libstore-data/derivation/simple-derivation.json
     upstream-libstore-data/outputs-spec/all.json
     upstream-libstore-data/outputs-spec/name.json
     upstream-libstore-data/outputs-spec/names.json
@@ -66,7 +73,6 @@ library
     , constraints-extras
     , containers
     , crypton
-    , data-default-class
     , dependent-sum
     , deriving-aeson >= 0.2
     , monoidal-containers
@@ -82,6 +88,7 @@ test-suite json
   other-modules:
     BuildResultSpec
     ContentAddressSpec
+    DerivationSpec
     DerivedPathSpec
     HashSpec
     JSONSpec
@@ -105,5 +112,10 @@ test-suite json
     , aeson
     , bytestring
     , containers
+    , crypton
+    , dependent-sum
     , hspec
-    , time
+    , monoidal-containers
+    , some
+    , these
+    , vector
