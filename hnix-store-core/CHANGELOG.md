@@ -10,6 +10,9 @@
    * `SingleDerivedPath` type with `parseSingleDerivedPath`, `singleDerivedPathToText`
 
 * Changes:
+   * `DerivationOutput` was renamed to `BuildTraceKey`.
+      Firstly, this avoided a conflict of this type used by `Realisation` with the `DerivationOutput` used by `Derivation` --- the latter deserves the name more since it is for `Derivation`.
+      Secondly, I (@Ericson2314) am also working upstream to rename "realisations" to "build trace entries", and the collection of them to a "build trace", and so this brings the naming in line with that.
    * `OutputName.unOutputName` now returns `StorePathName` instead of `Text`
    * `DerivedPath_Built` constructor now takes `SingleDerivedPath` instead of `StorePath`
 

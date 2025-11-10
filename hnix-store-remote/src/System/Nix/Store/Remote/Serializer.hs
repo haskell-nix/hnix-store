@@ -159,7 +159,7 @@ import System.Nix.Hash qualified
 import System.Nix.JSON ()
 import System.Nix.OutputName (OutputName)
 import System.Nix.OutputName qualified
-import System.Nix.Realisation (BuildTraceKeyError, Realisation(..), RealisationWithId(..))
+import System.Nix.Realisation (BuildTraceKey, BuildTraceKeyError, Realisation(..), RealisationWithId(..))
 import System.Nix.Realisation qualified
 import System.Nix.Signature (Signature, NarSignature)
 import System.Nix.Signature qualified
@@ -1365,7 +1365,7 @@ noop ret = Serializer
 
 -- *** Realisation
 
-buildTraceKeyTyped :: NixSerializer ReplySError (System.Nix.Realisation.BuildTraceKey OutputName)
+buildTraceKeyTyped :: NixSerializer ReplySError (BuildTraceKey OutputName)
 buildTraceKeyTyped = mapErrorS ReplySError_BuildTraceKey $
   mapPrismSerializer
     AlmostPrism
