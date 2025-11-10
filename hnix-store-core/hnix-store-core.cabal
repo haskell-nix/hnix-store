@@ -87,6 +87,7 @@ library
     , containers
     , crypton
     , data-default-class
+    , deepseq
     , dependent-sum > 0.7
     , dependent-sum-template >= 0.2.0.1 && < 0.3
     , filepath
