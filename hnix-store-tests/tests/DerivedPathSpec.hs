@@ -10,6 +10,12 @@ import System.Nix.DerivedPath qualified
 
 spec :: Spec
 spec = do
+  describe "SingleDerivedPath" $ do
+    prop "roundtrips" $ \sd ->
+      roundtrips
+        (System.Nix.DerivedPath.singleDerivedPathToText sd)
+        (System.Nix.DerivedPath.parseSingleDerivedPath sd)
+
   describe "DerivedPath" $ do
     prop "roundtrips" $ \sd ->
       roundtrips
