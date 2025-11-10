@@ -42,6 +42,7 @@ module System.Nix.StorePath
   , unsafeMakeStorePathHashPart
   ) where
 
+import Control.DeepSeq (NFData)
 import Crypto.Hash (HashAlgorithm)
 import Data.Attoparsec.Text.Lazy (Parser, (<?>))
 import Data.ByteString (ByteString)
@@ -82,6 +83,8 @@ data StorePath = StorePath
   }
   deriving (Eq, Generic, Ord)
 
+instance NFData StorePath
+
 instance Hashable StorePath where
   hashWithSalt s StorePath{..} =
     s `hashWithSalt` storePathHash `hashWithSalt` storePathName
@@ -102,12 +105,16 @@ newtype StorePathName = StorePathName
     unStorePathName :: Text
   } deriving (Eq, Generic, Hashable, Ord, Show)
 
+instance NFData StorePathName
+
 -- | The hash algorithm used for store path hashes.
 newtype StorePathHashPart = StorePathHashPart
   { -- | Extract the contents of the hash.
     unStorePathHashPart :: ByteString
   }
   deriving (Eq, Generic, Hashable, Ord, Show)
+
+instance NFData StorePathHashPart
 
 -- | Make @StorePathHashPart@ from @ByteString@ (hash part of the @StorePath@)
 -- using specific @HashAlgorithm@

@@ -16,6 +16,15 @@
    * `OutputName.unOutputName` now returns `StorePathName` instead of `Text`
    * `DerivedPath_Built` constructor now takes `SingleDerivedPath` instead of `StorePath`
 
+* New type class instances:
+  * `NFData ContentAddressMethod`
+  * `NFData (HashAlgo a)`
+  * `GNFData HashAlgo`
+  * `NFData OutputName`
+  * `NFData StorePath`
+  * `NFData StorePathName`
+  * `NFData StorePathHashPart`
+
 # [0.8.0.0](https://github.com/haskell-nix/hnix-store/compare/core-0.7.0.0...core-0.8.0.0) 2024-07-31
 
 * Changes:

@@ -12,6 +12,7 @@ module System.Nix.OutputName
   , System.Nix.StorePath.InvalidNameError(..)
   ) where
 
+import Control.DeepSeq (NFData)
 import Data.Hashable (Hashable)
 import Data.Text (Text)
 import GHC.Generics (Generic)
@@ -28,6 +29,8 @@ newtype OutputName = OutputName
   { -- | Extract the contents of the name.
     unOutputName :: StorePathName
   } deriving (Eq, Generic, Hashable, Ord, Show)
+
+instance NFData OutputName
 
 mkOutputName :: Text -> Either InvalidNameError OutputName
 mkOutputName = fmap OutputName . System.Nix.StorePath.mkStorePathName

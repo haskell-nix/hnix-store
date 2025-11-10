@@ -12,6 +12,7 @@ module System.Nix.ContentAddress (
   ) where
 
 import Control.Applicative
+import Control.DeepSeq (NFData)
 import Crypto.Hash (Digest)
 import Data.Attoparsec.Text (Parser)
 import Data.Attoparsec.Text qualified
@@ -47,6 +48,8 @@ textToMethod = \case
   "nar" -> Right ContentAddressMethod_NixArchive
   "text" -> Right ContentAddressMethod_Text
   name -> Left $ "Unknown store object content-addressing method " <> Data.Text.unpack name
+
+instance NFData ContentAddressMethod
 
 -- | An address for a content-addressable store path, i.e. one whose
 -- store path hash is purely a function of its contents (as opposed to
