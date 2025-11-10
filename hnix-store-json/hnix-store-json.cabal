@@ -17,8 +17,26 @@ extra-doc-files:
 extra-source-files:
     README.md
 data-files:
-    upstream-libstore-data/build-result/*.json
-    upstream-libstore-data/realisation/*.json
+    upstream-libstore-data/content-address/nar.json
+    upstream-libstore-data/content-address/text.json
+    upstream-libstore-data/derived-path/multi_built_built.json
+    upstream-libstore-data/derived-path/multi_built_built_wildcard.json
+    upstream-libstore-data/derived-path/multi_opaque.json
+    upstream-libstore-data/derived-path/mutli_built.json
+    upstream-libstore-data/derived-path/single_built_built.json
+    upstream-libstore-data/derived-path/single_built.json
+    upstream-libstore-data/derived-path/single_opaque.json
+    upstream-libstore-data/outputs-spec/all.json
+    upstream-libstore-data/outputs-spec/name.json
+    upstream-libstore-data/outputs-spec/names.json
+    upstream-libstore-data/realisation/simple.json
+    upstream-libstore-data/realisation/with-dependent-realisations.json
+    upstream-libstore-data/realisation/with-signature.json
+    upstream-libstore-data/store-path/simple.json
+    upstream-libutil-data/hash/sha256-base16.json
+    upstream-libutil-data/hash/sha256-base64.json
+    upstream-libutil-data/hash/sha256-nix32.json
+    upstream-libutil-data/hash/simple.json
 
 common commons
   ghc-options:  -Wall
@@ -48,13 +66,9 @@ library
     , constraints-extras
     , containers
     , crypton
-    , data-default-class
     , dependent-sum
     , deriving-aeson >= 0.2
-    , monoidal-containers
     , text
-    , these
-    , time
   hs-source-dirs:      src
 
 test-suite json
@@ -71,6 +85,8 @@ test-suite json
     SingleDerivedPathSpec
     StorePathSpec
     Paths_hnix_store_json
+  autogen-modules:
+    Paths_hnix_store_json
   hs-source-dirs:
     tests
   build-tool-depends:
@@ -83,11 +99,6 @@ test-suite json
 
     , aeson
     , bytestring
-    , constraints-extras
     , containers
-    , crypton
     , data-default-class
-    , dependent-sum
     , hspec
-    , some
-    , time
