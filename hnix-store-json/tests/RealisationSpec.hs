@@ -35,7 +35,7 @@ sampleRealisation0 = Realisation
   { realisationOutPath =
       forceRight
       $ System.Nix.StorePath.parseBasePath
-          "/nix/store/cdips4lakfk1qbf1x68fq18wnn3r5r14-builder.sh"
+          "cdips4lakfk1qbf1x68fq18wnn3r5r14-builder.sh"
   , realisationSignatures = mempty
   , realisationDependencies = mempty
   }
