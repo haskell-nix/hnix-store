@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MonoLocalBinds #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-|
 Description : JSON serialization
@@ -15,26 +16,38 @@ module System.Nix.JSON
 import Control.Applicative ((<|>))
 import Crypto.Hash (Digest)
 import Data.Aeson
+import Data.Aeson.Key qualified
 import Data.Aeson.KeyMap qualified
+import Data.Aeson.Types (Parser)
 import Data.Aeson.Types qualified
 import Data.Attoparsec.Text qualified
 import Data.Char qualified
 import Data.Constraint.Extras (Has(has))
 import Data.Dependent.Sum
 import Data.Foldable (toList)
+import Data.Map.Strict qualified
+import Data.Map.Monoidal qualified
+import Data.Maybe (fromMaybe, maybeToList)
 import Data.Set qualified
 import Data.Some
 import Data.Text (Text)
+import Data.Text qualified
 import Data.Text.Lazy qualified
 import Data.Text.Lazy.Builder qualified
+import Data.These
+import Data.These.Combinators
+import Data.Time (diffUTCTime)
+import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Deriving.Aeson
 
 import System.Nix.Base (baseEncodingToText, textToBaseEncoding)
 import System.Nix.Base qualified
+import System.Nix.Build (BuildResult(..), BuildSuccess(..), BuildFailure(..), BuildSuccessStatus(..), BuildFailureStatus(..))
 import System.Nix.ContentAddress
+import System.Nix.Derivation
 import System.Nix.DerivedPath (DerivedPath(..), OutputsSpec(..), SingleDerivedPath(..))
 import System.Nix.Hash
-import System.Nix.OutputName (OutputName)
+import System.Nix.OutputName (OutputName, mkOutputName)
 import System.Nix.OutputName qualified
 import System.Nix.Realisation (BuildTraceKey(..), Realisation, RealisationWithId(..))
 import System.Nix.Realisation qualified
@@ -86,6 +99,109 @@ instance FromJSONKey StorePath where
   fromJSONKey = FromJSONKeyTextParser $
     either (fail . show @System.Nix.StorePath.InvalidPathError) pure . parseBasePathFromText
 
+deriving newtype instance FromJSON DerivedPathMap
+deriving newtype instance ToJSON DerivedPathMap
+
+instance FromJSON ChildNode where
+  parseJSON = withObject "ChildNode" $ \obj -> do
+    outputs <- obj .: "outputs"
+    dynamicOutputs <- obj .: "dynamicOutputs"
+    ChildNode <$> case (Data.Set.null outputs, Data.Map.Monoidal.null dynamicOutputs) of
+      (False, True) -> pure $ This outputs
+      (True, False) -> pure $ That dynamicOutputs
+      (False, False) -> pure $ These outputs dynamicOutputs
+      (True, True) -> fail "outputs and dynamic outputs cannot both be empty"
+
+instance ToJSON ChildNode where
+  toJSON (ChildNode cn) = object
+    [ "outputs" .= fromMaybe Data.Set.empty (justHere cn)
+    , "dynamicOutputs" .= fromMaybe Data.Map.Monoidal.empty (justThere cn)
+    ]
+
+-- | Input-addressed derivation output JSON instance
+instance FromJSON InputAddressedDerivationOutput where
+  parseJSON = withObject "InputAddressedDerivationOutput" $ \obj ->
+    InputAddressedDerivationOutput <$> obj .: "path"
+
+instance ToJSON InputAddressedDerivationOutput where
+  toJSON (InputAddressedDerivationOutput path) =
+    object ["path" .= path]
+
+-- | Fixed derivation output JSON instance
+instance FromJSON FixedDerivationOutput where
+  parseJSON = withObject "FixedDerivationOutput" $ \obj -> do
+    method <- obj .: "method" >>= either fail pure . textToMethod
+    HashJSON hash <- obj .: "hash"
+    pure $ FixedDerivationOutput method hash
+
+instance ToJSON FixedDerivationOutput where
+  toJSON (FixedDerivationOutput method hash) =
+    object
+      [ "method" .= methodToText method
+      , "hash" .= HashJSON hash
+      ]
+
+-- | Content-addressed derivation output JSON instance
+instance FromJSON ContentAddressedDerivationOutput where
+  parseJSON = withObject "ContentAddressedDerivationOutput" $ \obj -> do
+    method <- obj .: "method" >>= either fail pure . textToMethod
+    hashAlgo <- obj .: "hashAlgo" >>= either fail pure . textToAlgo
+    pure $ ContentAddressedDerivationOutput method hashAlgo
+
+instance ToJSON ContentAddressedDerivationOutput where
+  toJSON (ContentAddressedDerivationOutput method (Some hashAlgo)) =
+    object
+      [ "method" .= methodToText method
+      , "hashAlgo" .= algoToText hashAlgo
+      ]
+
+-- Helper to parse DerivationOutputs from JSON
+parseDerivationOutputs :: Object -> Parser DerivationOutputs
+parseDerivationOutputs obj = do
+  let outputPairs = Data.Aeson.KeyMap.toList obj
+  case outputPairs of
+    [] -> pure $ DerivationType_InputAddressing :=> mempty
+    (_, firstVal) : _ -> do
+      -- Parse the first output to determine the derivation type
+      withObject "first output" (\first -> do
+        -- Determine type by checking which fields are present
+        let hasPath = Data.Aeson.KeyMap.member "path" first
+            hasMethod = Data.Aeson.KeyMap.member "method" first
+            hasHash = Data.Aeson.KeyMap.member "hash" first
+            hasHashAlgo = Data.Aeson.KeyMap.member "hashAlgo" first
+
+        case (hasPath, hasMethod, hasHash, hasHashAlgo) of
+          (True, False, False, False) -> do
+            -- Input-addressed
+            outputs <- Data.Map.Strict.fromList <$> mapM (\(k, v) -> do
+              outputName <- either (fail . show) pure $ mkOutputName $ Data.Aeson.Key.toText k
+              output <- parseJSON v
+              pure (outputName, output)) outputPairs
+            pure $ DerivationType_InputAddressing :=> outputs
+          (False, True, True, False) -> do
+            -- Fixed
+            outputs <- Data.Map.Strict.fromList <$> mapM (\(k, v) -> do
+              outputName <- either (fail . show) pure $ mkOutputName $ Data.Aeson.Key.toText k
+              output <- parseJSON v
+              pure (outputName, output)) outputPairs
+            pure $ DerivationType_Fixed :=> outputs
+          (False, True, False, True) -> do
+            -- Content-addressed
+            outputs <- Data.Map.Strict.fromList <$> mapM (\(k, v) -> do
+              outputName <- either (fail . show) pure $ mkOutputName $ Data.Aeson.Key.toText k
+              output <- parseJSON v
+              pure (outputName, output)) outputPairs
+            pure $ DerivationType_ContentAddressing :=> outputs
+          _ -> fail $ "Invalid output format: " <> show (hasPath, hasMethod, hasHash, hasHashAlgo)
+        ) firstVal
+
+-- Helper to serialize DerivationOutputs to JSON
+derivationOutputsToJSON :: DerivationOutputs -> Value
+derivationOutputsToJSON (ty :=> outputs) = case ty of
+  DerivationType_InputAddressing -> toJSON outputs
+  DerivationType_Fixed -> toJSON outputs
+  DerivationType_ContentAddressing -> toJSON outputs
+
 instance FromJSONKey StorePathName where
   fromJSONKey = FromJSONKeyTextParser $ either (fail . show) pure . mkStorePathName
 
@@ -96,6 +212,37 @@ deriving newtype instance FromJSON OutputName
 deriving newtype instance ToJSON OutputName
 deriving newtype instance FromJSONKey OutputName
 deriving newtype instance ToJSONKey OutputName
+
+-- | TODO: hacky, we need to stop assuming StoreDir for
+-- StorePath to and from JSON
+instance FromJSON Derivation where
+  parseJSON = withObject "Derivation" $ \v -> do
+    name <- v .: "name"
+    inputs <- v .: "inputs" >>= \inputsObj -> DerivationInputs
+      <$> inputsObj .: "srcs"
+      <*> inputsObj .: "drvs"
+    outputs <- v .: "outputs" >>= parseDerivationOutputs
+    Derivation name outputs
+      <$> pure inputs
+      <*> v .: "system"
+      <*> v .: "builder"
+      <*> v .: "args"
+      <*> v .: "env"
+
+instance ToJSON Derivation where
+  toJSON (Derivation name outputs (DerivationInputs inputSrcs inputDrvs) system builder args env) =
+    object [ "name" .= name
+           , "outputs" .= derivationOutputsToJSON outputs
+           , "inputs" .= object
+              [ "srcs" .= inputSrcs
+              , "drvs" .= inputDrvs
+              ]
+           , "system" .= system
+           , "builder" .= builder
+           , "args" .= args
+           , "env" .= env
+           ]
+
 
 instance ToJSON (BuildTraceKey OutputName) where
   toJSON =
@@ -280,3 +427,118 @@ instance FromJSON RealisationWithId where
     drvOut <- o .: "id"
     pure (RealisationWithId (drvOut, r))
   parseJSON x = fail $ "Expected Object but got " ++ show x
+
+-- BuildSuccessStatus enum to/from JSON as strings
+instance ToJSON BuildSuccessStatus where
+  toJSON BuildSuccessStatus_Built = String "Built"
+  toJSON BuildSuccessStatus_Substituted = String "Substituted"
+  toJSON BuildSuccessStatus_AlreadyValid = String "AlreadyValid"
+  toJSON BuildSuccessStatus_ResolvesToAlreadyValid = String "ResolvesToAlreadyValid"
+
+instance FromJSON BuildSuccessStatus where
+  parseJSON = withText "BuildSuccessStatus" $ \case
+    "Built" -> pure BuildSuccessStatus_Built
+    "Substituted" -> pure BuildSuccessStatus_Substituted
+    "AlreadyValid" -> pure BuildSuccessStatus_AlreadyValid
+    "ResolvesToAlreadyValid" -> pure BuildSuccessStatus_ResolvesToAlreadyValid
+    other -> fail $ "Unknown BuildSuccessStatus: " ++ Data.Text.unpack other
+
+-- BuildFailureStatus enum to/from JSON as strings
+instance ToJSON BuildFailureStatus where
+  toJSON BuildFailureStatus_PermanentFailure = String "PermanentFailure"
+  toJSON BuildFailureStatus_InputRejected = String "InputRejected"
+  toJSON BuildFailureStatus_OutputRejected = String "OutputRejected"
+  toJSON BuildFailureStatus_TransientFailure = String "TransientFailure"
+  toJSON BuildFailureStatus_CachedFailure = String "CachedFailure"
+  toJSON BuildFailureStatus_TimedOut = String "TimedOut"
+  toJSON BuildFailureStatus_MiscFailure = String "MiscFailure"
+  toJSON BuildFailureStatus_DependencyFailed = String "DependencyFailed"
+  toJSON BuildFailureStatus_LogLimitExceeded = String "LogLimitExceeded"
+  toJSON BuildFailureStatus_NotDeterministic = String "NotDeterministic"
+  toJSON BuildFailureStatus_NoSubstituters = String "NoSubstituters"
+  toJSON BuildFailureStatus_HashMismatch = String "HashMismatch"
+
+instance FromJSON BuildFailureStatus where
+  parseJSON = withText "BuildFailureStatus" $ \case
+    "PermanentFailure" -> pure BuildFailureStatus_PermanentFailure
+    "InputRejected" -> pure BuildFailureStatus_InputRejected
+    "OutputRejected" -> pure BuildFailureStatus_OutputRejected
+    "TransientFailure" -> pure BuildFailureStatus_TransientFailure
+    "CachedFailure" -> pure BuildFailureStatus_CachedFailure
+    "TimedOut" -> pure BuildFailureStatus_TimedOut
+    "MiscFailure" -> pure BuildFailureStatus_MiscFailure
+    "DependencyFailed" -> pure BuildFailureStatus_DependencyFailed
+    "LogLimitExceeded" -> pure BuildFailureStatus_LogLimitExceeded
+    "NotDeterministic" -> pure BuildFailureStatus_NotDeterministic
+    "NoSubstituters" -> pure BuildFailureStatus_NoSubstituters
+    "HashMismatch" -> pure BuildFailureStatus_HashMismatch
+    other -> fail $ "Unknown BuildFailureStatus: " ++ Data.Text.unpack other
+
+-- BuildResult JSON instances
+instance ToJSON BuildResult where
+  toJSON (BuildResult status timesBuilt startTime stopTime cpuUser cpuSystem) =
+    case status of
+      Right (BuildSuccess successStatus builtOutputs) ->
+        -- Convert Map (BuildTraceKey OutputName) Realisation to Map OutputName RealisationWithId
+        let builtOutputsForJSON = Data.Map.Strict.fromList
+              [ (outName, RealisationWithId (btk, r))
+              | (btk@(BuildTraceKey _hash outName), r) <- Data.Map.Strict.toList builtOutputs
+              ]
+        in object $ concat
+          [ [ "success" .= True
+            , "status" .= successStatus
+            , "builtOutputs" .= builtOutputsForJSON
+            , "timesBuilt" .= timesBuilt
+            , "startTime" .= (floor (realToFrac (diffUTCTime startTime (posixSecondsToUTCTime 0)) :: Double) :: Integer)
+            , "stopTime" .= (floor (realToFrac (diffUTCTime stopTime (posixSecondsToUTCTime 0)) :: Double) :: Integer)
+            ]
+          , maybeToList $ ("cpuUser" .=) <$> cpuUser
+          , maybeToList $ ("cpuSystem" .=) <$> cpuSystem
+          ]
+      Left (BuildFailure failureStatus errorMsg isNonDeterministic) ->
+        object
+          [ "success" .= False
+          , "status" .= failureStatus
+          , "errorMsg" .= errorMsg
+          , "isNonDeterministic" .= isNonDeterministic
+          , "timesBuilt" .= timesBuilt
+          , "startTime" .= (floor (realToFrac (diffUTCTime startTime (posixSecondsToUTCTime 0)) :: Double) :: Integer)
+          , "stopTime" .= (floor (realToFrac (diffUTCTime stopTime (posixSecondsToUTCTime 0)) :: Double) :: Integer)
+          ]
+
+instance FromJSON BuildResult where
+  parseJSON = withObject "BuildResult" $ \obj -> do
+    success <- obj .: "success"
+    timesBuilt <- obj .: "timesBuilt"
+    startTimeSeconds <- obj .: "startTime"
+    stopTimeSeconds <- obj .: "stopTime"
+    let startTime = posixSecondsToUTCTime (fromInteger startTimeSeconds)
+        stopTime = posixSecondsToUTCTime (fromInteger stopTimeSeconds)
+
+    buildResultStatus <- if success
+      then do
+        successStatus <- obj .: "status"
+        -- Parse as Map OutputName RealisationWithId, then convert to Map (BuildTraceKey OutputName) Realisation
+        builtOutputsWithId <- obj .: "builtOutputs" :: Parser (Data.Map.Strict.Map OutputName RealisationWithId)
+        let builtOutputs = Data.Map.Strict.fromList
+              [ (btk, r)
+              | (_outName, RealisationWithId (btk, r)) <- Data.Map.Strict.toList builtOutputsWithId
+              ]
+        pure $ Right (BuildSuccess successStatus builtOutputs)
+      else do
+        failureStatus <- obj .: "status"
+        errorMsg <- obj .: "errorMsg"
+        isNonDeterministic <- obj .: "isNonDeterministic"
+        pure $ Left (BuildFailure failureStatus errorMsg isNonDeterministic)
+
+    buildResultCpuUser <- obj .:? "cpuUser"
+    buildResultCpuSystem <- obj .:? "cpuSystem"
+
+    pure BuildResult
+      { buildResultStatus = buildResultStatus
+      , buildResultTimesBuilt = timesBuilt
+      , buildResultStartTime = startTime
+      , buildResultStopTime = stopTime
+      , buildResultCpuUser = buildResultCpuUser
+      , buildResultCpuSystem = buildResultCpuSystem
+      }

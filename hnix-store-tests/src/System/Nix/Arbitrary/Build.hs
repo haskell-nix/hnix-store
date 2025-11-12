@@ -5,7 +5,7 @@ module System.Nix.Arbitrary.Build where
 
 import Data.Time (UTCTime)
 import Data.Text.Arbitrary ()
-import Test.QuickCheck (Arbitrary(..), scale, suchThat)
+import Test.QuickCheck (Arbitrary(..), suchThat)
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
 import System.Nix.Arbitrary.OutputName ()
 import System.Nix.Arbitrary.Realisation ()
@@ -18,18 +18,26 @@ import Data.Time.Clock.POSIX qualified
 deriving via GenericArbitrary BuildMode
   instance Arbitrary BuildMode
 
-deriving via GenericArbitrary BuildStatus
-  instance Arbitrary BuildStatus
+deriving via GenericArbitrary BuildSuccessStatus
+  instance Arbitrary BuildSuccessStatus
+
+deriving via GenericArbitrary BuildFailureStatus
+  instance Arbitrary BuildFailureStatus
+
+deriving via GenericArbitrary BuildSuccess
+  instance Arbitrary BuildSuccess
+
+deriving via GenericArbitrary BuildFailure
+  instance Arbitrary BuildFailure
 
 instance Arbitrary BuildResult where
   arbitrary = do
     buildResultStatus <- arbitrary
-    buildResultErrorMessage <- arbitrary
-    buildResultTimesBuilt <- arbitrary `suchThat` (/= Just 0)
-    buildResultIsNonDeterministic <- arbitrary  `suchThat` (/= Nothing)
-    buildResultStartTime <- arbitrary `suchThat` (/= Just t0)
-    buildResultStopTime <- arbitrary `suchThat` (/= Just t0)
-    buildResultBuiltOutputs <- scale (`div` 10) (arbitrary `suchThat` (/= Nothing))
+    buildResultTimesBuilt <- arbitrary `suchThat` (/= 0)
+    buildResultStartTime <- arbitrary `suchThat` (/= t0)
+    buildResultStopTime <- arbitrary `suchThat` (/= t0)
+    buildResultCpuUser <- arbitrary
+    buildResultCpuSystem <- arbitrary
 
     pure BuildResult{..}
     where

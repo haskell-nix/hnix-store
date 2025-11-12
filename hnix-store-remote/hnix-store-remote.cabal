@@ -31,8 +31,8 @@ common commons
     , DerivingVia
     , FlexibleContexts
     , FlexibleInstances
-    , GADTs
     , ImportQualifiedPost
+    , GADTs
     , RecordWildCards
     , ScopedTypeVariables
     , StandaloneDeriving
@@ -93,7 +93,6 @@ library
     , System.Nix.Store.Remote.Types.Query.Missing
     , System.Nix.Store.Remote.Types.StoreConfig
     , System.Nix.Store.Remote.Types.StoreRequest
-    , System.Nix.Store.Remote.Types.StoreReply
     , System.Nix.Store.Remote.Types.StoreText
     , System.Nix.Store.Remote.Types.SubstituteMode
     , System.Nix.Store.Remote.Types.SuccessCodeReply
@@ -108,6 +107,7 @@ library
     , hnix-store-json >= 0.1
     , hnix-store-nar >= 0.1
     , hnix-store-tests >= 0.1
+    , hnix-store-aterm
     , aeson
     , attoparsec
     , bytestring
@@ -123,6 +123,7 @@ library
     , exceptions
     , generic-arbitrary < 1.1
     , hashable
+    , mmorph
     , text
     , time
     , transformers
@@ -179,12 +180,14 @@ test-suite remote
     , hnix-store-core
     , hnix-store-remote
     , hnix-store-tests
+    , hnix-store-aterm
     , bytestring
     , crypton
     , some > 1.0.5 && < 2
-    , time
     , hspec
     , QuickCheck
+    , time
+    , transformers
 
 test-suite remote-io
   import: commons

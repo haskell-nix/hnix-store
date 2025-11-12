@@ -1,27 +1,34 @@
 module DerivationSpec where
 
+import Data.Functor.Identity (Identity(..))
 import Test.Hspec (Spec, describe)
-import Test.Hspec.QuickCheck (xprop)
+import Test.Hspec.QuickCheck (prop)
+import Test.QuickCheck
 import Test.Hspec.Nix (roundtrips)
 
 import System.Nix.Arbitrary ()
-import System.Nix.Derivation (parseDerivation, buildDerivation)
+import System.Nix.Arbitrary.Derivation
+import System.Nix.Derivation
 
-import Data.Attoparsec.Text qualified
-import Data.Text.Lazy qualified
-import Data.Text.Lazy.Builder qualified
-
--- TODO(srk): this won't roundtrip as Arbitrary Text
--- contains wild stuff like control characters and UTF8 sequences.
--- Either fix in nix-derivation or use wrapper type
--- (but we use Nix.Derivation.textParser so we need Text for now)
 spec :: Spec
 spec = do
-  describe "Derivation" $ do
-    xprop "roundtrips via Text" $ \sd ->
+  describe "DerivationInput" $ do
+    prop "roundtrips to (Set SingleDerivedPath)" $
+      -- Order is important, 'Set SingleDerivedPath' is the normal from,
+      -- since the arbitrary instance for 'DerivationInput' doesn't
+      -- properly avoid empty child maps.
       roundtrips
-        ( Data.Text.Lazy.toStrict
-        . Data.Text.Lazy.Builder.toLazyText
-        . buildDerivation sd
-        )
-        (Data.Attoparsec.Text.parseOnly (parseDerivation sd))
+        (foldMap derivationInputsFromSingleDerivedPath)
+        (Identity . derivationInputsToDerivedPaths)
+
+  describe "DerivationOutput" $ do
+    prop "roundtrips to FreeformDerivationOutput" $ \storeDir storePathName output -> do
+      outputName <- generate $ shortEnoughOutputName storePathName
+      roundtrips
+        (fromSpecificOutput storeDir storePathName outputName)
+        (toSpecificOutput @Maybe storeDir storePathName outputName)
+        output
+
+-- -- | Useful for debugging
+-- instance MonadFail (Either String) where
+--   fail = Left
