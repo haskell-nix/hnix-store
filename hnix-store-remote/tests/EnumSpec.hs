@@ -6,8 +6,8 @@ import Test.Hspec (SpecWith, Spec, describe, it, shouldBe)
 
 import Data.ByteString (ByteString)
 import Data.Word (Word64)
-import System.Nix.Build (BuildMode(..), BuildStatus(..))
-import System.Nix.Store.Remote.Serializer 
+import System.Nix.Build (BuildMode(..), BuildSuccessStatus(..), BuildFailureStatus(..))
+import System.Nix.Store.Remote.Serializer
   ( activity
   , activityResult
   , enum
@@ -57,22 +57,25 @@ spec = do
       itE "Repair" BuildMode_Repair 1
       itE "Check"  BuildMode_Check  2
 
-    describe "BuildStatus enum order matches Nix" $ do
-      itE "Built"                  BuildStatus_Built                   0
-      itE "Substituted"            BuildStatus_Substituted             1
-      itE "AlreadyValid"           BuildStatus_AlreadyValid            2
-      itE "PermanentFailure"       BuildStatus_PermanentFailure        3
-      itE "InputRejected"          BuildStatus_InputRejected           4
-      itE "OutputRejected"         BuildStatus_OutputRejected          5
-      itE "TransientFailure"       BuildStatus_TransientFailure        6
-      itE "CachedFailure"          BuildStatus_CachedFailure           7
-      itE "TimedOut"               BuildStatus_TimedOut                8
-      itE "MiscFailure"            BuildStatus_MiscFailure             9
-      itE "DependencyFailed"       BuildStatus_DependencyFailed       10
-      itE "LogLimitExceeded"       BuildStatus_LogLimitExceeded       11
-      itE "NotDeterministic"       BuildStatus_NotDeterministic       12
-      itE "ResolvesToAlreadyValid" BuildStatus_ResolvesToAlreadyValid 13
-      itE "NoSubstituters"         BuildStatus_NoSubstituters         14
+    describe "BuildSuccessStatus enum order matches Nix" $ do
+      itE "Built"                  BuildSuccessStatus_Built                   0
+      itE "Substituted"            BuildSuccessStatus_Substituted             1
+      itE "AlreadyValid"           BuildSuccessStatus_AlreadyValid            2
+      itE "ResolvesToAlreadyValid" BuildSuccessStatus_ResolvesToAlreadyValid  3
+
+    describe "BuildFailureStatus enum order matches Nix" $ do
+      itE "PermanentFailure"       BuildFailureStatus_PermanentFailure        0
+      itE "InputRejected"          BuildFailureStatus_InputRejected           1
+      itE "OutputRejected"         BuildFailureStatus_OutputRejected          2
+      itE "TransientFailure"       BuildFailureStatus_TransientFailure        3
+      itE "CachedFailure"          BuildFailureStatus_CachedFailure           4
+      itE "TimedOut"               BuildFailureStatus_TimedOut                5
+      itE "MiscFailure"            BuildFailureStatus_MiscFailure             6
+      itE "DependencyFailed"       BuildFailureStatus_DependencyFailed        7
+      itE "LogLimitExceeded"       BuildFailureStatus_LogLimitExceeded        8
+      itE "NotDeterministic"       BuildFailureStatus_NotDeterministic        9
+      itE "NoSubstituters"         BuildFailureStatus_NoSubstituters         10
+      itE "HashMismatch"           BuildFailureStatus_HashMismatch           11
 
     describe "GCAction enum order matches Nix" $ do
       itE "ReturnLive"     GCAction_ReturnLive     0
