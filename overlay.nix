@@ -49,6 +49,7 @@ in
         root = ./.;
         fileset = lib.fileset.unions [
           ./hnix-store-json
+          (lib.fileset.fileFilter (file: file.hasExt "json") ./upstream-nix/src/libstore-tests/data/build-result)
           (lib.fileset.fileFilter (file: file.hasExt "json") ./upstream-nix/src/libstore-tests/data/content-address)
           (lib.fileset.fileFilter (file: file.hasExt "json") ./upstream-nix/src/libstore-tests/data/derived-path)
           (lib.fileset.fileFilter (file: file.hasExt "json") ./upstream-nix/src/libstore-tests/data/outputs-spec)
