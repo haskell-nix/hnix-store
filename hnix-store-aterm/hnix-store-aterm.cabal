@@ -1,0 +1,116 @@
+Cabal-Version: 2.2
+Name: hnix-store-aterm
+Version: 1.1.3
+Build-Type: Simple
+Tested-With: GHC == 9.8.4, GHC == 9.6.6, GHC == 9.4.8
+License: BSD-3-Clause
+License-File: LICENSE
+Copyright: 2017 Gabriella Gonzalez
+Author: Gabriella Gonzalez
+Maintainer: GenuineGabriella@gmail.com
+Bug-Reports: https://github.com/Gabriella439/Haskell-Nix-Derivation-Library/issues
+Synopsis: Parse and render *.drv files
+Description:
+    Use this package to parse and render Nix derivation files (i.e. *.drv files),
+    i.e. Nix Derivations in "ATerm" format.
+    .
+    See
+    https://nix.dev/manual/nix/latest/protocols/derivation-aterm.html
+    for more details about this format.
+    .
+    This package also provides a @pretty-derivation@ executable which reads a
+    derivation on standard input and outputs the pretty-printed Haskell
+    representation on standard output
+Category: System
+Extra-Source-Files:
+    tests/example0.drv
+    tests/example1.drv
+Source-Repository head
+    Type: git
+    Location: https://github.com/haskell-nix/hnix-store
+
+Common commons
+    Default-Extensions:
+        ImportQualifiedPost
+    Default-Language: Haskell2010
+
+Library
+    Import: commons
+    Hs-Source-Dirs: src
+    Build-Depends:
+        attoparsec      >= 0.12.0.0 && < 0.15,
+        base            >= 4.6.0.0  && < 5   ,
+        constraints-extras,
+        containers                     < 0.8 ,
+        deepseq         >= 1.4.0.0  && < 1.6 ,
+        dependent-sum,
+        hnix-store-core,
+        monoidal-containers,
+        some,
+        text            >= 0.8.0.0  && < 2.2 ,
+        these,
+        vector                         < 0.14,
+    Exposed-Modules:
+        System.Nix.Derivation.ATerm
+        System.Nix.Derivation.Traditional
+    Other-Modules:
+        System.Nix.Derivation.ATerm.Builder,
+        System.Nix.Derivation.ATerm.Parser
+    GHC-Options: -Wall
+
+Executable pretty-derivation
+    Import: commons
+    Hs-Source-Dirs: pretty-derivation
+    Build-Depends:
+        base           >= 4.6.0.0  && < 5   ,
+        attoparsec     >= 0.12.0.0 && < 0.15,
+        pretty-show    >= 1.6.11   && < 1.11,
+        text                                ,
+        hnix-store-core                     ,
+        hnix-store-aterm
+    GHC-Options: -Wall
+    Main-Is: Main.hs
+
+Test-Suite example
+    Import: commons
+    Type: exitcode-stdio-1.0
+    Hs-Source-Dirs: tests
+    Main-Is: Example.hs
+    GHC-Options: -Wall
+    Build-Depends:
+        base           >= 4.6.0.0  && < 5   ,
+        attoparsec     >= 0.12.0.0 && < 0.15,
+        hnix-store-core                      ,
+        hnix-store-aterm                     ,
+        text
+
+Test-Suite property
+    Import: commons
+    Type: exitcode-stdio-1.0
+    Hs-Source-Dirs: tests
+    Main-Is: Property.hs
+    GHC-Options: -Wall
+    Build-Depends:
+        base            >= 4.6.0.0  && < 5   ,
+        attoparsec      >= 0.12.0.0 && < 0.15,
+        hnix-store-core                      ,
+        hnix-store-aterm                     ,
+        hnix-store-tests                     ,
+        generic-arbitrary              < 1.1 ,
+        QuickCheck                     < 2.16,
+        text                                 ,
+
+Benchmark benchmark
+    Import: commons
+    Type:             exitcode-stdio-1.0
+    HS-Source-Dirs:   bench
+    Main-Is:          Main.hs
+    GHC-Options:      -Wall
+
+    Build-Depends:
+        base            >= 4.6.0.0  && < 5   ,
+        attoparsec      >= 0.12.0.0 && < 0.15,
+        criterion       >= 1.1.4.0  && < 1.7 ,
+        hnix-store-core                      ,
+        hnix-store-aterm                     ,
+        text

@@ -5,6 +5,8 @@ module System.Nix.Store.Remote.Arbitrary where
 
 import Data.Some (Some(Some))
 import System.Nix.Arbitrary ()
+import System.Nix.Derivation (Derivation'(..))
+import System.Nix.StorePath (StorePath(..))
 import System.Nix.Store.Types (RepairMode(..))
 import System.Nix.Store.Remote.Types
 
@@ -101,7 +103,13 @@ instance Arbitrary (Some StoreRequest) where
     , Some . AddIndirectRoot  <$> arbitrary
     , Some . AddTempRoot <$> arbitrary
     , Some <$> (BuildPaths <$> arbitrary <*> arbitrary)
-    , Some <$> (BuildDerivation <$> arbitrary <*> arbitrary <*> arbitrary)
+    , do
+        path <- arbitrary
+        drv <- arbitrary
+        buildMode' <- arbitrary
+        -- Ensure store path name matches derivation name (helps with length issues)
+        let path' = path { storePathName = name drv }
+        pure $ Some (BuildDerivation path' drv buildMode')
     , Some . CollectGarbage <$> arbitrary
     , Some . EnsurePath <$> arbitrary
     , pure $ Some FindRoots

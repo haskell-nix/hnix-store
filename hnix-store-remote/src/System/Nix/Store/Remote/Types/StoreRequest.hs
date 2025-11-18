@@ -12,11 +12,10 @@ import Data.HashSet (HashSet)
 import Data.Kind (Type)
 import Data.Map (Map)
 import Data.Set (Set)
-import Data.Text (Text)
 import Data.Some (Some(Some))
 
 import System.Nix.Build (BuildMode, BuildResult)
-import System.Nix.Derivation (Derivation)
+import System.Nix.Derivation (BasicDerivation)
 import System.Nix.DerivedPath (DerivedPath)
 import System.Nix.Hash (HashAlgo)
 import System.Nix.Signature (Signature)
@@ -85,7 +84,7 @@ data StoreRequest :: Type -> Type where
 
   BuildDerivation
     :: StorePath
-    -> Derivation StorePath Text
+    -> BasicDerivation
     -> BuildMode
     -> StoreRequest BuildResult
 

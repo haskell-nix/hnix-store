@@ -26,9 +26,9 @@ common commons
       DerivingStrategies
     , DerivingVia
     , FlexibleInstances
-    , ImportQualifiedPost
     , ScopedTypeVariables
     , StandaloneDeriving
+    , ImportQualifiedPost
     , RecordWildCards
     , TypeApplications
     , LambdaCase
@@ -98,3 +98,4 @@ test-suite props
     , attoparsec
     , text
     , hspec
+    , QuickCheck

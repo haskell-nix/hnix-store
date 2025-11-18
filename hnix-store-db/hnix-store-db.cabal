@@ -32,32 +32,32 @@ flag build-readme
 common commons
   ghc-options: -Wall -Wunused-packages
   default-extensions:
-      OverloadedStrings
+      BangPatterns
     , DataKinds
-    , DeriveGeneric
     , DeriveDataTypeable
-    , DeriveFunctor
     , DeriveFoldable
-    , DeriveTraversable
+    , DeriveFunctor
+    , DeriveGeneric
     , DeriveLift
+    , DeriveTraversable
     , DerivingStrategies
     , FlexibleContexts
     , FlexibleInstances
     , GADTs
     , GeneralizedNewtypeDeriving
     , ImportQualifiedPost
+    , InstanceSigs
+    , LambdaCase
+    , MultiParamTypeClasses
+    , OverloadedStrings
     , RecordWildCards
     , ScopedTypeVariables
     , StandaloneDeriving
+    , TupleSections
     , TypeApplications
     , TypeFamilies
     , TypeOperators
     , TypeSynonymInstances
-    , InstanceSigs
-    , MultiParamTypeClasses
-    , TupleSections
-    , LambdaCase
-    , BangPatterns
     , ViewPatterns
   default-language: Haskell2010
 

@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MonoLocalBinds #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-|
 Description : JSON serialization
@@ -15,6 +16,7 @@ module System.Nix.JSON
 import Control.Applicative ((<|>))
 import Crypto.Hash (Digest)
 import Data.Aeson
+import Data.Aeson.Key qualified
 import Data.Aeson.KeyMap qualified
 import Data.Aeson.Types (Parser)
 import Data.Aeson.Types qualified
@@ -24,13 +26,16 @@ import Data.Constraint.Extras (Has(has))
 import Data.Dependent.Sum
 import Data.Foldable (toList)
 import Data.Map.Strict qualified
-import Data.Maybe (maybeToList)
+import Data.Map.Monoidal qualified
+import Data.Maybe (fromMaybe, maybeToList)
 import Data.Set qualified
 import Data.Some
 import Data.Text (Text)
 import Data.Text qualified
 import Data.Text.Lazy qualified
 import Data.Text.Lazy.Builder qualified
+import Data.These
+import Data.These.Combinators
 import Data.Time (diffUTCTime)
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Deriving.Aeson
@@ -39,9 +44,10 @@ import System.Nix.Base (baseEncodingToText, textToBaseEncoding)
 import System.Nix.Base qualified
 import System.Nix.Build (BuildResult(..), BuildSuccess(..), BuildFailure(..), BuildSuccessStatus(..), BuildFailureStatus(..))
 import System.Nix.ContentAddress
+import System.Nix.Derivation
 import System.Nix.DerivedPath (DerivedPath(..), OutputsSpec(..), SingleDerivedPath(..))
 import System.Nix.Hash
-import System.Nix.OutputName (OutputName)
+import System.Nix.OutputName (OutputName, mkOutputName)
 import System.Nix.OutputName qualified
 import System.Nix.Realisation (BuildTraceKey(..), Realisation, RealisationWithId(..))
 import System.Nix.Realisation qualified
@@ -93,6 +99,109 @@ instance FromJSONKey StorePath where
   fromJSONKey = FromJSONKeyTextParser $
     either (fail . show @System.Nix.StorePath.InvalidPathError) pure . parseBasePathFromText
 
+deriving newtype instance FromJSON DerivedPathMap
+deriving newtype instance ToJSON DerivedPathMap
+
+instance FromJSON ChildNode where
+  parseJSON = withObject "ChildNode" $ \obj -> do
+    outputs <- obj .: "outputs"
+    dynamicOutputs <- obj .: "dynamicOutputs"
+    ChildNode <$> case (Data.Set.null outputs, Data.Map.Monoidal.null dynamicOutputs) of
+      (False, True) -> pure $ This outputs
+      (True, False) -> pure $ That dynamicOutputs
+      (False, False) -> pure $ These outputs dynamicOutputs
+      (True, True) -> fail "outputs and dynamic outputs cannot both be empty"
+
+instance ToJSON ChildNode where
+  toJSON (ChildNode cn) = object
+    [ "outputs" .= fromMaybe Data.Set.empty (justHere cn)
+    , "dynamicOutputs" .= fromMaybe Data.Map.Monoidal.empty (justThere cn)
+    ]
+
+-- | Input-addressed derivation output JSON instance
+instance FromJSON InputAddressedDerivationOutput where
+  parseJSON = withObject "InputAddressedDerivationOutput" $ \obj ->
+    InputAddressedDerivationOutput <$> obj .: "path"
+
+instance ToJSON InputAddressedDerivationOutput where
+  toJSON (InputAddressedDerivationOutput path) =
+    object ["path" .= path]
+
+-- | Fixed derivation output JSON instance
+instance FromJSON FixedDerivationOutput where
+  parseJSON = withObject "FixedDerivationOutput" $ \obj -> do
+    method <- obj .: "method" >>= either fail pure . textToMethod
+    HashJSON hash <- obj .: "hash"
+    pure $ FixedDerivationOutput method hash
+
+instance ToJSON FixedDerivationOutput where
+  toJSON (FixedDerivationOutput method hash) =
+    object
+      [ "method" .= methodToText method
+      , "hash" .= HashJSON hash
+      ]
+
+-- | Content-addressed derivation output JSON instance
+instance FromJSON ContentAddressedDerivationOutput where
+  parseJSON = withObject "ContentAddressedDerivationOutput" $ \obj -> do
+    method <- obj .: "method" >>= either fail pure . textToMethod
+    hashAlgo <- obj .: "hashAlgo" >>= either fail pure . textToAlgo
+    pure $ ContentAddressedDerivationOutput method hashAlgo
+
+instance ToJSON ContentAddressedDerivationOutput where
+  toJSON (ContentAddressedDerivationOutput method (Some hashAlgo)) =
+    object
+      [ "method" .= methodToText method
+      , "hashAlgo" .= algoToText hashAlgo
+      ]
+
+-- Helper to parse DerivationOutputs from JSON
+parseDerivationOutputs :: Object -> Parser DerivationOutputs
+parseDerivationOutputs obj = do
+  let outputPairs = Data.Aeson.KeyMap.toList obj
+  case outputPairs of
+    [] -> pure $ DerivationType_InputAddressing :=> mempty
+    (_, firstVal) : _ -> do
+      -- Parse the first output to determine the derivation type
+      withObject "first output" (\first -> do
+        -- Determine type by checking which fields are present
+        let hasPath = Data.Aeson.KeyMap.member "path" first
+            hasMethod = Data.Aeson.KeyMap.member "method" first
+            hasHash = Data.Aeson.KeyMap.member "hash" first
+            hasHashAlgo = Data.Aeson.KeyMap.member "hashAlgo" first
+
+        case (hasPath, hasMethod, hasHash, hasHashAlgo) of
+          (True, False, False, False) -> do
+            -- Input-addressed
+            outputs <- Data.Map.Strict.fromList <$> mapM (\(k, v) -> do
+              outputName <- either (fail . show) pure $ mkOutputName $ Data.Aeson.Key.toText k
+              output <- parseJSON v
+              pure (outputName, output)) outputPairs
+            pure $ DerivationType_InputAddressing :=> outputs
+          (False, True, True, False) -> do
+            -- Fixed
+            outputs <- Data.Map.Strict.fromList <$> mapM (\(k, v) -> do
+              outputName <- either (fail . show) pure $ mkOutputName $ Data.Aeson.Key.toText k
+              output <- parseJSON v
+              pure (outputName, output)) outputPairs
+            pure $ DerivationType_Fixed :=> outputs
+          (False, True, False, True) -> do
+            -- Content-addressed
+            outputs <- Data.Map.Strict.fromList <$> mapM (\(k, v) -> do
+              outputName <- either (fail . show) pure $ mkOutputName $ Data.Aeson.Key.toText k
+              output <- parseJSON v
+              pure (outputName, output)) outputPairs
+            pure $ DerivationType_ContentAddressing :=> outputs
+          _ -> fail $ "Invalid output format: " <> show (hasPath, hasMethod, hasHash, hasHashAlgo)
+        ) firstVal
+
+-- Helper to serialize DerivationOutputs to JSON
+derivationOutputsToJSON :: DerivationOutputs -> Value
+derivationOutputsToJSON (ty :=> outputs) = case ty of
+  DerivationType_InputAddressing -> toJSON outputs
+  DerivationType_Fixed -> toJSON outputs
+  DerivationType_ContentAddressing -> toJSON outputs
+
 instance FromJSONKey StorePathName where
   fromJSONKey = FromJSONKeyTextParser $ either (fail . show) pure . mkStorePathName
 
@@ -103,6 +212,37 @@ deriving newtype instance FromJSON OutputName
 deriving newtype instance ToJSON OutputName
 deriving newtype instance FromJSONKey OutputName
 deriving newtype instance ToJSONKey OutputName
+
+-- | TODO: hacky, we need to stop assuming StoreDir for
+-- StorePath to and from JSON
+instance FromJSON Derivation where
+  parseJSON = withObject "Derivation" $ \v -> do
+    name <- v .: "name"
+    inputs <- v .: "inputs" >>= \inputsObj -> DerivationInputs
+      <$> inputsObj .: "srcs"
+      <*> inputsObj .: "drvs"
+    outputs <- v .: "outputs" >>= parseDerivationOutputs
+    Derivation name outputs
+      <$> pure inputs
+      <*> v .: "system"
+      <*> v .: "builder"
+      <*> v .: "args"
+      <*> v .: "env"
+
+instance ToJSON Derivation where
+  toJSON (Derivation name outputs (DerivationInputs inputSrcs inputDrvs) system builder args env) =
+    object [ "name" .= name
+           , "outputs" .= derivationOutputsToJSON outputs
+           , "inputs" .= object
+              [ "srcs" .= inputSrcs
+              , "drvs" .= inputDrvs
+              ]
+           , "system" .= system
+           , "builder" .= builder
+           , "args" .= args
+           , "env" .= env
+           ]
+
 
 instance ToJSON (BuildTraceKey OutputName) where
   toJSON =

@@ -11,6 +11,7 @@ The test suite is now much more comprenesive, uses test data from upstream Nix t
   * `OutputsSpec`
   * `SingleDerivedPath`
   * `DerivedPath`
+  * `Derivation`
   * `BuildResult`
 
 # 0.1.0.0 2024-07-31

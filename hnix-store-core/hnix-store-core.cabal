@@ -90,12 +90,14 @@ library
     , deepseq
     , dependent-sum > 0.7
     , dependent-sum-template >= 0.2.0.1 && < 0.3
+    , dependent-monoidal-map
     , filepath
     , hashable
     -- Required for crypton low-level type convertion
     , memory
-    , nix-derivation >= 1.1.1 && <2
+    , monoidal-containers
     , some > 1.0.5 && < 2
+    , these
     , text
     , time
     , unordered-containers
@@ -107,7 +109,6 @@ test-suite core
   type: exitcode-stdio-1.0
   main-is: Driver.hs
   other-modules:
-    Derivation
     Fingerprint
     Hash
     Placeholder
@@ -119,7 +120,6 @@ test-suite core
     tasty-discover:tasty-discover
   build-depends:
       hnix-store-core
-    , attoparsec
     , base
     , base16-bytestring
     , base64-bytestring
@@ -129,7 +129,6 @@ test-suite core
     , data-default-class
     , hspec
     , tasty
-    , tasty-golden
     , tasty-hspec
     , text
     , time
