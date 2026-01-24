@@ -34,13 +34,16 @@ listOf element = do
     "]"
     return es
 
+optional :: Parser a -> Parser (Maybe a)
+optional p = Data.Attoparsec.Text.Lazy.option Nothing (Just <$> p)
+
 -- | Parse a derivation
 parseDerivation :: Parser (Derivation FilePath Text)
 parseDerivation = parseDerivationWith filepathParser textParser
 
 -- | Parse a derivation using custom
 -- parsers for filepaths and text fields
-parseDerivationWith :: (Ord fp, Monoid fp, Ord txt, Monoid txt) => Parser fp -> Parser txt -> Parser (Derivation fp txt)
+parseDerivationWith :: (Ord fp, Ord txt) => Parser fp -> Parser txt -> Parser (Derivation fp txt)
 parseDerivationWith filepath string = do
     "Derive("
 
@@ -48,11 +51,11 @@ parseDerivationWith filepath string = do
             "("
             key <- string
             ","
-            path <- filepath
+            path <- optional filepath
             ","
-            hashAlgo <- string
+            hashAlgo <- optional string
             ","
-            hash <- string
+            hash <- optional string
             ")"
             drvOutput <- derivationOutput path hashAlgo hash
             return (key, drvOutput)
@@ -100,15 +103,11 @@ parseDerivationWith filepath string = do
 
     return (Derivation {..})
 
-derivationOutput :: (Ord fp, Monoid fp, Ord txt, Monoid txt) => fp -> txt -> txt -> Parser (DerivationOutput fp txt)
-derivationOutput path hashAlgo hash
-    | path /= mempty && hashAlgo == mempty && hash == mempty =
-        return DerivationOutput {..}
-    | path /= mempty && hashAlgo /= mempty && hash /= mempty =
-        return FixedDerivationOutput {..}
-    | path == mempty && hashAlgo /= mempty && hash == mempty =
-        return ContentAddressedDerivationOutput {..}
-    | otherwise = fail "bad output in derivation"
+derivationOutput :: (Ord fp, Ord txt) => Maybe fp -> Maybe txt -> Maybe txt -> Parser (DerivationOutput fp txt)
+derivationOutput (Just path) Nothing Nothing = return DerivationOutput {..}
+derivationOutput (Just path) (Just hashAlgo) (Just hash) = return FixedDerivationOutput {..}
+derivationOutput Nothing (Just hashAlgo) Nothing = return ContentAddressedDerivationOutput {..}
+derivationOutput _ _ _ = fail "bad output in derivation"
 
 textParser :: Parser Text
 textParser = do
