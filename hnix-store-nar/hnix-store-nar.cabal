@@ -99,7 +99,7 @@ test-suite nar
     tasty-discover:tasty-discover
   build-depends:
       base
-    , cryptonite
+    , crypton
     , hnix-store-nar
     , base64-bytestring
     , cereal
