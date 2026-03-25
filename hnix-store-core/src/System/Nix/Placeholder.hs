@@ -38,7 +38,7 @@ createPlaceholder outputName =
   let
     clearText = T.intercalate ":"
       [ "nix-output"
-      , unStorePathName $ unOutputName outputName
+      , outputNameToText outputName
       ]
   in Placeholder (Crypto.Hash.hash $ T.encodeUtf8 clearText)
 
@@ -49,7 +49,7 @@ renderPlaceholder (Placeholder h) = T.cons '/' (encodeDigestWith NixBase32 h)
 
 -- | Downstream Placeholders are opaque and almost certainly unique
 -- values used to allow derivations to refer to store objects which are
--- yet to be built and for we do not yet have store paths for.
+-- yet to be built and for which we do not yet have store paths.
 --
 -- They correspond to `SingleDerivedPath`s that are not
 -- `SingleDerivedPath_Opaque`, except for the cases involving input
@@ -80,6 +80,8 @@ renderDownstreamPlaceholder (DownstreamPlaceholder h) = T.cons '/' (encodeDigest
 --
 -- The derivation itself is known (we have a store path for it), but
 -- the output doesn't yet have a known store path.
+--
+-- The store path must end in `.drv`
 unknownCaOutput :: StorePath -> OutputName -> DownstreamPlaceholder
 unknownCaOutput drvPath outputName =
   let
@@ -87,15 +89,18 @@ unknownCaOutput drvPath outputName =
       [ "nix-upstream-output"
       , storePathHashPartToText $ storePathHash drvPath
       , either (error . show) unStorePathName $ do
-          name <- mkStorePathName $ T.dropEnd 4 (unStorePathName $ storePathName drvPath) -- Remove ".drv" extension
+          let drvName = unStorePathName $ storePathName drvPath
+          baseName <- maybe (Left $ error "derivation path must end in .drv") Right
+                    $ T.stripSuffix ".drv" drvName
+          name <- mkStorePathName baseName
           outputStoreObjectName name outputName
       ]
   in DownstreamPlaceholder (Crypto.Hash.hash $ T.encodeUtf8 clearText)
 
--- | Create a placehold for the output of an unknown derivation.
+-- | Create a placeholder for the output of an unknown derivation.
 --
 -- The derivation is not yet known because it is a dynamic
--- derivaiton --- it is itself an output of another derivation ---
+-- derivation --- it is itself an output of another derivation ---
 -- and we just have (another) placeholder for it.
 unknownDerivation :: DownstreamPlaceholder -> OutputName -> DownstreamPlaceholder
 unknownDerivation (DownstreamPlaceholder h) outputName =
@@ -103,7 +108,7 @@ unknownDerivation (DownstreamPlaceholder h) outputName =
     clearText = T.intercalate ":"
       [ "nix-computed-output"
       , encodeWith NixBase32 $ System.Nix.Hash.Truncation.truncateInNixWay 20 $ Data.ByteArray.convert h
-      , unStorePathName $ unOutputName outputName
+      , outputNameToText outputName
       ]
   in DownstreamPlaceholder (Crypto.Hash.hash $ T.encodeUtf8 clearText)
 
@@ -111,8 +116,14 @@ unknownDerivation (DownstreamPlaceholder h) outputName =
 -- content-addressed output and unknown derivation), delegating as
 -- needed to `unknownCaOutput` and `unknownDerivation`.
 --
--- Recursively builds up a placeholder from a
--- `SingleDerivedPath::Built.drvPath` chain.
+-- Recursively constructs a placeholder from a `SingleDerivedPath` chain. The
+-- two arguments taken are isomorphic to the `Built` constructor of
+-- `SingleDerivedPath`, hence the name.
+--
+-- The base case for the derivation path is `SingleDerivedPath_Opaque` (a known
+-- derivation with unknown CA output), and the recursive case is
+-- `SingleDerivedPath_Built` (an unknown derivation that is itself an output of
+-- another derivation).
 downstreamPlaceholderFromSingleDerivedPathBuilt :: SingleDerivedPath -> OutputName -> DownstreamPlaceholder
 downstreamPlaceholderFromSingleDerivedPathBuilt drvPath outputName = case drvPath of
   SingleDerivedPath_Opaque drvPath' ->

@@ -2,11 +2,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module SingleDerivedPathSpec where
 
-import Data.Aeson (eitherDecode)
-import Data.ByteString.Lazy qualified as BSL
-import Paths_hnix_store_json (getDataFileName)
-import Test.Hspec (Spec, describe, it, shouldBe)
+import Test.Hspec (Spec, describe)
 import Test.Hspec.Nix (forceRight)
+import UpstreamData (parsesUpstream)
 
 import System.Nix.DerivedPath (SingleDerivedPath(..))
 import System.Nix.JSON ()
@@ -34,18 +32,8 @@ upstreamSingleBuiltBuilt = SingleDerivedPath_Built
 
 spec :: Spec
 spec = do
+  let dir = "upstream-libstore-data/derived-path"
   describe "upstream Nix test data" $ do
-    it "parses single_opaque.json" $ do
-      path <- getDataFileName "upstream-libstore-data/derived-path/single_opaque.json"
-      json <- BSL.readFile path
-      eitherDecode json `shouldBe` Right upstreamSingleOpaque
-
-    it "parses single_built.json" $ do
-      path <- getDataFileName "upstream-libstore-data/derived-path/single_built.json"
-      json <- BSL.readFile path
-      eitherDecode json `shouldBe` Right upstreamSingleBuilt
-
-    it "parses single_built_built.json" $ do
-      path <- getDataFileName "upstream-libstore-data/derived-path/single_built_built.json"
-      json <- BSL.readFile path
-      eitherDecode json `shouldBe` Right upstreamSingleBuiltBuilt
+    parsesUpstream dir "single_opaque.json" upstreamSingleOpaque
+    parsesUpstream dir "single_built.json" upstreamSingleBuilt
+    parsesUpstream dir "single_built_built.json" upstreamSingleBuiltBuilt
