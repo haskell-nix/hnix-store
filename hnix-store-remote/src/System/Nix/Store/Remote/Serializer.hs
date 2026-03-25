@@ -1427,7 +1427,7 @@ buildTraceKeyTyped = mapErrorS ReplySError_BuildTraceKey $
     ( Data.Text.Lazy.toStrict
       . Data.Text.Lazy.Builder.toLazyText
       . System.Nix.Realisation.buildTraceKeyBuilder
-          (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
+          System.Nix.OutputName.outputNameToText
     )
     text
 

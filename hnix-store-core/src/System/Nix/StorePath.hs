@@ -282,8 +282,8 @@ parsePath' expectedRoot stringyPath =
   in
     either Left (pure $ parseBasePath' fname) storeDir
 
--- | Parse `StorePath` from `ByteString`, checking
--- that store directory matches `expectedRoot`.
+-- | Parse `StorePath` from `ByteString`.
+-- This parses a base path (without store directory prefix).
 parseBasePath
   :: ByteString
   -> Either InvalidPathError StorePath
@@ -297,8 +297,8 @@ parsePath
   -> Either InvalidPathError StorePath
 parsePath sd = parsePath' sd . Data.ByteString.Char8.unpack
 
--- | Parse `StorePath` from `Text`, checking
--- that store directory matches `expectedRoot`.
+-- | Parse `StorePath` from `Text`.
+-- This parses a base path (without store directory prefix).
 parseBasePathFromText
   :: Text
   -> Either InvalidPathError StorePath

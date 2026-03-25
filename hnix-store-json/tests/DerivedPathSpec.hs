@@ -2,12 +2,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module DerivedPathSpec where
 
-import Data.Aeson (eitherDecode)
-import Data.ByteString.Lazy qualified as BSL
 import Data.Set qualified
-import Paths_hnix_store_json (getDataFileName)
-import Test.Hspec (Spec, describe, it, shouldBe)
+import Test.Hspec (Spec, describe)
 import Test.Hspec.Nix (forceRight)
+import UpstreamData (parsesUpstream)
 
 import System.Nix.DerivedPath (DerivedPath(..), OutputsSpec(..), SingleDerivedPath(..))
 import System.Nix.JSON ()
@@ -49,23 +47,9 @@ upstreamMultiBuiltBuiltWildcard = DerivedPath_Built
 
 spec :: Spec
 spec = do
+  let dir = "upstream-libstore-data/derived-path"
   describe "upstream Nix test data" $ do
-    it "parses multi_opaque.json" $ do
-      path <- getDataFileName "upstream-libstore-data/derived-path/multi_opaque.json"
-      json <- BSL.readFile path
-      eitherDecode json `shouldBe` Right upstreamMultiOpaque
-
-    it "parses mutli_built.json" $ do
-      path <- getDataFileName "upstream-libstore-data/derived-path/mutli_built.json"
-      json <- BSL.readFile path
-      eitherDecode json `shouldBe` Right upstreamMultiBuilt
-
-    it "parses multi_built_built.json" $ do
-      path <- getDataFileName "upstream-libstore-data/derived-path/multi_built_built.json"
-      json <- BSL.readFile path
-      eitherDecode json `shouldBe` Right upstreamMultiBuiltBuilt
-
-    it "parses multi_built_built_wildcard.json" $ do
-      path <- getDataFileName "upstream-libstore-data/derived-path/multi_built_built_wildcard.json"
-      json <- BSL.readFile path
-      eitherDecode json `shouldBe` Right upstreamMultiBuiltBuiltWildcard
+    parsesUpstream dir "multi_opaque.json" upstreamMultiOpaque
+    parsesUpstream dir "mutli_built.json" upstreamMultiBuilt
+    parsesUpstream dir "multi_built_built.json" upstreamMultiBuiltBuilt
+    parsesUpstream dir "multi_built_built_wildcard.json" upstreamMultiBuiltBuiltWildcard

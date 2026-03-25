@@ -18,7 +18,7 @@ import GHC.Generics
 
 import System.Nix.Hash (HashAlgo(..))
 
-import Test.QuickCheck (Arbitrary(arbitrary), Gen, oneof)
+import Test.QuickCheck (Arbitrary(arbitrary), oneof)
 
 import Crypto.Hash qualified
 
@@ -36,8 +36,6 @@ instance Arbitrary (Digest SHA256) where
 instance Arbitrary (Digest SHA512) where
   arbitrary = Crypto.Hash.hash @ByteString <$> arbitrary
 
--- * Arbitrary @Some HashAlgo@
-
 instance Arbitrary (Some HashAlgo)  where
   arbitrary =
     oneof
@@ -49,9 +47,11 @@ instance Arbitrary (Some HashAlgo)  where
     , Some HashAlgo_SHA512
     ]
 
--- * TODO Upstream
+-- TODO Upstream to dependent-sum or quickcheck-dependent
 
-genDSum :: Gen (Some f) -> (forall a. f a -> Gen (g a)) -> Gen (DSum f g)
+-- | Generate a dependent sum given generators for the tag and value.
+-- Note: works for any @Monad m@, not just @Gen@.
+genDSum :: Monad m => m (Some f) -> (forall a. f a -> m (g a)) -> m (DSum f g)
 genDSum genTag genValue = genTag >>= \(Some tag) ->
   (tag :=>) <$> genValue tag
 
