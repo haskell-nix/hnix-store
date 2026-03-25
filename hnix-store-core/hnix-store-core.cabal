@@ -85,15 +85,15 @@ library
     , bytestring
     , constraints-extras
     , containers
-    , crypton
+    , crypton >= 1.1
     , data-default-class
     , deepseq
     , dependent-sum > 0.7
     , dependent-sum-template >= 0.2.0.1 && < 0.3
     , filepath
     , hashable
-    -- Required for crypton low-level type convertion
-    , memory
+    -- Required for crypton low-level type conversion
+    , ram >= 0.20.1
     , nix-derivation >= 1.1.1 && <2
     , some > 1.0.5 && < 2
     , text
