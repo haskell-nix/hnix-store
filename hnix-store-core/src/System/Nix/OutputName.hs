@@ -7,6 +7,7 @@ Description : Derived path output names
 module System.Nix.OutputName
   ( OutputName(..)
   , mkOutputName
+  , outputNameToText
   , outputStoreObjectName
   -- * Re-exports
   , System.Nix.StorePath.InvalidNameError(..)
@@ -35,6 +36,9 @@ instance NFData OutputName
 mkOutputName :: Text -> Either InvalidNameError OutputName
 mkOutputName = fmap OutputName . System.Nix.StorePath.mkStorePathName
 
+outputNameToText :: OutputName -> Text
+outputNameToText = unStorePathName . unOutputName
+
 -- | Compute the name of an output (store object) from the output name
 -- and the derivation name
 --
@@ -47,4 +51,4 @@ outputStoreObjectName drvName outputName = case outputNameS of
       <> "-"
       <> outputNameS
   where
-    outputNameS = unStorePathName $ unOutputName outputName
+    outputNameS = outputNameToText outputName

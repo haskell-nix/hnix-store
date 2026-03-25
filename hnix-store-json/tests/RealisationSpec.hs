@@ -10,6 +10,7 @@ import Data.Set qualified
 import Paths_hnix_store_json (getDataFileName)
 import Test.Hspec (Spec, describe, it, shouldBe, shouldSatisfy)
 import Test.Hspec.Nix (forceRight)
+import UpstreamData (parsesUpstream)
 
 import System.Nix.Hash qualified
 import System.Nix.JSON ()
@@ -134,16 +135,10 @@ spec = do
     it "sampleRealisation1 matches preimage (relative paths)" $
       encode sampleRealisation1 `shouldBe` "{\"outPath\":\"5rwxzi7pal3qhpsyfc16gzkh939q1np6-curl-7.82.0.drv\",\"signatures\":[\"SMjnB3mPgXYjXacU+xN24BdzXlAgGAuFnYwPddU3bhjfHBeQus/OimdIPMgR/JMKFPHXORrk7pbjv68vecTEBA==\",\"fW3iEMfyx6IZzGNswD54BjclfkXiYzh0xRXddrXfJ1rp1l8p1xTi9/0g2EibbwLFb6p83cwIJv5KtTGksC54CQ==\"],\"dependentRealisations\":{\"sha256:1b4sb93wp679q4zx9k1ignby1yna3z7c4c2ri3wphylbc2dwsys0!foo\":\"9472ijanf79nlkb5n1yh57s7867p1930-testFixed\"}}"
 
+  let dir = "upstream-libstore-data/realisation"
   describe "upstream Nix test data" $ do
-    it "parses simple.json with relative store paths" $ do
-      path <- getDataFileName "upstream-libstore-data/realisation/simple.json"
-      json <- BSL.readFile path
-      eitherDecode json `shouldBe` Right upstreamSimpleRealisation
-
-    it "parses with-dependent-realisations.json with relative store paths" $ do
-      path <- getDataFileName "upstream-libstore-data/realisation/with-dependent-realisations.json"
-      json <- BSL.readFile path
-      eitherDecode json `shouldBe` Right upstreamWithDependentRealisations
+    parsesUpstream dir "simple.json" upstreamSimpleRealisation
+    parsesUpstream dir "with-dependent-realisations.json" upstreamWithDependentRealisations
 
     it "attempts to parse with-signature.json (fails due to invalid signature in test data)" $ do
       path <- getDataFileName "upstream-libstore-data/realisation/with-signature.json"

@@ -96,6 +96,7 @@ test-suite json
     RealisationSpec
     SingleDerivedPathSpec
     StorePathSpec
+    UpstreamData
     Paths_hnix_store_json
   autogen-modules:
     Paths_hnix_store_json

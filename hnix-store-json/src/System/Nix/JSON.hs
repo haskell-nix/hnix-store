@@ -87,7 +87,7 @@ instance FromJSON StorePath where
   parseJSON =
     withText "StorePath"
     ( either
-        (fail . show @System.Nix.StorePath.InvalidPathError)
+        (fail . show)
         pure
     . parseBasePathFromText
     )
@@ -97,7 +97,7 @@ instance ToJSONKey StorePath where
 
 instance FromJSONKey StorePath where
   fromJSONKey = FromJSONKeyTextParser $
-    either (fail . show @System.Nix.StorePath.InvalidPathError) pure . parseBasePathFromText
+    either (fail . show) pure . parseBasePathFromText
 
 deriving newtype instance FromJSON DerivedPathMap
 deriving newtype instance ToJSON DerivedPathMap
@@ -250,14 +250,14 @@ instance ToJSON (BuildTraceKey OutputName) where
     . Data.Text.Lazy.toStrict
     . Data.Text.Lazy.Builder.toLazyText
     . System.Nix.Realisation.buildTraceKeyBuilder
-        (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
+        System.Nix.OutputName.outputNameToText
 
   toEncoding =
     toEncoding
     . Data.Text.Lazy.toStrict
     . Data.Text.Lazy.Builder.toLazyText
     . System.Nix.Realisation.buildTraceKeyBuilder
-        (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
+        System.Nix.OutputName.outputNameToText
 
 instance ToJSONKey (BuildTraceKey OutputName) where
   toJSONKey =
@@ -265,7 +265,7 @@ instance ToJSONKey (BuildTraceKey OutputName) where
     $ Data.Text.Lazy.toStrict
     . Data.Text.Lazy.Builder.toLazyText
     . System.Nix.Realisation.buildTraceKeyBuilder
-        (System.Nix.StorePath.unStorePathName . System.Nix.OutputName.unOutputName)
+        System.Nix.OutputName.outputNameToText
 
 instance FromJSON (BuildTraceKey OutputName) where
   parseJSON =
@@ -309,7 +309,8 @@ instance ToJSON HashJSON where
   toJSON (HashJSON (algo :=> digest)) =
     object
       [ "algorithm" .= algoToText algo
-      , "format" .= baseEncodingToText Base64  -- Default to base64 for output
+      -- We can parse others, but always render using base64
+      , "format" .= baseEncodingToText Base64
       , "hash" .= encodeDigestWith Base64 digest
       ]
 
@@ -340,6 +341,8 @@ instance FromJSON ContentAddress where
     method <- either fail pure $ textToMethod methodText
     pure $ ContentAddress method digest
 
+-- | OutputsSpec encodes as an array. The wildcard "*" is a singleton
+-- array ["*"] to match upstream Nix JSON format.
 instance ToJSON OutputsSpec where
   toJSON OutputsSpec_All = toJSON ["*" :: Text]
   toJSON (OutputsSpec_Names names) = toJSON $ Data.Set.toList names

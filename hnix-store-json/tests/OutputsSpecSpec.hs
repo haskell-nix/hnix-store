@@ -2,12 +2,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module OutputsSpecSpec where
 
-import Data.Aeson (eitherDecode)
-import Data.ByteString.Lazy qualified as BSL
 import Data.Set qualified
-import Paths_hnix_store_json (getDataFileName)
-import Test.Hspec (Spec, describe, it, shouldBe)
+import Test.Hspec (Spec, describe)
 import Test.Hspec.Nix (forceRight)
+import UpstreamData (parsesUpstream)
 
 import System.Nix.DerivedPath (OutputsSpec(..))
 import System.Nix.JSON ()
@@ -31,18 +29,8 @@ upstreamNames = OutputsSpec_Names $ Data.Set.fromList
 
 spec :: Spec
 spec = do
+  let dir = "upstream-libstore-data/outputs-spec"
   describe "upstream Nix test data" $ do
-    it "parses all.json" $ do
-      path <- getDataFileName "upstream-libstore-data/outputs-spec/all.json"
-      json <- BSL.readFile path
-      eitherDecode json `shouldBe` Right upstreamAll
-
-    it "parses name.json" $ do
-      path <- getDataFileName "upstream-libstore-data/outputs-spec/name.json"
-      json <- BSL.readFile path
-      eitherDecode json `shouldBe` Right upstreamName
-
-    it "parses names.json" $ do
-      path <- getDataFileName "upstream-libstore-data/outputs-spec/names.json"
-      json <- BSL.readFile path
-      eitherDecode json `shouldBe` Right upstreamNames
+    parsesUpstream dir "all.json" upstreamAll
+    parsesUpstream dir "name.json" upstreamName
+    parsesUpstream dir "names.json" upstreamNames

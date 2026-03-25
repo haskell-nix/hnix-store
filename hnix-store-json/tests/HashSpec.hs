@@ -2,11 +2,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module HashSpec where
 
-import Data.Aeson (eitherDecode)
-import Data.ByteString.Lazy qualified as BSL
-import Paths_hnix_store_json (getDataFileName)
-import Test.Hspec (Spec, describe, it, shouldBe)
+import Test.Hspec (Spec, describe)
 import Test.Hspec.Nix (forceRight)
+import UpstreamData (parsesUpstream)
 
 import System.Nix.Hash (mkNamedDigest)
 import System.Nix.JSON (HashJSON(..))
@@ -29,23 +27,9 @@ upstreamSHA256Nix32 = HashJSON $ forceRight $ mkNamedDigest "sha256" "0fz12qc1ni
 
 spec :: Spec
 spec = do
+  let dir = "upstream-libutil-data/hash"
   describe "upstream Nix test data" $ do
-    it "parses simple.json" $ do
-      path <- getDataFileName "upstream-libutil-data/hash/simple.json"
-      json <- BSL.readFile path
-      eitherDecode json `shouldBe` Right upstreamSimpleHash
-
-    it "parses sha256-base16.json" $ do
-      path <- getDataFileName "upstream-libutil-data/hash/sha256-base16.json"
-      json <- BSL.readFile path
-      eitherDecode json `shouldBe` Right upstreamSHA256Base16
-
-    it "parses sha256-base64.json" $ do
-      path <- getDataFileName "upstream-libutil-data/hash/sha256-base64.json"
-      json <- BSL.readFile path
-      eitherDecode json `shouldBe` Right upstreamSHA256Base64
-
-    it "parses sha256-nix32.json" $ do
-      path <- getDataFileName "upstream-libutil-data/hash/sha256-nix32.json"
-      json <- BSL.readFile path
-      eitherDecode json `shouldBe` Right upstreamSHA256Nix32
+    parsesUpstream dir "simple.json" upstreamSimpleHash
+    parsesUpstream dir "sha256-base16.json" upstreamSHA256Base16
+    parsesUpstream dir "sha256-base64.json" upstreamSHA256Base64
+    parsesUpstream dir "sha256-nix32.json" upstreamSHA256Nix32

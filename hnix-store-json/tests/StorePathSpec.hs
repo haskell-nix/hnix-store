@@ -2,11 +2,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module StorePathSpec where
 
-import Data.Aeson (eitherDecode)
-import Data.ByteString.Lazy qualified as BSL
-import Paths_hnix_store_json (getDataFileName)
-import Test.Hspec (Spec, describe, it, shouldBe)
+import Test.Hspec (Spec, describe)
 import Test.Hspec.Nix (forceRight)
+import UpstreamData (parsesUpstream)
 
 import System.Nix.JSON ()
 import System.Nix.StorePath (StorePath, parseBasePathFromText)
@@ -18,7 +16,4 @@ upstreamSimple = forceRight $ parseBasePathFromText "g1w7hy3qg1w7hy3qg1w7hy3qg1w
 spec :: Spec
 spec = do
   describe "upstream Nix test data" $ do
-    it "parses simple.json" $ do
-      path <- getDataFileName "upstream-libstore-data/store-path/simple.json"
-      json <- BSL.readFile path
-      eitherDecode json `shouldBe` Right upstreamSimple
+    parsesUpstream "upstream-libstore-data/store-path" "simple.json" upstreamSimple

@@ -85,7 +85,7 @@ library
     , bytestring
     , constraints-extras
     , containers
-    , crypton
+    , crypton >= 1.1
     , data-default-class
     , deepseq
     , dependent-sum > 0.7
@@ -93,9 +93,9 @@ library
     , dependent-monoidal-map
     , filepath
     , hashable
-    -- Required for crypton low-level type convertion
-    , memory
     , monoidal-containers
+    -- Required for crypton low-level type conversion
+    , ram >= 0.20.1
     , some > 1.0.5 && < 2
     , these
     , text

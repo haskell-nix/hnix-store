@@ -44,7 +44,7 @@ instance Monoid References where
     , references_self = False
     }
 
--- | TODO this isn't just for content-addrssed paths, move elsewhere
+-- | TODO this isn't just for content-addressed paths, move elsewhere
 makeStorePath
   :: StoreDir
   -> ByteString

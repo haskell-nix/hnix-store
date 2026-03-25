@@ -44,7 +44,7 @@ shortEnoughOutputName drvName =
   nameLen = Data.Text.length (unStorePathName drvName)
   availableSpace = 211 - nameLen - 1 -- for the - in <drvName>-<outputname>
   out = pure $ toOutputName $ pack "out"
-  shorten n = toOutputName . Data.Text.take n . unStorePathName . unOutputName
+  shorten n = toOutputName . Data.Text.take n . outputNameToText
   toOutputName = OutputName . either undefined id . mkStorePathName
 
 -- | Also ensures at least one output

@@ -144,7 +144,7 @@ string =
     escapeChar c    = Data.Text.singleton c
 
 buildOutputName :: OutputName -> Builder
-buildOutputName = string . unStorePathName . unOutputName
+buildOutputName = string . outputNameToText
 
 storePath :: StoreDir -> StorePath -> Builder
 storePath sd = string . storePathToText sd
