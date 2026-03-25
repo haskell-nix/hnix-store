@@ -15,6 +15,18 @@ let
       } // (lib.filterAttrs (n: v: n != "url") x));
 in
 {
+  ram = hself.callHackageDirect
+    { pkg = "ram";
+      ver = "0.21.1";
+      sha256 = "0r7qnw3i5889wxp0x3k4ck5chw5n4ivvsriwqxj5rdsznvx0zs17";
+    } {};
+
+  crypton = hself.callHackageDirect
+    { pkg = "crypton";
+      ver = "1.1.1";
+      sha256 = "1nl4ycl99rcnvd25a1sp6xq2mai85pzcd15cbkzrgx0x6rr0zkz6";
+    } {};
+
   # srk 2025-09-03: until revised version lands in unstable
   # (due to filepath bound https://github.com/Gabriella439/Haskell-Nix-Derivation-Library/pull/29)
   nix-derivation = hself.callHackageDirect
