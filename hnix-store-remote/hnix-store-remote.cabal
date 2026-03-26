@@ -31,8 +31,8 @@ common commons
     , DerivingVia
     , FlexibleContexts
     , FlexibleInstances
-    , GADTs
     , ImportQualifiedPost
+    , GADTs
     , RecordWildCards
     , ScopedTypeVariables
     , StandaloneDeriving
