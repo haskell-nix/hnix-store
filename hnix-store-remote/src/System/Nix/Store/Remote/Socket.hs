@@ -1,14 +1,13 @@
 module System.Nix.Store.Remote.Socket where
 
 import Control.Monad.Except (MonadError, throwError)
-import Control.Monad.Trans.Except (runExceptT)
 import Control.Monad.IO.Class (MonadIO(..))
 import Data.ByteString (ByteString)
 import Data.Serialize.Get (Get, Result(..))
 import Data.Serialize.Put (Put, runPut)
 import Network.Socket.ByteString (recv, sendAll)
 import System.Nix.Store.Remote.MonadStore (MonadRemoteStore(..), RemoteStoreError(..))
-import System.Nix.Store.Remote.Serializer (NixSerializer, runP)
+import System.Nix.Store.Remote.Serializer (NixSerializer, runExceptT, runP)
 
 import Control.Exception qualified
 import Data.ByteString qualified
@@ -70,16 +69,13 @@ sockPut p = do
   liftIO $ sendAll soc $ runPut p
 
 sockPutS
-  :: ( MonadRemoteStore m
-     , MonadError e m
-     )
+  :: MonadRemoteStore m
   => NixSerializer e a
   -> a
   -> m ()
 sockPutS s a = do
   sock <- getStoreSocket
-  let x = runP s a
-  liftIO $ sendAll sock x
+  liftIO $ sendAll sock $ runP s a
 
 sockGetS
   :: ( MonadRemoteStore m

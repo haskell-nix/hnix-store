@@ -93,6 +93,7 @@ library
     , System.Nix.Store.Remote.Types.Query.Missing
     , System.Nix.Store.Remote.Types.StoreConfig
     , System.Nix.Store.Remote.Types.StoreRequest
+    , System.Nix.Store.Remote.Types.StoreReply
     , System.Nix.Store.Remote.Types.StoreText
     , System.Nix.Store.Remote.Types.SubstituteMode
     , System.Nix.Store.Remote.Types.SuccessCodeReply
@@ -181,7 +182,6 @@ test-suite remote
     , hnix-store-remote
     , hnix-store-tests
     , hnix-store-aterm
-    , bytestring
     , crypton
     , some > 1.0.5 && < 2
     , hspec

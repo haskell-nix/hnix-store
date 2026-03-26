@@ -30,6 +30,7 @@ module System.Nix.Store.Remote.Serializer
   , set
   , hashSet
   , mapS
+  , mapS'
   , vector
   , json
   -- * ProtoVersion
@@ -192,7 +193,6 @@ data SError
       , badPaddingPads :: [Word8]
       }
   | SError_ContentAddress String
-  | SError_DerivingPath
   | SError_DerivedPath ParseOutputsError
   | SError_BuildTraceKey BuildTraceKeyError
   | SError_Digest String
@@ -202,12 +202,11 @@ data SError
   | SError_IllegalBool Word64
   | SError_InvalidNixBase32
   | SError_JSONDecoding String
-  -- | SError_NarHashMustBeSHA256
+  | SError_NarHashMustBeSHA256
   | SError_NotYetImplemented String (ForPV ProtoVersion)
   | SError_Name InvalidNameError
   | SError_Path InvalidPathError
   | SError_Signature String
-  | SError_DerivationOutputInvalidCombo Bool Bool Bool
   deriving (Eq, Ord, Generic, Show)
 
 data ForPV a

@@ -2,11 +2,11 @@ module System.Nix.Store.Remote.Logger
   ( processOutput
   ) where
 
-import Control.Monad.Except (runExceptT, throwError)
+import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (liftIO)
 import Data.ByteString (ByteString)
 import Data.Serialize (Result(..))
-import System.Nix.Store.Remote.Serializer (LoggerSError, logger)
+import System.Nix.Store.Remote.Serializer (LoggerSError, logger, runExceptT)
 import System.Nix.Store.Remote.Socket (sockGet8)
 import System.Nix.Store.Remote.MonadStore (MonadRemoteStore, RemoteStoreError(..), appendLog, getDataSource, getDataSink, getStoreSocket, getProtoVersion)
 import System.Nix.Store.Remote.Types.Logger (Logger(..))

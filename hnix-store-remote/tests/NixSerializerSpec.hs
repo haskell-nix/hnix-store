@@ -4,6 +4,7 @@ module NixSerializerSpec (spec) where
 
 import Crypto.Hash (MD5, SHA1, SHA256, SHA512)
 import Data.Some (Some(Some))
+import Data.Time (UTCTime)
 import Test.Hspec (Expectation, Spec, describe, parallel, shouldBe)
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck (Gen, arbitrary, forAll, suchThat)
@@ -16,8 +17,7 @@ import System.Nix.Derivation.Traditional qualified
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types.Logger (Logger(..))
-import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion(..))
-import System.Nix.Store.Remote.Types.StoreConfig (ProtoStoreConfig(..))
+import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..))
 import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
 
 -- | Test for roundtrip using @NixSerializer@
@@ -32,35 +32,21 @@ roundtripS
   -> a
   -> Expectation
 roundtripS serializer a =
-    (runG serializer
-     $ runP serializer a)
-    `shouldBe` (pure a)
-
-roundtripSReader
-  :: forall r e a
-  .  ( Eq a
-     , Show a
-     , Eq e
-     , Show e
-     )
-  => (r -> NixSerializer e a)
-  -> r
-  -> a
-  -> Expectation
-roundtripSReader serializer r = roundtripS $ serializer r
+    runG serializer (runP serializer a)
+    `shouldBe` Right a
 
 spec :: Spec
 spec = parallel $ do
   describe "Prim" $ do
-    prop "Int" $ roundtripS @() $ int @Int
+    prop "Int" $ roundtripS @() @Int int
     prop "Bool" $ roundtripS bool
     prop "ByteString" $ roundtripS byteString
     prop "Text" $ roundtripS text
     prop "Maybe Text" $ roundtripS maybeText
-    prop "UTCTime" $ roundtripS @() time
+    prop "UTCTime" $ roundtripS @() @UTCTime time
 
   describe "Combinators" $ do
-    prop "list" $ roundtripS @() (list $ int @Int)
+    prop "list" $ roundtripS @() @[Int] (list int)
     prop "set" $ roundtripS (set byteString)
     prop "hashSet" $ roundtripS (hashSet byteString)
     prop "mapS" $ roundtripS (mapS (int @Int) byteString)
@@ -86,7 +72,7 @@ spec = parallel $ do
               )
       prop "= 1.28"
         $ \sd ->
-            roundtripS (buildResult sd $ ProtoVersion 1 28)
+            roundtripS (buildResult sd (ProtoVersion 1 28))
             . (\x -> x { buildResultStatus = case buildResultStatus x of
                           Right s -> Right s
                           Left (BuildFailure st em _nd) -> Left (BuildFailure st em False)
@@ -107,8 +93,8 @@ spec = parallel $ do
                        }
               )
 
-    prop "StorePath" $
-      roundtripSReader storePath
+    prop "StorePath" $ \sd ->
+      roundtripS (storePath sd)
 
     prop "StorePathHashPart" $
       roundtripS storePathHashPart
@@ -116,8 +102,8 @@ spec = parallel $ do
     prop "StorePathName" $
       roundtripS storePathName
 
-    prop "Metadata (StorePath)" $
-      roundtripSReader pathMetadata
+    prop "Metadata (StorePath)" $ \sd ->
+      roundtripS (pathMetadata sd)
 
     prop "Some HashAlgo" $
       roundtripS someHashAlgo
@@ -132,7 +118,7 @@ spec = parallel $ do
       roundtripS (basicDerivation sd) $
         System.Nix.Derivation.Traditional.withoutName drv
 
-    prop "ProtoVersion" $ roundtripS @() protoVersion
+    prop "ProtoVersion" $ roundtripS @() @ProtoVersion protoVersion
 
     describe "Logger" $ do
       prop "ActivityID" $ roundtripS activityID
@@ -148,7 +134,7 @@ spec = parallel $ do
         $ forAll (arbitrary :: Gen ProtoVersion)
         $ \pv ->
             forAll (arbitrary `suchThat` errorInfoIf (protoVersion_minor pv >= 26))
-        $ roundtripS $ logger pv
+        $ roundtripS (logger pv)
 
   describe "Handshake" $ do
     prop "WorkerMagic" $ roundtripS workerMagic
@@ -159,18 +145,16 @@ spec = parallel $ do
     prop "StoreText" $ roundtripS storeText
 
     prop "StoreRequest"
-      $ \testStoreConfig ->
-          forAll (arbitrary `suchThat` (restrictProtoVersion (hasProtoVersion testStoreConfig)))
-          $ roundtripS $ storeRequest
-              (protoStoreConfigDir testStoreConfig)
-              (protoStoreConfigProtoVersion testStoreConfig)
+      $ \sd -> forAll arbitrary $ \pv ->
+          forAll (arbitrary `suchThat` (restrictProtoVersion pv))
+          $ roundtripS (storeRequest sd pv)
 
   describe "StoreReply" $ do
     prop "()" $ roundtripS opSuccess
-    prop "GCResult" $ roundtripSReader gcResult
+    prop "GCResult" $ \sd -> roundtripS (gcResult sd)
     prop "GCRoot" $ roundtripS gcRoot
-    prop "Missing" $ roundtripSReader missing
-    prop "Maybe (Metadata StorePath)" $ roundtripSReader maybePathMetadata
+    prop "Missing" $ \sd -> roundtripS (missing sd)
+    prop "Maybe (Metadata StorePath)" $ \sd -> roundtripS (maybePathMetadata sd)
 
 restrictProtoVersion :: ProtoVersion -> Some StoreRequest -> Bool
 restrictProtoVersion v (Some (BuildPaths _ _)) | v < ProtoVersion 1 30 = False

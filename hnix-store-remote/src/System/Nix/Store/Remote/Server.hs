@@ -21,11 +21,10 @@ import Data.Word (Word32)
 import Network.Socket (Socket, accept, close, listen, maxListenQueue)
 import System.Nix.Nar (NarSource)
 import System.Nix.Store.Remote.Client (Run, doReq)
-import System.Nix.Store.Remote.Serializer
- --(LoggerSError, mapErrorS, storeRequest, workerMagic, protoVersion, int, logger, text, trustedFlag)
+import System.Nix.Store.Remote.Serializer (LoggerSError, mapErrorS, storeRequest, workerMagic, protoVersion, int, logger, text, trustedFlag)
 import System.Nix.Store.Remote.Socket
-import System.Nix.Store.Remote.Types.NoReply
 import System.Nix.Store.Remote.Types.StoreRequest as R
+import System.Nix.Store.Remote.Types.StoreReply
 import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..))
 import System.Nix.Store.Remote.Types.Logger (BasicError(..), ErrorInfo, Logger(..))
 import System.Nix.Store.Remote.MonadStore (MonadRemoteStore(..), WorkerError(..), WorkerException(..), RemoteStoreError(..), RemoteStoreT, runRemoteStoreT)
@@ -40,7 +39,7 @@ import Network.Socket.ByteString qualified
 type WorkerHelper m
   = forall a
   . ( Show a
-    --, StoreReply a
+    , StoreReply a
     )
   => RemoteStoreT m a
   -> Run m a
@@ -117,7 +116,7 @@ processConnection workerHelper postGreet sock = do
 
     let perform
           :: ( Show a
-             --, StoreReply a
+             , StoreReply a
              )
           => StoreRequest a
           -> RemoteStoreT m ()
@@ -151,54 +150,24 @@ processConnection workerHelper postGreet sock = do
           case fst res of
             Left e -> throwError e
             Right reply -> do
-              sd <- getStoreDir
+              storeDir <- getStoreDir
               pv <- getProtoVersion
-              let
-                mapE = mapErrorS ReplySError_PrimGet
-                storePath' = mapE $ storePath sd
               sockPutS
                 (mapErrorS
                    RemoteStoreError_SerializerReply
-                   -- no guarantee we always return the same type in the same way across different commands; type class is not recommended.
-                   $ case req of
-                     AddToStore {} -> storePath'
-                     AddToStoreNar {} -> noop NoReply
-                     AddTextToStore {} -> storePath'
-                     AddSignatures {} -> opSuccess
-                     AddTempRoot {} -> opSuccess
-                     AddIndirectRoot {} -> opSuccess
-                     BuildDerivation {} -> buildResult sd pv
-                     BuildPaths {} -> opSuccess
-                     CollectGarbage {} -> gcResult sd
-                     EnsurePath {} -> opSuccess
-                     FindRoots {} -> mapS gcRoot $ storePath'
-                     IsValidPath {} -> mapE bool
-                     NarFromPath {} -> noop NoReply
-                     QueryValidPaths {} -> hashSet storePath'
-                     QueryAllValidPaths {} -> hashSet storePath'
-                     QuerySubstitutablePaths {} -> hashSet $ storePath'
-                     QueryPathInfo {} -> maybePathMetadata sd
-                     QueryReferrers {} -> hashSet storePath'
-                     QueryValidDerivers {} -> hashSet storePath'
-                     QueryDerivationOutputs {} -> hashSet storePath'
-                     QueryDerivationOutputNames {} -> mapE $ hashSet $ storePathName
-                     QueryPathFromHashPart {} -> storePath'
-                     QueryMissing {} -> missing sd
-                     OptimiseStore {} -> opSuccess
-                     SyncWithGC {} -> opSuccess
-                     VerifyStore {} -> mapE bool
+                   $ getReplyS storeDir pv
                 )
                 reply
 
     -- Process client requests.
     let loop = do
-          sd <- getStoreDir
+          storeDir <- getStoreDir
           pv <- getProtoVersion
           someReq <-
             sockGetS
               $ mapErrorS
                   RemoteStoreError_SerializerRequest
-              $ storeRequest sd pv
+                  (storeRequest storeDir pv)
 
           -- have to be explicit here
           -- because otherwise GHC can't conjure Show a, StoreReply a
@@ -340,11 +309,9 @@ enqueueMsg
   => TunnelLogger
   -> Logger
   -> m ()
-enqueueMsg x l = do
-  pv <- getProtoVersion
-  updateLogger x $ \st@(TunnelLoggerState c p) -> case c of
-    True -> (st, sockPutS (logger pv) l)
-    False -> (TunnelLoggerState c (l:p), pure ())
+enqueueMsg x l = updateLogger x $ \st@(TunnelLoggerState c p) -> case c of
+  True -> (st, do pv <- getProtoVersion; sockPutS (logger pv) l)
+  False -> (TunnelLoggerState c (l:p), pure ())
 
 _log
   :: ( MonadRemoteStore m
@@ -359,23 +326,20 @@ startWork
   :: MonadRemoteStore m
   => TunnelLogger
   -> m ()
-startWork x = do
+startWork x = updateLogger x $ \(TunnelLoggerState _ p) -> (,)
+  (TunnelLoggerState True []) $ do
   pv <- getProtoVersion
-  let logger' = mapErrorS RemoteStoreError_SerializerLogger $ logger pv
-  updateLogger x $ \(TunnelLoggerState _ p) -> (,)
-    (TunnelLoggerState True []) $
-    (traverse_ (sockPutS logger') $ reverse p)
+  let logger' = mapErrorS RemoteStoreError_SerializerLogger (logger pv)
+  traverse_ (sockPutS logger') $ reverse p
 
 stopWork
   :: MonadRemoteStore m
   => TunnelLogger
   -> m ()
-stopWork x = do
+stopWork x = updateLogger x $ \_ -> (,)
+  (TunnelLoggerState False []) $ do
   pv <- getProtoVersion
-  let logger' = mapErrorS RemoteStoreError_SerializerLogger $ logger pv
-  updateLogger x $ \_ -> (,)
-    (TunnelLoggerState False [])
-    (sockPutS logger' Logger_Last)
+  sockPutS (mapErrorS RemoteStoreError_SerializerLogger (logger pv)) Logger_Last
 
 -- | Stop sending logging and report an error.
 --
@@ -394,7 +358,7 @@ _stopWorkOnError x ex = updateLogger x $ \st ->
     False -> (st, pure False)
     True -> (,) (TunnelLoggerState False []) $ do
       pv <- getProtoVersion
-      let logger' = mapErrorS RemoteStoreError_SerializerLogger $ logger pv
+      let logger' = mapErrorS RemoteStoreError_SerializerLogger (logger pv)
       if protoVersion_minor pv >= 26
         then sockPutS logger' (Logger_Error (Right ex))
         else sockPutS logger' (Logger_Error (Left (BasicError 0 (Data.Text.pack $ show ex))))
