@@ -544,6 +544,7 @@ pathMetadata storeDir = Serializer
             System.Nix.Hash.HashAlgo_SHA256 :=> d
               -> putS (digest @SHA256 Base16) d
             _ -> error "nar hash must be SHA 256"
+                 -- throwError SError_NarHashMustBeSHA256
 
       putNarHash metadataNarHash
 
@@ -745,6 +746,10 @@ derivedPath storeDir pv = Serializer
         then case d of
           DerivedPath_Opaque p -> putS (storePath storeDir) p
           _ -> error "not yet implemented"
+          --     throwError
+          --      $ SError_NotYetImplemented
+          --          "DerivedPath_Built"
+          --          (ForPV_Older pv)
         else putS (derivedPathNew storeDir) d
   }
 
@@ -930,9 +935,9 @@ logger pv = Serializer
           let minor = protoVersion_minor pv
 
           case basicOrInfo of
-            Left _ | minor >= 26 -> error "protocol too new"
+            Left _ | minor >= 26 -> error "protocol too new" -- throwError $ LoggerSError_TooNewForBasicError
             Left e | otherwise -> putS basicError e
-            Right _ | minor < 26 -> error "protocol too old"
+            Right _ | minor < 26 -> error "protocol too old" -- throwError $ LoggerSError_TooOldForErrorInfo
             Right e -> putS errorInfo e
 
         Logger_StartActivity{..} -> do
