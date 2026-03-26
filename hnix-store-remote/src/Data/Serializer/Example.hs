@@ -11,16 +11,11 @@ module Data.Serializer.Example
   , runP
   -- * Custom errors
   , MyGetError(..)
-  , MyPutError(..)
   -- ** Erroring variants of cmdS
-  -- *** putS with throwError and MyPutError
-  , cmdSPutError
   -- *** getS with throwError and MyGetError
   , cmdSGetError
   -- *** getS with fail
   , cmdSGetFail
-  -- *** putS with fail
-  , cmdSPutFail
   -- * Elaborate
   , cmdSRest
   , runGRest
@@ -28,13 +23,13 @@ module Data.Serializer.Example
   ) where
 
 import Control.Monad.Except (MonadError, throwError)
-import Control.Monad.Reader (MonadReader, ask)
+import Control.Monad.Reader (MonadReader)
 import Control.Monad.State (MonadState)
 import Control.Monad.Trans (MonadTrans, lift)
 import Control.Monad.Trans.Reader (ReaderT, runReaderT)
 import Control.Monad.Trans.Except (ExceptT, runExceptT)
 import Control.Monad.Trans.State (StateT, runStateT)
-import Data.Bifunctor (first, second)
+import Data.Bifunctor (second)
 import Data.ByteString (ByteString)
 import Data.Int (Int8)
 import Data.GADT.Show (GShow(..), defaultGshowsPrec)
@@ -48,7 +43,6 @@ import Data.Serializer
   , runGetS
   , runPutS
   , transformGetError
-  , transformPutError
   )
 import Data.Some (Some(..))
 import GHC.Generics (Generic)
@@ -97,25 +91,25 @@ instance Arbitrary (Some Cmd) where
 opcode :: MonadTrans t => Serializer t OpCode
 opcode = Serializer
   { getS = lift getEnum
-  , putS = lift . putEnum
+  , putS = putEnum
   }
 
 -- * Cmd Serializer
 
 -- | @Cmd@ @Serializer@
 cmdS
-  :: forall t . ( MonadTrans t
-     , Monad (t Get)
-     , Monad (t PutM)
-     )
+  :: forall t
+  . ( MonadTrans t
+    , Monad (t Get)
+    )
   => Serializer t (Some Cmd)
 cmdS = Serializer
   { getS = getS opcode >>= \case
       OpCode_Int -> Some . Cmd_Int <$> lift getInt8
       OpCode_Bool -> Some . Cmd_Bool <$> lift getBool
   , putS = \case
-      Some (Cmd_Int i) -> putS opcode OpCode_Int >> lift (putInt8 i)
-      Some (Cmd_Bool b) -> putS opcode OpCode_Bool >> lift (putBool b)
+      Some (Cmd_Int i) -> putS (opcode @t) OpCode_Int >> putInt8 i
+      Some (Cmd_Bool b) -> putS (opcode @t) OpCode_Bool >> putBool b
   }
 
 -- * Runners
@@ -133,10 +127,8 @@ runG s =
 runP
   :: Serializer (ExceptT e) a
   -> a
-  -> Either e ByteString
-runP s =
-   (\(e, r) -> either Left (pure $ Right r) e)
-  . runPutS s runExceptT
+  -> ByteString
+runP = runPutS
 
 -- * Custom errors
 
@@ -144,21 +136,7 @@ data MyGetError
   = MyGetError_Example
   deriving (Eq, Show)
 
-data MyPutError
-  = MyPutError_NoLongerSupported -- no longer supported protocol version
-  deriving (Eq, Show)
-
 -- ** Erroring variants of cmdS
-
--- *** putS with throwError and MyPutError
-
-cmdSPutError :: Serializer (ExceptT MyPutError) (Some Cmd)
-cmdSPutError = Serializer
-  { getS = getS cmdS
-  , putS = \case
-      Some (Cmd_Int i) -> putS opcode OpCode_Int >> lift (putInt8 i)
-      Some (Cmd_Bool _b) -> throwError MyPutError_NoLongerSupported
-  }
 
 -- *** getS with throwError and MyGetError
 
@@ -167,13 +145,14 @@ cmdSGetError = Serializer
   { getS = getS opcode >>= \case
       OpCode_Int -> Some . Cmd_Int <$> lift getInt8
       OpCode_Bool -> throwError MyGetError_Example
-  , putS = putS cmdS
+  , putS = putS $ cmdS @(ExceptT MyGetError)
   }
 
 -- *** getS with fail
 
 cmdSGetFail
-  :: ( MonadTrans t
+  :: forall t
+  .  ( MonadTrans t
      , MonadFail (t Get)
      , Monad (t PutM)
      )
@@ -182,26 +161,7 @@ cmdSGetFail = Serializer
   { getS = getS opcode >>= \case
       OpCode_Int -> Some . Cmd_Int <$> lift getInt8
       OpCode_Bool -> fail "no parse"
-  , putS = putS cmdS
-  }
-
--- *** putS with fail
-
--- | Unused as PutM doesn't have @MonadFail@
--- >>> serializerPutFail = cmdPutFail @(ExceptT MyGetError)
--- No instance for (MonadFail PutM)
--- as expected
-cmdSPutFail
-  :: ( MonadTrans t
-     , MonadFail (t PutM)
-     , Monad (t Get)
-     )
-  => Serializer t (Some Cmd)
-cmdSPutFail = Serializer
-  { getS = getS cmdS
-  , putS = \case
-      Some (Cmd_Int i) -> putS opcode OpCode_Int >> lift (putInt8 i)
-      Some (Cmd_Bool _b) -> fail "can't"
+  , putS = putS $ cmdS @t
   }
 
 -- * Elaborate
@@ -250,35 +210,29 @@ runGRest serializer r s =
 
 runPRest
   :: Serializer (REST r e s) a
-  -> r
-  -> s
   -> a
-  -> Either e ByteString
-runPRest serializer r s =
-    transformPutError
-  . first fst
-  . runPutS
-      serializer
-      (restRunner r s)
+  -> ByteString
+runPRest = runPutS
 
 cmdSRest
-  :: Serializer (REST Bool e Int) (Some Cmd)
-cmdSRest = Serializer
+  :: forall t e
+  .  t ~ REST Bool e Int
+  => Bool
+  -> Serializer t (Some Cmd)
+cmdSRest isTrue = Serializer
   { getS = getS opcode >>= \case
       OpCode_Int -> do
-        isTrue <- ask
         if isTrue
         then Some . Cmd_Int . (+1) <$> lift getInt8
         else Some . Cmd_Int <$> lift getInt8
       OpCode_Bool -> Some . Cmd_Bool <$> lift getBool
   , putS = \case
       Some (Cmd_Int i) -> do
-        putS opcode OpCode_Int
-        isTrue <- ask
+        putS (opcode @t) OpCode_Int
         if isTrue
-        then lift (putInt8 (i - 1))
-        else lift (putInt8 i)
-      Some (Cmd_Bool b) -> putS opcode OpCode_Bool >> lift (putBool b)
+        then putInt8 (i - 1)
+        else putInt8 i
+      Some (Cmd_Bool b) -> putS (opcode @t) OpCode_Bool >> putBool b
   }
 
 -- Primitives helpers

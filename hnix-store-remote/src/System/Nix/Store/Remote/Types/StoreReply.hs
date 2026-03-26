@@ -5,14 +5,14 @@ module System.Nix.Store.Remote.Types.StoreReply
 import Data.HashSet (HashSet)
 import Data.Map (Map)
 import System.Nix.Build (BuildResult)
-import System.Nix.StorePath (StorePath, StorePathName)
+import System.Nix.StorePath (StoreDir, StorePath, StorePathName)
 import System.Nix.StorePath.Metadata (Metadata)
 import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types.NoReply (NoReply(..))
 import System.Nix.Store.Remote.Types.SuccessCodeReply (SuccessCodeReply)
 import System.Nix.Store.Remote.Types.GC (GCResult, GCRoot)
+import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion)
 import System.Nix.Store.Remote.Types.Query.Missing (Missing)
-import System.Nix.Store.Remote.Types.StoreConfig (ProtoStoreConfig)
 
 -- | Get @NixSerializer@ for some type @a@
 -- This could also be generalized for every type
@@ -20,42 +20,42 @@ import System.Nix.Store.Remote.Types.StoreConfig (ProtoStoreConfig)
 -- this for replies and it would make look serializers
 -- quite hodor, like @a <- getS get; b <- getS get@
 class StoreReply a where
-  getReplyS :: NixSerializer ProtoStoreConfig ReplySError a
+  getReplyS :: StoreDir -> ProtoVersion -> NixSerializer ReplySError a
 
 instance StoreReply SuccessCodeReply where
-  getReplyS = opSuccess
+  getReplyS _ _ = opSuccess
 
 instance StoreReply NoReply where
-  getReplyS = noop NoReply
+  getReplyS _ _ = noop NoReply
 
 instance StoreReply Bool where
-  getReplyS = mapPrimE bool
+  getReplyS _ _ = mapPrimE bool
 
 instance StoreReply BuildResult where
-  getReplyS = buildResult
+  getReplyS sd pv = buildResult sd pv
 
 instance StoreReply GCResult where
-  getReplyS = gcResult
+  getReplyS sd _ = gcResult sd
 
 instance StoreReply (Map GCRoot StorePath) where
-  getReplyS = mapS gcRoot (mapPrimE storePath)
+  getReplyS sd _ = mapS gcRoot (mapPrimE (storePath sd))
 
 instance StoreReply Missing where
-  getReplyS = missing
+  getReplyS sd _ = missing sd
 
 instance StoreReply (Maybe (Metadata StorePath)) where
-  getReplyS = maybePathMetadata
+  getReplyS sd _ = maybePathMetadata sd
 
 instance StoreReply StorePath where
-  getReplyS = mapPrimE storePath
+  getReplyS sd _ = mapPrimE (storePath sd)
 
 instance StoreReply (HashSet StorePath) where
-  getReplyS = mapPrimE (hashSet storePath)
+  getReplyS sd _ = mapPrimE (hashSet (storePath sd))
 
 instance StoreReply (HashSet StorePathName) where
-  getReplyS = mapPrimE (hashSet storePathName)
+  getReplyS _ _ = mapPrimE (hashSet storePathName)
 
 mapPrimE
-  :: NixSerializer r SError a
-  -> NixSerializer r ReplySError a
+  :: NixSerializer SError a
+  -> NixSerializer ReplySError a
 mapPrimE = mapErrorS ReplySError_PrimGet

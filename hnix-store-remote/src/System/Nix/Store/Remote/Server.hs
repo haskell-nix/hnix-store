@@ -149,21 +149,25 @@ processConnection workerHelper postGreet sock = do
 
           case fst res of
             Left e -> throwError e
-            Right reply ->
+            Right reply -> do
+              storeDir <- getStoreDir
+              pv <- getProtoVersion
               sockPutS
                 (mapErrorS
                    RemoteStoreError_SerializerReply
-                   $ getReplyS
+                   $ getReplyS storeDir pv
                 )
                 reply
 
     -- Process client requests.
     let loop = do
+          storeDir <- getStoreDir
+          pv <- getProtoVersion
           someReq <-
             sockGetS
               $ mapErrorS
                   RemoteStoreError_SerializerRequest
-                  storeRequest
+                  (storeRequest storeDir pv)
 
           -- have to be explicit here
           -- because otherwise GHC can't conjure Show a, StoreReply a
@@ -306,7 +310,7 @@ enqueueMsg
   -> Logger
   -> m ()
 enqueueMsg x l = updateLogger x $ \st@(TunnelLoggerState c p) -> case c of
-  True -> (st, sockPutS logger l)
+  True -> (st, do pv <- getProtoVersion; sockPutS (logger pv) l)
   False -> (TunnelLoggerState c (l:p), pure ())
 
 _log
@@ -323,17 +327,19 @@ startWork
   => TunnelLogger
   -> m ()
 startWork x = updateLogger x $ \(TunnelLoggerState _ p) -> (,)
-  (TunnelLoggerState True []) $
-  (traverse_ (sockPutS logger') $ reverse p)
-  where logger' = mapErrorS RemoteStoreError_SerializerLogger logger
+  (TunnelLoggerState True []) $ do
+  pv <- getProtoVersion
+  let logger' = mapErrorS RemoteStoreError_SerializerLogger (logger pv)
+  traverse_ (sockPutS logger') $ reverse p
 
 stopWork
   :: MonadRemoteStore m
   => TunnelLogger
   -> m ()
 stopWork x = updateLogger x $ \_ -> (,)
-  (TunnelLoggerState False [])
-  (sockPutS (mapErrorS RemoteStoreError_SerializerLogger logger) Logger_Last)
+  (TunnelLoggerState False []) $ do
+  pv <- getProtoVersion
+  sockPutS (mapErrorS RemoteStoreError_SerializerLogger (logger pv)) Logger_Last
 
 -- | Stop sending logging and report an error.
 --
@@ -351,11 +357,12 @@ _stopWorkOnError x ex = updateLogger x $ \st ->
   case _tunnelLoggerState_canSendStderr st of
     False -> (st, pure False)
     True -> (,) (TunnelLoggerState False []) $ do
-      getProtoVersion >>= \pv -> if protoVersion_minor pv >= 26
+      pv <- getProtoVersion
+      let logger' = mapErrorS RemoteStoreError_SerializerLogger (logger pv)
+      if protoVersion_minor pv >= 26
         then sockPutS logger' (Logger_Error (Right ex))
         else sockPutS logger' (Logger_Error (Left (BasicError 0 (Data.Text.pack $ show ex))))
       pure True
-  where logger' = mapErrorS RemoteStoreError_SerializerLogger logger
 
 updateLogger
   :: MonadRemoteStore m

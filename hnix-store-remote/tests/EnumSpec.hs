@@ -4,7 +4,6 @@ module EnumSpec (spec) where
 
 import Test.Hspec (SpecWith, Spec, describe, it, shouldBe)
 
-import Data.ByteString (ByteString)
 import Data.Word (Word64)
 import System.Nix.Build (BuildMode(..), BuildSuccessStatus(..), BuildFailureStatus(..))
 import System.Nix.Store.Remote.Serializer
@@ -34,22 +33,22 @@ spec = do
       -> SpecWith ()
     itE name constr value =
       it name
-        $ ((runP enum () constr) :: Either SError ByteString)
+        $ runP @SError enum constr
           `shouldBe`
-          (runP (int @Word64) () value)
+          runP @SError (int @Word64) value
 
     itE'
       :: Show a
-      => NixSerializer () LoggerSError a
+      => NixSerializer LoggerSError a
       -> String
       -> a
       -> Word64
       -> SpecWith ()
     itE' s name constr value =
       it name
-        $ ((runP s () constr) :: Either LoggerSError ByteString)
+        $ runP s constr
           `shouldBe`
-          (runP (int @Word64) () (value))
+          runP @LoggerSError (int @Word64) value
 
   describe "Enums" $ do
     describe "BuildMode enum order matches Nix" $ do

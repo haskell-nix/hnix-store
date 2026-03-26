@@ -123,6 +123,7 @@ library
     , exceptions
     , generic-arbitrary < 1.1
     , hashable
+    , mmorph
     , text
     , time
     , transformers
@@ -179,12 +180,12 @@ test-suite remote
     , hnix-store-core
     , hnix-store-remote
     , hnix-store-tests
-    , bytestring
     , crypton
     , some > 1.0.5 && < 2
-    , time
     , hspec
     , QuickCheck
+    , time
+    , transformers
 
 test-suite remote-io
   import: commons

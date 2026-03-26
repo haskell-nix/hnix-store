@@ -1,4 +1,4 @@
-module System.Nix.Store.Remote.Types.WorkerOp 
+module System.Nix.Store.Remote.Types.WorkerOp
   ( WorkerOp(..)
   ) where
 
