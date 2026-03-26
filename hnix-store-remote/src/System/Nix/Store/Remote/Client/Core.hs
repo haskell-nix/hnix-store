@@ -55,10 +55,12 @@ doReq
   -> m a
 doReq = \case
   x -> do
+    storeDir <- getStoreDir
+    pv <- getProtoVersion
     sockPutS
       (mapErrorS
         RemoteStoreError_SerializerRequest
-          storeRequest
+          (storeRequest storeDir pv)
       )
       (Some x)
 
@@ -112,9 +114,12 @@ doReq = \case
         processReply
 
   where
-    processReply = sockGetS
+    processReply = do
+      storeDir <- getStoreDir
+      pv <- getProtoVersion
+      sockGetS
           (mapErrorS RemoteStoreError_SerializerReply
-            $ getReplyS @a
+            $ getReplyS @a storeDir pv
           )
 
 copyToSink
