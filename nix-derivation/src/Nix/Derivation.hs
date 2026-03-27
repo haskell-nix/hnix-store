@@ -79,6 +79,7 @@
 module Nix.Derivation
     ( -- * Types
       Derivation(..)
+    , DerivationInputs(..)
     , DerivationOutput(..)
 
       -- * Parse derivations
