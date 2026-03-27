@@ -130,7 +130,7 @@ test-suite core
     , hspec
     , tasty
     , tasty-golden
-    , tasty-hspec
+    , tasty-hspec >= 1.1
     , text
     , time
     , unordered-containers

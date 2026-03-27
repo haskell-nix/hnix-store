@@ -111,7 +111,7 @@ test-suite nar
     , process
     , temporary
     , tasty
-    , tasty-hspec
+    , tasty-hspec >= 1.1
     , tasty-hunit
     , tasty-quickcheck
     , text

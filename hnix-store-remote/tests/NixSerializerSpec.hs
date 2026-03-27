@@ -74,7 +74,7 @@ spec = parallel $ do
         $ \sd ->
             roundtripS (buildResult sd (ProtoVersion 1 28))
             . (\x -> x { buildResultStatus = case buildResultStatus x of
-                          Right s -> Right s
+                          Right (BuildSuccess st _bo) -> Right (BuildSuccess st mempty)
                           Left (BuildFailure st em _nd) -> Left (BuildFailure st em False)
                        })
             . (\x -> x { buildResultTimesBuilt = 0
@@ -88,6 +88,10 @@ spec = parallel $ do
         $ \sd -> forAll (arbitrary `suchThat` ((> 28) . protoVersion_minor))
         $ \pv ->
             roundtripS (buildResult sd pv)
+            . (\x -> x { buildResultStatus = case buildResultStatus x of
+                          Right (BuildSuccess st _bo) -> Right (BuildSuccess st mempty)
+                          Left f -> Left f
+                       })
             . (\x -> x { buildResultCpuUser = Nothing
                        , buildResultCpuSystem = Nothing
                        }

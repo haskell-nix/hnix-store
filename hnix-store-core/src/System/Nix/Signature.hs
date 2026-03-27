@@ -9,9 +9,9 @@ module System.Nix.Signature
   , signatureParser
   , parseSignature
   , signatureToText
-  , NarSignature(..)
+  , NamedSignature(..)
   , narSignatureParser
-  , parseNarSignature
+  , parseNamedSignature
   , narSignatureToText
   ) where
 
@@ -53,7 +53,7 @@ signatureToText (Signature sig) =
   encodeWith Base64 (Data.ByteArray.convert sig :: ByteString)
 
 -- | A detached signature attesting to a nix archive's validity.
-data NarSignature = NarSignature
+data NamedSignature = NamedSignature
   { -- | The name of the public key used to sign the archive.
     publicKey :: !Text
   , -- | The archive's signature.
@@ -67,19 +67,19 @@ instance Ord Signature where
     yBS = Data.ByteArray.convert y :: ByteString
     in compare xBS yBS
 
-narSignatureParser :: Parser NarSignature
+narSignatureParser :: Parser NamedSignature
 narSignatureParser = do
   publicKey <- Data.Attoparsec.Text.takeWhile1 (/= ':')
   _ <- Data.Attoparsec.Text.string ":"
   sig <- signatureParser
-  pure $ NarSignature {..}
+  pure $ NamedSignature {..}
 
-parseNarSignature :: Text -> Either String NarSignature
-parseNarSignature = Data.Attoparsec.Text.parseOnly narSignatureParser
+parseNamedSignature :: Text -> Either String NamedSignature
+parseNamedSignature = Data.Attoparsec.Text.parseOnly narSignatureParser
 
-narSignatureToText :: NarSignature -> Text
-narSignatureToText NarSignature {..} =
+narSignatureToText :: NamedSignature -> Text
+narSignatureToText NamedSignature {..} =
   mconcat [ publicKey, ":", signatureToText sig ]
 
-instance Show NarSignature where
+instance Show NamedSignature where
   show narSig = Data.Text.unpack (narSignatureToText narSig)

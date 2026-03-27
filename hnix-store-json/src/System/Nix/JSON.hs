@@ -15,27 +15,17 @@ module System.Nix.JSON
 import Control.Applicative ((<|>))
 import Crypto.Hash (Digest)
 import Data.Aeson
-import Data.Aeson.KeyMap qualified
-import Data.Aeson.Types (Parser)
 import Data.Aeson.Types qualified
 import Data.Attoparsec.Text qualified
-import Data.Char qualified
-import Data.Constraint.Extras (Has(has))
 import Data.Dependent.Sum
 import Data.Foldable (toList)
-import Data.Map.Strict qualified
-import Data.Maybe (maybeToList)
+import Data.Maybe (fromMaybe, maybeToList)
 import Data.Set qualified
-import Data.Some
 import Data.Text (Text)
 import Data.Text qualified
-import Data.Text.Lazy qualified
-import Data.Text.Lazy.Builder qualified
 import Data.Time (diffUTCTime)
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
-import Deriving.Aeson
 
-import System.Nix.Base (baseEncodingToText, textToBaseEncoding)
 import System.Nix.Base qualified
 import System.Nix.Build (BuildResult(..), BuildSuccess(..), BuildFailure(..), BuildSuccessStatus(..), BuildFailureStatus(..))
 import System.Nix.ContentAddress
@@ -43,12 +33,12 @@ import System.Nix.DerivedPath (DerivedPath(..), OutputsSpec(..), SingleDerivedPa
 import System.Nix.Hash
 import System.Nix.OutputName (OutputName)
 import System.Nix.OutputName qualified
-import System.Nix.Realisation (BuildTraceKey(..), Realisation, RealisationWithId(..))
-import System.Nix.Realisation qualified
-import System.Nix.Signature (Signature)
+import System.Nix.Realisation (BuildTraceKey(..), Realisation(..), RealisationWithId(..))
+import System.Nix.Signature (Signature, NamedSignature(..))
 import System.Nix.Signature qualified
 import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart, mkStorePathName, unStorePathName, parseBasePathFromText)
 import System.Nix.StorePath qualified
+import System.Nix.StorePath.Metadata (Metadata(..), StorePathTrust(..))
 
 instance ToJSON StorePathName where
   toJSON = toJSON . System.Nix.StorePath.unStorePathName
@@ -104,48 +94,18 @@ deriving newtype instance ToJSON OutputName
 deriving newtype instance FromJSONKey OutputName
 deriving newtype instance ToJSONKey OutputName
 
-instance ToJSON (BuildTraceKey OutputName) where
-  toJSON =
-    toJSON
-    . Data.Text.Lazy.toStrict
-    . Data.Text.Lazy.Builder.toLazyText
-    . System.Nix.Realisation.buildTraceKeyBuilder
-        System.Nix.OutputName.outputNameToText
+instance ToJSON BuildTraceKey where
+  toJSON btk =
+    object
+      [ "drvPath" .= buildTraceKeyDrvPath btk
+      , "outputName" .= buildTraceKeyOutput btk
+      ]
 
-  toEncoding =
-    toEncoding
-    . Data.Text.Lazy.toStrict
-    . Data.Text.Lazy.Builder.toLazyText
-    . System.Nix.Realisation.buildTraceKeyBuilder
-        System.Nix.OutputName.outputNameToText
-
-instance ToJSONKey (BuildTraceKey OutputName) where
-  toJSONKey =
-    Data.Aeson.Types.toJSONKeyText
-    $ Data.Text.Lazy.toStrict
-    . Data.Text.Lazy.Builder.toLazyText
-    . System.Nix.Realisation.buildTraceKeyBuilder
-        System.Nix.OutputName.outputNameToText
-
-instance FromJSON (BuildTraceKey OutputName) where
-  parseJSON =
-    withText "BuildTraceKey OutputName"
-    ( either
-        (fail . show)
-        pure
-    . System.Nix.Realisation.buildTraceKeyParser
-        System.Nix.OutputName.mkOutputName
-    )
-
-instance FromJSONKey (BuildTraceKey OutputName) where
-  fromJSONKey =
-    FromJSONKeyTextParser
-    ( either
-        (fail . show)
-        pure
-    . System.Nix.Realisation.buildTraceKeyParser
-        System.Nix.OutputName.mkOutputName
-    )
+instance FromJSON BuildTraceKey where
+  parseJSON = withObject "BuildTraceKey" $ \o ->
+    BuildTraceKey
+      <$> o .: "drvPath"
+      <*> o .: "outputName"
 
 instance ToJSON Signature where
   toJSON = toJSON . System.Nix.Signature.signatureToText
@@ -161,31 +121,37 @@ instance FromJSON Signature where
         System.Nix.Signature.signatureParser
     )
 
+instance ToJSON NamedSignature where
+  toJSON ns =
+    object
+      [ "keyName" .= publicKey ns
+      , "sig" .= sig ns
+      ]
+
+instance FromJSON NamedSignature where
+  parseJSON = withObject "NamedSignature" $ \o -> do
+    keyName <- o .: "keyName"
+    sigVal <- o .: "sig"
+    pure $ NamedSignature { publicKey = keyName, sig = sigVal }
+
 -- | Needed to avoid overlapping instances
 newtype HashJSON = HashJSON { unHashJSON :: DSum HashAlgo Digest }
   deriving (Eq, Show)
 
 instance ToJSON HashJSON where
   toJSON (HashJSON (algo :=> digest)) =
-    object
-      [ "algorithm" .= algoToText algo
-      -- We can parse others, but always render using base64
-      , "format" .= baseEncodingToText Base64
-      , "hash" .= encodeDigestWith Base64 digest
-      ]
+    -- SRI format: "algo-base64hash"
+    toJSON $ algoToText algo <> "-" <> encodeDigestWith Base64 digest
 
 instance FromJSON HashJSON where
-  parseJSON = withObject "HashJSON" $ \obj -> do
-    algoText <- obj .: "algorithm"
-    formatText <- obj .: "format"
-    hashText <- obj .: "hash"
-
-    Some algo <- either fail pure $ textToAlgo algoText
-    format <- either fail pure $ textToBaseEncoding formatText
-
-    digest <- has @NamedAlgo algo $ either fail pure $ decodeDigestWith format hashText
-
-    pure $ HashJSON (algo :=> digest)
+  parseJSON = withText "HashJSON" $ \t -> do
+    -- SRI format: "algo-base64hash"
+    let (algoText, rest) = Data.Text.breakOn "-" t
+    case Data.Text.uncons rest of
+      Nothing -> fail "HashJSON: missing '-' separator"
+      Just ('-', _hashText) ->
+        either fail (pure . HashJSON) $ mkNamedDigest algoText t
+      _ -> fail "HashJSON: missing '-' separator"
 
 instance ToJSON ContentAddress where
   toJSON (ContentAddress method digest) =
@@ -250,46 +216,35 @@ instance FromJSON DerivedPath where
           <$> obj .: "drvPath"
           <*> obj .: "outputs"
 
-data LowerLeading
-instance StringModifier LowerLeading where
-  getStringModifier "" = ""
-  getStringModifier (c:xs) = Data.Char.toLower c : xs
+instance ToJSON Realisation where
+  toJSON r =
+    object
+      [ "outPath" .= realisationOutPath r
+      , "signatures" .= realisationSignatures r
+      ]
 
-deriving
-  via CustomJSON
-    '[FieldLabelModifier
-       '[ StripPrefix "realisation"
-        , LowerLeading
-        , Rename "dependencies" "dependentRealisations"
-        ]
-     ] Realisation
-  instance ToJSON Realisation
-deriving
-  via CustomJSON
-    '[FieldLabelModifier
-       '[ StripPrefix "realisation"
-        , LowerLeading
-        , Rename "dependencies" "dependentRealisations"
-        ]
-     ] Realisation
-  instance FromJSON Realisation
+instance FromJSON Realisation where
+  parseJSON = withObject "Realisation" $ \o ->
+    Realisation
+      <$> o .: "outPath"
+      <*> o .:? "signatures" .!= mempty
 
 -- For a keyed version of Realisation
--- we use RealisationWithId (BuildTraceKey OutputName, Realisation)
--- instead of Realisation.id :: (BuildTraceKey OutputName)
+-- we use RealisationWithId (BuildTraceKey, Realisation)
+-- instead of Realisation.id :: BuildTraceKey
 -- field.
 instance ToJSON RealisationWithId where
   toJSON (RealisationWithId (drvOut, r)) =
-    case toJSON r of
-      Object o -> Object $ Data.Aeson.KeyMap.insert "id" (toJSON drvOut) o
-      _ -> error "absurd"
+    object
+      [ "key" .= drvOut
+      , "value" .= r
+      ]
 
 instance FromJSON RealisationWithId where
-  parseJSON v@(Object o) = do
-    r <- parseJSON @Realisation v
-    drvOut <- o .: "id"
+  parseJSON = withObject "RealisationWithId" $ \o -> do
+    drvOut <- o .: "key"
+    r <- o .: "value"
     pure (RealisationWithId (drvOut, r))
-  parseJSON x = fail $ "Expected Object but got " ++ show x
 
 -- BuildSuccessStatus enum to/from JSON as strings
 instance ToJSON BuildSuccessStatus where
@@ -342,15 +297,10 @@ instance ToJSON BuildResult where
   toJSON (BuildResult status timesBuilt startTime stopTime cpuUser cpuSystem) =
     case status of
       Right (BuildSuccess successStatus builtOutputs) ->
-        -- Convert Map (BuildTraceKey OutputName) Realisation to Map OutputName RealisationWithId
-        let builtOutputsForJSON = Data.Map.Strict.fromList
-              [ (outName, RealisationWithId (btk, r))
-              | (btk@(BuildTraceKey _hash outName), r) <- Data.Map.Strict.toList builtOutputs
-              ]
-        in object $ concat
+        object $ concat
           [ [ "success" .= True
             , "status" .= successStatus
-            , "builtOutputs" .= builtOutputsForJSON
+            , "builtOutputs" .= builtOutputs
             , "timesBuilt" .= timesBuilt
             , "startTime" .= (floor (realToFrac (diffUTCTime startTime (posixSecondsToUTCTime 0)) :: Double) :: Integer)
             , "stopTime" .= (floor (realToFrac (diffUTCTime stopTime (posixSecondsToUTCTime 0)) :: Double) :: Integer)
@@ -381,12 +331,7 @@ instance FromJSON BuildResult where
     buildResultStatus <- if success
       then do
         successStatus <- obj .: "status"
-        -- Parse as Map OutputName RealisationWithId, then convert to Map (BuildTraceKey OutputName) Realisation
-        builtOutputsWithId <- obj .: "builtOutputs" :: Parser (Data.Map.Strict.Map OutputName RealisationWithId)
-        let builtOutputs = Data.Map.Strict.fromList
-              [ (btk, r)
-              | (_outName, RealisationWithId (btk, r)) <- Data.Map.Strict.toList builtOutputsWithId
-              ]
+        builtOutputs <- obj .:? "builtOutputs" .!= mempty
         pure $ Right (BuildSuccess successStatus builtOutputs)
       else do
         failureStatus <- obj .: "status"
@@ -404,4 +349,45 @@ instance FromJSON BuildResult where
       , buildResultStopTime = stopTime
       , buildResultCpuUser = buildResultCpuUser
       , buildResultCpuSystem = buildResultCpuSystem
+      }
+
+-- | Metadata (path-info) JSON, version 3 format
+instance ToJSON (Metadata StorePath) where
+  toJSON m = object
+    [ "version" .= (3 :: Int)
+    , "storeDir" .= ("/nix/store" :: Text)
+    , "narHash" .= HashJSON (metadataNarHash m)
+    , "narSize" .= fromMaybe 0 (metadataNarBytes m)
+    , "references" .= metadataReferences m
+    , "ca" .= metadataContentAddress m
+    , "deriver" .= metadataDeriverPath m
+    , "registrationTime" .=
+        let t = metadataRegistrationTime m
+        in if t == posixSecondsToUTCTime 0
+           then Nothing @Integer
+           else Just (floor (realToFrac (diffUTCTime t (posixSecondsToUTCTime 0)) :: Double) :: Integer)
+    , "signatures" .= metadataSigs m
+    , "ultimate" .= (metadataTrust m == BuiltLocally)
+    ]
+
+instance FromJSON (Metadata StorePath) where
+  parseJSON = withObject "Metadata" $ \o -> do
+    HashJSON narHash <- o .: "narHash"
+    narSize <- o .: "narSize"
+    references <- o .:? "references" .!= mempty
+    ca <- o .:? "ca"
+    deriver <- o .:? "deriver"
+    regTime <- o .:? "registrationTime"
+    sigs <- o .:? "signatures" .!= mempty
+    ultimate <- o .:? "ultimate" .!= False
+    pure Metadata
+      { metadataDeriverPath = deriver
+      , metadataNarHash = narHash
+      , metadataReferences = references
+      , metadataRegistrationTime =
+          maybe (posixSecondsToUTCTime 0) (posixSecondsToUTCTime . fromInteger) regTime
+      , metadataNarBytes = if narSize == (0 :: Int) then Nothing else Just (fromIntegral narSize)
+      , metadataTrust = if ultimate then BuiltLocally else BuiltElsewhere
+      , metadataSigs = sigs
+      , metadataContentAddress = ca
       }
