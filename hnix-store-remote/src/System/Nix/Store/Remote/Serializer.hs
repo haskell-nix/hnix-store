@@ -54,7 +54,7 @@ module System.Nix.Store.Remote.Serializer
   -- * DSum HashAlgo Digest
   , namedDigest
   -- * Derivation
-  , derivation
+  , basicDerivation
   -- * Derivation
   , derivedPath
   -- * Build
@@ -150,7 +150,8 @@ import System.Nix.Base qualified
 import System.Nix.Build (BuildMode, BuildResult(..), BuildSuccess(..), BuildFailure(..), BuildSuccessStatus(..), BuildFailureStatus(..))
 import System.Nix.ContentAddress (ContentAddress)
 import System.Nix.ContentAddress qualified
-import System.Nix.Derivation (Derivation(..), DerivationOutput(..))
+import System.Nix.Derivation.Traditional
+import System.Nix.Derivation
 import System.Nix.DerivedPath (DerivedPath(..), ParseOutputsError)
 import System.Nix.DerivedPath qualified
 import System.Nix.FileContentAddress (FileIngestionMethod(..))
@@ -161,7 +162,7 @@ import System.Nix.OutputName (OutputName)
 import System.Nix.OutputName qualified
 import System.Nix.Realisation (BuildTraceKey, BuildTraceKeyError, Realisation(..), RealisationWithId(..))
 import System.Nix.Realisation qualified
-import System.Nix.Signature (Signature, NarSignature)
+import System.Nix.Signature (Signature, NamedSignature)
 import System.Nix.Signature qualified
 import System.Nix.Store.Remote.Types
 import System.Nix.Store.Types (RepairMode(..))
@@ -604,7 +605,7 @@ signature =
     text
 
 narSignature
-  :: NixSerializer SError NarSignature
+  :: NixSerializer SError NamedSignature
 narSignature =
   mapPrismSerializer
     (AlmostPrism
@@ -676,45 +677,41 @@ namedDigest = Serializer
 
 derivationOutput
   :: StoreDir
-  -> NixSerializer SError (DerivationOutput StorePath Text)
+  -> NixSerializer SError FreeformDerivationOutput
 derivationOutput storeDir = Serializer
   { getS = do
-      path <- getS (storePath storeDir)
-      hashAlgo <- getS text
-      hash <- getS text
-      pure DerivationOutput{..}
-  , putS = \DerivationOutput{..} -> do
-      putS (storePath storeDir) path
-      putS text hashAlgo
-      putS text hash
+      rawPath <- getS text
+      rawMethodHashAlgo <- getS text
+      rawHash <- getS text
+      parseRawDerivationOutput storeDir $ RawDerivationOutput {..}
+  , putS = \output -> do
+      let RawDerivationOutput {..} = renderRawDerivationOutput storeDir output
+      putS text rawPath
+      putS text rawMethodHashAlgo
+      putS text rawHash
   }
 
 -- * Derivation
 
-derivation
+basicDerivation
   :: StoreDir
-  -> NixSerializer SError (Derivation StorePath Text)
-derivation storeDir = Serializer
+  -> NixSerializer SError (TraditionalDerivation' (Set StorePath) FreeformDerivationOutputs)
+basicDerivation storeDir = Serializer
   { getS = do
-      outputs <- getS (mapS text (derivationOutput storeDir))
-      -- Our type is Derivation, but in Nix
-      -- the type sent over the wire is BasicDerivation
-      -- which omits inputDrvs
-      inputDrvs <- pure mempty
-      inputSrcs <- getS (set (storePath storeDir))
-
-      platform <- getS text
-      builder <- getS text
-      args <- getS (vector text)
-      env <- getS (mapS text text)
-      pure Derivation{..}
-  , putS = \Derivation{..} -> do
-      putS (mapS text (derivationOutput storeDir)) outputs
-      putS (set (storePath storeDir)) inputSrcs
-      putS text platform
-      putS text builder
-      putS (vector text) args
-      putS (mapS text text) env
+      anonOutputs <- getS $ mapS' $ tup outputName $ derivationOutput storeDir
+      anonInputs <- getS $ set $ storePath storeDir
+      anonPlatform <- getS text
+      anonBuilder <- getS text
+      anonArgs <- getS $ vector text
+      anonEnv <- getS $ mapS text text
+      pure $ TraditionalDerivation{..}
+  , putS = \TraditionalDerivation{..} -> do
+      putS (mapS' $ tup outputName $ derivationOutput storeDir) anonOutputs
+      putS (set $ storePath storeDir) anonInputs
+      putS text anonPlatform
+      putS text anonBuilder
+      putS (vector text) anonArgs
+      putS (mapS text text) anonEnv
   }
 
 -- * DerivedPath
@@ -1075,9 +1072,13 @@ storeRequest storeDir pv = Serializer
 
       WorkerOp_BuildDerivation -> mapGetE $ do
         path <- getS $ storePath storeDir
-        drv <- getS $ derivation storeDir
+        let name = System.Nix.StorePath.storePathName path
+        drv0 <- getS $ basicDerivation storeDir
+        let drv1 = withName name drv0
+        outputs <- toSpecificOutputs storeDir name $ outputs drv1
+        let drv2 = drv1 { outputs = outputs }
         buildMode' <- getS buildMode
-        pure $ Some (BuildDerivation path drv buildMode')
+        pure $ Some (BuildDerivation path drv2 buildMode')
 
       WorkerOp_CollectGarbage -> mapGetE $ do
         gcOptionsOperation <- getS enum
@@ -1216,11 +1217,13 @@ storeRequest storeDir pv = Serializer
         putS (set $ derivedPath storeDir pv) derived
         putS buildMode buildMode'
 
-      Some (BuildDerivation path drv buildMode') -> do
+      Some (BuildDerivation path drv0 buildMode') -> do
         putS workerOp WorkerOp_BuildDerivation
 
         putS (storePath storeDir) path
-        putS (derivation storeDir) drv
+        let drv1 = drv0 { outputs = fromSpecificOutputs storeDir (name drv0) $ outputs drv0 }
+        let drv2 = withoutName drv1
+        putS (basicDerivation storeDir) drv2
         putS buildMode buildMode'
 
       Some (CollectGarbage GCOptions{..}) -> do
@@ -1361,7 +1364,7 @@ noop ret = Serializer
 
 -- *** Realisation
 
-buildTraceKeyTyped :: NixSerializer ReplySError (BuildTraceKey OutputName)
+buildTraceKeyTyped :: NixSerializer ReplySError BuildTraceKey
 buildTraceKeyTyped = mapErrorS ReplySError_BuildTraceKey $
   mapPrismSerializer
     AlmostPrism
@@ -1370,12 +1373,10 @@ buildTraceKeyTyped = mapErrorS ReplySError_BuildTraceKey $
       . Identity
       . Data.Bifunctor.first SError_BuildTraceKey
       . System.Nix.Realisation.buildTraceKeyParser
-          System.Nix.OutputName.mkOutputName
     , _almostPrism_put =
       Data.Text.Lazy.toStrict
       . Data.Text.Lazy.Builder.toLazyText
       . System.Nix.Realisation.buildTraceKeyBuilder
-          System.Nix.OutputName.outputNameToText
     }
     text
 
@@ -1416,7 +1417,8 @@ buildResult _storeDir pv = Serializer
           wireMap <- getS (mapS buildTraceKeyTyped realisationWithId)
           pure
             $ Data.Map.Strict.fromList
-            $ map (\(_, RealisationWithId (a, b)) -> (a, b))
+            $ map (\(btk, RealisationWithId (_btk, r)) ->
+                    (System.Nix.Realisation.buildTraceKeyOutput btk, r))
             $ Data.Map.Strict.toList wireMap
         else pure mempty
 
@@ -1440,9 +1442,9 @@ buildResult _storeDir pv = Serializer
         }
 
   , putS = \BuildResult{..} -> do
-      let (statusWord, errorMessage, isNonDeterministic, builtOutputs) = case buildResultStatus of
-            Right (BuildSuccess st bo) -> (successStatusToWire st, Nothing, False, bo)
-            Left (BuildFailure st em nd) -> (failureStatusToWire st, Just em, nd, mempty)
+      let (statusWord, errorMessage, isNonDeterministic) = case buildResultStatus of
+            Right (BuildSuccess st _bo) -> (successStatusToWire st, Nothing, False)
+            Left (BuildFailure st em nd) -> (failureStatusToWire st, Just em, nd)
 
       putS enum statusWord
       putS maybeText errorMessage
@@ -1451,12 +1453,11 @@ buildResult _storeDir pv = Serializer
         putS bool isNonDeterministic
         putS time buildResultStartTime
         putS time buildResultStopTime
+      -- TODO: builtOutputs serialization requires drvPath context to
+      -- reconstruct BuildTraceKey from OutputName
       Control.Monad.when (protoVersion_minor pv >= 28)
         $ putS (mapS buildTraceKeyTyped realisationWithId)
-        $ Data.Map.Strict.fromList
-        $ map (\(a, b) -> (a, RealisationWithId (a, b)))
-        $ Data.Map.Strict.toList
-        $ builtOutputs
+          (mempty :: Data.Map.Strict.Map BuildTraceKey RealisationWithId)
   }
   where
     t0 :: UTCTime

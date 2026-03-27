@@ -15,7 +15,7 @@ import Data.Word (Word64)
 import GHC.Generics (Generic)
 
 import System.Nix.Hash (HashAlgo)
-import System.Nix.Signature (NarSignature)
+import System.Nix.Signature (NamedSignature)
 import System.Nix.ContentAddress (ContentAddress)
 
 -- | How much do we trust the path, based on its provenance?
@@ -50,7 +50,7 @@ data Metadata a = Metadata
     --
     -- There is no guarantee from this type alone that these
     -- signatures are valid.
-    metadataSigs :: !(Set NarSignature)
+    metadataSigs :: !(Set NamedSignature)
   , -- | Whether and how this store path is content-addressable.
     --
     -- There is no guarantee from this type alone that this address

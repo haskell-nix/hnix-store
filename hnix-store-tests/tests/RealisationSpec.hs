@@ -8,7 +8,6 @@ import System.Nix.Arbitrary ()
 
 import Data.Text.Lazy qualified
 import Data.Text.Lazy.Builder qualified
-import System.Nix.OutputName qualified
 import System.Nix.Realisation qualified
 
 spec :: Spec
@@ -19,8 +18,5 @@ spec = do
         ( Data.Text.Lazy.toStrict
         . Data.Text.Lazy.Builder.toLazyText
         . System.Nix.Realisation.buildTraceKeyBuilder
-            System.Nix.OutputName.outputNameToText
         )
-        ( System.Nix.Realisation.buildTraceKeyParser
-            System.Nix.OutputName.mkOutputName
-        )
+        System.Nix.Realisation.buildTraceKeyParser

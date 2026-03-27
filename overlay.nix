@@ -27,18 +27,6 @@ in
       sha256 = "1nl4ycl99rcnvd25a1sp6xq2mai85pzcd15cbkzrgx0x6rr0zkz6";
     } {};
 
-  # srk 2025-09-03: until revised version lands in unstable
-  # (due to filepath bound https://github.com/Gabriella439/Haskell-Nix-Derivation-Library/pull/29)
-  nix-derivation = hself.callHackageDirect
-    { pkg = "nix-derivation";
-      ver = "1.1.3";
-      sha256 = "sha256-pklIwd0Atp45AT9x2n3PWAV7tFRqTzv89ViG2iAjoe0=";
-      rev =
-        { revision = "2";
-          sha256 = "sha256-Vv0NIHevaQOyFWBn79Q8OAYZa/Yhas/N1lBHfjANAm4=";
-        };
-    } {};
-
   hnix-store-core =
     lib.pipe
       (hself.callCabal2nix "hnix-store-core" ./hnix-store-core/hnix-store-core.cabal {})
@@ -53,6 +41,12 @@ in
         (drv: drv.overrideAttrs (old: { src = ./hnix-store-db; }))
         haskellLib.compose.buildFromSdist
       ];
+  hnix-store-aterm =
+    lib.pipe
+      (hself.callCabal2nix "hnix-store-aterm" ./hnix-store-aterm {})
+      [
+        haskellLib.compose.buildFromSdist
+      ];
   hnix-store-json =
     let
       # Include the JSON test data files from upstream Nix that we need
@@ -64,6 +58,7 @@ in
           (lib.fileset.fileFilter (file: file.hasExt "json") ./upstream-nix/src/libstore-tests/data/build-result)
           (lib.fileset.fileFilter (file: file.hasExt "json") ./upstream-nix/src/libstore-tests/data/content-address)
           (lib.fileset.fileFilter (file: file.hasExt "json") ./upstream-nix/src/libstore-tests/data/derived-path)
+          (lib.fileset.fileFilter (file: file.hasExt "json") ./upstream-nix/src/libstore-tests/data/derivation)
           (lib.fileset.fileFilter (file: file.hasExt "json") ./upstream-nix/src/libstore-tests/data/outputs-spec)
           (lib.fileset.fileFilter (file: file.hasExt "json") ./upstream-nix/src/libstore-tests/data/realisation)
           (lib.fileset.fileFilter (file: file.hasExt "json") ./upstream-nix/src/libstore-tests/data/store-path)

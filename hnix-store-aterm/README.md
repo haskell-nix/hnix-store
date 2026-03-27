@@ -1,8 +1,7 @@
-# `nix-derivation`
+# `hnix-store-aterm`
 
-[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/Gabriella439/Haskell-Nix-Derivation-Library/ci.yaml?branch=main)](https://github.com/Gabriella439/Haskell-Nix-Derivation-Library/actions/workflows/ci.yaml)
-[![Hackage version](https://img.shields.io/hackage/v/nix-derivation.svg?color=success)](https://hackage.haskell.org/package/nix-derivation)
-[![Dependencies](https://img.shields.io/hackage-deps/v/nix-derivation?label=Dependencies)](https://packdeps.haskellers.com/feed?needle=nix-derivation)
+[![Hackage version](https://img.shields.io/hackage/v/hnix-store-aterm.svg?color=success)](https://hackage.haskell.org/package/hnix-store-aterm)
+[![Dependencies](https://img.shields.io/hackage-deps/v/hnix-store-aterm?label=Dependencies)](https://packdeps.haskellers.com/feed?needle=hnix-store-aterm)
 
 Use this package to parse and render Nix derivations such as those stored
 in `/nix/store/*.drv` files.  For example, if you had the following derivation
@@ -35,7 +34,7 @@ t devdoc"),("propagatedBuildInputs",""),("propagatedNativeBuildInputs",""),("src
 
 ```
 >>> text <- Data.Text.Lazy.IO.readFile "/nix/store/zzhs4fb83x5ygvjqn5rdpmpnishpdgy6-perl-MIME-Types-2.13.drv"
->>> let result = Data.Attoparsec.Text.Lazy.parse Nix.Derivation.parseDerivation text
+>>> let result = Data.Attoparsec.Text.Lazy.parse System.Nix.Derivation.ATerm.parseDerivation text
 >>> result
 Done "" (Derivation {outputs = fromList [("devdoc",DerivationOutput {path = File
 Path "/nix/store/15x9ii8c3n5wb5lg80cm8x0yk6zy7rha-perl-MIME-Types-2.13-devdoc", 
@@ -182,7 +181,7 @@ Derivation
 With Nix:
 
 ```
-$ nix-env -iA nixpkgs.haskellPackages.nix-derivation
+$ nix-env -iA nixpkgs.haskellPackages.hnix-store-aterm
 ```
 
 ## Development status

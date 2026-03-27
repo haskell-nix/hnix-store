@@ -18,7 +18,7 @@ import Data.Word (Word64)
 import GHC.Generics (Generic)
 
 import System.Nix.OutputName (OutputName)
-import System.Nix.Realisation (BuildTraceKey, Realisation)
+import System.Nix.Realisation (Realisation)
 
 -- | Mode of the build operation
 -- Keep the order of these Enums to match enums from reference implementations
@@ -60,7 +60,7 @@ data BuildFailureStatus
 -- | Successful build result
 data BuildSuccess = BuildSuccess
   { buildSuccessStatus :: BuildSuccessStatus
-  , buildSuccessBuiltOutputs :: Map (BuildTraceKey OutputName) Realisation
+  , buildSuccessBuiltOutputs :: Map OutputName Realisation
   -- ^ Mapping of the output names to Realisations
   }
   deriving (Eq, Generic, Ord, Show)

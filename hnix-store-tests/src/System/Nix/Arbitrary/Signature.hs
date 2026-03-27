@@ -25,10 +25,10 @@ instance Arbitrary Crypto.PubKey.Ed25519.Signature where
 deriving via GenericArbitrary Signature
   instance Arbitrary Signature
 
-instance Arbitrary NarSignature where
+instance Arbitrary NamedSignature where
   arbitrary = do
     name <- Text.pack . getPrintableString <$> suchThat arbitrary (\(PrintableString str) -> validName str)
-    NarSignature name <$> arbitrary
+    NamedSignature name <$> arbitrary
 
 validName :: String -> Bool
 validName txt = not (null txt) && not (elem ':' txt)

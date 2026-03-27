@@ -5,6 +5,8 @@
    * Remove `SerialT` reader monad; `StoreDir` and `ProtoVersion` are now passed as explicit parameters
    * Add `AlmostPrism` type and rewrite `mapPrismSerializer`
    * Add `depTup`, `mapS'`, `maybeByteString` combinators to `Data.Serializer`
+   * Update `buildResult` serializer for new `BuildSuccess`/`BuildFailure` types
+   * Update `buildTraceKeyTyped` serializer for `StorePath`-based `BuildTraceKey`
    * New dependency: `mmorph`
 
 # [0.7.0.0](https://github.com/haskell-nix/hnix-store/compare/remote-0.6.0.0...remote-0.7.0.0) 2024-07-31

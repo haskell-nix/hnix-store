@@ -34,7 +34,7 @@ spec_fingerprint = do
           Signature sig' =
             case
               sig
-              <$> filter (\(NarSignature publicKey _) -> publicKey == "cache.nixos.org-1")
+              <$> filter (\(NamedSignature publicKey _) -> publicKey == "cache.nixos.org-1")
               (Set.toList (metadataSigs exampleMetadata))
             of
               (x:_) -> x
@@ -55,7 +55,7 @@ exampleMetadata = Metadata
   , metadataRegistrationTime = UTCTime (fromOrdinalDate 0 0) 0
   , metadataNarBytes = Just 196040
   , metadataTrust = BuiltElsewhere
-  , metadataSigs = Set.fromList $ forceRight . parseNarSignature <$> ["cache.nixos.org-1:TsTTb3WGTZKphvYdBHXwo6weVILmTytUjLB+vcX89fOjjRicCHmKA4RCPMVLkj6TMJ4GMX3HPVWRdD1hkeKZBQ==", "test1:519iiVLx/c4Rdt5DNt6Y2Jm6hcWE9+XY69ygiWSZCNGVcmOcyL64uVAJ3cV8vaTusIZdbTnYo9Y7vDNeTmmMBQ=="]
+  , metadataSigs = Set.fromList $ forceRight . parseNamedSignature <$> ["cache.nixos.org-1:TsTTb3WGTZKphvYdBHXwo6weVILmTytUjLB+vcX89fOjjRicCHmKA4RCPMVLkj6TMJ4GMX3HPVWRdD1hkeKZBQ==", "test1:519iiVLx/c4Rdt5DNt6Y2Jm6hcWE9+XY69ygiWSZCNGVcmOcyL64uVAJ3cV8vaTusIZdbTnYo9Y7vDNeTmmMBQ=="]
   , metadataContentAddress = Nothing
   }
 

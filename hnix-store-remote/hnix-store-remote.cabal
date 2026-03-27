@@ -108,6 +108,7 @@ library
     , hnix-store-json >= 0.1
     , hnix-store-nar >= 0.1
     , hnix-store-tests >= 0.1
+    , hnix-store-aterm
     , aeson
     , attoparsec
     , bytestring
@@ -180,6 +181,7 @@ test-suite remote
     , hnix-store-core
     , hnix-store-remote
     , hnix-store-tests
+    , hnix-store-aterm
     , crypton
     , some > 1.0.5 && < 2
     , hspec

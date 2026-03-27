@@ -10,12 +10,13 @@ import Data.ByteString (ByteString)
 import Data.Dependent.Sum (DSum(..))
 import System.Nix.Hash (HashAlgo(..))
 import System.Nix.StorePath (StorePath, StorePathName)
+import System.Nix.StorePath.ContentAddressed
 import System.Nix.ContentAddress (ContentAddressMethod(..))
 
 import Data.HashSet qualified
 import System.Nix.StorePath qualified
 
-import System.Nix.Store.ReadOnly
+import System.Nix.Store.ReadOnly ()
 
 testDigest :: DSum HashAlgo Digest
 testDigest = HashAlgo_SHA256 :=> Crypto.Hash.hash @ByteString "testDigest"
