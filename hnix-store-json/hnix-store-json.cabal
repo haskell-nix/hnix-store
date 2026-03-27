@@ -26,6 +26,13 @@ data-files:
     upstream-libstore-data/derived-path/single_built_built.json
     upstream-libstore-data/derived-path/single_built.json
     upstream-libstore-data/derived-path/single_opaque.json
+    upstream-libstore-data/derivation/dyn-dep-derivation.json
+    upstream-libstore-data/derivation/output-caFixedFlat.json
+    upstream-libstore-data/derivation/output-caFixedNAR.json
+    upstream-libstore-data/derivation/output-caFixedText.json
+    upstream-libstore-data/derivation/output-caFloating.json
+    upstream-libstore-data/derivation/output-inputAddressed.json
+    upstream-libstore-data/derivation/simple-derivation.json
     upstream-libstore-data/outputs-spec/all.json
     upstream-libstore-data/outputs-spec/name.json
     upstream-libstore-data/outputs-spec/names.json
@@ -70,7 +77,9 @@ library
     , containers
     , crypton
     , dependent-sum
+    , monoidal-containers
     , text
+    , these
     , time
   hs-source-dirs:      src
 
@@ -81,6 +90,7 @@ test-suite json
   other-modules:
     BuildResultSpec
     ContentAddressSpec
+    DerivationSpec
     DerivedPathSpec
     HashSpec
     JSONSpec
@@ -109,5 +119,9 @@ test-suite json
     , crypton
     , dependent-sum
     , hspec
+    , monoidal-containers
+    , some
+    , these
     , time
     , unordered-containers
+    , vector

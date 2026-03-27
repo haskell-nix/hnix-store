@@ -13,6 +13,7 @@ The test suite is now much more comprenesive, uses test data from upstream Nix t
   * `OutputsSpec`
   * `SingleDerivedPath`
   * `DerivedPath`
+  * `Derivation`
   * `Signature`
   * `NamedSignature`
   * `BuildTraceKey`

@@ -13,7 +13,7 @@ import Data.Time.Clock.POSIX qualified
 
 import System.Nix.Arbitrary ()
 import System.Nix.Build (BuildResult(..), BuildSuccess(..), BuildFailure(..))
-import System.Nix.Derivation (Derivation(inputDrvs))
+import System.Nix.Derivation.Traditional qualified
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types.Logger (Logger(..))
@@ -118,9 +118,9 @@ spec = parallel $ do
       prop "SHA256" $ roundtripS . digest @SHA256
       prop "SHA512" $ roundtripS . digest @SHA512
 
-    prop "Derivation" $ \sd ->
-      roundtripS (derivation sd)
-      . (\drv -> drv { inputDrvs = mempty })
+    prop "Derivation" $ \sd drv ->
+      roundtripS (basicDerivation sd) $
+        System.Nix.Derivation.Traditional.withoutName drv
 
     prop "ProtoVersion" $ roundtripS @() @ProtoVersion protoVersion
 
@@ -162,7 +162,6 @@ spec = parallel $ do
 
 restrictProtoVersion :: ProtoVersion -> Some StoreRequest -> Bool
 restrictProtoVersion v (Some (BuildPaths _ _)) | v < ProtoVersion 1 30 = False
-restrictProtoVersion _ (Some (BuildDerivation _ drv _)) = inputDrvs drv == mempty
 restrictProtoVersion v (Some (QueryMissing _)) | v < ProtoVersion 1 30 = False
 restrictProtoVersion _ _ = True
 

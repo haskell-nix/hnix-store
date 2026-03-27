@@ -1,4 +1,3 @@
-
 module Derivation where
 
 import Test.Tasty (TestTree, testGroup)
