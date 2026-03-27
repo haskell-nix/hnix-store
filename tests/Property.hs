@@ -9,9 +9,13 @@ module Main where
 import Data.Text (Text)
 import Data.Vector (Vector)
 import System.FilePath
-import Nix.Derivation (Derivation(..), DerivationOutput(..))
+import Nix.Derivation
+    ( Derivation(..)
+    , DerivationInputs(..)
+    , DerivationOutput(..)
+    )
 import Prelude hiding (FilePath, either)
-import Test.QuickCheck (Gen, Arbitrary(..), oneof)
+import Test.QuickCheck (Arbitrary(..), Gen, oneof)
 
 import qualified Data.Attoparsec.Text.Lazy
 import qualified Data.Text
@@ -50,18 +54,23 @@ contentAddressedDerivationOutput = do
   hashAlgo <- arbitrary
   return (ContentAddressedDerivationOutput {..})
 
-instance Arbitrary (Derivation FilePath Text) where
+instance Arbitrary (DerivationInputs FilePath Text) where
+    arbitrary = do
+        drvs <- arbitrary
+        srcs <- arbitrary
+        pure DerivationInputs {..}
+
+instance Arbitrary (Derivation FilePath Text Text DerivationOutput DerivationInputs) where
     arbitrary = do
         outputs   <- arbitrary
-        inputDrvs <- arbitrary
-        inputSrcs <- arbitrary
+        inputs    <- arbitrary
         platform  <- arbitrary
         builder   <- arbitrary
         args      <- arbitrary
         env       <- arbitrary
-        return (Derivation {..})
+        pure Derivation {..}
 
-property :: Derivation FilePath Text -> Bool
+property :: Derivation FilePath Text Text DerivationOutput DerivationInputs -> Bool
 property derivation0 = either == Right derivation0
   where
     builder = Nix.Derivation.buildDerivation derivation0
