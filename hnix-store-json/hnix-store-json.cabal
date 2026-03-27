@@ -33,6 +33,10 @@ data-files:
     upstream-libstore-data/realisation/with-dependent-realisations.json
     upstream-libstore-data/realisation/with-signature.json
     upstream-libstore-data/store-path/simple.json
+    upstream-libstore-data/path-info/json-3/empty_impure.json
+    upstream-libstore-data/path-info/json-3/empty_pure.json
+    upstream-libstore-data/path-info/json-3/impure.json
+    upstream-libstore-data/path-info/json-3/pure.json
     upstream-libutil-data/hash/sha256-base16.json
     upstream-libutil-data/hash/sha256-base64.json
     upstream-libutil-data/hash/sha256-nix32.json
@@ -63,11 +67,9 @@ library
 
     , aeson >= 2.0 && < 3.0
     , attoparsec
-    , constraints-extras
     , containers
     , crypton
     , dependent-sum
-    , deriving-aeson >= 0.2
     , text
     , time
   hs-source-dirs:      src
@@ -83,6 +85,7 @@ test-suite json
     HashSpec
     JSONSpec
     OutputsSpecSpec
+    PathInfoSpec
     RealisationSpec
     SingleDerivedPathSpec
     StorePathSpec
@@ -103,4 +106,8 @@ test-suite json
     , aeson
     , bytestring
     , containers
+    , crypton
+    , dependent-sum
     , hspec
+    , time
+    , unordered-containers
