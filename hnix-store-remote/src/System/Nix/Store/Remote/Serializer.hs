@@ -161,7 +161,7 @@ import System.Nix.OutputName (OutputName)
 import System.Nix.OutputName qualified
 import System.Nix.Realisation (BuildTraceKey, BuildTraceKeyError, Realisation(..), RealisationWithId(..))
 import System.Nix.Realisation qualified
-import System.Nix.Signature (Signature, NarSignature)
+import System.Nix.Signature (Signature, NamedSignature)
 import System.Nix.Signature qualified
 import System.Nix.Store.Remote.Types
 import System.Nix.Store.Types (RepairMode(..))
@@ -604,7 +604,7 @@ signature =
     text
 
 narSignature
-  :: NixSerializer SError NarSignature
+  :: NixSerializer SError NamedSignature
 narSignature =
   mapPrismSerializer
     (AlmostPrism
@@ -1361,7 +1361,7 @@ noop ret = Serializer
 
 -- *** Realisation
 
-buildTraceKeyTyped :: NixSerializer ReplySError (BuildTraceKey OutputName)
+buildTraceKeyTyped :: NixSerializer ReplySError BuildTraceKey
 buildTraceKeyTyped = mapErrorS ReplySError_BuildTraceKey $
   mapPrismSerializer
     AlmostPrism
@@ -1370,12 +1370,10 @@ buildTraceKeyTyped = mapErrorS ReplySError_BuildTraceKey $
       . Identity
       . Data.Bifunctor.first SError_BuildTraceKey
       . System.Nix.Realisation.buildTraceKeyParser
-          System.Nix.OutputName.mkOutputName
     , _almostPrism_put =
       Data.Text.Lazy.toStrict
       . Data.Text.Lazy.Builder.toLazyText
       . System.Nix.Realisation.buildTraceKeyBuilder
-          System.Nix.OutputName.outputNameToText
     }
     text
 
@@ -1416,7 +1414,8 @@ buildResult _storeDir pv = Serializer
           wireMap <- getS (mapS buildTraceKeyTyped realisationWithId)
           pure
             $ Data.Map.Strict.fromList
-            $ map (\(_, RealisationWithId (a, b)) -> (a, b))
+            $ map (\(btk, RealisationWithId (_btk, r)) ->
+                    (System.Nix.Realisation.buildTraceKeyOutput btk, r))
             $ Data.Map.Strict.toList wireMap
         else pure mempty
 
@@ -1440,9 +1439,9 @@ buildResult _storeDir pv = Serializer
         }
 
   , putS = \BuildResult{..} -> do
-      let (statusWord, errorMessage, isNonDeterministic, builtOutputs) = case buildResultStatus of
-            Right (BuildSuccess st bo) -> (successStatusToWire st, Nothing, False, bo)
-            Left (BuildFailure st em nd) -> (failureStatusToWire st, Just em, nd, mempty)
+      let (statusWord, errorMessage, isNonDeterministic) = case buildResultStatus of
+            Right (BuildSuccess st _bo) -> (successStatusToWire st, Nothing, False)
+            Left (BuildFailure st em nd) -> (failureStatusToWire st, Just em, nd)
 
       putS enum statusWord
       putS maybeText errorMessage
@@ -1451,12 +1450,11 @@ buildResult _storeDir pv = Serializer
         putS bool isNonDeterministic
         putS time buildResultStartTime
         putS time buildResultStopTime
+      -- TODO: builtOutputs serialization requires drvPath context to
+      -- reconstruct BuildTraceKey from OutputName
       Control.Monad.when (protoVersion_minor pv >= 28)
         $ putS (mapS buildTraceKeyTyped realisationWithId)
-        $ Data.Map.Strict.fromList
-        $ map (\(a, b) -> (a, RealisationWithId (a, b)))
-        $ Data.Map.Strict.toList
-        $ builtOutputs
+          (mempty :: Data.Map.Strict.Map BuildTraceKey RealisationWithId)
   }
   where
     t0 :: UTCTime
