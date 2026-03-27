@@ -9,6 +9,7 @@ import Test.Hspec.QuickCheck (prop)
 
 import System.Nix.Arbitrary ()
 import System.Nix.ContentAddress (ContentAddress)
+import System.Nix.Derivation (Derivation)
 import System.Nix.DerivedPath (DerivedPath, OutputsSpec, SingleDerivedPath)
 import System.Nix.JSON ()
 import System.Nix.Realisation (BuildTraceKey, Realisation)
@@ -35,6 +36,7 @@ spec = do
     prop "OutputsSpec" $ roundtripsJSON @OutputsSpec
     prop "SingleDerivedPath" $ roundtripsJSON @SingleDerivedPath
     prop "DerivedPath" $ roundtripsJSON @DerivedPath
+    prop "Derivation" $ roundtripsJSON @Derivation
     prop "BuildTraceKey" $ roundtripsJSON @BuildTraceKey
     prop "Signature" $ roundtripsJSON @Signature
     prop "NamedSignature" $ roundtripsJSON @NamedSignature
