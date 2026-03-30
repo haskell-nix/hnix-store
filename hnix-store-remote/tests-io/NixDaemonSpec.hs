@@ -22,7 +22,7 @@ import System.Linux.Namespaces (Namespace(..), GroupMapping(..), UserMapping(..)
 import System.Nix.Hash (HashAlgo(HashAlgo_SHA256))
 import System.Nix.Build (BuildMode(..))
 import System.Nix.DerivedPath (DerivedPath(..))
-import System.Nix.FileContentAddress (FileIngestionMethod(..))
+import System.Nix.ContentAddress (ContentAddressMethod(..))
 import System.Nix.StorePath (StoreDir(..), StorePath)
 import System.Nix.StorePath.Metadata (Metadata(..))
 import System.Nix.Store.Remote
@@ -291,8 +291,9 @@ dummy = do
   addToStore
     (forceRight $ System.Nix.StorePath.mkStorePathName "dummy")
     (System.Nix.Nar.dumpPath "dummy")
-    FileIngestionMethod_Flat
+    ContentAddressMethod_NixArchive
     (Some HashAlgo_SHA256)
+    mempty
     RepairMode_DontRepair
 
 invalidPath :: StorePath
@@ -458,8 +459,9 @@ makeProtoSpec f flavor = around f $ do
       addToStore
         (forceRight $ System.Nix.StorePath.mkStorePathName "tmp-addition")
         (System.Nix.Nar.dumpPath fp)
-        FileIngestionMethod_Flat
+        ContentAddressMethod_NixArchive
         (Some HashAlgo_SHA256)
+        mempty
         RepairMode_DontRepair
 
   context "with dummy" $ do

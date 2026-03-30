@@ -54,7 +54,7 @@ import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
 import System.Nix.Store.Remote.Types.StoreText (StoreText)
 import System.Nix.Store.Remote.Types.SubstituteMode (SubstituteMode)
 import System.Nix.Store.Remote.Client.Core
-import System.Nix.FileContentAddress (FileIngestionMethod(..))
+import System.Nix.ContentAddress (ContentAddressMethod)
 import System.Nix.Store.Types (RepairMode(..))
 
 import Control.Monad.IO.Class qualified
@@ -68,17 +68,15 @@ addToStore
   :: MonadRemoteStore m
   => StorePathName        -- ^ Name part of the newly created `StorePath`
   -> NarSource IO         -- ^ Provide nar stream
-  -> FileIngestionMethod  -- ^ Add target directory recursively
-  -> Some HashAlgo        -- ^
-  -> RepairMode           -- ^ Only used by local store backend
+  -> ContentAddressMethod -- ^ Content addressing method
+  -> Some HashAlgo        -- ^ Hashing algorithm
+  -> Set StorePath        -- ^ References
+  -> RepairMode           -- ^ Whether to overwrite an existing valid path, repairing corruption.
+                          --   Sent to the daemon as part of the request since the 1.25 wire format.
   -> m StorePath
-addToStore name source method hashAlgo repair = do
-  Control.Monad.when
-    (repair == RepairMode_DoRepair)
-    $ throwError RemoteStoreError_RapairNotSupportedByRemoteStore
-
+addToStore name source method hashAlgo refs repair = do
   setNarSource source
-  doReq (AddToStore name method hashAlgo repair)
+  doReq (AddToStore name method hashAlgo refs repair)
 
 addToStoreNar
   :: MonadRemoteStore m

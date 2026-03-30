@@ -6,8 +6,9 @@ module System.Nix.Store.Remote.Server
   )
   where
 
+import Algebra.PartialOrd (leq)
 import Control.Concurrent.Classy.Async
-import Control.Monad (join, void, when)
+import Control.Monad (join, unless, void, when)
 import Control.Monad.Conc.Class (MonadConc)
 import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.Trans (lift)
@@ -15,25 +16,27 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Default.Class (Default(def))
 import Data.Foldable (traverse_)
 import Data.IORef (IORef, atomicModifyIORef, newIORef)
+import Data.Set qualified
 import Data.Text (Text)
 import Data.Void (Void, absurd)
-import Data.Word (Word32)
+import Data.ByteString (ByteString)
+import Data.Word (Word32, Word64)
 import Network.Socket (Socket, accept, close, listen, maxListenQueue)
 import System.Nix.Nar (NarSource)
 import System.Nix.Store.Remote.Client (Run, doReq)
-import System.Nix.Store.Remote.Serializer (LoggerSError, mapErrorS, storeRequest, workerMagic, protoVersion, int, logger, text, trustedFlag)
+import System.Nix.Store.Remote.Serializer (LoggerSError, mapErrorS, storeRequest, validPathInfo, workerMagic, protoVersion, int, set, logger, text, trustedFlag)
 import System.Nix.Store.Remote.Socket
 import System.Nix.Store.Remote.Types.StoreRequest as R
 import System.Nix.Store.Remote.Types.StoreReply
-import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..))
-import System.Nix.Store.Remote.Types.Logger (BasicError(..), ErrorInfo, Logger(..))
+import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..), minVersionNumber)
+import System.Nix.Store.Remote.Types.Logger (ErrorInfo, Logger(..))
 import System.Nix.Store.Remote.MonadStore (MonadRemoteStore(..), WorkerError(..), WorkerException(..), RemoteStoreError(..), RemoteStoreT, runRemoteStoreT)
 import System.Nix.Store.Remote.Types.Handshake (ServerHandshakeInput(..), ServerHandshakeOutput(..))
 import System.Nix.Store.Remote.Types.WorkerMagic (WorkerMagic(..))
 import Data.Some qualified
-import Data.Text qualified
 import Data.Text.IO qualified
-import System.Timeout qualified
+import Data.Bits (shiftL)
+import Data.ByteString qualified
 import Network.Socket.ByteString qualified
 
 type WorkerHelper m
@@ -124,19 +127,8 @@ processConnection workerHelper postGreet sock = do
 
           special <- case req of
             AddToStore {} -> do
-              -- This is a hack (but a pretty neat and fast one!)
-              -- it should parse nad stream NAR instead
               let proxyNarSource :: NarSource IO
-                  proxyNarSource f =
-                    liftIO
-                      (System.Timeout.timeout
-                         1000000
-                         (Network.Socket.ByteString.recv sock 8)
-                      )
-                    >>= \case
-                      Nothing -> pure ()
-                      Just x -> f x >> proxyNarSource f
-
+                  proxyNarSource sink = readFramedSource sock sink
               pure $ setNarSource proxyNarSource
             _ -> pure $ pure ()
 
@@ -152,12 +144,28 @@ processConnection workerHelper postGreet sock = do
             Right reply -> do
               storeDir <- getStoreDir
               pv <- getProtoVersion
-              sockPutS
-                (mapErrorS
-                   RemoteStoreError_SerializerReply
-                   $ getReplyS storeDir pv
-                )
-                reply
+              case req of
+                -- AddToStore returns ValidPathInfo on the wire,
+                -- not just StorePath
+                AddToStore {} -> do
+                  -- Query the metadata so we can send full ValidPathInfo
+                  metadata <- lift $ workerHelper $ doReq (QueryPathInfo reply)
+                  case fst metadata of
+                    Left e -> throwError e
+                    Right (Just meta) ->
+                      sockPutS
+                        (mapErrorS RemoteStoreError_SerializerPut
+                          $ validPathInfo storeDir)
+                        (reply, meta)
+                    Right Nothing ->
+                      throwError $ RemoteStoreError_Fixme "AddToStore: path not found after adding"
+                _ ->
+                  sockPutS
+                    (mapErrorS
+                       RemoteStoreError_SerializerReply
+                       $ getReplyS storeDir pv
+                    )
+                    reply
 
     -- Process client requests.
     let loop = do
@@ -234,42 +242,45 @@ processConnection workerHelper postGreet sock = do
 
       clientVersion <- sockGetS protoVersion
 
-      let leastCommonVersion = min clientVersion serverHandshakeInputOurVersion
+      let leastCommonVersion = minVersionNumber clientVersion serverHandshakeInputOurVersion
 
-      when (clientVersion < ProtoVersion 1 10)
+      when (not (ProtoVersion 1 37 mempty `leq` clientVersion))
         $ throwError
         $ RemoteStoreError_WorkerException
             WorkerException_ClientVersionTooOld
 
-      when (clientVersion >= ProtoVersion 1 14) $ do
-        x :: Word32 <- sockGetS int
-        when (x /= 0) $ do
-          -- Obsolete CPU affinity.
-          _ :: Word32 <- sockGetS int
-          pure ()
+      -- Feature exchange (>= 1.38)
+      negotiatedFeatures <- if ProtoVersion 1 38 mempty `leq` leastCommonVersion
+        then do
+          clientFeatures <- sockGetS
+            $ mapErrorS RemoteStoreError_SerializerGet (set text)
+          sockPutS
+            (mapErrorS RemoteStoreError_SerializerPut (set text))
+            (protoVersion_features serverHandshakeInputOurVersion)
+          pure $ Data.Set.intersection clientFeatures (protoVersion_features serverHandshakeInputOurVersion)
+        else pure mempty
 
-      when (clientVersion >= ProtoVersion 1 11) $ do
-        _ :: Word32 <- sockGetS int -- obsolete reserveSpace
+      let leastCommonVersionWithFeatures = leastCommonVersion { protoVersion_features = negotiatedFeatures }
+
+      -- postHandshake: read affinity (obsolete), reserveSpace (obsolete)
+      x :: Word32 <- sockGetS int
+      when (x /= 0) $ do
+        -- Obsolete CPU affinity.
+        _ :: Word32 <- sockGetS int
         pure ()
 
-      when (clientVersion >= ProtoVersion 1 33) $ do
-        sockPutS
-          (mapErrorS
-             RemoteStoreError_SerializerPut
-             text
-          )
-          serverHandshakeInputNixVersion
+      _ :: Word32 <- sockGetS int -- obsolete reserveSpace
 
-      when (clientVersion >= ProtoVersion 1 35) $ do
-        sockPutS
-          (mapErrorS
-             RemoteStoreError_SerializerHandshake
-             trustedFlag
-          )
-          serverHandshakeInputTrust
+      sockPutS
+        (mapErrorS RemoteStoreError_SerializerPut text)
+        serverHandshakeInputNixVersion
+
+      sockPutS
+        (mapErrorS RemoteStoreError_SerializerHandshake trustedFlag)
+        serverHandshakeInputTrust
 
       pure ServerHandshakeOutput
-        { serverHandshakeOutputLeastCommonVersion = leastCommonVersion
+        { serverHandshakeOutputLeastCommonVersion = leastCommonVersionWithFeatures
         , serverHandshakeOutputClientVersion = clientVersion
         }
 
@@ -359,9 +370,7 @@ _stopWorkOnError x ex = updateLogger x $ \st ->
     True -> (,) (TunnelLoggerState False []) $ do
       pv <- getProtoVersion
       let logger' = mapErrorS RemoteStoreError_SerializerLogger (logger pv)
-      if protoVersion_minor pv >= 26
-        then sockPutS logger' (Logger_Error (Right ex))
-        else sockPutS logger' (Logger_Error (Left (BasicError 0 (Data.Text.pack $ show ex))))
+      sockPutS logger' (Logger_Error ex)
       pure True
 
 updateLogger
@@ -370,3 +379,46 @@ updateLogger
   -> (TunnelLoggerState -> (TunnelLoggerState, m a))
   -> m a
 updateLogger x = join . liftIO . atomicModifyIORef (_tunnelLogger_state x)
+
+-- | Read framed source data from a socket.
+--
+-- The framed protocol sends chunks as: little-endian u64 length
+-- followed by that many raw bytes, terminated by a zero-length frame.
+readFramedSource
+  :: Socket
+  -> (ByteString -> IO ())
+  -> IO ()
+readFramedSource sock sink = go
+  where
+    go = do
+      chunkLen <- recvWord64le sock
+      unless (chunkLen == 0) $ do
+        recvExact sock (fromIntegral chunkLen) sink
+        go
+
+    recvWord64le :: Socket -> IO Word64
+    recvWord64le s = do
+      bs <- recvExactBS s 8
+      pure $ sum
+        [ fromIntegral (Data.ByteString.index bs i) `shiftL` (i * 8)
+        | i <- [0..7]
+        ]
+
+    recvExactBS :: Socket -> Int -> IO ByteString
+    recvExactBS s n = do
+      bs <- Network.Socket.ByteString.recv s n
+      let got = Data.ByteString.length bs
+      if got == 0 then fail "readFramedSource: unexpected EOF"
+      else if got == n then pure bs
+      else do
+        rest <- recvExactBS s (n - got)
+        pure $ bs <> rest
+
+    recvExact :: Socket -> Int -> (ByteString -> IO ()) -> IO ()
+    recvExact s remaining f = when (remaining > 0) $ do
+      let toRead = min 16384 remaining
+      bs <- Network.Socket.ByteString.recv s toRead
+      let got = Data.ByteString.length bs
+      when (got == 0) $ fail "readFramedSource: unexpected EOF"
+      f bs
+      recvExact s (remaining - got) f

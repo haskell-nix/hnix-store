@@ -22,8 +22,10 @@ deriving via GenericArbitrary SubstituteMode
 deriving via GenericArbitrary ProtoStoreConfig
   instance Arbitrary ProtoStoreConfig
 
-deriving via GenericArbitrary ProtoVersion
-  instance Arbitrary ProtoVersion
+-- Custom instance: major is always 1 (the only real protocol major version),
+-- features are always empty (features are exchanged separately, not in wire format).
+instance Arbitrary ProtoVersion where
+  arbitrary = ProtoVersion 1 <$> arbitrary <*> pure mempty
 
 deriving via GenericArbitrary StoreText
   instance Arbitrary StoreText
@@ -49,9 +51,6 @@ instance Arbitrary Trace where
     traceHint <- arbitrary
 
     pure Trace{..}
-
-deriving via GenericArbitrary BasicError
-  instance Arbitrary BasicError
 
 instance Arbitrary ErrorInfo where
   arbitrary = do
@@ -97,7 +96,7 @@ deriving via GenericArbitrary WorkerOp
 
 instance Arbitrary (Some StoreRequest) where
   arbitrary = oneof
-    [ Some <$> (AddToStore <$> arbitrary <*> arbitrary <*> arbitrary <*> pure RepairMode_DontRepair)
+    [ Some <$> (AddToStore <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)
     , Some <$> (AddTextToStore <$> arbitrary <*> arbitrary <*> pure RepairMode_DontRepair)
     , Some <$> (AddSignatures <$> arbitrary <*> arbitrary)
     , Some . AddIndirectRoot  <$> arbitrary

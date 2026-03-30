@@ -24,7 +24,7 @@ instance HasStoreSocket Socket where
 data ProtoStoreConfig = ProtoStoreConfig
   { protoStoreConfigDir :: StoreDir
   , protoStoreConfigProtoVersion :: ProtoVersion
-  } deriving (Eq, Generic, Ord, Show)
+  } deriving (Eq, Generic, Show)
 
 instance Default ProtoStoreConfig where
   def = ProtoStoreConfig def def

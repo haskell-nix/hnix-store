@@ -42,6 +42,7 @@ module System.Nix.Store.Remote.Serializer
   , storePathName
   -- * Metadata
   , pathMetadata
+  , validPathInfo
   -- * OutputName
   , outputName
   -- * Signatures
@@ -67,7 +68,6 @@ module System.Nix.Store.Remote.Serializer
   , activityResult
   , field
   , trace
-  , basicError
   , errorInfo
   , loggerOpCode
   , logger
@@ -87,9 +87,7 @@ module System.Nix.Store.Remote.Serializer
   , opSuccess
   , noop
   -- *** Realisation
-  , buildTraceKeyTyped
   , realisation
-  , realisationWithId
   -- *** BuildResult
   , buildResult
   -- *** GCResult
@@ -148,20 +146,18 @@ import GHC.Generics (Generic)
 import System.Nix.Base (BaseEncoding(Base16, NixBase32))
 import System.Nix.Base qualified
 import System.Nix.Build (BuildMode, BuildResult(..), BuildSuccess(..), BuildFailure(..), BuildSuccessStatus(..), BuildFailureStatus(..))
-import System.Nix.ContentAddress (ContentAddress)
+import System.Nix.ContentAddress (ContentAddress, methodAlgoBuilder, methodAlgoParser)
 import System.Nix.ContentAddress qualified
 import System.Nix.Derivation.Traditional
 import System.Nix.Derivation
 import System.Nix.DerivedPath (DerivedPath(..), ParseOutputsError)
 import System.Nix.DerivedPath qualified
-import System.Nix.FileContentAddress (FileIngestionMethod(..))
 import System.Nix.Hash (HashAlgo(..))
 import System.Nix.Hash qualified
 import System.Nix.JSON ()
 import System.Nix.OutputName (OutputName)
 import System.Nix.OutputName qualified
-import System.Nix.Realisation (BuildTraceKey, BuildTraceKeyError, Realisation(..), RealisationWithId(..))
-import System.Nix.Realisation qualified
+import System.Nix.Realisation (Realisation(..))
 import System.Nix.Signature (Signature, NamedSignature)
 import System.Nix.Signature qualified
 import System.Nix.Store.Remote.Types
@@ -194,7 +190,6 @@ data SError
       }
   | SError_ContentAddress String
   | SError_DerivedPath ParseOutputsError
-  | SError_BuildTraceKey BuildTraceKeyError
   | SError_Digest String
   | SError_EnumOutOfMinBound Int
   | SError_EnumOutOfMaxBound Int
@@ -203,16 +198,11 @@ data SError
   | SError_InvalidNixBase32
   | SError_JSONDecoding String
   | SError_NarHashMustBeSHA256
-  | SError_NotYetImplemented String (ForPV ProtoVersion)
   | SError_Name InvalidNameError
   | SError_Path InvalidPathError
   | SError_Signature String
-  deriving (Eq, Ord, Generic, Show)
+  deriving (Eq, Generic, Show)
 
-data ForPV a
-  = ForPV_Newer a
-  | ForPV_Older a
-  deriving (Eq, Ord, Generic, Show)
 
 -- ** Runners
 
@@ -450,6 +440,7 @@ jsonP = AlmostPrism
 
 -- protoVersion_major & 0xFF00
 -- protoVersion_minor & 0x00FF
+-- Features are exchanged separately during handshake, not on wire here.
 protoVersion :: NixSerializer e ProtoVersion
 protoVersion = Serializer
   { getS = do
@@ -457,6 +448,7 @@ protoVersion = Serializer
       pure ProtoVersion
         { protoVersion_major = fromIntegral $ Data.Bits.shiftR v 8
         , protoVersion_minor = fromIntegral $ v Data.Bits..&. 0x00FF
+        , protoVersion_features = mempty
         }
   , putS = \p ->
       putS (int @Word32)
@@ -578,6 +570,20 @@ pathMetadata storeDir = Serializer
         (\case False -> BuiltElsewhere; True -> BuiltLocally)
         (\case BuiltElsewhere -> False; BuiltLocally -> True)
         bool
+
+-- | Read/write a full ValidPathInfo (StorePath + Metadata) as one unit.
+validPathInfo
+  :: StoreDir
+  -> NixSerializer SError (StorePath, Metadata StorePath)
+validPathInfo storeDir = Serializer
+  { getS = do
+      path <- getS (storePath storeDir)
+      metadata <- getS (pathMetadata storeDir)
+      pure (path, metadata)
+  , putS = \(path, metadata) -> do
+      putS (storePath storeDir) path
+      putS (pathMetadata storeDir) metadata
+  }
 
 -- * OutputName
 
@@ -731,23 +737,10 @@ derivedPathNew storeDir = Serializer
 
 derivedPath
   :: StoreDir
-  -> ProtoVersion
   -> NixSerializer SError DerivedPath
-derivedPath storeDir pv = Serializer
-  { getS =
-      if pv < ProtoVersion 1 30
-        then DerivedPath_Opaque <$> getS (storePath storeDir)
-        else getS $ derivedPathNew storeDir
-  , putS = \d ->
-      if pv < ProtoVersion 1 30
-        then case d of
-          DerivedPath_Opaque p -> putS (storePath storeDir) p
-          _ -> error "not yet implemented"
-          --     throwError
-          --      $ SError_NotYetImplemented
-          --          "DerivedPath_Built"
-          --          (ForPV_Older pv)
-        else putS (derivedPathNew storeDir) d
+derivedPath storeDir = Serializer
+  { getS = getS $ derivedPathNew storeDir
+  , putS = putS (derivedPathNew storeDir)
   }
 
 -- * Build
@@ -760,10 +753,8 @@ buildMode = enum
 data LoggerSError
   = LoggerSError_Prim SError
   | LoggerSError_InvalidOpCode Word64
-  | LoggerSError_TooOldForErrorInfo
-  | LoggerSError_TooNewForBasicError
   | LoggerSError_UnknownLogFieldType Word8
-  deriving (Eq, Ord, Generic, Show)
+  deriving (Eq, Generic, Show)
 
 mapPrimE
   :: Functor m
@@ -818,18 +809,6 @@ trace = Serializer
       putS text traceHint
   }
 
-basicError :: NixSerializer LoggerSError BasicError
-basicError = Serializer
-  { getS = do
-      basicErrorMessage <- mapPrimE $ getS text
-      basicErrorExitStatus <- getS int
-      pure BasicError{..}
-
-  , putS = \BasicError{..} -> do
-      putS text basicErrorMessage
-      putS int basicErrorExitStatus
-  }
-
 errorInfo :: NixSerializer LoggerSError ErrorInfo
 errorInfo = Serializer
   { getS = do
@@ -869,7 +848,7 @@ loggerOpCode = Serializer
 logger
   :: ProtoVersion
   -> NixSerializer LoggerSError Logger
-logger pv = Serializer
+logger _pv = Serializer
   { getS = getS loggerOpCode >>= \case
       LoggerOpCode_Next ->
         mapPrimE $
@@ -886,10 +865,7 @@ logger pv = Serializer
         pure Logger_Last
 
       LoggerOpCode_Error -> do
-        Logger_Error <$>
-          if protoVersion_minor pv >= 26
-          then Right <$> getS errorInfo
-          else Left <$> getS basicError
+        Logger_Error <$> getS errorInfo
 
       LoggerOpCode_StartActivity -> do
         startActivityID <- getS activityID
@@ -926,16 +902,9 @@ logger pv = Serializer
         Logger_Last ->
           putS loggerOpCode LoggerOpCode_Last
 
-        Logger_Error basicOrInfo -> do
+        Logger_Error e -> do
           putS loggerOpCode LoggerOpCode_Error
-
-          let minor = protoVersion_minor pv
-
-          case basicOrInfo of
-            Left _ | minor >= 26 -> error "protocol too new" -- throwError $ LoggerSError_TooNewForBasicError
-            Left e | otherwise -> putS basicError e
-            Right _ | minor < 26 -> error "protocol too old" -- throwError $ LoggerSError_TooOldForErrorInfo
-            Right e -> putS errorInfo e
+          putS errorInfo e
 
         Logger_StartActivity{..} -> do
           putS loggerOpCode LoggerOpCode_StartActivity
@@ -1019,24 +988,24 @@ data RequestSError
   | RequestSError_ReservedOp WorkerOp
   | RequestSError_PrimGet SError
   | RequestSError_PrimWorkerOp SError
-  deriving (Eq, Ord, Generic, Show)
+  deriving (Eq, Generic, Show)
 
 storeRequest
   :: StoreDir
   -> ProtoVersion
   -> NixSerializer RequestSError (Some StoreRequest)
-storeRequest storeDir pv = Serializer
+storeRequest storeDir _pv = Serializer
   { getS = withExceptT RequestSError_PrimWorkerOp (getS workerOp) >>= \case
       WorkerOp_AddToStore -> mapGetE $ do
         pathName <- getS storePathName
-        _fixed <- getS bool -- obsolete
-        recursive <- getS enum
-        hashAlgo <- getS someHashAlgo
-
-        -- not supported by ProtoVersion < 1.25
-        let repair = RepairMode_DontRepair
-
-        pure $ Some (AddToStore pathName recursive hashAlgo repair)
+        camStr <- getS text
+        (method, hashAlgo) <- case Data.Attoparsec.Text.parseOnly methodAlgoParser camStr of
+          Left e -> fail e
+          Right x -> pure x
+        refs <- getS (set (storePath storeDir))
+        repairBool <- getS bool
+        let repair = if repairBool then RepairMode_DoRepair else RepairMode_DontRepair
+        pure $ Some (AddToStore pathName method hashAlgo refs repair)
 
       WorkerOp_AddToStoreNar -> mapGetE $ do
         storePath' <- getS $ storePath storeDir
@@ -1066,7 +1035,7 @@ storeRequest storeDir pv = Serializer
         Some . AddTempRoot <$> getS (storePath storeDir)
 
       WorkerOp_BuildPaths -> mapGetE $ do
-        derived <- getS (set $ derivedPath storeDir pv)
+        derived <- getS (set $ derivedPath storeDir)
         buildMode' <- getS buildMode
         pure $ Some (BuildPaths derived buildMode')
 
@@ -1132,7 +1101,7 @@ storeRequest storeDir pv = Serializer
         Some . QueryPathFromHashPart <$> getS storePathHashPart
 
       WorkerOp_QueryMissing -> mapGetE $ do
-        Some . QueryMissing <$> getS (set $ derivedPath storeDir pv)
+        Some . QueryMissing <$> getS (set $ derivedPath storeDir)
 
       WorkerOp_OptimiseStore -> mapGetE $ do
         pure $ Some OptimiseStore
@@ -1170,18 +1139,16 @@ storeRequest storeDir pv = Serializer
       w@WorkerOp_SetOptions -> notYet w
 
   , putS = \case
-      Some (AddToStore pathName recursive hashAlgo _repair) -> do
+      Some (AddToStore pathName method hashAlgo refs repair) -> do
         putS workerOp WorkerOp_AddToStore
 
         putS storePathName pathName
-        -- obsolete fixed
-        putS bool
-          $ not
-          $ hashAlgo == Some HashAlgo_SHA256
-            && (recursive == FileIngestionMethod_NixArchive)
-
-        putS bool (recursive == FileIngestionMethod_NixArchive)
-        putS someHashAlgo hashAlgo
+        putS text
+          $ Data.Text.Lazy.toStrict
+          $ Data.Text.Lazy.Builder.toLazyText
+          $ methodAlgoBuilder method hashAlgo
+        putS (set (storePath storeDir)) refs
+        putS bool (repair == RepairMode_DoRepair)
 
       Some (AddToStoreNar storePath' metadata repair checkSigs) -> do
         putS workerOp WorkerOp_AddToStoreNar
@@ -1214,7 +1181,7 @@ storeRequest storeDir pv = Serializer
       Some (BuildPaths derived buildMode') -> do
         putS workerOp WorkerOp_BuildPaths
 
-        putS (set $ derivedPath storeDir pv) derived
+        putS (set $ derivedPath storeDir) derived
         putS buildMode buildMode'
 
       Some (BuildDerivation path drv0 buildMode') -> do
@@ -1291,7 +1258,7 @@ storeRequest storeDir pv = Serializer
 
       Some (QueryMissing derived) -> do
         putS workerOp WorkerOp_QueryMissing
-        putS (set $ derivedPath storeDir pv) derived
+        putS (set $ derivedPath storeDir) derived
 
       Some OptimiseStore -> do
         putS workerOp WorkerOp_OptimiseStore
@@ -1327,14 +1294,13 @@ storeRequest storeDir pv = Serializer
 
 data ReplySError
   = ReplySError_PrimGet SError
-  | ReplySError_BuildTraceKey SError
   | ReplySError_GCResult SError
   | ReplySError_Metadata SError
   | ReplySError_Missing SError
   | ReplySError_Realisation SError
   | ReplySError_RealisationWithId SError
   | ReplySError_UnexpectedFalseOpSuccess
-  deriving (Eq, Ord, Generic, Show)
+  deriving (Eq, Generic, Show)
 
 mapGetER
   :: Functor m
@@ -1364,27 +1330,8 @@ noop ret = Serializer
 
 -- *** Realisation
 
-buildTraceKeyTyped :: NixSerializer ReplySError BuildTraceKey
-buildTraceKeyTyped = mapErrorS ReplySError_BuildTraceKey $
-  mapPrismSerializer
-    AlmostPrism
-    { _almostPrism_get =
-      ExceptT
-      . Identity
-      . Data.Bifunctor.first SError_BuildTraceKey
-      . System.Nix.Realisation.buildTraceKeyParser
-    , _almostPrism_put =
-      Data.Text.Lazy.toStrict
-      . Data.Text.Lazy.Builder.toLazyText
-      . System.Nix.Realisation.buildTraceKeyBuilder
-    }
-    text
-
 realisation :: NixSerializer ReplySError Realisation
 realisation = mapErrorS ReplySError_Realisation json
-
-realisationWithId :: NixSerializer ReplySError RealisationWithId
-realisationWithId = mapErrorS ReplySError_RealisationWithId json
 
 -- *** BuildResult
 
@@ -1402,25 +1349,17 @@ buildResult _storeDir pv = Serializer
         , buildResultStartTime
         , buildResultStopTime
         ) <-
-        if protoVersion_minor pv >= 29
-        then mapGetER $ do
+        mapGetER $ do
           tb <- getS int
           nondet <- getS bool
           start <- (\case x | x == t0 -> Nothing; x -> Just x) <$> getS time
           end <- (\case x | x == t0 -> Nothing; x -> Just x) <$> getS time
           pure $ (tb, nondet, start, end)
-        else pure $ (0, False, Nothing, Nothing)
 
+      Control.Monad.unless (hasFeature featureRealisationWithPath pv)
+        $ fail "missing required feature: realisation-with-path-not-hash"
       parsedBuiltOutputs <-
-        if protoVersion_minor pv >= 28
-        then do
-          wireMap <- getS (mapS buildTraceKeyTyped realisationWithId)
-          pure
-            $ Data.Map.Strict.fromList
-            $ map (\(btk, RealisationWithId (_btk, r)) ->
-                    (System.Nix.Realisation.buildTraceKeyOutput btk, r))
-            $ Data.Map.Strict.toList wireMap
-        else pure mempty
+        getS (mapS (mapErrorS ReplySError_PrimGet outputName) realisation)
 
       let buildResultStatus = case (wireToStatus statusWord, errorMessage) of
             (Right successStatus, _) -> Right $ BuildSuccess successStatus parsedBuiltOutputs
@@ -1448,16 +1387,14 @@ buildResult _storeDir pv = Serializer
 
       putS enum statusWord
       putS maybeText errorMessage
-      Control.Monad.when (protoVersion_minor pv >= 29) $ do
-        putS int buildResultTimesBuilt
-        putS bool isNonDeterministic
-        putS time buildResultStartTime
-        putS time buildResultStopTime
-      -- TODO: builtOutputs serialization requires drvPath context to
-      -- reconstruct BuildTraceKey from OutputName
-      Control.Monad.when (protoVersion_minor pv >= 28)
-        $ putS (mapS buildTraceKeyTyped realisationWithId)
-          (mempty :: Data.Map.Strict.Map BuildTraceKey RealisationWithId)
+      putS int buildResultTimesBuilt
+      putS bool isNonDeterministic
+      putS time buildResultStartTime
+      putS time buildResultStopTime
+      let builtOutputs = case buildResultStatus of
+            Right (BuildSuccess _ bo) -> bo
+            Left _ -> mempty
+      putS (mapS (mapErrorS ReplySError_PrimGet outputName) realisation) builtOutputs
   }
   where
     t0 :: UTCTime
