@@ -11,71 +11,62 @@ module System.Nix.Realisation (
   , RealisationWithId(..)
   ) where
 
-import Crypto.Hash (Digest)
-import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Text.Lazy.Builder (Builder)
-import Data.Dependent.Sum (DSum)
 import GHC.Generics (Generic)
-import System.Nix.Hash (HashAlgo)
 import System.Nix.OutputName (OutputName, InvalidNameError)
-import System.Nix.Signature (Signature)
-import System.Nix.StorePath (StorePath)
+import System.Nix.Signature (NamedSignature)
+import System.Nix.StorePath (StorePath, InvalidPathError)
 
 import Data.Bifunctor qualified
 import Data.Text qualified
 import Data.Text.Lazy.Builder qualified
-import System.Nix.Hash qualified
+import System.Nix.OutputName qualified
+import System.Nix.StorePath qualified
 
 -- | Output of the derivation
-data BuildTraceKey a = BuildTraceKey
-  { buildTraceKeyHash :: DSum HashAlgo Digest
-  -- ^ Hash modulo of the derivation
-  , buildTraceKeyOutput :: a
-  -- ^ Output (either a OutputName or StorePatH)
+data BuildTraceKey = BuildTraceKey
+  { buildTraceKeyDrvPath :: StorePath
+  -- ^ Store path of the derivation
+  , buildTraceKeyOutput :: OutputName
+  -- ^ Output name
   } deriving (Eq, Generic, Ord, Show)
 
 data BuildTraceKeyError
-  = BuildTraceKeyError_Digest String
+  = BuildTraceKeyError_Path InvalidPathError
   | BuildTraceKeyError_Name InvalidNameError
-  | BuildTraceKeyError_NoExclamationMark
-  | BuildTraceKeyError_NoColon
+  | BuildTraceKeyError_NoCaret
   | BuildTraceKeyError_TooManyParts [Text]
   deriving (Eq, Ord, Show)
 
 buildTraceKeyParser
-  :: (Text -> Either InvalidNameError outputName)
-  -> Text
-  -> Either BuildTraceKeyError (BuildTraceKey outputName)
-buildTraceKeyParser outputName dOut =
-  case Data.Text.splitOn (Data.Text.singleton '!') dOut of
-    [] -> Left BuildTraceKeyError_NoColon
-    [sriHash, oName] -> do
-      hash <-
-        case Data.Text.splitOn (Data.Text.singleton ':') sriHash of
-          [] -> Left BuildTraceKeyError_NoColon
-          [hashName, digest] ->
-            Data.Bifunctor.first
-              BuildTraceKeyError_Digest
-              $ System.Nix.Hash.mkNamedDigest hashName digest
-          x -> Left $ BuildTraceKeyError_TooManyParts x
+  :: Text
+  -> Either BuildTraceKeyError BuildTraceKey
+buildTraceKeyParser dOut =
+  case Data.Text.splitOn (Data.Text.singleton '^') dOut of
+    [pathText, oName] -> do
+      path <-
+        Data.Bifunctor.first
+          BuildTraceKeyError_Path
+          $ System.Nix.StorePath.parseBasePathFromText pathText
       name <-
         Data.Bifunctor.first
           BuildTraceKeyError_Name
-          $ outputName oName
-
-      pure $ BuildTraceKey hash name
+          $ System.Nix.OutputName.mkOutputName oName
+      pure $ BuildTraceKey path name
+    [_] -> Left BuildTraceKeyError_NoCaret
     x -> Left $ BuildTraceKeyError_TooManyParts x
 
 buildTraceKeyBuilder
-  :: (outputName -> Text)
-  -> BuildTraceKey outputName
+  :: BuildTraceKey
   -> Builder
-buildTraceKeyBuilder outputName BuildTraceKey{..} =
-     System.Nix.Hash.algoDigestBuilder buildTraceKeyHash
-  <> Data.Text.Lazy.Builder.singleton '!'
-  <> Data.Text.Lazy.Builder.fromText (outputName buildTraceKeyOutput)
+buildTraceKeyBuilder BuildTraceKey{..} =
+     Data.Text.Lazy.Builder.fromText
+       (System.Nix.StorePath.storePathBaseToText buildTraceKeyDrvPath)
+  <> Data.Text.Lazy.Builder.singleton '^'
+  <> Data.Text.Lazy.Builder.fromText
+       (System.Nix.OutputName.outputNameToText buildTraceKeyOutput)
 
 -- | Build realisation context
 --
@@ -85,19 +76,17 @@ buildTraceKeyBuilder outputName BuildTraceKey{..} =
 data Realisation = Realisation
   { realisationOutPath :: StorePath
   -- ^ Output path
-  , realisationSignatures :: Set Signature
+  , realisationSignatures :: Set NamedSignature
   -- ^ Signatures
-  , realisationDependencies :: Map (BuildTraceKey OutputName) StorePath
-  -- ^ Dependent realisations required for this one to be valid
   } deriving (Eq, Generic, Ord, Show)
 
 -- | For wire protocol
 --
 -- We store this normalized in @Build.buildResultBuiltOutputs@
--- as @Map (BuildTraceKey OutputName) Realisation@
+-- as @Map BuildTraceKey Realisation@
 -- but wire protocol needs it de-normalized so we
 -- need a special (From|To)JSON instances for it
 newtype RealisationWithId = RealisationWithId
-  { unRealisationWithId :: (BuildTraceKey OutputName, Realisation)
+  { unRealisationWithId :: (BuildTraceKey, Realisation)
   }
   deriving (Eq, Generic, Ord, Show)

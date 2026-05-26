@@ -65,6 +65,7 @@ in
           (lib.fileset.fileFilter (file: file.hasExt "json") ./upstream-nix/src/libstore-tests/data/content-address)
           (lib.fileset.fileFilter (file: file.hasExt "json") ./upstream-nix/src/libstore-tests/data/derived-path)
           (lib.fileset.fileFilter (file: file.hasExt "json") ./upstream-nix/src/libstore-tests/data/outputs-spec)
+          (lib.fileset.fileFilter (file: file.hasExt "json") ./upstream-nix/src/libstore-tests/data/path-info)
           (lib.fileset.fileFilter (file: file.hasExt "json") ./upstream-nix/src/libstore-tests/data/realisation)
           (lib.fileset.fileFilter (file: file.hasExt "json") ./upstream-nix/src/libstore-tests/data/store-path)
           (lib.fileset.fileFilter (file: file.hasExt "json") ./upstream-nix/src/libutil-tests/data/hash)

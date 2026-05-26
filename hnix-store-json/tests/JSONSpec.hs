@@ -11,9 +11,8 @@ import System.Nix.Arbitrary ()
 import System.Nix.ContentAddress (ContentAddress)
 import System.Nix.DerivedPath (DerivedPath, OutputsSpec, SingleDerivedPath)
 import System.Nix.JSON ()
-import System.Nix.OutputName (OutputName)
 import System.Nix.Realisation (BuildTraceKey, Realisation)
-import System.Nix.Signature (Signature)
+import System.Nix.Signature (Signature, NamedSignature)
 import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart)
 
 roundtripsJSON
@@ -36,6 +35,7 @@ spec = do
     prop "OutputsSpec" $ roundtripsJSON @OutputsSpec
     prop "SingleDerivedPath" $ roundtripsJSON @SingleDerivedPath
     prop "DerivedPath" $ roundtripsJSON @DerivedPath
-    prop "BuildTraceKey OutputName" $ roundtripsJSON @(BuildTraceKey OutputName)
+    prop "BuildTraceKey" $ roundtripsJSON @BuildTraceKey
     prop "Signature" $ roundtripsJSON @Signature
+    prop "NamedSignature" $ roundtripsJSON @NamedSignature
     prop "Realisation" $ roundtripsJSON @Realisation
