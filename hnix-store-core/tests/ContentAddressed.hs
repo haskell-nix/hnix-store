@@ -1,0 +1,133 @@
+{-# LANGUAGE OverloadedStrings #-}
+
+module ContentAddressed where
+
+import Data.Default.Class (Default(def))
+import Test.Hspec (Spec, describe, it, shouldBe)
+
+import Crypto.Hash (hash, Digest)
+import Data.ByteString (ByteString)
+import Data.Dependent.Sum (DSum(..))
+import System.Nix.Hash (HashAlgo(..))
+import System.Nix.StorePath (StorePath, StorePathName)
+import System.Nix.StorePath.ContentAddressed
+import System.Nix.ContentAddress (ContentAddressMethod(..))
+
+import Data.HashSet qualified
+import System.Nix.StorePath qualified
+
+testDigest :: DSum HashAlgo Digest
+testDigest = HashAlgo_SHA256 :=> Crypto.Hash.hash @ByteString "testDigest"
+
+testName :: StorePathName
+testName =
+    either undefined id
+  $ System.Nix.StorePath.mkStorePathName "testFixed"
+
+testPath :: StorePath
+testPath =
+    either undefined id
+  $ System.Nix.StorePath.parsePathFromText
+      def
+      "/nix/store/9472ijanf79nlkb5n1yh57s7867p1930-testFixed"
+
+testPath2 :: StorePath
+testPath2 =
+    either undefined id
+  $ System.Nix.StorePath.parsePathFromText
+      def
+      "/nix/store/iali40m5597kikibjxw8cx1ssxlqnii3-testFixed"
+
+spec_contentAddressed :: Spec
+spec_contentAddressed = do
+  describe "ContentAddressed" $ do
+    it "makeStorePath computes correct StorePath" $
+      (pure
+        $ makeStorePath
+            def
+            "test"
+            testDigest
+            testName
+      )
+      `shouldBe`
+      System.Nix.StorePath.parsePathFromText
+        def
+        "/nix/store/iali40m5597kikibjxw8cx1ssxlqnii3-testFixed"
+
+    describe "makeTextPath" $ do
+      it "computes correct StorePath for empty refs" $
+        (pure
+          $ makeFixedOutputPath
+              def
+              ContentAddressMethod_Text
+              testDigest
+              mempty
+              testName
+        )
+        `shouldBe`
+        System.Nix.StorePath.parsePathFromText
+          def
+          "/nix/store/ync87sfmahhaqwnykzwbk31q96drm9vn-testFixed"
+
+      it "computes correct StorePath for nonempty refs" $
+        (pure
+          $ makeFixedOutputPath
+              def
+              ContentAddressMethod_Text
+              testDigest
+              (References
+                { references_others = Data.HashSet.fromList [ testPath, testPath2 ]
+                , references_self = False
+                })
+              testName
+        )
+        `shouldBe`
+        System.Nix.StorePath.parsePathFromText
+          def
+          "/nix/store/jcvh84zapqndh8hva515d4y41s07n2g8-testFixed"
+
+    describe "makeFixedOutputPath" $ do
+      it "computes correct StorePath, recursive" $
+        (pure
+          $ makeFixedOutputPath
+              def
+              ContentAddressMethod_NixArchive
+              testDigest
+              mempty
+              testName
+        )
+        `shouldBe`
+        System.Nix.StorePath.parsePathFromText
+          def
+          "/nix/store/c0cgdqy9i3smyh3as8c4s6fg6nvwdpzy-testFixed"
+
+      it "computes correct StorePath, non-recursive" $
+        (pure
+          $ makeFixedOutputPath
+              def
+              ContentAddressMethod_Flat
+              testDigest
+              mempty
+              testName
+        )
+        `shouldBe`
+        System.Nix.StorePath.parsePathFromText
+          def
+          "/nix/store/9472ijanf79nlkb5n1yh57s7867p1930-testFixed"
+
+    it "computeStorePathForText computes correct StorePath" $
+        (pure
+          $ makeFixedOutputPath
+              def
+              ContentAddressMethod_Text
+              (HashAlgo_SHA256 :=> Crypto.Hash.hash ("test" :: ByteString))
+              (References
+                { references_others = Data.HashSet.fromList [ testPath ]
+                , references_self = False
+                })
+              testName
+        )
+        `shouldBe`
+        System.Nix.StorePath.parsePathFromText
+          def
+          "/nix/store/838lq5qh5a88wsalcjpmj33bcnmpz3pc-testFixed"
