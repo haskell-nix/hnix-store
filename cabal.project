@@ -2,6 +2,7 @@ tests: true
 benchmarks: true
 
 packages:
+  ./hnix-store-aterm/hnix-store-aterm.cabal
   ./hnix-store-core/hnix-store-core.cabal
   ./hnix-store-db/hnix-store-db.cabal
   ./hnix-store-json/hnix-store-json.cabal

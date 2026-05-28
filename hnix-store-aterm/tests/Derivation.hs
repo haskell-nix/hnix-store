@@ -1,10 +1,9 @@
-
 module Derivation where
 
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Golden (goldenVsFile)
 
-import System.Nix.Derivation (parseDerivation, buildDerivation)
+import System.Nix.Derivation.ATerm (parseTraditionalDerivation, buildTraditionalDerivation)
 
 import Data.Default.Class (Default(def))
 import Data.Attoparsec.Text.Lazy qualified
@@ -18,10 +17,10 @@ processDerivation source dest = do
     fail
     (Data.Text.Lazy.IO.writeFile dest
       . Data.Text.Lazy.Builder.toLazyText
-      . buildDerivation def
+      . buildTraditionalDerivation def
     )
     (Data.Attoparsec.Text.Lazy.parseOnly
-      (parseDerivation def)
+      (parseTraditionalDerivation def)
       contents
     )
 
@@ -39,4 +38,4 @@ test_derivation =
    where
     drv = fp <> show n <> ".drv"
     act = fp <> show n <> ".actual"
-    fp  = "tests/samples/example"
+    fp  = "tests/example"

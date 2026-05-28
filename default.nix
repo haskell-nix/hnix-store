@@ -23,6 +23,7 @@ let
   haskellPackages = packageSet.override overrideHaskellPackages;
 in {
   inherit (haskellPackages)
+    hnix-store-aterm
     hnix-store-core
     hnix-store-db
     hnix-store-json

@@ -38,6 +38,8 @@ import Data.Some (Some)
 import Data.Word (Word64)
 
 import System.Nix.Build (BuildMode, BuildResult)
+import System.Nix.Derivation.Traditional qualified
+import System.Nix.Derivation.ATerm qualified
 import System.Nix.DerivedPath (DerivedPath)
 import System.Nix.Hash (HashAlgo(..))
 import System.Nix.Nar (NarSource)
@@ -145,9 +147,24 @@ buildDerivation sp mode = do
     $ Data.Text.IO.readFile
     $ System.Nix.StorePath.storePathToFilePath sd sp
   case Data.Attoparsec.Text.parseOnly
-    (System.Nix.Derivation.parseDerivation sd) drvContents of
+    (System.Nix.Derivation.ATerm.parseTraditionalDerivation sd) drvContents of
       Left e -> throwError $ RemoteStoreError_DerivationParse e
-      Right drv -> doReq (BuildDerivation sp drv mode)
+      Right drv -> do
+        let name = System.Nix.StorePath.storePathName sp
+        outputs <- case
+          System.Nix.Derivation.toSpecificOutputs sd name $
+            System.Nix.Derivation.Traditional.anonOutputs drv
+          of
+           Nothing -> throwError $ RemoteStoreError_DerivationParse "TODO get error"
+           Just os -> pure os
+        let drv' = System.Nix.Derivation.Traditional.withName name $
+              drv
+                { System.Nix.Derivation.Traditional.anonOutputs = outputs
+                , System.Nix.Derivation.Traditional.anonInputs =
+                    System.Nix.Derivation.Traditional.traditionalSrcs
+                      (System.Nix.Derivation.Traditional.anonInputs drv)
+                }
+        doReq (BuildDerivation sp drv' mode)
 
 -- | Build paths if they are an actual derivations.
 --
