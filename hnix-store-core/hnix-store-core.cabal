@@ -107,6 +107,7 @@ test-suite core
   type: exitcode-stdio-1.0
   main-is: Driver.hs
   other-modules:
+    ContentAddressed
     Derivation
     Fingerprint
     Hash
@@ -127,6 +128,7 @@ test-suite core
     , containers
     , crypton
     , data-default-class
+    , dependent-sum
     , hspec
     , tasty
     , tasty-golden
