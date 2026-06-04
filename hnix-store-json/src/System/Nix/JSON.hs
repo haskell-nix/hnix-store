@@ -224,7 +224,8 @@ instance FromJSON Derivation where
 
 instance ToJSON Derivation where
   toJSON (Derivation name outputs (DerivationInputs inputSrcs inputDrvs) system builder args env) =
-    object [ "name" .= name
+    object [ "version" .= (4 :: Int)
+           , "name" .= name
            , "outputs" .= derivationOutputsToJSON outputs
            , "inputs" .= object
               [ "srcs" .= inputSrcs
