@@ -13,6 +13,11 @@
    * Feature negotiation during handshake (client and server) when both sides >= 1.38
    * `PartialOrd` replaces `Ord` on `ProtoVersion` (from `lattices`)
    * New dependency: `lattices`
+   * Support for the `builder-rpc-v0` interface
+     * New `SubmitOutput` (1000) and `AddToStoreScanning` (1001) operations, with `submitOutput` and `addToStoreScanning` client functions
+     * `builderRpcV0` constant for the pinned profile, set it as the client's `ProtoVersion` before the handshake
+     * `WorkerOp` wire mapping now goes through `workerOpToWord64` and `word64ToWorkerOp` since opcodes are no longer contiguous
+     * New `singleDerivedPath` serializer
 
 # [0.7.0.0](https://github.com/haskell-nix/hnix-store/compare/remote-0.6.0.0...remote-0.7.0.0) 2024-07-31
 

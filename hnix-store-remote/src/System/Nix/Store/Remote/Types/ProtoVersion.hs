@@ -80,8 +80,7 @@ instance Default ProtoVersion where
     }
 
 -- | The protocol profile spoken on the daemon socket exposed to
--- builders of derivations with the @builder-rpc-v0@ system feature
--- (NixOS/nix#15793).
+-- builders of derivations with the @builder-rpc-v0@ system feature.
 --
 -- Frozen upstream, since any change would be derivation-visible.
 builderRpcV0 :: ProtoVersion

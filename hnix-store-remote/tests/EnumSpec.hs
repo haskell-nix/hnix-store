@@ -13,6 +13,7 @@ import System.Nix.Store.Remote.Serializer
   , int
   , loggerOpCode
   , runP
+  , workerOp
   , LoggerSError
   , NixSerializer
   , SError
@@ -132,8 +133,15 @@ spec = do
         itE "Vomit"     Verbosity_Vomit     7
 
       describe "WorkerOp enum order matches Nix" $ do
-        itE "IsValidPath"           WorkerOp_IsValidPath            1
-        itE "BuildPathsWithResults" WorkerOp_BuildPathsWithResults 46
+        let itW name constr value =
+              it name
+                $ runP workerOp constr
+                  `shouldBe`
+                  runP @SError (int @Word64) value
+        itW "IsValidPath"           WorkerOp_IsValidPath              1
+        itW "BuildPathsWithResults" WorkerOp_BuildPathsWithResults   46
+        itW "SubmitOutput"          WorkerOp_SubmitOutput          1000
+        itW "AddToStoreScanning"    WorkerOp_AddToStoreScanning    1001
 
 
 

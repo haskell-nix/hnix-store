@@ -1,6 +1,7 @@
 module System.Nix.Store.Remote.Client
   ( addToStore
   , addToStoreNar
+  , addToStoreScanning
   , addTextToStore
   , addSignatures
   , addTempRoot
@@ -23,6 +24,7 @@ module System.Nix.Store.Remote.Client
   , queryPathFromHashPart
   , queryMissing
   , optimiseStore
+  , submitOutput
   , syncWithGC
   , verifyStore
   , module System.Nix.Store.Remote.Client.Core
@@ -40,15 +42,17 @@ import Data.Word (Word64)
 import System.Nix.Build (BuildMode, BuildResult)
 import System.Nix.Derivation.Traditional qualified
 import System.Nix.Derivation.ATerm qualified
-import System.Nix.DerivedPath (DerivedPath)
+import System.Nix.DerivedPath (DerivedPath, SingleDerivedPath)
 import System.Nix.Hash (HashAlgo(..))
 import System.Nix.Nar (NarSource)
+import System.Nix.OutputName (OutputName)
 import System.Nix.Signature (Signature)
 import System.Nix.StorePath (StorePath, StorePathHashPart, StorePathName)
 import System.Nix.StorePath.Metadata (Metadata)
 import System.Nix.Store.Remote.MonadStore
 import System.Nix.Store.Remote.Types.GC (GCOptions, GCResult, GCRoot)
 import System.Nix.Store.Remote.Types.CheckMode (CheckMode)
+import System.Nix.Store.Remote.Types.ProtoVersion (ProtoFeature(..), hasFeature)
 import System.Nix.Store.Remote.Types.Query.Missing (Missing)
 import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
 import System.Nix.Store.Remote.Types.StoreText (StoreText)
@@ -77,6 +81,24 @@ addToStore
 addToStore name source method hashAlgo refs repair = do
   setNarSource source
   doReq (AddToStore name method hashAlgo refs repair)
+
+-- | Add `NarSource` to the store, letting the daemon scan the
+-- contents for references instead of declaring them.
+--
+-- Only valid on connections where @add-to-store-scanning@ was
+-- negotiated, i.e. inside a derivation build with the
+-- @recursive-nix@ or @builder-rpc-v0@ system feature.
+addToStoreScanning
+  :: MonadRemoteStore m
+  => StorePathName        -- ^ Name part of the newly created `StorePath`
+  -> NarSource IO         -- ^ Provide nar stream
+  -> ContentAddressMethod -- ^ Content addressing method
+  -> Some HashAlgo        -- ^ Hashing algorithm
+  -> m StorePath
+addToStoreScanning name source method hashAlgo = do
+  requireProtoFeature ProtoFeature_AddToStoreScanning
+  setNarSource source
+  doReq (AddToStoreScanning name method hashAlgo)
 
 addToStoreNar
   :: MonadRemoteStore m
@@ -282,10 +304,37 @@ optimiseStore
   => m ()
 optimiseStore = (void . doReq) OptimiseStore
 
+-- | Register a store object as an output of the currently running
+-- derivation.
+--
+-- Only valid on connections where @submit-output@ was negotiated,
+-- i.e. inside a derivation build with the @builder-rpc-v0@ system
+-- feature.
+submitOutput
+  :: MonadRemoteStore m
+  => SingleDerivedPath
+  -> OutputName
+  -> m ()
+submitOutput path output = do
+  requireProtoFeature ProtoFeature_SubmitOutput
+  void $ doReq (SubmitOutput path output)
+
 syncWithGC
   :: MonadRemoteStore m
   => m ()
 syncWithGC = (void . doReq) SyncWithGC
+
+-- | Fail early with a clear error instead of letting the daemon
+-- reject the opcode.
+requireProtoFeature
+  :: MonadRemoteStore m
+  => ProtoFeature
+  -> m ()
+requireProtoFeature f = do
+  pv <- getProtoVersion
+  Control.Monad.when
+    (not $ hasFeature f pv)
+    $ throwError $ RemoteStoreError_ProtocolFeatureNotNegotiated f
 
 verifyStore
   :: MonadRemoteStore m

@@ -100,6 +100,7 @@ deriving via GenericArbitrary WorkerOp
 instance Arbitrary (Some StoreRequest) where
   arbitrary = oneof
     [ Some <$> (AddToStore <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)
+    , Some <$> (AddToStoreScanning <$> arbitrary <*> arbitrary <*> arbitrary)
     , Some <$> (AddTextToStore <$> arbitrary <*> arbitrary <*> pure RepairMode_DontRepair)
     , Some <$> (AddSignatures <$> arbitrary <*> arbitrary)
     , Some . AddIndirectRoot  <$> arbitrary
@@ -128,6 +129,7 @@ instance Arbitrary (Some StoreRequest) where
     , Some . QueryPathFromHashPart <$> arbitrary
     , Some . QueryMissing <$> arbitrary
     , pure $ Some OptimiseStore
+    , Some <$> (SubmitOutput <$> arbitrary <*> arbitrary)
     , pure $ Some SyncWithGC
     , Some <$> (VerifyStore <$> arbitrary <*> arbitrary)
     ]

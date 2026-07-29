@@ -86,6 +86,21 @@ doReq = \case
           $ validPathInfo storeDir
         pure path
 
+      AddToStoreScanning {} -> do
+        ms <- takeNarSource
+        soc <- getStoreSocket
+        case ms of
+          Just (stream :: NarSource IO) ->
+            liftIO $ writeFramedNarSource stream soc
+          Nothing ->
+            throwError
+              RemoteStoreError_NoNarSourceProvided
+        processOutput
+        (path, _metadata) <- sockGetS
+          $ mapErrorS RemoteStoreError_SerializerGet
+          $ validPathInfo storeDir
+        pure path
+
       AddToStoreNar _ meta _ _ -> do
         let narBytes = maybe 0 id $ metadataNarBytes meta
         maybeDataSource <- takeDataSource

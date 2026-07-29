@@ -130,6 +130,10 @@ processConnection workerHelper postGreet sock = do
               let proxyNarSource :: NarSource IO
                   proxyNarSource sink = readFramedSource sock sink
               pure $ setNarSource proxyNarSource
+            AddToStoreScanning {} -> do
+              let proxyNarSource :: NarSource IO
+                  proxyNarSource sink = readFramedSource sock sink
+              pure $ setNarSource proxyNarSource
             _ -> pure $ pure ()
 
           res <-
@@ -159,6 +163,17 @@ processConnection workerHelper postGreet sock = do
                         (reply, meta)
                     Right Nothing ->
                       throwError $ RemoteStoreError_Fixme "AddToStore: path not found after adding"
+                AddToStoreScanning {} -> do
+                  metadata <- lift $ workerHelper $ doReq (QueryPathInfo reply)
+                  case fst metadata of
+                    Left e -> throwError e
+                    Right (Just meta) ->
+                      sockPutS
+                        (mapErrorS RemoteStoreError_SerializerPut
+                          $ validPathInfo storeDir)
+                        (reply, meta)
+                    Right Nothing ->
+                      throwError $ RemoteStoreError_Fixme "AddToStoreScanning: path not found after adding"
                 _ ->
                   sockPutS
                     (mapErrorS
@@ -183,6 +198,7 @@ processConnection workerHelper postGreet sock = do
           () <- Data.Some.withSome someReq $ \case
             r@AddToStore {} -> perform r
             r@AddToStoreNar {} -> perform r
+            r@AddToStoreScanning {} -> perform r
             r@AddTextToStore {} -> perform r
             r@AddSignatures {} -> perform r
             r@AddTempRoot {} -> perform r
@@ -205,6 +221,7 @@ processConnection workerHelper postGreet sock = do
             r@QueryPathFromHashPart {} -> perform r
             r@QueryMissing {} -> perform r
             r@OptimiseStore {} -> perform r
+            r@SubmitOutput {} -> perform r
             r@SyncWithGC {} -> perform r
             r@VerifyStore {} -> perform r
           loop
