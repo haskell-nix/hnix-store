@@ -10,7 +10,7 @@ import System.Nix.StorePath (StorePath(..))
 import System.Nix.Store.Types (RepairMode(..))
 import System.Nix.Store.Remote.Types
 
-import Test.QuickCheck (Arbitrary(..), oneof, suchThat)
+import Test.QuickCheck (Arbitrary(..), arbitraryBoundedEnum, oneof, suchThat)
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
 
 deriving via GenericArbitrary CheckMode
@@ -26,6 +26,9 @@ deriving via GenericArbitrary ProtoStoreConfig
 -- features are always empty (features are exchanged separately, not in wire format).
 instance Arbitrary ProtoVersion where
   arbitrary = ProtoVersion 1 <$> arbitrary <*> pure mempty
+
+instance Arbitrary ProtoFeature where
+  arbitrary = arbitraryBoundedEnum
 
 deriving via GenericArbitrary StoreText
   instance Arbitrary StoreText

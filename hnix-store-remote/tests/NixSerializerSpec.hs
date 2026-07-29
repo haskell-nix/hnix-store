@@ -16,7 +16,7 @@ import System.Nix.Derivation.Traditional qualified
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types.Logger ()
-import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..), featureRealisationWithPath)
+import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..), ProtoFeature(..))
 import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
 
 -- | Test for roundtrip using @NixSerializer@
@@ -55,7 +55,7 @@ spec = parallel $ do
 
     prop "BuildResult"
       $ \sd pv ->
-          let pv' = pv { protoVersion_features = Data.Set.singleton featureRealisationWithPath }
+          let pv' = pv { protoVersion_features = Data.Set.singleton ProtoFeature_RealisationWithPathNotHash }
           in roundtripS (buildResult sd pv')
           . (\x -> x { buildResultStatus = case buildResultStatus x of
                         Right (BuildSuccess st _bo) -> Right (BuildSuccess st mempty)
@@ -92,6 +92,9 @@ spec = parallel $ do
         System.Nix.Derivation.Traditional.withoutName drv
 
     prop "ProtoVersion" $ roundtripS @() @ProtoVersion protoVersion
+
+    prop "ProtoFeature" $ roundtripS protoFeature
+    prop "Set ProtoFeature" $ roundtripS protoFeatures
 
     describe "Logger" $ do
       prop "ActivityID" $ roundtripS activityID

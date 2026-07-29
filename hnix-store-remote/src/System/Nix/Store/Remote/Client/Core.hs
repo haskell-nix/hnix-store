@@ -27,9 +27,9 @@ import System.Nix.Store.Remote.Serializer
   ( bool
   , int
   , mapErrorS
+  , protoFeatures
   , protoVersion
   , validPathInfo
-  , set
   , storeRequest
   , text
   , trustedFlag
@@ -231,10 +231,10 @@ greetServer = do
   negotiatedFeatures <- if ProtoVersion 1 38 mempty `leq` leastCommonVersion
     then do
       sockPutS
-        (mapErrorS RemoteStoreError_SerializerPut (set text))
+        (mapErrorS RemoteStoreError_SerializerPut protoFeatures)
         (protoVersion_features pv)
       daemonFeatures <- sockGetS
-        $ mapErrorS RemoteStoreError_SerializerGet (set text)
+        $ mapErrorS RemoteStoreError_SerializerGet protoFeatures
       pure $ Data.Set.intersection daemonFeatures (protoVersion_features pv)
     else pure mempty
 

@@ -1,8 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 module System.Nix.Store.Remote.Types.ProtoVersion
   ( ProtoVersion(..)
+  , ProtoFeature(..)
+  , protoFeatureToText
+  , protoFeatureFromText
   , HasProtoVersion(..)
-  , featureRealisationWithPath
   , hasFeature
   , minVersionNumber
   ) where
@@ -15,10 +17,25 @@ import Data.Text (Text)
 import Data.Word (Word8, Word16)
 import GHC.Generics (Generic)
 
+-- | An optional protocol capability, negotiated during handshake.
+data ProtoFeature
+  = ProtoFeature_RealisationWithPathNotHash
+  -- ^ Use StorePath-based realisations instead of hash-based ones.
+  deriving (Bounded, Enum, Eq, Generic, Ord, Show)
+
+-- | The name of a feature as exchanged on the wire.
+protoFeatureToText :: ProtoFeature -> Text
+protoFeatureToText = \case
+  ProtoFeature_RealisationWithPathNotHash -> "realisation-with-path-not-hash"
+
+protoFeatureFromText :: Text -> Maybe ProtoFeature
+protoFeatureFromText t =
+  lookup t [ (protoFeatureToText f, f) | f <- [minBound .. maxBound] ]
+
 data ProtoVersion = ProtoVersion
   { protoVersion_major :: Word16
   , protoVersion_minor :: Word8
-  , protoVersion_features :: Set Text
+  , protoVersion_features :: Set ProtoFeature
   }
   deriving (Eq, Generic, Show)
 
@@ -28,13 +45,8 @@ instance PartialOrd ProtoVersion where
       <= (protoVersion_major b, protoVersion_minor b)
     && protoVersion_features a `Data.Set.isSubsetOf` protoVersion_features b
 
--- | The feature for using StorePath-based realisations
--- instead of hash-based ones.
-featureRealisationWithPath :: Text
-featureRealisationWithPath = "realisation-with-path-not-hash"
-
 -- | Check whether a protocol version includes a given feature.
-hasFeature :: Text -> ProtoVersion -> Bool
+hasFeature :: ProtoFeature -> ProtoVersion -> Bool
 hasFeature f = Data.Set.member f . protoVersion_features
 
 -- | Take the minimum by version number, with empty features.
@@ -51,7 +63,7 @@ instance Default ProtoVersion where
   def = ProtoVersion
     { protoVersion_major = 1
     , protoVersion_minor = 38
-    , protoVersion_features = Data.Set.singleton featureRealisationWithPath
+    , protoVersion_features = Data.Set.singleton ProtoFeature_RealisationWithPathNotHash
     }
 
 class HasProtoVersion r where

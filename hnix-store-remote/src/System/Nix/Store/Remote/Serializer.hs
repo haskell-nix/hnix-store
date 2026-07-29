@@ -35,6 +35,8 @@ module System.Nix.Store.Remote.Serializer
   , json
   -- * ProtoVersion
   , protoVersion
+  , protoFeature
+  , protoFeatures
   -- * StorePath
   , storePath
   , maybePath
@@ -201,6 +203,7 @@ data SError
   | SError_Name InvalidNameError
   | SError_Path InvalidPathError
   | SError_Signature String
+  | SError_UnknownProtoFeature Text
   deriving (Eq, Generic, Show)
 
 
@@ -454,6 +457,37 @@ protoVersion = Serializer
       putS (int @Word32)
       $ ((Data.Bits.shiftL (fromIntegral $ protoVersion_major p :: Word32) 8)
           Data.Bits..|. fromIntegral (protoVersion_minor p))
+  }
+
+protoFeature :: NixSerializer SError ProtoFeature
+protoFeature =
+  mapPrismSerializer
+    (AlmostPrism
+      (\t ->
+        maybe
+          (throwError $ SError_UnknownProtoFeature t)
+          pure
+          (protoFeatureFromText t)
+      )
+      protoFeatureToText
+    )
+    text
+
+-- | Features advertised by the other side during handshake.
+--
+-- Unknown features are dropped rather than rejected. The peer may
+-- support features we do not know about, and negotiation intersects
+-- with our own feature set anyway.
+protoFeatures :: NixSerializer SError (Set ProtoFeature)
+protoFeatures = Serializer
+  { getS =
+      Data.Set.fromList
+      . Data.Maybe.mapMaybe protoFeatureFromText
+      <$> getS (list text)
+  , putS =
+      putS (list text)
+      . fmap protoFeatureToText
+      . Data.Set.toList
   }
 
 -- * StorePath
@@ -1356,7 +1390,7 @@ buildResult _storeDir pv = Serializer
           end <- (\case x | x == t0 -> Nothing; x -> Just x) <$> getS time
           pure $ (tb, nondet, start, end)
 
-      Control.Monad.unless (hasFeature featureRealisationWithPath pv)
+      Control.Monad.unless (hasFeature ProtoFeature_RealisationWithPathNotHash pv)
         $ fail "missing required feature: realisation-with-path-not-hash"
       parsedBuiltOutputs <-
         getS (mapS (mapErrorS ReplySError_PrimGet outputName) realisation)

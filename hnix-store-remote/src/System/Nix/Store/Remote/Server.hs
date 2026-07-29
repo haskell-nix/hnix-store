@@ -24,7 +24,7 @@ import Data.Word (Word32, Word64)
 import Network.Socket (Socket, accept, close, listen, maxListenQueue)
 import System.Nix.Nar (NarSource)
 import System.Nix.Store.Remote.Client (Run, doReq)
-import System.Nix.Store.Remote.Serializer (LoggerSError, mapErrorS, storeRequest, validPathInfo, workerMagic, protoVersion, int, set, logger, text, trustedFlag)
+import System.Nix.Store.Remote.Serializer (LoggerSError, mapErrorS, storeRequest, validPathInfo, workerMagic, protoFeatures, protoVersion, int, logger, text, trustedFlag)
 import System.Nix.Store.Remote.Socket
 import System.Nix.Store.Remote.Types.StoreRequest as R
 import System.Nix.Store.Remote.Types.StoreReply
@@ -253,9 +253,9 @@ processConnection workerHelper postGreet sock = do
       negotiatedFeatures <- if ProtoVersion 1 38 mempty `leq` leastCommonVersion
         then do
           clientFeatures <- sockGetS
-            $ mapErrorS RemoteStoreError_SerializerGet (set text)
+            $ mapErrorS RemoteStoreError_SerializerGet protoFeatures
           sockPutS
-            (mapErrorS RemoteStoreError_SerializerPut (set text))
+            (mapErrorS RemoteStoreError_SerializerPut protoFeatures)
             (protoVersion_features serverHandshakeInputOurVersion)
           pure $ Data.Set.intersection clientFeatures (protoVersion_features serverHandshakeInputOurVersion)
         else pure mempty
