@@ -10,7 +10,7 @@ import System.Nix.StorePath (StorePath(..))
 import System.Nix.Store.Types (RepairMode(..))
 import System.Nix.Store.Remote.Types
 
-import Test.QuickCheck (Arbitrary(..), oneof, suchThat)
+import Test.QuickCheck (Arbitrary(..), arbitraryBoundedEnum, oneof, suchThat)
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..))
 
 deriving via GenericArbitrary CheckMode
@@ -22,8 +22,13 @@ deriving via GenericArbitrary SubstituteMode
 deriving via GenericArbitrary ProtoStoreConfig
   instance Arbitrary ProtoStoreConfig
 
-deriving via GenericArbitrary ProtoVersion
-  instance Arbitrary ProtoVersion
+-- Custom instance: major is always 1 (the only real protocol major version),
+-- features are always empty (features are exchanged separately, not in wire format).
+instance Arbitrary ProtoVersion where
+  arbitrary = ProtoVersion 1 <$> arbitrary <*> pure mempty
+
+instance Arbitrary ProtoFeature where
+  arbitrary = arbitraryBoundedEnum
 
 deriving via GenericArbitrary StoreText
   instance Arbitrary StoreText
@@ -49,9 +54,6 @@ instance Arbitrary Trace where
     traceHint <- arbitrary
 
     pure Trace{..}
-
-deriving via GenericArbitrary BasicError
-  instance Arbitrary BasicError
 
 instance Arbitrary ErrorInfo where
   arbitrary = do
@@ -97,7 +99,7 @@ deriving via GenericArbitrary WorkerOp
 
 instance Arbitrary (Some StoreRequest) where
   arbitrary = oneof
-    [ Some <$> (AddToStore <$> arbitrary <*> arbitrary <*> arbitrary <*> pure RepairMode_DontRepair)
+    [ Some <$> (AddToStore <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)
     , Some <$> (AddTextToStore <$> arbitrary <*> arbitrary <*> pure RepairMode_DontRepair)
     , Some <$> (AddSignatures <$> arbitrary <*> arbitrary)
     , Some . AddIndirectRoot  <$> arbitrary

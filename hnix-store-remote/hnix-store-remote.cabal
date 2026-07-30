@@ -124,6 +124,7 @@ library
     , exceptions
     , generic-arbitrary < 1.1
     , hashable
+    , lattices
     , mmorph
     , text
     , time
@@ -182,6 +183,7 @@ test-suite remote
     , hnix-store-remote
     , hnix-store-tests
     , hnix-store-aterm
+    , containers
     , crypton
     , some > 1.0.5 && < 2
     , hspec

@@ -8,6 +8,11 @@
    * Update `buildResult` serializer for new `BuildSuccess`/`BuildFailure` types
    * Update `buildTraceKeyTyped` serializer for `StorePath`-based `BuildTraceKey`
    * New dependency: `mmorph`
+   * Protocol version updated to 1.38
+   * `ProtoVersion` now includes `protoVersion_features :: Set ProtoFeature` for feature negotiation
+   * Feature negotiation during handshake (client and server) when both sides >= 1.38
+   * `PartialOrd` replaces `Ord` on `ProtoVersion` (from `lattices`)
+   * New dependency: `lattices`
 
 # [0.7.0.0](https://github.com/haskell-nix/hnix-store/compare/remote-0.6.0.0...remote-0.7.0.0) 2024-07-31
 

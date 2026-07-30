@@ -29,7 +29,7 @@ import Network.Socket (Socket)
 import System.Nix.Nar (NarSource)
 import System.Nix.StorePath (HasStoreDir(..), StoreDir)
 import System.Nix.Store.Remote.Serializer (HandshakeSError, LoggerSError, RequestSError, ReplySError, SError)
-import System.Nix.Store.Remote.Types.Logger (Logger, BasicError, ErrorInfo)
+import System.Nix.Store.Remote.Types.Logger (Logger, ErrorInfo)
 import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion)
 import System.Nix.Store.Remote.Types.StoreConfig (ProtoStoreConfig(..))
 
@@ -74,7 +74,7 @@ data RemoteStoreError
   | RemoteStoreError_SerializerRequest RequestSError
   | RemoteStoreError_SerializerReply ReplySError
   | RemoteStoreError_IOException SomeException
-  | RemoteStoreError_LoggerError (Either BasicError ErrorInfo)
+  | RemoteStoreError_LoggerError ErrorInfo
   | RemoteStoreError_LoggerLeftovers String ByteString -- when there are bytes left over after incremental logger parser is done, (Done x leftover), first param is show x
   | RemoteStoreError_LoggerParserFail String ByteString -- when incremental parser returns ((Fail msg leftover) :: Result)
   | RemoteStoreError_NoDataSourceProvided -- remoteStoreStateMDataSource is required but it is Nothing

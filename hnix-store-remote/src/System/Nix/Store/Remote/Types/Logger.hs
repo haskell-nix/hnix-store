@@ -1,7 +1,6 @@
 module System.Nix.Store.Remote.Types.Logger
   ( Field(..)
   , Trace(..)
-  , BasicError(..)
   , ErrorInfo(..)
   , Logger(..)
   , LoggerOpCode(..)
@@ -29,14 +28,7 @@ data Trace = Trace
   }
   deriving (Eq, Generic, Ord, Show)
 
-data BasicError = BasicError
-  { basicErrorExitStatus :: Int
-  , basicErrorMessage :: Text
-  }
-  deriving (Eq, Generic, Ord, Show)
-
 -- | Extended error info
--- available for protoVersion_minor >= 26
 data ErrorInfo = ErrorInfo
   { errorInfoLevel :: Verbosity
   , errorInfoMessage :: Text
@@ -84,7 +76,7 @@ data Logger
   | Logger_Read Word64      -- data needed from source
   | Logger_Write ByteString -- data for sink
   | Logger_Last
-  | Logger_Error (Either BasicError ErrorInfo)
+  | Logger_Error ErrorInfo
   | Logger_StartActivity
       { startActivityID :: ActivityID
       , startActivityVerbosity :: Verbosity

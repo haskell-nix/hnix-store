@@ -3,21 +3,20 @@
 module NixSerializerSpec (spec) where
 
 import Crypto.Hash (MD5, SHA1, SHA256, SHA512)
-import Data.Some (Some(Some))
+import Data.Set qualified
+import Data.Some (Some)
 import Data.Time (UTCTime)
 import Test.Hspec (Expectation, Spec, describe, parallel, shouldBe)
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck (Gen, arbitrary, forAll, suchThat)
 
-import Data.Time.Clock.POSIX qualified
-
 import System.Nix.Arbitrary ()
-import System.Nix.Build (BuildResult(..), BuildSuccess(..), BuildFailure(..))
+import System.Nix.Build (BuildResult(..), BuildSuccess(..))
 import System.Nix.Derivation.Traditional qualified
 import System.Nix.Store.Remote.Arbitrary ()
 import System.Nix.Store.Remote.Serializer
-import System.Nix.Store.Remote.Types.Logger (Logger(..))
-import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..))
+import System.Nix.Store.Remote.Types.Logger ()
+import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..), ProtoFeature(..))
 import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
 
 -- | Test for roundtrip using @NixSerializer@
@@ -54,48 +53,18 @@ spec = parallel $ do
   describe "Complex" $ do
     prop "DSum HashAlgo Digest" $ roundtripS namedDigest
 
-    describe "BuildResult" $ do
-      prop "< 1.28"
-        $ \sd -> forAll (arbitrary `suchThat` ((< 28) . protoVersion_minor))
-        $ \pv ->
-            roundtripS (buildResult sd pv)
-            . (\x -> x { buildResultStatus = case buildResultStatus x of
-                          Right (BuildSuccess st _bo) -> Right (BuildSuccess st mempty)
-                          Left (BuildFailure st em _nd) -> Left (BuildFailure st em False)
-                       })
-            . (\x -> x { buildResultTimesBuilt = 0
-                       , buildResultStartTime = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
-                       , buildResultStopTime = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
-                       , buildResultCpuUser = Nothing
-                       , buildResultCpuSystem = Nothing
-                       }
-              )
-      prop "= 1.28"
-        $ \sd ->
-            roundtripS (buildResult sd (ProtoVersion 1 28))
-            . (\x -> x { buildResultStatus = case buildResultStatus x of
-                          Right (BuildSuccess st _bo) -> Right (BuildSuccess st mempty)
-                          Left (BuildFailure st em _nd) -> Left (BuildFailure st em False)
-                       })
-            . (\x -> x { buildResultTimesBuilt = 0
-                       , buildResultStartTime = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
-                       , buildResultStopTime = Data.Time.Clock.POSIX.posixSecondsToUTCTime 0
-                       , buildResultCpuUser = Nothing
-                       , buildResultCpuSystem = Nothing
-                       }
-              )
-      prop "> 1.28"
-        $ \sd -> forAll (arbitrary `suchThat` ((> 28) . protoVersion_minor))
-        $ \pv ->
-            roundtripS (buildResult sd pv)
-            . (\x -> x { buildResultStatus = case buildResultStatus x of
-                          Right (BuildSuccess st _bo) -> Right (BuildSuccess st mempty)
-                          Left f -> Left f
-                       })
-            . (\x -> x { buildResultCpuUser = Nothing
-                       , buildResultCpuSystem = Nothing
-                       }
-              )
+    prop "BuildResult"
+      $ \sd pv ->
+          let pv' = pv { protoVersion_features = Data.Set.singleton ProtoFeature_RealisationWithPathNotHash }
+          in roundtripS (buildResult sd pv')
+          . (\x -> x { buildResultStatus = case buildResultStatus x of
+                        Right (BuildSuccess st _bo) -> Right (BuildSuccess st mempty)
+                        Left f -> Left f
+                     })
+          . (\x -> x { buildResultCpuUser = Nothing
+                     , buildResultCpuSystem = Nothing
+                     }
+            )
 
     prop "StorePath" $ \sd ->
       roundtripS (storePath sd)
@@ -124,21 +93,21 @@ spec = parallel $ do
 
     prop "ProtoVersion" $ roundtripS @() @ProtoVersion protoVersion
 
+    prop "ProtoFeature" $ roundtripS protoFeature
+    prop "Set ProtoFeature" $ roundtripS protoFeatures
+
     describe "Logger" $ do
       prop "ActivityID" $ roundtripS activityID
       prop "Maybe Activity" $ roundtripS maybeActivity
       prop "ActivityResult" $ roundtripS activityResult
       prop "Field" $ roundtripS field
       prop "Trace" $ roundtripS trace
-      prop "BasicError" $ roundtripS basicError
       prop "ErrorInfo" $ roundtripS errorInfo
       prop "LoggerOpCode" $ roundtripS loggerOpCode
       prop "Verbosity" $ roundtripS verbosity
       prop "Logger"
         $ forAll (arbitrary :: Gen ProtoVersion)
-        $ \pv ->
-            forAll (arbitrary `suchThat` errorInfoIf (protoVersion_minor pv >= 26))
-        $ roundtripS (logger pv)
+        $ \pv -> roundtripS (logger pv)
 
   describe "Handshake" $ do
     prop "WorkerMagic" $ roundtripS workerMagic
@@ -161,12 +130,5 @@ spec = parallel $ do
     prop "Maybe (Metadata StorePath)" $ \sd -> roundtripS (maybePathMetadata sd)
 
 restrictProtoVersion :: ProtoVersion -> Some StoreRequest -> Bool
-restrictProtoVersion v (Some (BuildPaths _ _)) | v < ProtoVersion 1 30 = False
-restrictProtoVersion v (Some (QueryMissing _)) | v < ProtoVersion 1 30 = False
 restrictProtoVersion _ _ = True
 
-errorInfoIf :: Bool -> Logger -> Bool
-errorInfoIf True  (Logger_Error (Right _)) = True
-errorInfoIf False (Logger_Error (Left _))  = True
-errorInfoIf _     (Logger_Error _)         = False
-errorInfoIf _     _                        = True

@@ -5,6 +5,8 @@ module System.Nix.ContentAddress (
   , methodToText
   , textToMethod
   , ContentAddressMethod (..)
+  , methodAlgoBuilder
+  , methodAlgoParser
   , contentAddressBuilder
   , contentAddressParser
   , buildContentAddress
@@ -17,6 +19,7 @@ import Crypto.Hash (Digest)
 import Data.Attoparsec.Text (Parser)
 import Data.Attoparsec.Text qualified
 import Data.Dependent.Sum (DSum)
+import Data.Some (Some(..))
 import Data.Text (Text)
 import Data.Text qualified
 import Data.Text.Lazy qualified
@@ -73,15 +76,35 @@ buildContentAddress =
   . Data.Text.Lazy.Builder.toLazyText
   . contentAddressBuilder
 
+-- | Render the method prefix used in content address strings.
+--
+-- @"text:"@, @"fixed:"@ (flat), @"fixed:r:"@ (nar)
+methodPrefix :: ContentAddressMethod -> Builder
+methodPrefix = \case
+  ContentAddressMethod_Text -> "text:"
+  ContentAddressMethod_Flat -> "fixed:"
+  ContentAddressMethod_NixArchive -> "fixed:r:"
+
+-- | Render method and hash algorithm, e.g. @"fixed:r:sha256"@.
+--
+-- Used in the daemon wire protocol for @AddToStore@ (>= 1.25).
+methodAlgoBuilder :: ContentAddressMethod -> Some HashAlgo -> Builder
+methodAlgoBuilder method (Some hashAlgo) =
+  methodPrefix method <> Data.Text.Lazy.Builder.fromText (System.Nix.Hash.algoToText hashAlgo)
+
+-- | Parse method and hash algorithm from wire format.
+methodAlgoParser :: Parser (ContentAddressMethod, Some HashAlgo)
+methodAlgoParser = do
+  method <- parseContentAddressMethod
+  _ <- ":"
+  hashAlgoText <- "sha256" <|> "sha512" <|> "sha1" <|> "md5"
+  case System.Nix.Hash.textToAlgo hashAlgoText of
+    Left e -> fail e
+    Right algo -> pure (method, algo)
+
 contentAddressBuilder :: ContentAddress -> Builder
 contentAddressBuilder (ContentAddress method digest) =
-  (case method of
-    ContentAddressMethod_Text -> "text"
-    ContentAddressMethod_NixArchive -> "fixed:r"
-    ContentAddressMethod_Flat -> "fixed"
-  )
-  <> ":"
-  <> System.Nix.Hash.algoDigestBuilder digest
+  methodPrefix method <> System.Nix.Hash.algoDigestBuilder digest
 
 -- | Parse `ContentAddressableAddress` from `ByteString`
 parseContentAddress

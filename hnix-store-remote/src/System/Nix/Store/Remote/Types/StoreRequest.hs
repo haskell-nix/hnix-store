@@ -17,9 +17,9 @@ import Data.Some (Some(Some))
 import System.Nix.Build (BuildMode, BuildResult)
 import System.Nix.Derivation (BasicDerivation)
 import System.Nix.DerivedPath (DerivedPath)
+import System.Nix.ContentAddress (ContentAddressMethod)
 import System.Nix.Hash (HashAlgo)
 import System.Nix.Signature (Signature)
-import System.Nix.FileContentAddress (FileIngestionMethod)
 import System.Nix.Store.Types (RepairMode)
 import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart)
 import System.Nix.StorePath.Metadata (Metadata)
@@ -35,9 +35,10 @@ data StoreRequest :: Type -> Type where
   -- | Add @NarSource@ to the store.
   AddToStore
     :: StorePathName -- ^ Name part of the newly created @StorePath@
-    -> FileIngestionMethod -- ^ Add target directory recursively
-    -> Some HashAlgo -- ^ Nar hashing algorithm
-    -> RepairMode -- ^ Only used by local store backend
+    -> ContentAddressMethod -- ^ Content addressing method
+    -> Some HashAlgo -- ^ Hashing algorithm
+    -> Set StorePath -- ^ References
+    -> RepairMode
     -> StoreRequest StorePath
 
   -- | Add a NAR with Metadata to the store.
@@ -172,7 +173,7 @@ deriveGCompare ''StoreRequest
 deriveGShow ''StoreRequest
 
 instance {-# OVERLAPPING #-} Eq (Some StoreRequest) where
-  Some (AddToStore a b c d) == Some (AddToStore a' b' c' d') = (a, b, c, d) == (a', b', c', d')
+  Some (AddToStore a b c d e) == Some (AddToStore a' b' c' d' e') = (a, b, c, d, e) == (a', b', c', d', e')
   Some (AddToStoreNar a b c d) == Some (AddToStoreNar a' b' c' d') = (a, b, c, d) == (a', b', c', d')
   Some (AddTextToStore a b c) == Some (AddTextToStore a' b' c') = (a, b, c) == (a', b', c')
   Some (AddSignatures a b) == Some (AddSignatures a' b') = (a, b) == (a', b')

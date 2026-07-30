@@ -4,11 +4,14 @@ module System.Nix.Store.Remote.Client.Core
   , doReq
   ) where
 
+import Algebra.PartialOrd (leq)
 import Control.Monad (unless, when)
 import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.Bits (shiftR)
 import Data.ByteString (ByteString)
 import Data.DList (DList)
+import Data.Set qualified
 import Data.Some (Some(Some))
 import Data.Word (Word64)
 import Network.Socket (Socket)
@@ -24,7 +27,9 @@ import System.Nix.Store.Remote.Serializer
   ( bool
   , int
   , mapErrorS
+  , protoFeatures
   , protoVersion
+  , validPathInfo
   , storeRequest
   , text
   , trustedFlag
@@ -33,7 +38,7 @@ import System.Nix.Store.Remote.Serializer
 import System.Nix.Store.Remote.Types.Handshake (ClientHandshakeOutput(..))
 import System.Nix.Store.Remote.Types.Logger (Logger)
 import System.Nix.Store.Remote.Types.NoReply (NoReply(..))
-import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..))
+import System.Nix.Store.Remote.Types.ProtoVersion (ProtoVersion(..), minVersionNumber)
 import System.Nix.Store.Remote.Types.StoreRequest (StoreRequest(..))
 import System.Nix.Store.Remote.Types.StoreReply (StoreReply(..))
 import System.Nix.Store.Remote.Types.WorkerMagic (WorkerMagic(..))
@@ -66,19 +71,20 @@ doReq = \case
 
     case x of
       AddToStore {} -> do
-
         ms <- takeNarSource
+        soc <- getStoreSocket
         case ms of
-          Just (stream :: NarSource IO) -> do
-            soc <- getStoreSocket
-            liftIO
-              $ stream
-              $ Network.Socket.ByteString.sendAll soc
+          Just (stream :: NarSource IO) ->
+            liftIO $ writeFramedNarSource stream soc
           Nothing ->
             throwError
               RemoteStoreError_NoNarSourceProvided
         processOutput
-        processReply
+        -- New protocol returns ValidPathInfo (path + metadata)
+        (path, _metadata) <- sockGetS
+          $ mapErrorS RemoteStoreError_SerializerGet
+          $ validPathInfo storeDir
+        pure path
 
       AddToStoreNar _ meta _ _ -> do
         let narBytes = maybe 0 id $ metadataNarBytes meta
@@ -140,6 +146,29 @@ copyToSink sink remainingBytes soc =
     let nextRemainingBytes = remainingBytes - (fromIntegral . Data.ByteString.length) bytes
     copyToSink sink nextRemainingBytes soc
 
+-- | Write a NarSource as framed data to a socket.
+-- Each chunk of NAR data is prefixed with its length as a
+-- little-endian u64, terminated by a zero-length frame.
+writeFramedNarSource :: NarSource IO -> Socket -> IO ()
+writeFramedNarSource narSource sock = do
+  narSource sendChunk
+  sendWord64le sock 0 -- terminator
+  where
+    sendChunk :: ByteString -> IO ()
+    sendChunk bs = do
+      let len = Data.ByteString.length bs
+      when (len > 0) $ do
+        sendWord64le sock (fromIntegral len)
+        Network.Socket.ByteString.sendAll sock bs
+
+    sendWord64le :: Socket -> Word64 -> IO ()
+    sendWord64le s w =
+      Network.Socket.ByteString.sendAll s
+        $ Data.ByteString.pack
+            [ fromIntegral (shiftR w (i * 8))
+            | i <- [0..7]
+            ]
+
 writeFramedSource
   :: forall m
    . ( MonadIO m
@@ -190,45 +219,46 @@ greetServer = do
 
   daemonVersion <- sockGetS protoVersion
 
-  when (daemonVersion < ProtoVersion 1 10)
+  when (not (ProtoVersion 1 37 mempty `leq` daemonVersion))
     $ throwError RemoteStoreError_ClientVersionTooOld
 
   pv <- getProtoVersion
   sockPutS protoVersion pv
 
-  let leastCommonVersion = min daemonVersion pv
+  let leastCommonVersion = minVersionNumber daemonVersion pv
 
-  when (leastCommonVersion >= ProtoVersion 1 14)
-    $ sockPutS int (0 :: Int) -- affinity, obsolete
-
-  when (leastCommonVersion >= ProtoVersion 1 11) $ do
-    sockPutS
-      (mapErrorS RemoteStoreError_SerializerPut bool)
-      False -- reserveSpace, obsolete
-
-  daemonNixVersion <- if leastCommonVersion >= ProtoVersion 1 33
+  -- Feature exchange (>= 1.38)
+  negotiatedFeatures <- if ProtoVersion 1 38 mempty `leq` leastCommonVersion
     then do
-      -- If we were buffering I/O, we would flush the output here.
-      txtVer <-
-        sockGetS
-          $ mapErrorS
-              RemoteStoreError_SerializerGet
-              text
-      pure $ Just txtVer
-    else pure Nothing
+      sockPutS
+        (mapErrorS RemoteStoreError_SerializerPut protoFeatures)
+        (protoVersion_features pv)
+      daemonFeatures <- sockGetS
+        $ mapErrorS RemoteStoreError_SerializerGet protoFeatures
+      pure $ Data.Set.intersection daemonFeatures (protoVersion_features pv)
+    else pure mempty
 
-  remoteTrustsUs <- if leastCommonVersion >= ProtoVersion 1 35
-    then do
-      sockGetS
-        $ mapErrorS RemoteStoreError_SerializerHandshake trustedFlag
-    else pure Nothing
+  let leastCommonVersionWithFeatures = leastCommonVersion { protoVersion_features = negotiatedFeatures }
 
-  setProtoVersion leastCommonVersion
+  setProtoVersion leastCommonVersionWithFeatures
+
+  -- postHandshake: affinity (obsolete), reserveSpace (obsolete)
+  sockPutS int (0 :: Int) -- affinity, obsolete
+  sockPutS (mapErrorS RemoteStoreError_SerializerPut bool) False -- reserveSpace, obsolete
+
+  -- If we were buffering I/O, we would flush the output here.
+
+  daemonNixVersion <- Just <$>
+    sockGetS (mapErrorS RemoteStoreError_SerializerGet text)
+
+  remoteTrustsUs <-
+    sockGetS (mapErrorS RemoteStoreError_SerializerHandshake trustedFlag)
+
   processOutput
 
   pure ClientHandshakeOutput
     { clientHandshakeOutputNixVersion = daemonNixVersion
     , clientHandshakeOutputTrust = remoteTrustsUs
-    , clientHandshakeOutputLeastCommonVersion = leastCommonVersion
+    , clientHandshakeOutputLeastCommonVersion = leastCommonVersionWithFeatures
     , clientHandshakeOutputServerVersion = daemonVersion
     }
