@@ -16,9 +16,10 @@ import Data.Some (Some(Some))
 
 import System.Nix.Build (BuildMode, BuildResult)
 import System.Nix.Derivation (BasicDerivation)
-import System.Nix.DerivedPath (DerivedPath)
+import System.Nix.DerivedPath (DerivedPath, SingleDerivedPath)
 import System.Nix.ContentAddress (ContentAddressMethod)
 import System.Nix.Hash (HashAlgo)
+import System.Nix.OutputName (OutputName)
 import System.Nix.Signature (Signature)
 import System.Nix.Store.Types (RepairMode)
 import System.Nix.StorePath (StorePath, StorePathName, StorePathHashPart)
@@ -48,6 +49,18 @@ data StoreRequest :: Type -> Type where
     -> RepairMode
     -> CheckMode -- ^ Whether to check signatures
     -> StoreRequest NoReply
+
+  -- | Add @NarSource@ to the store, letting the daemon scan the
+  -- contents for references instead of declaring them.
+  --
+  -- Only available inside a derivation build with the
+  -- @recursive-nix@ or @builder-rpc-v0@ system feature, when the
+  -- @add-to-store-scanning@ protocol feature was negotiated.
+  AddToStoreScanning
+    :: StorePathName -- ^ Name part of the newly created @StorePath@
+    -> ContentAddressMethod -- ^ Content addressing method
+    -> Some HashAlgo -- ^ Hashing algorithm
+    -> StoreRequest StorePath
 
   -- | Add text to store.
   --
@@ -156,6 +169,17 @@ data StoreRequest :: Type -> Type where
   OptimiseStore
     :: StoreRequest SuccessCodeReply
 
+  -- | Register a store object as an output of the currently running
+  -- derivation.
+  --
+  -- Only available inside a derivation build with the
+  -- @builder-rpc-v0@ system feature, when the @submit-output@
+  -- protocol feature was negotiated.
+  SubmitOutput
+    :: SingleDerivedPath
+    -> OutputName
+    -> StoreRequest SuccessCodeReply
+
   SyncWithGC
     :: StoreRequest SuccessCodeReply
 
@@ -175,6 +199,7 @@ deriveGShow ''StoreRequest
 instance {-# OVERLAPPING #-} Eq (Some StoreRequest) where
   Some (AddToStore a b c d e) == Some (AddToStore a' b' c' d' e') = (a, b, c, d, e) == (a', b', c', d', e')
   Some (AddToStoreNar a b c d) == Some (AddToStoreNar a' b' c' d') = (a, b, c, d) == (a', b', c', d')
+  Some (AddToStoreScanning a b c) == Some (AddToStoreScanning a' b' c') = (a, b, c) == (a', b', c')
   Some (AddTextToStore a b c) == Some (AddTextToStore a' b' c') = (a, b, c) == (a', b', c')
   Some (AddSignatures a b) == Some (AddSignatures a' b') = (a, b) == (a', b')
   Some (AddIndirectRoot a) == Some (AddIndirectRoot a') = a == a'
@@ -197,6 +222,7 @@ instance {-# OVERLAPPING #-} Eq (Some StoreRequest) where
   Some (QueryPathFromHashPart a) == Some (QueryPathFromHashPart a') = a == a'
   Some (QueryMissing a) == Some (QueryMissing a') = a == a'
   Some OptimiseStore == Some OptimiseStore = True
+  Some (SubmitOutput a b) == Some (SubmitOutput a' b') = (a, b) == (a', b')
   Some SyncWithGC == Some SyncWithGC = True
   Some (VerifyStore a b) == Some (VerifyStore a' b') = (a, b) == (a', b')
 

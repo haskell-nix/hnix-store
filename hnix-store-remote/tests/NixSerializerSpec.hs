@@ -91,6 +91,9 @@ spec = parallel $ do
       roundtripS (basicDerivation sd) $
         System.Nix.Derivation.Traditional.withoutName drv
 
+    prop "SingleDerivedPath" $ \sd ->
+      roundtripS (singleDerivedPath sd)
+
     prop "ProtoVersion" $ roundtripS @() @ProtoVersion protoVersion
 
     prop "ProtoFeature" $ roundtripS protoFeature

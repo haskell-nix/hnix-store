@@ -60,6 +60,7 @@ module System.Nix.Store.Remote.Serializer
   , basicDerivation
   -- * Derivation
   , derivedPath
+  , singleDerivedPath
   -- * Build
   , buildMode
   -- * Logger
@@ -152,7 +153,7 @@ import System.Nix.ContentAddress (ContentAddress, methodAlgoBuilder, methodAlgoP
 import System.Nix.ContentAddress qualified
 import System.Nix.Derivation.Traditional
 import System.Nix.Derivation
-import System.Nix.DerivedPath (DerivedPath(..), ParseOutputsError)
+import System.Nix.DerivedPath (DerivedPath(..), SingleDerivedPath(..), ParseOutputsError)
 import System.Nix.DerivedPath qualified
 import System.Nix.Hash (HashAlgo(..))
 import System.Nix.Hash qualified
@@ -203,7 +204,9 @@ data SError
   | SError_Name InvalidNameError
   | SError_Path InvalidPathError
   | SError_Signature String
+  | SError_SingleDerivedPathInvalidTag Word64
   | SError_UnknownProtoFeature Text
+  | SError_InvalidWorkerOp Word64
   deriving (Eq, Generic, Show)
 
 
@@ -777,6 +780,30 @@ derivedPath storeDir = Serializer
   , putS = putS (derivedPathNew storeDir)
   }
 
+-- | Tagged, recursive format used by the builder-rpc-v0 operations,
+-- unlike 'derivedPath' which round-trips through the textual
+-- rendering.
+singleDerivedPath
+  :: StoreDir
+  -> NixSerializer SError SingleDerivedPath
+singleDerivedPath storeDir = Serializer
+  { getS = getS (int @Word64) >>= \case
+      0 -> SingleDerivedPath_Opaque <$> getS (storePath storeDir)
+      1 -> do
+        drvPath <- getS (singleDerivedPath storeDir)
+        output <- getS outputName
+        pure $ SingleDerivedPath_Built drvPath output
+      x -> throwError $ SError_SingleDerivedPathInvalidTag x
+  , putS = \case
+      SingleDerivedPath_Opaque p -> do
+        putS (int @Word64) 0
+        putS (storePath storeDir) p
+      SingleDerivedPath_Built drvPath output -> do
+        putS (int @Word64) 1
+        putS (singleDerivedPath storeDir) drvPath
+        putS outputName output
+  }
+
 -- * Build
 
 buildMode :: NixSerializer SError BuildMode
@@ -1013,7 +1040,14 @@ storeText = Serializer
   }
 
 workerOp :: NixSerializer SError WorkerOp
-workerOp = enum
+workerOp = Serializer
+  { getS = getS int >>=
+      either
+        (throwError . SError_InvalidWorkerOp)
+        pure
+      . word64ToWorkerOp
+  , putS = putS int . workerOpToWord64
+  }
 
 -- * Request
 
@@ -1040,6 +1074,14 @@ storeRequest storeDir _pv = Serializer
         repairBool <- getS bool
         let repair = if repairBool then RepairMode_DoRepair else RepairMode_DontRepair
         pure $ Some (AddToStore pathName method hashAlgo refs repair)
+
+      WorkerOp_AddToStoreScanning -> mapGetE $ do
+        pathName <- getS storePathName
+        camStr <- getS text
+        (method, hashAlgo) <- case Data.Attoparsec.Text.parseOnly methodAlgoParser camStr of
+          Left e -> fail e
+          Right x -> pure x
+        pure $ Some (AddToStoreScanning pathName method hashAlgo)
 
       WorkerOp_AddToStoreNar -> mapGetE $ do
         storePath' <- getS $ storePath storeDir
@@ -1140,6 +1182,11 @@ storeRequest storeDir _pv = Serializer
       WorkerOp_OptimiseStore -> mapGetE $ do
         pure $ Some OptimiseStore
 
+      WorkerOp_SubmitOutput -> mapGetE $ do
+        path <- getS $ singleDerivedPath storeDir
+        output <- getS outputName
+        pure $ Some (SubmitOutput path output)
+
       WorkerOp_SyncWithGC -> mapGetE $ do
         pure $ Some SyncWithGC
 
@@ -1183,6 +1230,15 @@ storeRequest storeDir _pv = Serializer
           $ methodAlgoBuilder method hashAlgo
         putS (set (storePath storeDir)) refs
         putS bool (repair == RepairMode_DoRepair)
+
+      Some (AddToStoreScanning pathName method hashAlgo) -> do
+        putS workerOp WorkerOp_AddToStoreScanning
+
+        putS storePathName pathName
+        putS text
+          $ Data.Text.Lazy.toStrict
+          $ Data.Text.Lazy.Builder.toLazyText
+          $ methodAlgoBuilder method hashAlgo
 
       Some (AddToStoreNar storePath' metadata repair checkSigs) -> do
         putS workerOp WorkerOp_AddToStoreNar
@@ -1296,6 +1352,12 @@ storeRequest storeDir _pv = Serializer
 
       Some OptimiseStore -> do
         putS workerOp WorkerOp_OptimiseStore
+
+      Some (SubmitOutput path output) -> do
+        putS workerOp WorkerOp_SubmitOutput
+
+        putS (singleDerivedPath storeDir) path
+        putS outputName output
 
       Some SyncWithGC -> do
         putS workerOp WorkerOp_SyncWithGC

@@ -1,13 +1,19 @@
 module System.Nix.Store.Remote.Types.WorkerOp
   ( WorkerOp(..)
+  , workerOpToWord64
+  , word64ToWorkerOp
   ) where
 
+import Data.Word (Word64)
 import GHC.Generics (Generic)
 
 -- | Worker opcode
 --
 -- This type has gaps filled in so that the GHC builtin
--- Enum instance lands on the right values.
+-- Enum instance lands on the right values for the contiguous
+-- 0-46 range. The builder-rpc-v0 opcodes at 1000+ don't follow
+-- the Enum values, so the wire mapping goes through
+-- 'workerOpToWord64' and 'word64ToWorkerOp'.
 data WorkerOp
   = WorkerOp_Reserved_0__ -- 0
   | WorkerOp_IsValidPath -- 1
@@ -56,4 +62,20 @@ data WorkerOp
   | WorkerOp_AddMultipleToStore --  44 0x2c
   | WorkerOp_AddBuildLog --  45 0x2d
   | WorkerOp_BuildPathsWithResults --  46 0x2e
+  | WorkerOp_SubmitOutput -- 1000, builder-rpc-v0 only
+  | WorkerOp_AddToStoreScanning -- 1001, recursive-nix or builder-rpc-v0 only
   deriving (Bounded, Eq, Enum, Generic, Ord, Show, Read)
+
+workerOpToWord64 :: WorkerOp -> Word64
+workerOpToWord64 = \case
+  WorkerOp_SubmitOutput -> 1000
+  WorkerOp_AddToStoreScanning -> 1001
+  op -> fromIntegral (fromEnum op)
+
+word64ToWorkerOp :: Word64 -> Either Word64 WorkerOp
+word64ToWorkerOp = \case
+  1000 -> Right WorkerOp_SubmitOutput
+  1001 -> Right WorkerOp_AddToStoreScanning
+  x | x <= fromIntegral (fromEnum WorkerOp_BuildPathsWithResults) ->
+        Right $ toEnum $ fromIntegral x
+    | otherwise -> Left x

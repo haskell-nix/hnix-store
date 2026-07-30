@@ -30,7 +30,7 @@ import System.Nix.Nar (NarSource)
 import System.Nix.StorePath (HasStoreDir(..), StoreDir)
 import System.Nix.Store.Remote.Serializer (HandshakeSError, LoggerSError, RequestSError, ReplySError, SError)
 import System.Nix.Store.Remote.Types.Logger (Logger, ErrorInfo)
-import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoVersion)
+import System.Nix.Store.Remote.Types.ProtoVersion (HasProtoVersion(..), ProtoFeature, ProtoVersion)
 import System.Nix.Store.Remote.Types.StoreConfig (ProtoStoreConfig(..))
 
 import Data.DList qualified
@@ -85,6 +85,7 @@ data RemoteStoreError
   | RemoteStoreError_NoDataSinkSizeProvided -- remoteStoreStateMDataSinkSize is required but it is Nothing
   | RemoteStoreError_NoNarSourceProvided
   | RemoteStoreError_OperationFailed
+  | RemoteStoreError_ProtocolFeatureNotNegotiated ProtoFeature
   | RemoteStoreError_ProtocolMismatch
   | RemoteStoreError_RapairNotSupportedByRemoteStore -- "repairing is not supported when building through the Nix daemon"
   | RemoteStoreError_WorkerMagic2Mismatch

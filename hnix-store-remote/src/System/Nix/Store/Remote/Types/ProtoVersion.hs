@@ -7,6 +7,7 @@ module System.Nix.Store.Remote.Types.ProtoVersion
   , HasProtoVersion(..)
   , hasFeature
   , minVersionNumber
+  , builderRpcV0
   ) where
 
 import Algebra.PartialOrd (PartialOrd(..))
@@ -19,14 +20,26 @@ import GHC.Generics (Generic)
 
 -- | An optional protocol capability, negotiated during handshake.
 data ProtoFeature
-  = ProtoFeature_RealisationWithPathNotHash
+  = ProtoFeature_AddToStoreScanning
+  -- ^ The AddToStoreScanning operation, only offered by the daemon
+  -- inside derivation builds with the @recursive-nix@ or
+  -- @builder-rpc-v0@ system feature.
+  | ProtoFeature_DisableSetOptions
+  -- ^ The client promises not to send SetOptions after handshake.
+  | ProtoFeature_RealisationWithPathNotHash
   -- ^ Use StorePath-based realisations instead of hash-based ones.
+  | ProtoFeature_SubmitOutput
+  -- ^ The SubmitOutput operation, only offered by the daemon inside
+  -- derivation builds with the @builder-rpc-v0@ system feature.
   deriving (Bounded, Enum, Eq, Generic, Ord, Show)
 
 -- | The name of a feature as exchanged on the wire.
 protoFeatureToText :: ProtoFeature -> Text
 protoFeatureToText = \case
+  ProtoFeature_AddToStoreScanning -> "add-to-store-scanning"
+  ProtoFeature_DisableSetOptions -> "disable-set-options"
   ProtoFeature_RealisationWithPathNotHash -> "realisation-with-path-not-hash"
+  ProtoFeature_SubmitOutput -> "submit-output"
 
 protoFeatureFromText :: Text -> Maybe ProtoFeature
 protoFeatureFromText t =
@@ -65,6 +78,22 @@ instance Default ProtoVersion where
     , protoVersion_minor = 38
     , protoVersion_features = Data.Set.singleton ProtoFeature_RealisationWithPathNotHash
     }
+
+-- | The protocol profile spoken on the daemon socket exposed to
+-- builders of derivations with the @builder-rpc-v0@ system feature.
+--
+-- Frozen upstream, since any change would be derivation-visible.
+builderRpcV0 :: ProtoVersion
+builderRpcV0 = ProtoVersion
+  { protoVersion_major = 1
+  , protoVersion_minor = 38
+  , protoVersion_features = Data.Set.fromList
+      [ ProtoFeature_RealisationWithPathNotHash
+      , ProtoFeature_DisableSetOptions
+      , ProtoFeature_AddToStoreScanning
+      , ProtoFeature_SubmitOutput
+      ]
+  }
 
 class HasProtoVersion r where
   hasProtoVersion :: r -> ProtoVersion
