@@ -50,7 +50,7 @@ jobs:
         cabal:
         - '3.16'
         ghc:
-        - '9.10.2'
+        - '9.10.3'
         - '9.8.4'
         os:
         - "ubuntu-latest"
