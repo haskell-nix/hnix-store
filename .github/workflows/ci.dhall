@@ -1,5 +1,5 @@
 let haskellCi =
-      https://raw.githubusercontent.com/obsidiansystems/github-actions-dhall/merge-group/haskell-ci.dhall
+      https://raw.githubusercontent.com/sorki/github-actions-dhall/main/haskell-ci.dhall
 
 let defSteps = haskellCi.defaultCabalSteps
 
