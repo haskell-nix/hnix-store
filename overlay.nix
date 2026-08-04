@@ -23,8 +23,8 @@ in
 
   crypton = hself.callHackageDirect
     { pkg = "crypton";
-      ver = "1.1.1";
-      sha256 = "1nl4ycl99rcnvd25a1sp6xq2mai85pzcd15cbkzrgx0x6rr0zkz6";
+      ver = "1.1.4";
+      sha256 = "sha256-tJSK0HoDabSqcUGORs856Jl6aWZnrqyXPSAh66HsKMM=";
     } {};
 
   hnix-store-core =
