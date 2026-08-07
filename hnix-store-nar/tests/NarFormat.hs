@@ -34,6 +34,7 @@ import           System.Directory                 ( doesDirectoryExist
 import System.Directory qualified                 as Directory
 import           System.Environment               (getEnv)
 import           System.FilePath                  ((<.>), (</>))
+import System.Info qualified                      as Info
 import System.IO qualified                        as IO
 import System.IO.Temp qualified                   as Temp
 import System.Posix.Files qualified               as Unix
@@ -147,8 +148,11 @@ unit_nixStoreDirectory' :: HU.Assertion
 unit_nixStoreDirectory' = filesystemNixStore "directory'" (Nar sampleDirectory')
 
 unit_nixStoreNonUtf8FilePaths :: HU.Assertion
-unit_nixStoreNonUtf8FilePaths =
-  Temp.withSystemTempDirectory "hnix-store-non-utf8" $ \baseDir -> do
+unit_nixStoreNonUtf8FilePaths
+  -- APFS only permits valid UTF-8 filenames, so the fixture cannot be
+  -- constructed on macOS. Linux still exercises the filesystem integration.
+  | Info.os == "darwin" = pure ()
+  | otherwise = Temp.withSystemTempDirectory "hnix-store-non-utf8" $ \baseDir -> do
     let rawBaseDir = BSC.pack baseDir
         rawFileNames =
           [ "NetLock_Arany_=Class_Gold=_F" <> BS.pack [0xf5]
