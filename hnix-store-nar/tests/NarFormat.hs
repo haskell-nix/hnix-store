@@ -37,6 +37,8 @@ import           System.FilePath                  ((<.>), (</>))
 import System.IO qualified                        as IO
 import System.IO.Temp qualified                   as Temp
 import System.Posix.Files qualified               as Unix
+import System.Posix.Files.ByteString qualified    as UnixFilesBS
+import System.Posix.IO.ByteString qualified       as UnixBS
 import System.Posix.Process qualified             as Unix
 import System.Process qualified                   as P
 import           Test.Tasty                       as T
@@ -143,6 +145,49 @@ unit_nixStoreDirectory = filesystemNixStore "directory" (Nar sampleDirectory)
 
 unit_nixStoreDirectory' :: HU.Assertion
 unit_nixStoreDirectory' = filesystemNixStore "directory'" (Nar sampleDirectory')
+
+unit_nixStoreNonUtf8FilePaths :: HU.Assertion
+unit_nixStoreNonUtf8FilePaths =
+  Temp.withSystemTempDirectory "hnix-store-non-utf8" $ \baseDir -> do
+    let rawBaseDir = BSC.pack baseDir
+        rawFileNames =
+          [ "NetLock_Arany_=Class_Gold=_F" <> BS.pack [0xf5]
+              <> "tan" <> BS.pack [0xfa, 0x73, 0xed, 0x74, 0x76, 0xe1]
+              <> "ny.crt"
+          -- These two names sort in the opposite order after the invalid byte
+          -- is decoded to a surrogate, so they also check raw-byte ordering.
+          , "sort-" <> BS.pack [0x80]
+          , "sort-" <> BS.pack [0xc2, 0x80]
+          ]
+        rawLinkTarget = "broken-target-" <> BS.pack [0xff]
+        rawLinkName = "link"
+
+    forM_ rawFileNames $ \rawFileName -> do
+      fd <- UnixBS.createFile
+        (rawBaseDir <> "/" <> rawFileName)
+        Unix.ownerReadMode
+      UnixBS.closeFd fd
+    UnixFilesBS.createSymbolicLink
+      rawLinkTarget
+      (rawBaseDir <> "/" <> rawLinkName)
+
+    hnixNar <- Temp.withSystemTempFile "hnix-store-non-utf8.nar" $ \narPath h -> do
+      buildNarIO narEffectsIO baseDir h
+      IO.hClose h
+      BS.readFile narPath
+
+    forM_ (rawLinkTarget : rawFileNames) $ \rawPath ->
+      rawPath `BS.isInfixOf` hnixNar `shouldBe` True
+
+    ver <- try (P.readProcess "nix-store" ["--version"] "")
+    case ver of
+      Left (_ :: SomeException) -> print ("No nix-store on system" :: String)
+      Right _ -> do
+        nixStoreNar <- BSL.toStrict <$> getNixStoreDump baseDir
+        HU.assertEqual
+          "non-UTF-8 paths serialize the same between hnix-store and nix-store"
+          nixStoreNar
+          hnixNar
 
 -- | Test that the executable permissions are handled correctly in app bundles on macOS.
 --   In this case, access() returns false for a file under this specific path, even when the executable bit is set.

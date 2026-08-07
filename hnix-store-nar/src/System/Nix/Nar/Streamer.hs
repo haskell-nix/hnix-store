@@ -14,7 +14,8 @@ import Data.ByteString (ByteString)
 import Data.Int (Int64)
 import Data.Map.Strict qualified                 as Map
 
-import           Control.Monad                    ( forM_
+import           Control.Monad                    ( forM
+                                                  , forM_
                                                   , when
                                                   )
 import Control.Monad.IO.Class qualified          as IO
@@ -23,9 +24,11 @@ import Data.ByteString.Lazy qualified            as Bytes.Lazy
 import Data.Foldable qualified
 import Data.List qualified
 import Data.Serialize qualified                  as Serial
-import Data.Text qualified                       as T (pack, unpack)
-import Data.Text.Encoding qualified              as TE (encodeUtf8)
+import Data.Text qualified                       as T (unpack)
+import GHC.Foreign qualified                     as Foreign
+import GHC.IO.Encoding qualified                 as Encoding
 import           System.FilePath                 ((</>))
+import           System.IO                       (TextEncoding)
 
 import System.Nix.Nar.Effects qualified as Nar
 import System.Nix.Nar.Options qualified as Nar
@@ -78,38 +81,41 @@ streamNarIOWithOptions
   -> FilePath
   -> NarSource m
 streamNarIOWithOptions opts effs basePath yield = do
+  fileSystemEncoding <- IO.liftIO Encoding.getFileSystemEncoding
   yield $ str "nix-archive-1"
-  parens $ go basePath
+  parens $ go fileSystemEncoding basePath
  where
-  go :: FilePath -> m ()
-  go path = do
+  go :: TextEncoding -> FilePath -> m ()
+  go fileSystemEncoding path = do
     isSymLink <- IO.liftIO $ Nar.narIsSymLink effs path
     if isSymLink then do
       target <- IO.liftIO $ Nar.narReadLink effs path
+      targetBytes <- IO.liftIO $ filePathToBS fileSystemEncoding target
       yield $
-        strs ["type", "symlink", "target", filePathToBS target]
+        strs ["type", "symlink", "target", targetBytes]
       else do
         isDir <- IO.liftIO $ Nar.narIsDir effs path
         if isDir then do
           fs <- IO.liftIO (Nar.narListDir effs path)
+          names <- IO.liftIO $ forM fs $ \f -> do
+            let name =
+                  if Nar.optUseCaseHack opts
+                  then undoCaseHack f
+                  else f
+            nameBytes <- filePathToBS fileSystemEncoding name
+            pure (nameBytes, name, f)
           let entries =
-                foldr (\f acc ->
-                  let
-                    name =
-                      if Nar.optUseCaseHack opts
-                      then undoCaseHack f
-                      else f
-                  in
-                  case Map.insertLookupWithKey (\_ n _ -> n) name f acc of
+                foldr (\(nameBytes, name, original) acc ->
+                  case Map.insertLookupWithKey (\_ n _ -> n) nameBytes (name, original) acc of
                     (Nothing, newMap) -> newMap
-                    (Just conflict, _) -> error $ "File name collision between " ++ (path </> name) ++ " and " ++ (path </> conflict)
-                ) Map.empty fs
+                    (Just (conflict, _), _) -> error $ "File name collision between " ++ (path </> name) ++ " and " ++ (path </> conflict)
+                ) Map.empty names
           yield $ strs ["type", "directory"]
-          forM_ (Map.toAscList entries) $ \(unhacked, original) -> do
+          forM_ (Map.toAscList entries) $ \(nameBytes, (_, original)) -> do
             yield $ str "entry"
             parens $ do
-              yield $ strs ["name", filePathToBS unhacked, "node"]
-              parens $ go (path </> original)
+              yield $ strs ["name", nameBytes, "node"]
+              parens $ go fileSystemEncoding (path </> original)
         else do
           isExec <- IO.liftIO $ Nar.narIsExec effs path
           yield $ strs ["type", "regular"]
@@ -151,8 +157,9 @@ padBS strSize bs = bs <> Bytes.replicate (padLen strSize) 0
 strs :: [ByteString] -> ByteString
 strs xs = Bytes.concat $ str <$> xs
 
-filePathToBS :: FilePath -> ByteString
-filePathToBS = TE.encodeUtf8 . T.pack
+filePathToBS :: TextEncoding -> FilePath -> IO ByteString
+filePathToBS encoding filePath =
+  Foreign.withCStringLen encoding filePath Bytes.packCStringLen
 
 undoCaseHack :: FilePath -> FilePath
 undoCaseHack f =
