@@ -16,6 +16,10 @@ extra-doc-files:
     CHANGELOG.md
 extra-source-files:
     README.md
+  , benchmarks/README.md
+  , benchmarks/prepare-hyperfine.sh
+  , benchmarks/run-hyperfine.sh
+  , benchmarks/shell.nix
   , tests/fixtures/case-conflict.nar
 
 flag bounded_memory
@@ -116,3 +120,16 @@ test-suite nar
     , tasty-quickcheck
     , text
     , unix
+
+benchmark nar-stream
+  import: commons
+  type: exitcode-stdio-1.0
+  main-is: NarStream.hs
+  hs-source-dirs: benchmarks
+  ghc-options: -O2 -threaded -rtsopts "-with-rtsopts -N1"
+  build-depends:
+      base
+    , bytestring
+    , directory
+    , filepath
+    , hnix-store-nar
