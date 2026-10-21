@@ -5,6 +5,7 @@ Build-Type: Simple
 Tested-With: GHC == 9.8.4, GHC == 9.6.6, GHC == 9.4.8
 License: BSD-3-Clause
 License-File: LICENSE
+Category: Nix
 Copyright: 2017 Gabriella Gonzalez
 Author: Gabriella Gonzalez
 Maintainer: srk@48.io
@@ -21,7 +22,6 @@ Description:
     This package also provides a @pretty-derivation@ executable which reads a
     derivation on standard input and outputs the pretty-printed Haskell
     representation on standard output
-Category: System
 
 extra-doc-files:
     CHANGELOG.md
