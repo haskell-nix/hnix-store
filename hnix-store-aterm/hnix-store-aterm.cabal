@@ -9,7 +9,6 @@ Category: Nix
 Copyright: 2017 Gabriella Gonzalez
 Author: Gabriella Gonzalez
 Maintainer: srk@48.io
-Bug-Reports: https://github.com/Gabriella439/Haskell-Nix-Derivation-Library/issues
 Synopsis: Parse and render *.drv files
 Description:
     Use this package to parse and render Nix derivation files (i.e. *.drv files),
