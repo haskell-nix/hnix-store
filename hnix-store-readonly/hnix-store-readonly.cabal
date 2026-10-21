@@ -1,6 +1,6 @@
 cabal-version:       2.2
 name:                hnix-store-readonly
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            Read-only Nix store
 description:
   Path computation without interaction with the actual Nix store

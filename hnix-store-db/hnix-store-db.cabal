@@ -1,6 +1,6 @@
 cabal-version:       2.2
 name:                hnix-store-db
-version:             0.1.0.1
+version:             0.1.0.2
 synopsis:            Nix store database support
 description:         Implementation of the Nix store database
 homepage:            https://github.com/haskell-nix/hnix-store
@@ -82,7 +82,7 @@ library
     , text
     , time
     , esqueleto >= 3.5.10 && < 3.7
-    , persistent >= 2.14.5 && < 2.18
+    , persistent >= 2.14.5 && < 2.19
     , persistent-sqlite >= 2.13.1 && < 2.14
     , template-haskell
     , monad-logger

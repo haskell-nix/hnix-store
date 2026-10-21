@@ -44,6 +44,12 @@ implementations planned:
 In the interest of separating concerns, this project is split into
 several Haskell packages.
 
+### [hnix-store-aterm]
+
+[![Hackage version](https://img.shields.io/hackage/v/hnix-store-aterm.svg?color=success)](https://hackage.haskell.org/package/hnix-store-aterm)
+
+Support for Nix Derivations in ATerm format.
+
 ### [hnix-store-core]
 
 [![Hackage version](https://img.shields.io/hackage/v/hnix-store-core.svg?color=success)](https://hackage.haskell.org/package/hnix-store-core)
@@ -95,6 +101,7 @@ via `nix-daemon`.
 
 Aribtrary instances and utilities for testing.
 
+[hnix-store-aterm]: ./hnix-store-aterm
 [hnix-store-core]: ./hnix-store-core
 [hnix-store-db]: ./hnix-store-db
 [hnix-store-json]: ./hnix-store-json

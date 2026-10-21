@@ -1,6 +1,6 @@
 cabal-version:       2.2
 name:                hnix-store-remote
-version:             0.7.0.0
+version:             0.8.0.0
 synopsis:            Remote hnix store
 description:         Implementation of the nix store using the daemon protocol.
 homepage:            https://github.com/haskell-nix/hnix-store
@@ -104,10 +104,10 @@ library
 
   build-depends:
       base >=4.12 && <5
-    , hnix-store-core >= 0.8 && <0.9
-    , hnix-store-json >= 0.1
+    , hnix-store-core >= 0.9 && <0.10
+    , hnix-store-json >= 0.2
     , hnix-store-nar >= 0.1
-    , hnix-store-tests >= 0.1
+    , hnix-store-tests >= 0.2
     , hnix-store-aterm
     , aeson
     , attoparsec

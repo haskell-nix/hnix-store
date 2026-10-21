@@ -18,6 +18,12 @@ let ci =
                             "sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0"
                         , `if` = "matrix.os == 'ubuntu-latest'"
                         }
+                    , haskellCi.BuildStep.NameIf
+                        { name = "Apply MacOS toolchain workaround"
+                        , run =
+                            "sudo xcode-select -s /Library/Developer/CommandLineTools"
+                        , `if` = "matrix.os == 'macos-latest'"
+                        }
                     ]
             )
         )
