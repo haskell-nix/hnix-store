@@ -40,6 +40,7 @@ jobs:
         path: |
           ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
           dist-newstyle
+        "restore-keys": "${{ matrix.os }}-${{ matrix.ghc }}-${{ matrix.cabal}}-"
     - name: Install dependencies
       run: "cabal build all --enable-tests --enable-benchmarks --only-dependencies"
     - name: build all
