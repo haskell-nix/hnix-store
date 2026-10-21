@@ -1,4 +1,4 @@
-# Unreleased
+# [0.2.0.0](https://github.com/haskell-nix/hnix-store/compare/test-0.1.0.0...tests-0.2.0.0) 2026-10-21
 
 * Additions:
    * `Arbitrary` instance for `SingleDerivedPath`
