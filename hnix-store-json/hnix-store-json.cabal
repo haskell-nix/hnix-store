@@ -1,6 +1,6 @@
 cabal-version:       2.2
 name:                hnix-store-json
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            JSON serialization for core types
 description:
   Aeson instances for core types, required for remote store protocol

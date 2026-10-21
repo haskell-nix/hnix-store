@@ -1,4 +1,4 @@
-# Unreleased
+# [0.2.0.0](https://github.com/haskell-nix/hnix-store/compare/json-0.1.0.0...json-0.2.0.0) 2026-10-21
 
 The test suite is now much more comprenesive, uses test data from upstream Nix to make sure the JSON formats match.
 
