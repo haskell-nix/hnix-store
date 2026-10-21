@@ -1,3 +1,5 @@
+# [next](https://github.com/haskell-nix/hnix-store/compare/readonly-0.2.0.0...master) 2026-MM-DD
+
 # [0.2.0.0](https://github.com/haskell-nix/hnix-store/compare/readonly-0.1.0.0...readonly-0.2.0.0) 2026-10-21
 
 Remove duplicate code from `hnix-store-readonly`

@@ -1,3 +1,5 @@
+# [next](https://github.com/haskell-nix/hnix-store/compare/core-0.9.0.0...master) 2026-MM-DD
+
 # [0.9.0.0](https://github.com/haskell-nix/hnix-store/compare/core-0.8.0.0...core-0.9.0.0) 2026-10-21
 
 Up to date with the latest data structure changes in upstream Nix as of `25405812fc5ce64b719dace172c21d2301829deb.`
