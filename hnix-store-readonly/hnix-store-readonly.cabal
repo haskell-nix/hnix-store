@@ -51,5 +51,5 @@ test-suite readonly
   build-tool-depends:
     hspec-discover:hspec-discover
   build-depends:
-      base
+      base >=4.12 && <5
     , hspec
