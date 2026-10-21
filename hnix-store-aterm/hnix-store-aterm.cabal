@@ -22,6 +22,10 @@ Description:
     derivation on standard input and outputs the pretty-printed Haskell
     representation on standard output
 Category: System
+
+extra-doc-files:
+    CHANGELOG.md
+
 Extra-Source-Files:
     tests/example0.drv
     tests/example1.drv
