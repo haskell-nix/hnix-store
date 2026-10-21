@@ -1,3 +1,5 @@
+# [next](https://github.com/haskell-nix/hnix-store/compare/nar-0.1.2.0...master)  2026-MM-DD
+
 # [0.1.2.0](https://github.com/haskell-nix/hnix-store/compare/nar-0.1.1.0...nar-0.1.2.0)  2026-08-10
 
 * Switch from `cryptonite` to `crypton`
