@@ -7,7 +7,7 @@ License: BSD-3-Clause
 License-File: LICENSE
 Copyright: 2017 Gabriella Gonzalez
 Author: Gabriella Gonzalez
-Maintainer: GenuineGabriella@gmail.com
+Maintainer: srk@48.io
 Bug-Reports: https://github.com/Gabriella439/Haskell-Nix-Derivation-Library/issues
 Synopsis: Parse and render *.drv files
 Description:
