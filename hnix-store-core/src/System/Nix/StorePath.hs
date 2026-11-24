@@ -46,6 +46,7 @@ import Control.DeepSeq (NFData)
 import Crypto.Hash (HashAlgorithm)
 import Data.Attoparsec.Text.Lazy (Parser, (<?>))
 import Data.ByteString (ByteString)
+import qualified Data.ByteString
 import Data.Default.Class (Default(def))
 import Data.Hashable (Hashable(hashWithSalt))
 import Data.Text (Text)
@@ -112,7 +113,14 @@ newtype StorePathHashPart = StorePathHashPart
   { -- | Extract the contents of the hash.
     unStorePathHashPart :: ByteString
   }
-  deriving (Eq, Generic, Hashable, Ord, Show)
+  deriving (Eq, Generic, Hashable, Show)
+
+-- | Implement the ordering used by Nix. In Nix's code base store paths are just
+-- a newtype on Text, so its Ord is Text's. Nix's base-32 encoding prints the
+-- digest's bytes from last to first, so we just flip our hash and compare.
+instance Ord StorePathHashPart where
+  compare (StorePathHashPart a) (StorePathHashPart b) =
+    compare (Data.ByteString.reverse a) (Data.ByteString.reverse b)
 
 instance NFData StorePathHashPart
 
